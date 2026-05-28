@@ -1,0 +1,226 @@
+.page {
+  padding: 24px;
+  display: grid;
+  gap: 24px;
+}
+
+.hero {
+  display: grid;
+  grid-template-columns: 1.6fr 1fr;
+  gap: 20px;
+  align-items: stretch;
+}
+
+.eyebrow {
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-size: 12px;
+  color: #0e5f84;
+  font-weight: 700;
+}
+
+.title {
+  margin: 10px 0 8px;
+  font-size: 40px;
+  line-height: 1.05;
+  color: #10273b;
+}
+
+.subtitle {
+  margin: 0;
+  color: #586a79;
+  max-width: 760px;
+  line-height: 1.7;
+}
+
+.currentCard,
+.explainerCard,
+.historyCard,
+.planCard {
+  background: #ffffff;
+  border: 1px solid #dde6ee;
+  border-radius: 24px;
+  box-shadow: 0 16px 40px rgba(15, 50, 78, 0.08);
+}
+
+.currentCard {
+  padding: 24px;
+  background: linear-gradient(145deg, #0e5f84, #0b4561);
+  color: #fff;
+}
+
+.currentLabel {
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-size: 12px;
+  opacity: 0.78;
+}
+
+.currentName {
+  font-size: 30px;
+  font-weight: 700;
+  margin-top: 8px;
+}
+
+.currentMeta {
+  margin-top: 8px;
+  opacity: 0.9;
+}
+
+.planGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 20px;
+}
+
+.planCard {
+  padding: 24px;
+  display: grid;
+  gap: 18px;
+}
+
+.planCardActive {
+  border-color: #0e5f84;
+  box-shadow: 0 18px 44px rgba(14, 95, 132, 0.18);
+}
+
+.planHeader {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: start;
+}
+
+.planName {
+  font-size: 24px;
+  font-weight: 700;
+  color: #10273b;
+}
+
+.planDescription {
+  margin-top: 8px;
+  color: #5e6f7d;
+  line-height: 1.6;
+}
+
+.planPrice {
+  color: #0e5f84;
+  font-size: 24px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.planDuration {
+  color: #35536a;
+  font-size: 14px;
+}
+
+.ruleList {
+  margin: 0;
+  padding-left: 18px;
+  color: #273f53;
+  display: grid;
+  gap: 10px;
+}
+
+.planActions {
+  margin-top: auto;
+}
+
+.primaryBtn,
+.secondaryBtn {
+  border-radius: 999px;
+  padding: 12px 18px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.primaryBtn {
+  border: none;
+  background: #0e5f84;
+  color: #fff;
+}
+
+.secondaryBtn {
+  border: 1px solid #cad7e1;
+  background: #f8fbfd;
+  color: #587084;
+}
+
+.explainerCard,
+.historyCard {
+  padding: 24px;
+}
+
+.chargeGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.chargeItem {
+  padding: 14px 16px;
+  background: #f6fafc;
+  border-radius: 16px;
+  color: #214158;
+}
+
+.transactionList {
+  display: grid;
+  gap: 12px;
+}
+
+.transactionRow {
+  display: grid;
+  grid-template-columns: 1.7fr auto auto;
+  gap: 14px;
+  align-items: center;
+  border: 1px solid #e3ebf1;
+  border-radius: 16px;
+  padding: 14px 16px;
+}
+
+.transactionTitle {
+  color: #142f43;
+  font-weight: 700;
+}
+
+.transactionMeta {
+  color: #5f7383;
+  font-size: 14px;
+}
+
+.transactionStatus {
+  text-transform: capitalize;
+  font-weight: 700;
+}
+
+.status_successful {
+  color: #1b7d45;
+}
+
+.status_pending {
+  color: #a56a00;
+}
+
+.status_failed,
+.status_cancelled,
+.status_expired {
+  color: #b63b3b;
+}
+
+.emptyState {
+  color: #5f7383;
+}
+
+@media (max-width: 1080px) {
+  .hero,
+  .planGrid,
+  .chargeGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .transactionRow {
+    grid-template-columns: 1fr;
+  }
+}

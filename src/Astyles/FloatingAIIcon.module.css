@@ -1,0 +1,33 @@
+.aiIcon {
+    position: fixed;
+    width: 58px;
+    height: 58px;
+    border: none;
+    border-radius: 999px;
+    background: linear-gradient(135deg, #2e7d32, #66bb6a);
+    color: #fff;
+    font-size: 1.35rem;
+    cursor: grab;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 14px 24px rgba(46, 125, 50, 0.35);
+    transition: transform 120ms ease, box-shadow 120ms ease;
+    z-index: 60;
+    touch-action: none;
+}
+
+.aiIcon:hover {
+    transform: translateY(-1px) scale(1.03);
+    box-shadow: 0 18px 28px rgba(46, 125, 50, 0.42);
+}
+
+.aiIcon:active {
+    cursor: grabbing;
+    transform: scale(0.98);
+}
+
+.aiIcon:focus-visible {
+    outline: 3px solid rgba(102, 187, 106, 0.55);
+    outline-offset: 3px;
+}

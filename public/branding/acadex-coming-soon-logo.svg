@@ -1,0 +1,64 @@
+<svg width="1600" height="900" viewBox="0 0 1600 900" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1600" y2="900" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#06080F"/>
+      <stop offset="0.55" stop-color="#111827"/>
+      <stop offset="1" stop-color="#250B12"/>
+    </linearGradient>
+
+    <linearGradient id="primary" x1="210" y1="330" x2="1120" y2="330" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#FF2D55"/>
+      <stop offset="0.45" stop-color="#FF5C00"/>
+      <stop offset="1" stop-color="#FFD200"/>
+    </linearGradient>
+
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#FF5C00"/>
+      <stop offset="1" stop-color="#FF2D55"/>
+    </linearGradient>
+
+    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="8" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+
+    <pattern id="noise" width="80" height="80" patternUnits="userSpaceOnUse">
+      <rect width="80" height="80" fill="transparent"/>
+      <circle cx="5" cy="12" r="1" fill="#FFFFFF" fill-opacity="0.05"/>
+      <circle cx="38" cy="31" r="1" fill="#FFFFFF" fill-opacity="0.04"/>
+      <circle cx="70" cy="58" r="1" fill="#FFFFFF" fill-opacity="0.03"/>
+      <circle cx="49" cy="74" r="1" fill="#FFFFFF" fill-opacity="0.05"/>
+    </pattern>
+  </defs>
+
+  <rect width="1600" height="900" fill="url(#bg)"/>
+  <rect width="1600" height="900" fill="url(#noise)"/>
+
+  <rect x="150" y="120" width="16" height="660" rx="8" fill="url(#accent)" filter="url(#glow)"/>
+
+  <path d="M0 780L280 640L540 730L980 540L1320 690L1600 560" stroke="#FF5C00" stroke-opacity="0.25" stroke-width="2"/>
+  <path d="M0 812L320 700L620 760L1020 620L1360 730L1600 650" stroke="#FF2D55" stroke-opacity="0.25" stroke-width="2"/>
+
+  <text x="210" y="220" fill="#D1D5DB" font-size="38" font-family="Arial, sans-serif" letter-spacing="6">FOR HND + BTS CANDIDATES</text>
+
+  <text x="210" y="370" fill="url(#primary)" font-size="188" font-weight="900" font-family="Impact, Oswald, Arial Black, sans-serif" letter-spacing="4" filter="url(#glow)">ACADEX</text>
+
+  <text x="214" y="447" fill="#FF2D55" fill-opacity="0.42" font-size="188" font-weight="900" font-family="Impact, Oswald, Arial Black, sans-serif" letter-spacing="4">ACADEX</text>
+
+  <text x="210" y="542" fill="#F9FAFB" font-size="92" font-weight="800" font-family="Oswald, Arial Black, sans-serif" letter-spacing="8">COMING SOON</text>
+
+  <rect x="210" y="595" width="850" height="10" rx="5" fill="#2C3446"/>
+  <rect x="210" y="595" width="640" height="10" rx="5" fill="url(#primary)"/>
+
+  <rect x="210" y="640" width="720" height="120" rx="18" fill="#0B1220" stroke="#FF5C00" stroke-opacity="0.7" stroke-width="2"/>
+  <text x="248" y="714" fill="#FFD200" font-size="56" font-weight="800" font-family="Oswald, Arial Black, sans-serif" letter-spacing="2">TUESDAY 26/05/2026</text>
+
+  <rect x="1060" y="595" width="320" height="220" rx="24" fill="#0A0F1A" stroke="#FF2D55" stroke-opacity="0.85" stroke-width="3" filter="url(#glow)"/>
+  <text x="1120" y="665" fill="#FFB700" font-size="42" font-weight="700" font-family="Arial, sans-serif" letter-spacing="2">COUNTDOWN</text>
+  <text x="1144" y="760" fill="url(#primary)" font-size="106" font-weight="900" font-family="Impact, Oswald, Arial Black, sans-serif" letter-spacing="2">T-2</text>
+
+  <text x="210" y="840" fill="#9CA3AF" font-size="32" font-family="Arial, sans-serif" letter-spacing="3">PUBLICITY LOCKUP</text>
+</svg>

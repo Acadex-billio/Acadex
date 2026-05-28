@@ -1,0 +1,294 @@
+.container {
+  width: 100%;
+  min-height: 100vh;
+  background: var(--bg);
+  padding: 24px 18px;
+}
+
+/* Container for all papers */
+.paperList {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 18px;
+  margin-top: 1.5rem;
+}
+
+.heading {
+  font-size: 32px;
+  font-weight: 800;
+  color: #2e7d32;
+  text-align: center;
+  margin-bottom: 32px;
+}
+
+/* Individual Paper Card */
+.paperCard {
+  background: #d9f2d7;
+  border-radius: 18px;
+  border: 1px solid #c3e6c0;
+  box-shadow: 0 6px 16px rgba(8, 40, 18, 0.08);
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  transition: transform 0.2s ease, box-shadow 0.3s ease;
+}
+
+.paperCard:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 12px 25px rgba(0,0,0,0.12);
+}
+
+.docPreview {
+  background: #ffffff;
+  border-radius: 14px;
+  border: 1px solid #d9e7dc;
+  min-height: 120px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-start;
+}
+
+.docPreviewLabel {
+  font-size: 12px;
+  font-weight: 700;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.docPreviewTitle {
+  font-size: 16px;
+  font-weight: 700;
+  color: #0f172a;
+  margin-top: 6px;
+  line-height: 1.35;
+}
+
+.docBody {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  padding: 2px 4px;
+}
+
+.docIconWrap {
+  width: 52px;
+  height: 52px;
+  border-radius: 12px;
+  background: #e11d48;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.docIcon {
+  color: #fff;
+  font-size: 24px;
+}
+
+.docTextWrap {
+  min-width: 0;
+}
+
+/* Paper Title */
+.paperTitle {
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: #111827;
+  margin-bottom: 4px;
+  line-height: 1.4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Paper Info (year & department) */
+.paperInfo {
+  font-size: 0.98rem;
+  color: #475569;
+  margin-bottom: 0;
+}
+
+/* Action Buttons */
+.actions {
+  display: flex;
+  gap: 0;
+  overflow: hidden;
+  border-radius: 12px;
+  border: 1px solid #b8d9b5;
+  background: #c7e8c5;
+}
+
+.previewBtn,
+.downloadBtn {
+  flex: 1;
+  padding: 12px 14px;
+  border-radius: 0;
+  border: none;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s ease;
+  text-align: center;
+  font-size: 17px;
+}
+
+.previewBtn {
+  background: #c7e8c5;
+  color: #176b3a;
+  border-right: 1px solid #aed2ac;
+}
+
+.previewBtn:hover {
+  background: #bde1bb;
+}
+
+.downloadBtn {
+  background: #c7e8c5;
+  color: #176b3a;
+}
+
+.downloadBtn:hover {
+  background: #bde1bb;
+}
+
+/* No Results */
+.noResults {
+  grid-column: 1 / -1;
+  text-align: center;
+  font-size: 1rem;
+  color: #64748b;
+}
+/* Modal Overlay */
+.modalOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(8,15,28,0.55);
+  display: grid;
+  place-items: center;
+  z-index: 9999; /* ensures it’s above everything */
+  padding: 16px;
+}
+
+/* Preview Modal Box */
+.modalBox {
+  background: var(--surface);
+  width: 100%;
+  max-width: 900px;
+  height: 80vh;
+  border-radius: 16px;
+  border: 2px solid var(--primary); /* light green border */
+  box-shadow: 0 20px 50px rgba(0,0,0,0.18);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: fadeIn 0.3s ease-out;
+  /* Prevent content copying and screenshots */
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+}
+
+.previewObject,
+iframe {
+  flex-grow: 1;
+  width: 100%;
+  border: none;
+  /* Prevent copy and screenshot */
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
+.mobileOpenLink {
+  display: inline-flex;
+  align-self: flex-start;
+  margin: 8px 16px 14px;
+  color: #2e7d32;
+  font-weight: 700;
+  text-decoration: underline;
+}
+
+/* Info Modal Box */
+.infoModalBox {
+  background: var(--surface);
+  width: 100%;
+  max-width: 520px;
+  border-radius: 16px;
+  padding: 28px 24px;
+  position: relative;
+  border: 2px solid var(--primary); /* light green border */
+  box-shadow: 0 20px 50px rgba(0,0,0,0.18);
+  text-align: center;
+  animation: fadeIn 0.3s ease-out;
+}
+
+/* Close button */
+.modalClose {
+  position: absolute;
+  top: 12px;
+  right: 14px;
+  background: transparent;
+  border: 0;
+  font-size: 22px;
+  font-weight: 700;
+  color: #64748b;
+  cursor: pointer;
+  transition: color 0.2s;
+}
+
+.modalClose:hover {
+  color: #2e7d32; /* hover accent */
+}
+
+/* Info Text */
+.infoTitle {
+  font-size: 22px;
+  font-weight: 800;
+  color: #2e7d32;
+  margin-bottom: 12px;
+}
+
+.infoText {
+  font-size: 0.95rem;
+  color: #334155;
+  line-height: 1.5;
+}
+
+/* Modal fade-in animation */
+@keyframes fadeIn {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@media (min-width: 768px) {
+  .mobileOpenLink {
+    display: none;
+  }
+}
+
+@media (max-width: 700px) {
+  .container {
+    padding: 16px 12px;
+  }
+
+  .paperList {
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+
+  .paperTitle {
+    font-size: 1.15rem;
+  }
+
+  .docPreview {
+    min-height: 100px;
+  }
+}

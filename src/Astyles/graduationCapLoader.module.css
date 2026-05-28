@@ -1,0 +1,102 @@
+:root {
+  --cap-primary: #4CAF50;
+  --cap-accent: #2A4D9B;
+  --cap-bg: rgba(0, 0, 0, 0.42);
+}
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(0,0,0,0.35), rgba(0,0,0,0.45));
+  backdrop-filter: blur(4px);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.inlineWrap {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  min-height: 160px;
+}
+
+.loader {
+  position: relative;
+  display: grid;
+  place-items: center;
+  margin-bottom: 1rem;
+}
+
+/* Spinning ring around the cap */
+.spinner {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 3px solid transparent;
+  border-top-color: var(--cap-primary);
+  border-right-color: var(--cap-accent);
+  border-bottom-color: var(--cap-primary);
+  border-left-color: var(--cap-accent);
+  animation: spin 0.9s linear infinite;
+}
+
+.capWrap {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 45%;
+  height: 45%;
+}
+
+.cap {
+  width: 100%;
+  height: 100%;
+  color: var(--cap-primary);
+  filter: drop-shadow(0 2px 8px rgba(76, 175, 80, 0.4));
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.loadingText {
+  color: #fff;
+  font-size: 1.05rem;
+  font-weight: 500;
+  text-align: center;
+  letter-spacing: 0.5px;
+  animation: fadeIn 600ms ease-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.srOnly {
+  position: absolute !important;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spinner {
+    animation: none;
+    border-color: var(--cap-primary);
+    opacity: 0.8;
+  }
+}

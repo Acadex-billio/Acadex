@@ -1,0 +1,69 @@
+name: Backend CI
+
+on:
+  push:
+    paths:
+      - 'hnd_backend/**'
+      - '.github/workflows/backend-ci.yml'
+  pull_request:
+    paths:
+      - 'hnd_backend/**'
+      - '.github/workflows/backend-ci.yml'
+
+jobs:
+  backend-smoke:
+    runs-on: ubuntu-latest
+    services:
+      mongo:
+        image: mongo:7
+        ports:
+          - 27017:27017
+        options: >-
+          --health-cmd "mongosh --eval 'db.runCommand({ ping: 1 })'"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+
+    defaults:
+      run:
+        working-directory: hnd_backend
+
+    env:
+      PORT: 5000
+      NODE_ENV: test
+      MONGODB_URI: mongodb://127.0.0.1:27017/hnd_platform_ci
+      JWT_SECRET: 12345678901234567890123456789012
+      SESSION_SECRET: 12345678901234567890123456789012
+      CORS_ORIGIN: http://localhost:3000
+      AI_FEATURES_ENABLED: false
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: hnd_backend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Smoke syntax checks
+        run: npm run smoke:code
+
+      - name: Start backend
+        run: nohup npm start > ../server.log 2>&1 &
+
+      - name: Integration smoke
+        env:
+          SMOKE_BASE_URL: http://127.0.0.1:5000
+          SMOKE_STARTUP_RETRIES: 40
+          SMOKE_STARTUP_DELAY_MS: 1000
+        run: npm run smoke:integration
+
+      - name: Print backend logs on failure
+        if: failure()
+        run: cat ../server.log

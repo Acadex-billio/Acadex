@@ -1,0 +1,41 @@
+<svg width="1080" height="1080" viewBox="0 0 1080 1080" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="60" y1="20" x2="980" y2="1080" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#070A12"/>
+      <stop offset="0.5" stop-color="#121A2B"/>
+      <stop offset="1" stop-color="#280C14"/>
+    </linearGradient>
+    <linearGradient id="title" x1="130" y1="290" x2="870" y2="540" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#FF2D55"/>
+      <stop offset="0.5" stop-color="#FF6A00"/>
+      <stop offset="1" stop-color="#FFD200"/>
+    </linearGradient>
+    <filter id="glow" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="7" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <rect width="1080" height="1080" fill="url(#bg)"/>
+
+  <rect x="84" y="88" width="912" height="912" rx="36" stroke="#2B3447" stroke-width="2"/>
+  <rect x="110" y="112" width="14" height="856" rx="7" fill="#FF4D35"/>
+
+  <text x="146" y="220" fill="#CBD5E1" font-size="34" font-family="Arial, sans-serif" letter-spacing="3">HND + BTS CANDIDATES</text>
+
+  <text x="146" y="420" fill="url(#title)" font-size="150" font-weight="900" font-family="Impact, Oswald, Arial Black, sans-serif" letter-spacing="3" filter="url(#glow)">ACADEX</text>
+  <text x="146" y="515" fill="#F8FAFC" font-size="84" font-weight="800" font-family="Oswald, Arial Black, sans-serif" letter-spacing="7">COMING SOON</text>
+
+  <rect x="146" y="560" width="790" height="8" rx="4" fill="#313A4D"/>
+  <rect x="146" y="560" width="590" height="8" rx="4" fill="#FF5C00"/>
+
+  <rect x="146" y="620" width="790" height="118" rx="20" fill="#0A1220" stroke="#FF6A00" stroke-opacity="0.8" stroke-width="2"/>
+  <text x="182" y="694" fill="#FFD200" font-size="56" font-weight="800" font-family="Oswald, Arial Black, sans-serif" letter-spacing="1">TUESDAY 26/05/2026</text>
+
+  <rect x="146" y="770" width="790" height="170" rx="24" fill="#0A0F1A" stroke="#FF2D55" stroke-opacity="0.8" stroke-width="2"/>
+  <text x="190" y="842" fill="#D1D5DB" font-size="36" font-family="Arial, sans-serif" letter-spacing="2">COUNTDOWN</text>
+  <text x="190" y="918" fill="url(#title)" font-size="108" font-weight="900" font-family="Impact, Oswald, Arial Black, sans-serif">T-2 DAYS</text>
+</svg>

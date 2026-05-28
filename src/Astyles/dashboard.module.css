@@ -1,0 +1,405 @@
+.dashboard {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 20px;
+    background: var(--bg);
+    font-family: sans-serif;
+  }
+  
+  /* HEADER */
+  .header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--surface);
+    border-radius: 12px;
+    padding: 16px 24px;
+    margin-bottom: 24px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  }
+  .profilePic {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    overflow: hidden;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--primary);
+    color: #fff;
+    font-size: 22px;
+    font-weight: 700;
+    margin-right: 16px;
+  }
+  .profilePic img {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+  }
+  .welcome {
+    font-size: 24px;
+    font-weight: 600;
+    margin: 0;
+  }
+  .subTitle {
+    font-size: 14px;
+    color: var(--muted);
+    margin-top: 6px;
+  }
+  .profileArea {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex: 1;
+  }
+  .topRightIcons {
+    display: flex;
+    gap: 16px;
+  }
+  .activeIndicator {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 5px 12px;
+    border-radius: 999px;
+    background: rgba(76, 175, 80, 0.10);
+    border: 1px solid rgba(76, 175, 80, 0.30);
+    font-size: 13px;
+    font-weight: 600;
+    color: #388e3c;
+    white-space: nowrap;
+  }
+  .activeDot {
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    background: #4caf50;
+    flex-shrink: 0;
+    box-shadow: 0 0 0 2px rgba(76, 175, 80, 0.30);
+    animation: activePulse 2s ease-in-out infinite;
+  }
+  .activeLabel {
+    line-height: 1;
+  }
+  @keyframes activePulse {
+    0%, 100% { box-shadow: 0 0 0 2px rgba(76, 175, 80, 0.30); }
+    50% { box-shadow: 0 0 0 5px rgba(76, 175, 80, 0.12); }
+  }
+  .topIconButton {
+    border: none;
+    background: transparent;
+    padding: 0;
+    margin: 0;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .topIcon {
+    font-size: 22px;
+    color: var(--primary);
+    cursor: pointer;
+  }
+  
+  /* CARD GRID */
+  .cardContainer {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+    margin-bottom: 32px;
+  }
+  .card {
+    background: var(--surface);
+    border-radius: 8px;
+    text-align: center;
+    padding: 20px 0;
+    text-decoration: none;
+    color: #000;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    transition: transform 0.1s ease-in-out;
+    cursor: pointer;
+  }
+  .card:hover {
+    transform: translateY(-2px);
+  }
+  .icon {
+    font-size: 36px;
+    color: var(--primary);
+    margin-bottom: 8px;
+  }
+  .card h3 {
+    font-size: 16px;
+    margin: 0;
+  }
+  
+  /* CHART SECTION */
+  .graphGrid {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    margin-top: 16px;
+  }
+  .rowCharts {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+  .chartBox,
+  .fullWidthChartBox {
+    background: var(--surface);
+    border-radius: 8px;
+    padding: 16px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  }
+  .chartBox h3,
+  .fullWidthChartBox h3 {
+    font-size: 18px;
+    margin-bottom: 12px;
+  }
+  .chartWrapper {
+    height: 200px;
+    position: relative;
+  }
+  .chartWrapper canvas {
+    width: 100% !important;
+    height: 100% !important;
+    display: block;
+    object-fit: contain;
+  }
+  
+  /* ANALYTICS TOGGLER */
+  .analyticsToggleContainer {
+    margin-top: 30px;
+    border-top: 1px solid var(--border);
+    padding-top: 10px;
+  }
+  .toggleLine {
+    display: flex;
+    justify-content: center;
+    position: relative;
+    margin-bottom: 8px;
+  }
+  .toggleControl {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-weight: 500;
+    font-size: 14px;
+    color: var(--primary);
+    cursor: pointer;
+    background: var(--bg);
+    padding: 6px 12px;
+    border-radius: 20px;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+    transition: all 0.2s ease-in-out;
+  }
+  .toggleControl:hover {
+    background: #e0f5e9;
+  }
+  .card[title] {
+    position: relative;
+  }
+  
+  .card[title]:hover {
+    transition: box-shadow 0.2s ease-in-out;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+  }
+
+  .statsGrid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+
+  .statCard {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 18px;
+    border-radius: 12px;
+    background: var(--surface);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  }
+
+  .statCardIcon {
+    width: 48px;
+    height: 48px;
+    display: grid;
+    place-items: center;
+    border-radius: 12px;
+    background: rgba(76, 175, 80, 0.12);
+    color: var(--primary);
+    font-size: 18px;
+  }
+
+  .statCardContent {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .statCardLabel {
+    font-size: 13px;
+    color: var(--muted);
+  }
+
+  .statCardValue {
+    font-size: 24px;
+    font-weight: 700;
+  }
+
+  .analyticsGrid {
+    display: grid;
+    grid-template-columns: 1.5fr 1fr;
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+
+  .bottomGrid {
+    display: grid;
+    grid-template-columns: 1.2fr 0.8fr;
+    gap: 16px;
+  }
+
+  .recentBox,
+  .summaryBox,
+  .chartBox {
+    background: var(--surface);
+    border-radius: 12px;
+    padding: 18px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  }
+
+  .sectionHeader {
+    margin-bottom: 14px;
+  }
+
+  .registrationList {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: grid;
+    gap: 14px;
+  }
+
+  .registrationItem {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 12px 14px;
+    background: var(--bg);
+  }
+
+  .rowSubtitle {
+    color: var(--muted);
+    font-size: 13px;
+    margin-top: 4px;
+  }
+
+  .summaryGrid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+  }
+
+  .summaryItem {
+    padding: 14px;
+    border-radius: 12px;
+    background: rgba(76, 175, 80, 0.08);
+  }
+
+  .summaryItem span {
+    display: block;
+    color: var(--muted);
+    font-size: 13px;
+    margin-bottom: 6px;
+  }
+
+  .summaryItem strong {
+    font-size: 20px;
+    display: block;
+  }
+
+.loaderOverlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.4);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+  }
+
+/* ============================= */
+/* RESPONSIVE BREAKPOINTS        */
+/* ============================= */
+
+@media (max-width: 1024px) {
+  .analyticsGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .bottomGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 900px) {
+  .dashboard {
+    padding: 14px;
+  }
+
+  .cardContainer {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .statsGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .rowCharts {
+    grid-template-columns: 1fr;
+  }
+
+  .summaryGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 600px) {
+  .dashboard {
+    padding: 10px;
+  }
+
+  .header {
+    flex-wrap: wrap;
+    gap: 10px;
+    padding: 12px 14px;
+  }
+
+  .welcome {
+    font-size: 18px;
+  }
+
+  .cardContainer {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+  }
+
+  .statsGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .summaryGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .topRightIcons {
+    gap: 10px;
+  }
+}
+  

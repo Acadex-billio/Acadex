@@ -1,0 +1,47 @@
+.viewerShell {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  margin-top: 28px;
+  overflow: hidden;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+}
+
+.pdfScroll {
+  width: 100%;
+  height: 100%;
+  overflow: auto;
+  padding: 10px 6px 16px;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+.pageWrap {
+  display: flex;
+  justify-content: center;
+  margin: 0 auto 14px;
+}
+
+.pageWrap canvas {
+  max-width: 100% !important;
+  height: auto !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.14);
+  border-radius: 4px;
+}
+
+.status,
+.error {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 140px;
+  color: #334155;
+  font-weight: 600;
+}
+
+.error {
+  color: #b91c1c;
+}

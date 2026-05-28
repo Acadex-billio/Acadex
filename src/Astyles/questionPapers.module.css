@@ -1,0 +1,224 @@
+/* MAIN WRAPPER */
+.container {
+    width: 100%;
+    min-height: 100vh;
+    padding: 30px 25px;
+    background: var(--bg);
+  }
+  
+  /* HEADING */
+  .title {
+    font-size: 30px;
+    font-weight: 700;
+    color: #222;
+    margin-bottom: 28px;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.08);
+  }
+  
+  
+  /* =======================================================
+     FILTER BOX — Premium Neumorphic Search & Filters
+     ======================================================= */
+  .filterBox {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 18px;
+    padding: 20px;
+    background: var(--surface);
+    border-radius: 18px;
+    border: 1px solid #e3e6ea;
+    box-shadow:
+      5px 5px 12px rgba(0,0,0,0.08),
+      -3px -3px 10px rgba(255,255,255,0.6);
+    margin-bottom: 35px;
+  }
+  
+  .input,
+  .select {
+    padding: 13px 16px;
+    font-size: 15px;
+    font-weight: 500;
+    border-radius: 12px;
+    border: none;
+    outline: none;
+    width: 250px;
+    background: var(--surface);
+    box-shadow:
+      inset 3px 3px 5px rgba(0,0,0,0.07),
+      inset -3px -3px 6px rgba(255,255,255,0.9);
+    transition: 0.3s ease;
+  }
+  
+  .input:focus,
+  .select:focus {
+    background: var(--surface);
+    box-shadow:
+      inset 2px 2px 8px rgba(0,0,0,0.12),
+      inset -2px -2px 8px rgba(255,255,255,0.9),
+      0px 0px 10px rgba(76,175,80,0.25);
+    border: 1px solid var(--primary);
+  }
+  
+  
+  /* =======================================================
+     PAPER CARDS — Super Clean, Modern, Magnetic UI
+     ======================================================= */
+  .paperList {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(310px, 1fr));
+    gap: 25px;
+  }
+  
+  .paperCard {
+    background: var(--surface);
+    border-radius: 18px;
+    padding: 22px;
+    border: 1px solid #eaeaea;
+    position: relative;
+    overflow: hidden;
+  
+    /* Modern elevated shadow */
+    box-shadow:
+      0px 6px 20px rgba(0,0,0,0.08),
+      0px 2px 6px rgba(0,0,0,0.04);
+  
+    transition: transform 0.25s ease, box-shadow 0.25s ease;
+  }
+  
+  .paperCard:hover {
+    transform: translateY(-6px);
+    box-shadow:
+      0px 12px 28px rgba(0,0,0,0.12),
+      0px 4px 10px rgba(0,0,0,0.06);
+  }
+  
+  /* Accent glow line at the top */
+  .paperCard::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 4px;
+    width: 100%;
+    background: linear-gradient(to right, var(--primary), #66bb6a);
+    opacity: 0.85;
+  }
+  
+  
+  /* =======================================================
+     TEXT + TAG DESIGN
+     ======================================================= */
+  .paperTitle {
+    font-size: 20px;
+    font-weight: 700;
+    color: #222;
+    margin-bottom: 8px;
+  }
+  
+  .tagBox {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 16px;
+  }
+  
+  .tag {
+    padding: 5px 12px;
+    background: #e8f5e9;
+    color: #2e7d32;
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 600;
+  }
+  
+  
+  /* =======================================================
+     ACTION BUTTONS — Icon-Enhanced Modern UI
+     ======================================================= */
+  .actions {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  
+  .previewBtn,
+  .downloadBtn {
+    flex: 1;
+    padding: 11px 0;
+    border-radius: 12px;
+    border: none;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 600;
+    transition: 0.25s ease;
+  
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+  }
+  
+  /* Preview Button */
+  .previewBtn {
+    background: var(--primary);
+    color: #ffffff;
+    box-shadow:
+      0 3px 8px rgba(76,175,80,0.35);
+  }
+  
+  .previewBtn:hover {
+    background: #43a047;
+    transform: translateY(-2px);
+    box-shadow:
+      0 4px 12px rgba(76,175,80,0.4);
+  }
+  
+  /* Download Button */
+  .downloadBtn {
+    background: #f0f3f5;
+    color: #333;
+  }
+  
+  .downloadBtn:hover {
+    background: #e5eaed;
+    transform: translateY(-2px);
+  }
+  
+  
+  /* EMPTY STATE */
+  .noResults {
+    text-align: center;
+    margin-top: 40px;
+    font-size: 17px;
+    color: #666;
+  }
+
+/* ============================= */
+/* RESPONSIVE                    */
+/* ============================= */
+
+@media (max-width: 700px) {
+  .container {
+    padding: 16px 12px;
+  }
+
+  .filterBox {
+    flex-direction: column;
+    gap: 10px;
+    padding: 14px;
+  }
+
+  .input,
+  .select {
+    width: 100%;
+  }
+
+  .paperList {
+    grid-template-columns: 1fr;
+  }
+
+  .title {
+    font-size: 22px;
+    margin-bottom: 18px;
+  }
+}
+  

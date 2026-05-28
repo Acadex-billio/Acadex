@@ -1,0 +1,359 @@
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { FaBars, FaTimes, FaHome, FaFileAlt, FaBook, FaClipboardList, FaCog, FaCommentDots, FaComments, FaChartLine, FaSignOutAlt, FaUserCircle, FaHistory, FaBullhorn, FaCreditCard, FaLightbulb, FaUsers, FaChevronDown } from 'react-icons/fa';
+import styles from '../../Astyles/DashboardShell.module.css';
+import { useAuth } from '../../context/AuthContext';
+import { useLoading } from '../../context/LoadingContext';
+import api from '../../services/api';
+import { useTranslation } from 'react-i18next';
+import { showToast } from '../../utility/ToastNotification';
+import FloatingAIIcon from '../CandidateAI';
+import AdDisplay from '../AdDisplay';
+
+const buildImageUrl = (url) => {
+  if (!url) return null;
+  if (url.startsWith('http')) return url;
+  if (url.startsWith('/')) return `${window.location.origin}${url}`;
+  return `${window.location.origin}/${url}`;
+};
+
+const CandidateShell = () => {
+  const { t } = useTranslation();
+  const location = useLocation();
+  const navigate = useNavigate();
+  const { startLoading, stopLoading } = useLoading();
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [accountMenuOpen, setAccountMenuOpen] = useState(false);
+  const [announcementCount, setAnnouncementCount] = useState(0);
+  const [feedbackCount, setFeedbackCount] = useState(0);
+  const [bookingAlertCount, setBookingAlertCount] = useState(0);
+  const accountMenuRef = useRef(null);
+  const { user, isAuthenticated } = useAuth();
+
+  useEffect(() => {
+    let cancelled = false;
+    const check = async () => {
+      try {
+        // Use AuthContext state instead of API call to prevent race conditions
+        if (cancelled) return;
+
+        if (!isAuthenticated) {
+          navigate('/login', { replace: true });
+          return;
+        }
+
+        const status = String(user?.account_status || 'active');
+        if (status !== 'active') {
+          showToast('toast.candidate.accountStatus', 'warning', { status });
+          navigate('/candidate/restricted', { replace: true });
+        }
+      } catch (_) {
+        if (!cancelled) navigate('/login', { replace: true });
+      }
+    };
+    
+    // Add small delay to allow AuthContext to initialize
+    const timeoutId = setTimeout(check, 200);
+    
+    return () => {
+      cancelled = true;
+      clearTimeout(timeoutId);
+    };
+  }, [navigate, isAuthenticated, user]);
+
+  useEffect(() => {
+    let cancelled = false;
+    let timer = null;
+
+    const loadCount = async () => {
+      try {
+        const res = await api.get('/announcements/active/count');
+        const data = res.data;
+        if (cancelled) return;
+        setAnnouncementCount(Number(data?.count || 0));
+        return true;
+      } catch (_) {
+        if (!cancelled) setAnnouncementCount(0);
+        return false;
+      }
+    };
+
+    const loadFeedbackCount = async () => {
+      try {
+        const res = await api.get('/candidate/account/status');
+        if (cancelled) return;
+        const complaints = Array.isArray(res.data?.complaints) ? res.data.complaints : [];
+        setFeedbackCount(complaints.filter((item) => String(item.status || 'pending') === 'pending').length);
+        return true;
+      } catch (_) {
+        if (!cancelled) setFeedbackCount(0);
+        return false;
+      }
+    };
+
+    const loadBookingIndicators = async () => {
+      try {
+        const res = await api.get('/lecturers/candidate/bookings');
+        if (cancelled) return;
+        const rows = Array.isArray(res.data?.bookings) ? res.data.bookings : [];
+        const count = rows.filter((b) => {
+          if (b?.conference_live) return true;
+          if (String(b?.viewer_role_in_booking || '') === 'invitee' && String(b?.viewer_invite?.status || '') === 'pending') return true;
+          return false;
+        }).length;
+        setBookingAlertCount(count);
+        return true;
+      } catch (_) {
+        if (!cancelled) setBookingAlertCount(0);
+        return false;
+      }
+    };
+
+    const pollIndicators = async () => {
+      if (cancelled) return;
+
+      if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+        timer = setTimeout(pollIndicators, 90000);
+        return;
+      }
+
+      const [countOk, feedbackOk, bookingOk] = await Promise.all([
+        loadCount(),
+        loadFeedbackCount(),
+        loadBookingIndicators(),
+      ]);
+
+      const hasFailure = [countOk, feedbackOk, bookingOk].some((ok) => ok === false);
+      timer = setTimeout(pollIndicators, hasFailure ? 120000 : 30000);
+    };
+
+    pollIndicators();
+    return () => {
+      cancelled = true;
+      if (timer) clearTimeout(timer);
+    };
+  }, []);
+
+  useEffect(() => {
+    const handlePointerDown = (event) => {
+      if (!accountMenuRef.current?.contains(event.target)) {
+        setAccountMenuOpen(false);
+      }
+    };
+
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape') {
+        setAccountMenuOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handlePointerDown);
+    document.addEventListener('touchstart', handlePointerDown, { passive: true });
+    document.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      document.removeEventListener('mousedown', handlePointerDown);
+      document.removeEventListener('touchstart', handlePointerDown);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, []);
+
+  useEffect(() => {
+    setAccountMenuOpen(false);
+    setSidebarOpen(false);
+  }, [location.pathname]);
+
+  const sidebarMainItems = useMemo(
+    () => [
+      { to: '/candidate', label: t('nav.dashboard'), icon: FaHome },
+      { to: '/candidate/question-papers', label: t('nav.questionPapers'), icon: FaClipboardList },
+      { to: '/candidate/reports', label: t('nav.reports'), icon: FaFileAlt },
+      { to: '/candidate/presentations', label: t('nav.presentations'), icon: FaBook },
+      { to: '/candidate/announcements', label: t('nav.announcements'), icon: FaBullhorn, badge: announcementCount },
+      { to: '/candidate/internship-topics', label: t('nav.internshipTopics'), icon: FaLightbulb },
+      { to: '/candidate/chat', label: t('nav.chat'), icon: FaComments },
+      { to: '/candidate/tutorship-bookings', label: 'Tutorship Bookings', icon: FaComments, badge: bookingAlertCount },
+    ],
+    [announcementCount, bookingAlertCount, t]
+  );
+
+  const accountMenuItems = useMemo(
+    () => [
+      { to: '/candidate/settings', label: t('nav.settings'), icon: FaCog },
+      { to: '/candidate/profile', label: t('nav.profile'), icon: FaUserCircle },
+      { to: '/candidate/history', label: t('nav.history'), icon: FaHistory },
+      { to: '/candidate/activity', label: t('nav.activity'), icon: FaChartLine },
+      { to: '/candidate/feedback', label: t('nav.feedback'), icon: FaCommentDots, badge: feedbackCount },
+      { to: '/candidate/subscription', label: t('nav.subscriptions'), icon: FaCreditCard },
+    ],
+    [feedbackCount, t]
+  );
+
+  const closeSidebar = () => setSidebarOpen(false);
+
+  const onNavClick = () => {
+    startLoading();
+    setTimeout(() => {
+      stopLoading();
+    }, 450);
+    closeSidebar();
+  };
+
+  const onAccountMenuNav = (to) => {
+    setAccountMenuOpen(false);
+    startLoading();
+    navigate(to);
+    setTimeout(() => stopLoading(), 450);
+  };
+
+  const onLogout = async () => {
+    startLoading();
+    try {
+      await api.post('/auth/logout');
+    } catch (_) {
+    } finally {
+      localStorage.removeItem('userId');
+      localStorage.removeItem('userEmail');
+      localStorage.removeItem('userName');
+      localStorage.removeItem('isAdmin');
+      navigate('/login');
+      setTimeout(() => stopLoading(), 450);
+    }
+  };
+
+  const profileLabel = user?.name?.charAt(0).toUpperCase() || user?.email?.charAt(0)?.toUpperCase() || 'C';
+  const profileName = user?.name || user?.email || t('nav.candidate');
+  const pictureUrl = user?.profilePicture || user?.profile_picture || null;
+  const avatarSrc = buildImageUrl(pictureUrl);
+
+  return (
+    <div className={styles.shell}>
+      <header className={styles.header}>
+        <button
+          type="button"
+          className={styles.iconBtn}
+          onClick={() => setSidebarOpen(true)}
+          aria-label="Open menu"
+          title="Menu"
+        >
+          <FaBars />
+        </button>
+        <div className={styles.brand}>{t('nav.candidateDashboard')}</div>
+        <div className={styles.headerActions} ref={accountMenuRef}>
+          <button
+            type="button"
+            className={styles.headerActionBtn}
+            onClick={() => onAccountMenuNav('/candidate/lecturers')}
+            aria-label="Lecturers"
+            title="Lecturers"
+          >
+            <FaUsers />
+          </button>
+
+          <button
+            type="button"
+            className={styles.accountTriggerBtn}
+            onClick={() => setAccountMenuOpen((prev) => !prev)}
+            aria-label="Account menu"
+            aria-expanded={accountMenuOpen}
+            aria-controls="candidate-account-menu"
+            title={profileName}
+          >
+            <span className={styles.headerAvatar}>
+              {avatarSrc ? (
+                <img src={avatarSrc} alt={`${profileName} avatar`} className={styles.headerAvatarImage} />
+              ) : (
+                profileLabel
+              )}
+            </span>
+            <FaChevronDown className={`${styles.accountChevron} ${accountMenuOpen ? styles.accountChevronOpen : ''}`} />
+          </button>
+
+          {accountMenuOpen && (
+            <div id="candidate-account-menu" className={styles.accountMenu} role="menu" aria-label="Account">
+              <div className={styles.accountMenuHeader}>{profileName}</div>
+              {accountMenuItems.map(({ to, label, icon: Icon, badge }) => (
+                <button
+                  key={to}
+                  type="button"
+                  className={styles.accountMenuItem}
+                  onClick={() => onAccountMenuNav(to)}
+                  role="menuitem"
+                >
+                  <Icon className={styles.navIcon} />
+                  <span className={styles.accountMenuLabel}>{label}</span>
+                  {badge > 0 ? <span className={styles.badgePill}>{badge}</span> : null}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      </header>
+
+      <div className={styles.body}>
+        <aside className={`${styles.sidebar} ${sidebarOpen ? styles.sidebarOpen : ''}`}>
+          <div className={styles.sidebarTop}>
+            <div className={styles.sidebarTitle}>{t('nav.navigation')}</div>
+            <button
+              type="button"
+              className={styles.iconBtn}
+              onClick={() => setSidebarOpen(false)}
+              aria-label="Close menu"
+              title="Close"
+            >
+              <FaTimes />
+            </button>
+          </div>
+
+          <nav className={styles.nav}>
+            {sidebarMainItems.map(({ to, label, icon: Icon, badge }) => (
+              <NavLink
+                key={to}
+                to={to}
+                className={({ isActive }) => `${styles.navLink} ${isActive ? styles.active : ''}`}
+                onClick={onNavClick}
+              >
+                <Icon className={styles.navIcon} />
+                <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, width: '100%' }}>
+                  <span>{label}</span>
+                  {badge > 0 ? <span className={styles.badgePulse}>{badge}</span> : null}
+                </span>
+              </NavLink>
+            ))}
+          </nav>
+
+          <div className={styles.sidebarFooter}>
+            <button
+              type="button"
+              className={styles.logoutBtn}
+              onClick={onLogout}
+              aria-label="Logout"
+              title="Logout"
+            >
+              <FaSignOutAlt className={styles.navIcon} />
+              <span>{t('nav.logout')}</span>
+            </button>
+          </div>
+        </aside>
+
+        {sidebarOpen && <div className={styles.backdrop} onClick={closeSidebar} />}
+
+        <main className={styles.main}>
+          <Outlet />
+        </main>
+      </div>
+
+      <FloatingAIIcon />
+      <AdDisplay />
+
+      <footer className={styles.footer}>
+        <span>System powered by brightsatck innovations.</span>
+        <a href="https://brightsatckinnovations.com" target="_blank" rel="noreferrer">brightsatckinnovations.com</a>
+        <a href="mailto:brightstackinnovations@gmail.com">brightstackinnovations@gmail.com</a>
+        <a href="https://wa.me/237678507737" target="_blank" rel="noreferrer">WhatsApp 678507737</a>
+      </footer>
+    </div>
+  );
+};
+
+export default CandidateShell;

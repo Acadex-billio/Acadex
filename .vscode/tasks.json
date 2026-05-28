@@ -1,0 +1,25 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "Start Backend Dev Server",
+			"type": "shell",
+			"command": "cd hnd_backend && npm run dev"
+		},
+		{
+			"label": "Start Backend Dev Server",
+			"type": "shell",
+			"command": "cd hnd_backend ; npm run dev"
+		},
+		{
+			"label": "Start Backend Dev Server",
+			"type": "shell",
+			"command": "start_backend.bat"
+		},
+		{
+			"label": "Start Backend Server",
+			"type": "shell",
+			"command": "cd hnd_backend && node server.js"
+		}
+	]
+}

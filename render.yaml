@@ -1,0 +1,8 @@
+services:
+  - type: web
+    name: hnd-platform-backend
+    env: docker
+    rootDir: hnd_backend
+    dockerfilePath: ./Dockerfile
+    autoDeploy: true
+    plan: free

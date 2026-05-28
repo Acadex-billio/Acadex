@@ -1,0 +1,614 @@
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { FaPlus, FaEdit, FaTrash, FaEye, FaEyeSlash, FaTimes, FaBullhorn } from 'react-icons/fa';
+import styles from '../Astyles/AdsManager.module.css';
+import api from '../services/api';
+import { showToast } from '../utility/ToastNotification';
+
+const AUDIENCE_OPTIONS = [
+  { value: 'all', label: 'All users' },
+  { value: 'candidate_all', label: 'All Candidates' },
+  { value: 'first_time_candidate', label: 'First-time Candidate Login (one-time)' },
+  { value: 'candidate_hnd', label: 'HND Candidates' },
+  { value: 'candidate_bts', label: 'BTS Candidates' },
+  { value: 'lecturer', label: 'Lecturers' },
+  { value: 'admin', label: 'Admin users' },
+  { value: 'developer', label: 'Developers' },
+];
+
+const ROUTE_OPTIONS = [
+  '/candidate',
+  '/candidate/question-papers',
+  '/candidate/reports',
+  '/candidate/presentations',
+  '/candidate/announcements',
+  '/candidate/chat',
+  '/candidate/lecturers',
+  '/candidate/history',
+  '/candidate/activity',
+  '/candidate/profile',
+  '/candidate/settings',
+  '/candidate/subscription',
+  '/lecturer',
+  '/lecturer/profile-verification',
+  '/lecturer/bookings',
+  '/lecturer/chat',
+  '/lecturer/history',
+  '/lecturer/settings',
+  '/admin',
+  '/admin/manage-users',
+  '/admin/manage-candidates',
+  '/admin/departments',
+  '/admin/reports',
+  '/admin/presentations',
+  '/admin/question-papers',
+  '/admin/announcements',
+  '/admin/chat',
+  '/admin/internship-topics',
+  '/admin/activity',
+  '/admin/history',
+  '/admin/profile',
+  '/admin/settings',
+  '/admin/manage-billing',
+  '/admin/lecturers',
+  '/admin/ads',
+];
+
+const DEFAULT_STYLING = {
+  backgroundColor: '#ffffff',
+  textColor: '#1a1a1a',
+  buttonColor: '#4caf50',
+  buttonTextColor: '#ffffff',
+  overlayColor: 'rgba(0,0,0,0.55)',
+  borderRadius: '16px',
+  borderColor: 'transparent',
+  imagePosition: 'top',
+};
+
+const EMPTY_FORM = {
+  title: '',
+  subtitle: '',
+  body: '',
+  logoUrl: '',
+  tag: '',
+  ctaText: '',
+  ctaUrl: '',
+  ctaSecondaryText: '',
+  ctaSecondaryUrl: '',
+  targetAudience: ['all'],
+  displayType: 'modal',
+  showCloseButton: true,
+  closeOnTimer: false,
+  closeTimerSeconds: 8,
+  intervalSeconds: 3600,
+  dailyCapPerUser: 0,
+  priority: 0,
+  displayScope: 'global',
+  specificRoutes: [],
+  startDate: '',
+  endDate: '',
+  styling: { ...DEFAULT_STYLING },
+};
+
+const fmtDate = (d) => (d ? new Date(d).toLocaleDateString() : '-');
+
+const ColorField = ({ label, name, value, onChange }) => (
+  <div className={styles.colorField}>
+    <label>{label}</label>
+    <div className={styles.colorWrap}>
+      <input
+        type="color"
+        value={value.startsWith('rgba') ? '#000000' : value}
+        onChange={(e) => onChange(name, e.target.value)}
+        aria-label={label}
+      />
+      <input
+        className={styles.colorHex}
+        type="text"
+        value={value}
+        onChange={(e) => onChange(name, e.target.value)}
+        aria-label={`${label} value`}
+      />
+    </div>
+  </div>
+);
+
+const LivePreview = ({ form }) => {
+  const style = {
+    background: form.styling.backgroundColor || '#fff',
+    color: form.styling.textColor || '#111',
+    borderRadius: form.styling.borderRadius || '16px',
+    border: `1px solid ${form.styling.borderColor || 'transparent'}`,
+  };
+
+  const buttonStyle = {
+    background: form.styling.buttonColor || '#4caf50',
+    color: form.styling.buttonTextColor || '#fff',
+  };
+
+  return (
+    <div className={styles.previewWrap}>
+      <div className={styles.previewHeader}>Live Preview</div>
+      <div className={styles.previewCard} style={style}>
+        {form.tag ? <span className={styles.previewTag}>{form.tag}</span> : null}
+        <h3 className={styles.previewTitle}>{form.title || 'Your ad title'}</h3>
+        {form.subtitle ? <p className={styles.previewSubtitle}>{form.subtitle}</p> : null}
+        {form.body ? <p className={styles.previewBody}>{form.body}</p> : null}
+        <div className={styles.previewMeta}>
+          <span>{form.displayType}</span>
+          <span>interval {form.intervalSeconds}s</span>
+          <span>daily cap {Number(form.dailyCapPerUser || 0) || 'unlimited'}</span>
+        </div>
+        <div className={styles.previewButtons}>
+          {form.ctaText ? <button type="button" className={styles.previewBtn} style={buttonStyle}>{form.ctaText}</button> : null}
+          {form.ctaSecondaryText ? <button type="button" className={styles.previewBtnGhost}>{form.ctaSecondaryText}</button> : null}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const AdsManager = () => {
+  const [ads, setAds] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [showModal, setShowModal] = useState(false);
+  const [editingId, setEditingId] = useState(null);
+  const [form, setForm] = useState(EMPTY_FORM);
+  const [routeQuery, setRouteQuery] = useState('');
+  const [customRoute, setCustomRoute] = useState('');
+  const [logoUploading, setLogoUploading] = useState(false);
+  const [logoFileName, setLogoFileName] = useState('');
+
+  const load = useCallback(async () => {
+    try {
+      setLoading(true);
+      const res = await api.get('/ads');
+      setAds(Array.isArray(res.data?.ads) ? res.data.ads : []);
+    } catch {
+      showToast('Failed to load ads', 'error');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  const openCreate = () => {
+    setEditingId(null);
+    setForm(EMPTY_FORM);
+    setRouteQuery('');
+    setCustomRoute('');
+    setLogoFileName('');
+    setShowModal(true);
+  };
+
+  const openEdit = (ad) => {
+    setEditingId(ad._id);
+    setForm({
+      title: ad.title || '',
+      subtitle: ad.subtitle || '',
+      body: ad.body || '',
+      logoUrl: ad.logoUrl || '',
+      tag: ad.tag || '',
+      ctaText: ad.ctaText || '',
+      ctaUrl: ad.ctaUrl || '',
+      ctaSecondaryText: ad.ctaSecondaryText || '',
+      ctaSecondaryUrl: ad.ctaSecondaryUrl || '',
+      targetAudience: Array.isArray(ad.targetAudience) ? ad.targetAudience : ['all'],
+      displayType: ad.displayType || 'modal',
+      showCloseButton: ad.showCloseButton !== false,
+      closeOnTimer: Boolean(ad.closeOnTimer),
+      closeTimerSeconds: ad.closeTimerSeconds ?? 8,
+      intervalSeconds: ad.intervalSeconds ?? 3600,
+      dailyCapPerUser: ad.dailyCapPerUser ?? 0,
+      priority: ad.priority ?? 0,
+      displayScope: ad.displayScope || 'global',
+      specificRoutes: Array.isArray(ad.specificRoutes) ? ad.specificRoutes : [],
+      startDate: ad.startDate ? ad.startDate.slice(0, 10) : '',
+      endDate: ad.endDate ? ad.endDate.slice(0, 10) : '',
+      styling: { ...DEFAULT_STYLING, ...(ad.styling || {}) },
+    });
+    setRouteQuery('');
+    setCustomRoute('');
+    setLogoFileName('');
+    setShowModal(true);
+  };
+
+  const set = (key, val) => setForm((prev) => ({ ...prev, [key]: val }));
+  const setStyle = (key, val) => setForm((prev) => ({ ...prev, styling: { ...prev.styling, [key]: val } }));
+
+  const toggleAudience = (val) => {
+    setForm((prev) => {
+      const current = prev.targetAudience;
+      if (current.includes(val)) {
+        const next = current.filter((v) => v !== val);
+        return { ...prev, targetAudience: next.length ? next : ['all'] };
+      }
+      return { ...prev, targetAudience: [...current, val] };
+    });
+  };
+
+  const toggleRoute = (route) => {
+    setForm((prev) => {
+      const exists = prev.specificRoutes.includes(route);
+      return {
+        ...prev,
+        specificRoutes: exists ? prev.specificRoutes.filter((r) => r !== route) : [...prev.specificRoutes, route],
+      };
+    });
+  };
+
+  const addCustomRoute = () => {
+    const next = customRoute.trim();
+    if (!next) return;
+    if (!next.startsWith('/')) {
+      showToast('Route must start with /', 'warning');
+      return;
+    }
+    setForm((prev) => ({
+      ...prev,
+      specificRoutes: prev.specificRoutes.includes(next) ? prev.specificRoutes : [...prev.specificRoutes, next],
+    }));
+    setCustomRoute('');
+  };
+
+  const uploadLogoFile = async (file) => {
+    if (!file) return;
+    setLogoUploading(true);
+    try {
+      const data = new FormData();
+      data.append('logo', file);
+      const res = await api.post('/ads/upload-logo', data, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+
+      const nextLogoUrl = String(res.data?.logoUrl || '').trim();
+      if (!nextLogoUrl) {
+        showToast('Logo upload failed: no URL returned', 'error');
+        return;
+      }
+
+      set('logoUrl', nextLogoUrl);
+      setLogoFileName(file.name);
+      showToast('Logo uploaded successfully', 'success');
+    } catch (err) {
+      const msg = err?.response?.data?.message || 'Failed to upload logo';
+      showToast(msg, 'error');
+    } finally {
+      setLogoUploading(false);
+    }
+  };
+
+  const filteredRouteOptions = useMemo(() => {
+    const q = routeQuery.trim().toLowerCase();
+    if (!q) return ROUTE_OPTIONS;
+    return ROUTE_OPTIONS.filter((route) => route.toLowerCase().includes(q));
+  }, [routeQuery]);
+
+  const save = async (andPublish = false) => {
+    if (!form.title.trim()) {
+      showToast('Ad title is required', 'error');
+      return;
+    }
+    setSaving(true);
+    try {
+      const payload = {
+        ...form,
+        dailyCapPerUser: Math.max(0, Number(form.dailyCapPerUser || 0)),
+        specificRoutes: Array.from(new Set(form.specificRoutes.map((r) => r.trim()).filter(Boolean))),
+        startDate: form.startDate || null,
+        endDate: form.endDate || null,
+      };
+
+      let adId = editingId;
+      if (editingId) {
+        const res = await api.put(`/ads/${editingId}`, payload);
+        adId = res.data.ad._id;
+        showToast('Ad updated', 'success');
+      } else {
+        const res = await api.post('/ads', payload);
+        adId = res.data.ad._id;
+        showToast('Ad created', 'success');
+      }
+
+      if (andPublish) {
+        await api.post(`/ads/${adId}/publish`);
+        showToast('Ad published', 'success');
+      }
+
+      setShowModal(false);
+      load();
+    } catch {
+      showToast('Failed to save ad', 'error');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const togglePublish = async (ad) => {
+    try {
+      await api.post(ad.isPublished ? `/ads/${ad._id}/unpublish` : `/ads/${ad._id}/publish`);
+      showToast(ad.isPublished ? 'Ad unpublished' : 'Ad published', 'success');
+      load();
+    } catch {
+      showToast('Failed to update status', 'error');
+    }
+  };
+
+  const remove = async (ad) => {
+    if (!window.confirm(`Delete ad "${ad.title}"?`)) return;
+    try {
+      await api.delete(`/ads/${ad._id}`);
+      showToast('Ad deleted', 'success');
+      load();
+    } catch {
+      showToast('Failed to delete ad', 'error');
+    }
+  };
+
+  return (
+    <div className={styles.page}>
+      <div className={styles.pageHeader}>
+        <h1 className={styles.pageTitle}><FaBullhorn style={{ marginRight: 8 }} />Ads Manager</h1>
+        <button type="button" className={styles.createBtn} onClick={openCreate}><FaPlus /> New Ad</button>
+      </div>
+
+      {loading ? (
+        <div className={styles.empty}>Loading ads...</div>
+      ) : ads.length === 0 ? (
+        <div className={styles.empty}>No ads yet. Create your first one.</div>
+      ) : (
+        <div className={styles.adList}>
+          {ads.map((ad) => (
+            <div key={ad._id} className={styles.adCard}>
+              <div className={styles.adCardBody}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 4 }}>
+                  <p className={styles.adCardTitle}>{ad.title}</p>
+                  <span className={`${styles.badge} ${ad.isPublished ? styles.badgeGreen : styles.badgeGrey}`}>{ad.isPublished ? 'Published' : 'Draft'}</span>
+                  <span className={`${styles.badge} ${styles.badgeBlue}`}>{ad.displayType}</span>
+                </div>
+                <div className={styles.adCardMeta}>
+                  <span>Audience: {(ad.targetAudience || []).join(', ')}</span>
+                  <span>Interval: {ad.intervalSeconds}s</span>
+                  <span>Daily cap: {Number(ad.dailyCapPerUser || 0) > 0 ? ad.dailyCapPerUser : 'Unlimited'}</span>
+                  {ad.displayScope === 'specific_routes' ? <span>Routes: {(ad.specificRoutes || []).length}</span> : <span>Global</span>}
+                  {ad.startDate && <span>From {fmtDate(ad.startDate)}</span>}
+                  {ad.endDate && <span>To {fmtDate(ad.endDate)}</span>}
+                </div>
+                <div className={styles.stats}>
+                  <span>Views {ad.impressions ?? 0}</span>
+                  <span>Clicks {ad.clicks ?? 0}</span>
+                </div>
+              </div>
+              <div className={styles.adCardActions}>
+                <button type="button" className={styles.actionBtn} onClick={() => openEdit(ad)} title="Edit"><FaEdit /> Edit</button>
+                <button type="button" className={`${styles.actionBtn} ${ad.isPublished ? '' : styles.actionBtnPrimary}`} onClick={() => togglePublish(ad)}>
+                  {ad.isPublished ? <><FaEyeSlash /> Unpublish</> : <><FaEye /> Publish</>}
+                </button>
+                <button type="button" className={`${styles.actionBtn} ${styles.actionBtnDanger}`} onClick={() => remove(ad)} title="Delete"><FaTrash /></button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {showModal && (
+        <div className={styles.overlay} onClick={(e) => { if (e.target === e.currentTarget) setShowModal(false); }}>
+          <div className={styles.modal}>
+            <div className={styles.modalHeader}>
+              <h2 className={styles.modalTitle}>{editingId ? 'Edit Ad' : 'Create Ad'}</h2>
+              <button type="button" className={styles.closeBtn} onClick={() => setShowModal(false)} aria-label="Close"><FaTimes /></button>
+            </div>
+
+            <div className={styles.modalBody}>
+              <LivePreview form={form} />
+
+              <div className={styles.section}>
+                <p className={styles.sectionTitle}>Content</p>
+                <div className={styles.row}>
+                  <div className={styles.field}>
+                    <label>Title *</label>
+                    <input className={styles.input} value={form.title} onChange={(e) => set('title', e.target.value)} placeholder="Ad headline" />
+                  </div>
+                  <div className={styles.field}>
+                    <label>Tag</label>
+                    <input className={styles.input} value={form.tag} onChange={(e) => set('tag', e.target.value)} placeholder="NEW" />
+                  </div>
+                </div>
+                <div className={styles.field}>
+                  <label>Subtitle</label>
+                  <input className={styles.input} value={form.subtitle} onChange={(e) => set('subtitle', e.target.value)} placeholder="Optional subtitle" />
+                </div>
+                <div className={styles.field}>
+                  <label>Body</label>
+                  <textarea className={styles.textarea} value={form.body} onChange={(e) => set('body', e.target.value)} placeholder="Optional body text" />
+                </div>
+                <div className={styles.field}>
+                  <label>Logo file (PNG/JPG, max 5MB)</label>
+                  <input
+                    type="file"
+                    className={styles.input}
+                    accept="image/png,image/jpeg,image/jpg"
+                    onChange={(e) => {
+                      const f = e.target.files?.[0];
+                      if (f) uploadLogoFile(f);
+                    }}
+                  />
+                  <span className={styles.hint}>
+                    {logoUploading
+                      ? 'Uploading logo...'
+                      : (form.logoUrl ? `Uploaded: ${logoFileName || 'logo file ready'}` : 'No logo uploaded yet')}
+                  </span>
+                  {form.logoUrl ? (
+                    <button
+                      type="button"
+                      className={styles.actionBtn}
+                      onClick={() => {
+                        set('logoUrl', '');
+                        setLogoFileName('');
+                      }}
+                    >
+                      Remove logo
+                    </button>
+                  ) : null}
+                </div>
+              </div>
+
+              <div className={styles.section}>
+                <p className={styles.sectionTitle}>CTA</p>
+                <div className={styles.row}>
+                  <div className={styles.field}><label>Primary text</label><input className={styles.input} value={form.ctaText} onChange={(e) => set('ctaText', e.target.value)} /></div>
+                  <div className={styles.field}><label>Primary URL</label><input className={styles.input} value={form.ctaUrl} onChange={(e) => set('ctaUrl', e.target.value)} /></div>
+                </div>
+                <div className={styles.row}>
+                  <div className={styles.field}><label>Secondary text</label><input className={styles.input} value={form.ctaSecondaryText} onChange={(e) => set('ctaSecondaryText', e.target.value)} /></div>
+                  <div className={styles.field}><label>Secondary URL</label><input className={styles.input} value={form.ctaSecondaryUrl} onChange={(e) => set('ctaSecondaryUrl', e.target.value)} /></div>
+                </div>
+              </div>
+
+              <div className={styles.section}>
+                <p className={styles.sectionTitle}>Audience Targeting</p>
+                <div className={styles.audienceGrid}>
+                  {AUDIENCE_OPTIONS.map(({ value, label }) => (
+                    <label key={value} className={`${styles.audienceChip} ${form.targetAudience.includes(value) ? styles.selected : ''}`}>
+                      <input type="checkbox" checked={form.targetAudience.includes(value)} onChange={() => toggleAudience(value)} />
+                      {label}
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              <div className={styles.section}>
+                <p className={styles.sectionTitle}>Behavior</p>
+                <div className={styles.row}>
+                  <div className={styles.field}>
+                    <label>Display type</label>
+                    <select className={styles.select} value={form.displayType} onChange={(e) => set('displayType', e.target.value)}>
+                      <option value="modal">Modal</option>
+                      <option value="banner_top">Banner Top</option>
+                      <option value="banner_bottom">Banner Bottom</option>
+                    </select>
+                  </div>
+                  <div className={styles.field}>
+                    <label>Interval (seconds)</label>
+                    <input type="number" min={0} className={styles.input} value={form.intervalSeconds} onChange={(e) => set('intervalSeconds', Number(e.target.value))} />
+                    <span className={styles.hint}>0 means every eligible visit.</span>
+                  </div>
+                </div>
+                <div className={styles.row}>
+                  <div className={styles.field}>
+                    <label>Daily cap per user</label>
+                    <input type="number" min={0} className={styles.input} value={form.dailyCapPerUser} onChange={(e) => set('dailyCapPerUser', Number(e.target.value))} />
+                    <span className={styles.hint}>0 means unlimited. Example: 3 means max 3 shows per user per day.</span>
+                  </div>
+                  <div className={styles.field}>
+                    <label>Priority</label>
+                    <input type="number" className={styles.input} value={form.priority} onChange={(e) => set('priority', Number(e.target.value))} />
+                  </div>
+                </div>
+                <div className={styles.row}>
+                  <label className={styles.checkRow}><input type="checkbox" checked={form.showCloseButton} onChange={(e) => set('showCloseButton', e.target.checked)} />Show close button</label>
+                  <label className={styles.checkRow}><input type="checkbox" checked={form.closeOnTimer} onChange={(e) => set('closeOnTimer', e.target.checked)} />Auto close on timer</label>
+                </div>
+                {form.closeOnTimer ? (
+                  <div className={styles.field}>
+                    <label>Auto close after (seconds)</label>
+                    <input type="number" min={1} max={120} className={styles.input} value={form.closeTimerSeconds} onChange={(e) => set('closeTimerSeconds', Number(e.target.value))} />
+                  </div>
+                ) : null}
+              </div>
+
+              <div className={styles.section}>
+                <p className={styles.sectionTitle}>Route Targeting</p>
+                <div className={styles.field}>
+                  <label>Display scope</label>
+                  <select className={styles.select} value={form.displayScope} onChange={(e) => set('displayScope', e.target.value)}>
+                    <option value="global">Global</option>
+                    <option value="specific_routes">Specific routes</option>
+                  </select>
+                </div>
+
+                {form.displayScope === 'specific_routes' ? (
+                  <>
+                    <div className={styles.field}>
+                      <label>Find route</label>
+                      <input className={styles.input} value={routeQuery} onChange={(e) => setRouteQuery(e.target.value)} placeholder="Search routes..." />
+                    </div>
+
+                    <div className={styles.routePickerGrid}>
+                      {filteredRouteOptions.map((route) => (
+                        <label key={route} className={`${styles.routeChip} ${form.specificRoutes.includes(route) ? styles.selectedRoute : ''}`}>
+                          <input type="checkbox" checked={form.specificRoutes.includes(route)} onChange={() => toggleRoute(route)} />
+                          <span>{route}</span>
+                        </label>
+                      ))}
+                    </div>
+
+                    <div className={styles.field}>
+                      <label>Add custom route</label>
+                      <div className={styles.customRouteRow}>
+                        <input className={styles.input} value={customRoute} onChange={(e) => setCustomRoute(e.target.value)} placeholder="/custom/landing" />
+                        <button type="button" className={styles.actionBtn} onClick={addCustomRoute}>Add</button>
+                      </div>
+                    </div>
+
+                    <div className={styles.selectedRoutesWrap}>
+                      {form.specificRoutes.length === 0 ? (
+                        <span className={styles.hint}>No selected routes yet.</span>
+                      ) : form.specificRoutes.map((route) => (
+                        <button key={route} type="button" className={styles.selectedRouteTag} onClick={() => toggleRoute(route)} title="Remove route">
+                          {route} <FaTimes />
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                ) : null}
+              </div>
+
+              <div className={styles.section}>
+                <p className={styles.sectionTitle}>Schedule (optional)</p>
+                <div className={styles.row}>
+                  <div className={styles.field}><label>Start date</label><input type="date" className={styles.input} value={form.startDate} onChange={(e) => set('startDate', e.target.value)} /></div>
+                  <div className={styles.field}><label>End date</label><input type="date" className={styles.input} value={form.endDate} onChange={(e) => set('endDate', e.target.value)} /></div>
+                </div>
+              </div>
+
+              <div className={styles.section}>
+                <p className={styles.sectionTitle}>Styling</p>
+                <div className={styles.colorRow}>
+                  <ColorField label="Background" name="backgroundColor" value={form.styling.backgroundColor} onChange={setStyle} />
+                  <ColorField label="Text" name="textColor" value={form.styling.textColor} onChange={setStyle} />
+                  <ColorField label="Button" name="buttonColor" value={form.styling.buttonColor} onChange={setStyle} />
+                  <ColorField label="Button text" name="buttonTextColor" value={form.styling.buttonTextColor} onChange={setStyle} />
+                  <ColorField label="Overlay" name="overlayColor" value={form.styling.overlayColor} onChange={setStyle} />
+                  <ColorField label="Border" name="borderColor" value={form.styling.borderColor} onChange={setStyle} />
+                </div>
+                <div className={styles.row}>
+                  <div className={styles.field}><label>Border radius</label><input className={styles.input} value={form.styling.borderRadius} onChange={(e) => setStyle('borderRadius', e.target.value)} /></div>
+                  <div className={styles.field}>
+                    <label>Image position</label>
+                    <select className={styles.select} value={form.styling.imagePosition} onChange={(e) => setStyle('imagePosition', e.target.value)}>
+                      <option value="top">Top</option>
+                      <option value="left">Left</option>
+                      <option value="right">Right</option>
+                      <option value="background">Background</option>
+                      <option value="none">Hidden</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className={styles.modalFooter}>
+              <button type="button" className={styles.cancelBtn} onClick={() => setShowModal(false)}>Cancel</button>
+              <button type="button" className={styles.saveBtn} onClick={() => save(false)} disabled={saving}>{saving ? 'Saving...' : 'Save Draft'}</button>
+              <button type="button" className={styles.saveBtn} style={{ background: '#1976d2' }} onClick={() => save(true)} disabled={saving}>{saving ? 'Saving...' : 'Save & Publish'}</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default AdsManager;

@@ -1,0 +1,258 @@
+.container {
+  width: 100%;
+  min-height: 100vh;
+  padding: 24px 18px;
+  background: var(--bg);
+}
+
+.heading {
+  text-align: center;
+  font-size: 28px;
+  margin-bottom: 10px;
+  color: #2e7d32;
+  font-weight: 800;
+}
+
+.noResults {
+  text-align: center;
+  color: #5f6f63;
+  font-size: 16px;
+  margin-top: 12px;
+}
+
+.filterBox {
+  display: flex;
+  justify-content: center;
+  margin: 18px 0 20px;
+}
+
+.input {
+  padding: 12px 14px;
+  width: min(100%, 460px);
+  border: 1px solid #b9d9be;
+  border-radius: 12px;
+  font-size: 15px;
+  background: #fff;
+}
+
+.reportList {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 18px;
+}
+
+.card {
+  background: #d9f2d7;
+  border-radius: 18px;
+  border: 1px solid #c3e6c0;
+  box-shadow: 0 6px 16px rgba(8, 40, 18, 0.08);
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.docPreview {
+  background: #ffffff;
+  border-radius: 14px;
+  border: 1px solid #d9e7dc;
+  min-height: 120px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.docPreviewLabel {
+  font-size: 12px;
+  font-weight: 700;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.docPreviewTitle {
+  font-size: 16px;
+  font-weight: 700;
+  color: #111827;
+  margin-top: 6px;
+  line-height: 1.35;
+}
+
+.docBody {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  padding: 2px 4px;
+}
+
+.docIconWrap {
+  width: 52px;
+  height: 52px;
+  border-radius: 12px;
+  background: #e11d48;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.fileIcon {
+  color: #fff;
+  font-size: 24px;
+}
+
+.docTextWrap {
+  min-width: 0;
+}
+
+.title {
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: #111827;
+  margin-bottom: 4px;
+  line-height: 1.35;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.meta {
+  margin: 0;
+  font-size: 0.95rem;
+  color: #475569;
+}
+
+.actions {
+  display: flex;
+  gap: 0;
+  overflow: hidden;
+  border-radius: 12px;
+  border: 1px solid #b8d9b5;
+  background: #c7e8c5;
+}
+
+.previewBtn,
+.downloadBtn {
+  flex: 1;
+  padding: 12px 14px;
+  border-radius: 0;
+  border: none;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 17px;
+  color: #176b3a;
+  background: #c7e8c5;
+}
+
+.previewBtn {
+  border-right: 1px solid #aed2ac;
+}
+
+.previewBtn:hover,
+.downloadBtn:hover {
+  background: #bde1bb;
+}
+
+.modalOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 2000;
+  padding: 10px;
+}
+
+.modalBox {
+  background: var(--surface);
+  padding: 16px;
+  border: 2px solid var(--primary);
+  border-radius: 10px;
+  width: 100%;
+  max-width: 750px;
+  height: 85%;
+  position: relative;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+}
+
+.modalClose {
+  position: absolute;
+  top: 8px;
+  right: 12px;
+  background: none;
+  border: none;
+  font-size: 26px;
+  cursor: pointer;
+}
+
+.previewIframe,
+.previewObject,
+iframe {
+  width: 100%;
+  height: 100%;
+  border: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
+.mobileOpenLink {
+  display: inline-flex;
+  margin-top: 10px;
+  font-weight: 700;
+  color: var(--primary);
+  text-decoration: underline;
+}
+
+.infoModalBox {
+  background: var(--surface);
+  padding: 16px;
+  border-radius: 10px;
+  border: 1px solid var(--primary);
+  width: 90%;
+  max-width: 420px;
+  text-align: center;
+  position: relative;
+}
+
+.infoTitle {
+  color: var(--primary);
+  font-size: 19px;
+  margin-bottom: 10px;
+}
+
+.infoText {
+  font-size: 15px;
+  color: #444;
+}
+
+@media (max-width: 700px) {
+  .container {
+    padding: 16px 12px;
+  }
+
+  .reportList {
+    grid-template-columns: 1fr;
+  }
+
+  .title {
+    font-size: 1.15rem;
+  }
+
+  .docPreview {
+    min-height: 100px;
+  }
+}
+
+@media (min-width: 768px) {
+  .mobileOpenLink {
+    display: none;
+  }
+}

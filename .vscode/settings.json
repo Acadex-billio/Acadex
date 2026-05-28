@@ -1,0 +1,15 @@
+{
+    "CodeGPT.apiKey": "OpenAI",
+    "json.schemas": [
+        {
+            "fileMatch": ["**/node_modules/**/tsconfig.json"],
+            "url": "./.vscode/tsconfig-local-schema.json"
+        }
+    ],
+    "typescript.tsserver.excludeDirectories": [
+        "**/node_modules/**",
+        "hnd_backend/node_modules/**"
+    ],
+    "typescript.tsserver.experimental.enableProjectDiagnostics": false,
+    "json.schemaDownload.enable": false
+}

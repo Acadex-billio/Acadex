@@ -1,0 +1,172 @@
+.container {
+    max-width: 500px;
+    margin: 40px auto;
+    background: var(--surface);
+    border-radius: 12px;
+    padding: 32px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  }
+
+@media (max-width: 540px) {
+  .container {
+    margin: 0;
+    border-radius: 0;
+    padding: 24px 18px;
+    min-height: 100svh;
+    box-shadow: none;
+  }
+}
+  
+  .title {
+    text-align: center;
+    color: var(--primary);
+    margin-bottom: 24px;
+    font-size: 28px;
+    font-weight: 600;
+  }
+
+  .backHome {
+    display: inline-block;
+    margin-bottom: 10px;
+    color: var(--primary);
+    text-decoration: none;
+    font-weight: 700;
+  }
+
+  .backHome:hover {
+    text-decoration: underline;
+  }
+  
+  .form {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+  }
+  
+  .formGroup {
+    display: flex;
+    flex-direction: column;
+    position: relative;
+  }
+  
+  .formGroup label {
+    margin-bottom: 6px;
+    font-weight: 600;
+    color: #333;
+  }
+  
+  .formGroup input,
+  .formGroup select {
+    padding: 12px;
+    font-size: 16px;
+    border-radius: 8px;
+    border: 1px solid #ccc;
+    transition: border 0.2s;
+    width: 100%;
+    box-sizing: border-box;
+  }
+  
+  .formGroup input:focus,
+  .formGroup select:focus {
+    border: 1.5px solid var(--primary);
+    outline: none;
+  }
+  
+  .passwordWrapper input {
+    padding-right: 40px; /* make room for eye icon */
+  }
+  
+  .eyeIcon {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    cursor: pointer;
+    color: #666;
+    user-select: none;
+    transition: color 0.2s ease-in-out;
+    font-size: 20px;
+  }
+  
+  .eyeIcon:hover {
+    color: var(--primary);
+  }
+  
+  .button {
+    background: var(--primary);
+    color: white;
+    padding: 14px;
+    border: none;
+    font-weight: 700;
+    font-size: 16px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background 0.2s ease-in-out;
+  }
+  
+  .button:hover {
+    background: #43A047;
+  }
+  
+  .error {
+    background-color: #fdecea;
+    color: #b71c1c;
+    padding: 12px;
+    border-radius: 6px;
+    font-weight: 600;
+    margin-bottom: 8px;
+    text-align: center;
+  }
+  
+  .link {
+    color: var(--primary);
+    text-decoration: none;
+    font-weight: 600;
+  }
+
+  .searchDropdown {
+    position: relative;
+  }
+
+  .dropdownMenu {
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 0;
+    right: 0;
+    background: #fff;
+    border: 1px solid var(--primary);
+    border-radius: 10px;
+    box-shadow: 0 10px 24px rgba(2, 6, 23, 0.12);
+    max-height: 220px;
+    overflow-y: auto;
+    z-index: 30;
+  }
+
+  .dropdownOption {
+    display: block;
+    width: 100%;
+    text-align: left;
+    border: none;
+    background: #fff;
+    padding: 11px 12px;
+    font-size: 16px;
+    color: #1f2937;
+    cursor: pointer;
+    border-bottom: 1px solid #eef2f7;
+  }
+
+  .dropdownOption:last-child {
+    border-bottom: none;
+  }
+
+  .dropdownOption:hover,
+  .dropdownOptionActive {
+    background: #e8f5e9;
+  }
+
+  .dropdownEmpty {
+    padding: 12px;
+    color: #64748b;
+    font-size: 14px;
+  }

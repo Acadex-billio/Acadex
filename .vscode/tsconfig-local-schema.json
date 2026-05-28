@@ -1,0 +1,7 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Local TSConfig Schema Fallback",
+  "description": "Offline-safe fallback schema to avoid remote schema fetch warnings in node_modules tsconfig files.",
+  "type": "object",
+  "additionalProperties": true
+}

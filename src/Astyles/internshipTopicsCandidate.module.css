@@ -1,0 +1,176 @@
+.page {
+  padding: 20px;
+  display: grid;
+  gap: 16px;
+}
+
+.header h1 {
+  margin: 0;
+  color: #0f3f61;
+}
+
+.header p {
+  margin: 4px 0 0;
+  color: #587083;
+}
+
+.filters {
+  background: #ffffff;
+  border: 1px solid #dbe6ef;
+  border-radius: 12px;
+  padding: 12px;
+  display: grid;
+  grid-template-columns: 1.8fr 1fr 1fr 1fr auto;
+  gap: 10px;
+}
+
+.filters input,
+.filters select,
+.filters button {
+  border: 1px solid #cad7e2;
+  border-radius: 10px;
+  padding: 10px 12px;
+}
+
+.filters button {
+  background: #0d5f87;
+  color: #fff;
+  font-weight: 700;
+  border: none;
+}
+
+.list {
+  display: grid;
+  gap: 12px;
+}
+
+.card,
+.detailCard {
+  background: #fff;
+  border: 1px solid #dce7ef;
+  border-radius: 14px;
+  padding: 14px;
+}
+
+.cardTop {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+}
+
+.card h2,
+.detailCard h1 {
+  margin: 0;
+  color: #123f62;
+}
+
+.programBadge {
+  background: #e4f2fa;
+  color: #0a567f;
+  border-radius: 999px;
+  padding: 5px 10px;
+  font-weight: 700;
+}
+
+.description,
+.detailText {
+  color: #50667a;
+  line-height: 1.5;
+}
+
+.departments {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.deptChip {
+  border: 1px solid #cfdae4;
+  border-radius: 999px;
+  padding: 5px 10px;
+  background: #f6fbff;
+  font-size: 13px;
+}
+
+.metrics {
+  margin: 10px 0;
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  font-size: 13px;
+  color: #496074;
+}
+
+.viewBtn,
+.backLink {
+  color: #0c5f86;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.feedbackSection {
+  margin-top: 10px;
+  border-top: 1px solid #deebf3;
+  padding-top: 10px;
+}
+
+.feedbackRow {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-top: 10px;
+}
+
+.stars {
+  display: flex;
+  gap: 6px;
+}
+
+.starBtn {
+  border: 1px solid #cad7e2;
+  background: #fff;
+  border-radius: 8px;
+  width: 34px;
+  height: 34px;
+  cursor: pointer;
+  font-size: 18px;
+  color: #88a2b5;
+}
+
+.starActive {
+  color: #efb22f;
+}
+
+.actionBtn {
+  border: 1px solid #cad7e2;
+  border-radius: 999px;
+  background: #fff;
+  padding: 8px 14px;
+  font-weight: 700;
+  color: #264760;
+  cursor: pointer;
+}
+
+.selected {
+  border-color: #0c638b;
+  background: #e6f4fb;
+  color: #0c638b;
+}
+
+.citationList {
+  margin: 8px 0 0;
+  padding-left: 20px;
+  color: #4e6272;
+}
+
+.empty {
+  color: #577084;
+}
+
+@media (max-width: 920px) {
+  .filters {
+    grid-template-columns: 1fr;
+  }
+}
