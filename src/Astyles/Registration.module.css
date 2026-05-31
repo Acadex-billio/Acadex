@@ -93,7 +93,7 @@
     color: var(--primary);
   }
   
-  .button {
+.button {
     background: var(--primary);
     color: white;
     padding: 14px;
@@ -107,6 +107,103 @@
   
   .button:hover {
     background: #43A047;
+  }
+
+  .buttonSecondary {
+    background: #f0f0f0;
+    color: #333;
+    padding: 14px;
+    border: 1px solid #ccc;
+    font-weight: 700;
+    font-size: 16px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease-in-out;
+  }
+
+  .buttonSecondary:hover {
+    background: #e0e0e0;
+    border-color: #999;
+  }
+
+  .buttonGroup {
+    display: flex;
+    gap: 12px;
+    margin-top: 24px;
+  }
+
+  .buttonGroup button {
+    flex: 1;
+  }
+
+  .stepIndicator {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 20px;
+    margin-bottom: 32px;
+    padding: 0 16px;
+  }
+
+  .step {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    opacity: 0.5;
+    transition: opacity 0.3s ease;
+  }
+
+  .step.stepActive {
+    opacity: 1;
+  }
+
+  .stepNumber {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: #e0e0e0;
+    color: #999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 16px;
+    transition: all 0.3s ease;
+  }
+
+  .step.stepActive .stepNumber {
+    background: var(--primary);
+    color: white;
+  }
+
+  .stepLabel {
+    font-size: 12px;
+    font-weight: 600;
+    color: #666;
+    text-align: center;
+    max-width: 90px;
+  }
+
+  .step.stepActive .stepLabel {
+    color: var(--primary);
+  }
+
+  .stepLine {
+    width: 20px;
+    height: 2px;
+    background: #e0e0e0;
+    margin-top: 12px;
+  }
+
+  .sectionTitle {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--primary);
+    margin: 16px 0 12px 0;
+    display: flex;
+    align-items: center;
+    gap: 6px;
   }
   
   .error {

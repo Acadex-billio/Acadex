@@ -16,6 +16,7 @@ const Registration = () => {
     startLoading();
     setTimeout(() => stopLoading(), 450);
   };
+  const [currentStep, setCurrentStep] = useState(1);
   const [name, setName] = useState('');
   const [program, setProgram] = useState('HND');
   const [departmentId, setDepartmentId] = useState('');
@@ -83,27 +84,74 @@ const Registration = () => {
     return "Strong password";
   };
 
+  const validateStep1 = () => {
+    setErrorMessage('');
+    if (!name.trim()) {
+      const msg = "Please enter your name";
+      setErrorMessage(msg);
+      showToast(msg, 'warning');
+      return false;
+    }
+    if (!email.trim()) {
+      const msg = "Please enter your email";
+      setErrorMessage(msg);
+      showToast(msg, 'warning');
+      return false;
+    }
+    if (!phone.trim()) {
+      const msg = "Please enter your phone number";
+      setErrorMessage(msg);
+      showToast(msg, 'warning');
+      return false;
+    }
+    if (!password) {
+      const msg = "Please enter a password";
+      setErrorMessage(msg);
+      showToast(msg, 'warning');
+      return false;
+    }
+    const pwdValidation = validatePasswordStrength(password);
+    if (pwdValidation !== "Strong password") {
+      setErrorMessage(`Password invalid: ${pwdValidation}`);
+      showToast(`⚠️ Password invalid: ${pwdValidation}`, 'warning');
+      return false;
+    }
+    if (!confirmPassword) {
+      const msg = "Please confirm your password";
+      setErrorMessage(msg);
+      showToast(msg, 'warning');
+      return false;
+    }
+    if (password !== confirmPassword) {
+      const msg = "Passwords do not match";
+      setErrorMessage(msg);
+      showToast(msg, 'error');
+      return false;
+    }
+    return true;
+  };
+
+  const handleNextStep = (e) => {
+    e.preventDefault();
+    if (validateStep1()) {
+      setCurrentStep(2);
+    }
+  };
+
+  const handleBackStep = () => {
+    setCurrentStep(1);
+    setErrorMessage('');
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     startLoading();
-
-    if (password !== confirmPassword) {
-      const message = "Passwords do not match.";
-      setErrorMessage(message);
-      showToast(message, 'error');
-      stopLoading();
-      return;
-    }
-
-    const pwdValidation = validatePasswordStrength(password);
-    if (pwdValidation !== "Strong password") {
-      showToast(`⚠️ Password invalid: ${pwdValidation}`, 'warning');
-      stopLoading();
-      return;
-    }
+    setErrorMessage('');
 
     if (program !== 'LECTURER' && !departmentId) {
-      showToast("⚠️ Please select a department", "warning");
+      const msg = "⚠️ Please select a department";
+      setErrorMessage(msg);
+      showToast(msg, "warning");
       stopLoading();
       return;
     }
@@ -165,182 +213,230 @@ const Registration = () => {
           <option value="fr">{t('common.french')}</option>
         </select>
       </div>
+
       <h2 className={styles.title}>{t('registrationPage.heading')}</h2>
-      <form onSubmit={handleSubmit} className={styles.form} noValidate>
+
+      {/* Step Indicator */}
+      <div className={styles.stepIndicator}>
+        <div className={`${styles.step} ${currentStep === 1 ? styles.stepActive : ''}`}>
+          <div className={styles.stepNumber}>1</div>
+          <div className={styles.stepLabel}>{t('registrationPage.personalInfo') || 'Personal Info & Password'}</div>
+        </div>
+        <div className={styles.stepLine}></div>
+        <div className={`${styles.step} ${currentStep === 2 ? styles.stepActive : ''}`}>
+          <div className={styles.stepNumber}>2</div>
+          <div className={styles.stepLabel}>{t('registrationPage.programDept') || 'Program & Department'}</div>
+        </div>
+      </div>
+
+      <form onSubmit={currentStep === 2 ? handleSubmit : handleNextStep} className={styles.form} noValidate>
         {errorMessage && <div className={styles.error}>{errorMessage}</div>}
 
-        <div className={styles.formGroup}>
-          <label>{t('registrationPage.name')}</label>
-          <input
-            type="text"
-            value={name}
-            onChange={e => setName(e.target.value)}
-            required
-          />
-        </div>
-
-        <div className={styles.formGroup}>
-          <label>{t('common.program')}</label>
-          <select
-            value={program}
-            onChange={e => setProgram(e.target.value)}
-            required
-          >
-            <option value="HND">{t('common.hnd')}</option>
-            <option value="BTS">{t('common.bts')}</option>
-            <option value="LECTURER">LECTURER</option>
-          </select>
-        </div>
-
-        {program !== 'LECTURER' && (
-          <div className={styles.formGroup}>
-            <label>{t('registrationPage.department')}</label>
-            <div className={styles.searchDropdown}>
+        {/* STEP 1: Personal Info & Password */}
+        {currentStep === 1 && (
+          <>
+            <div className={styles.sectionTitle}>👤 {t('registrationPage.personalInformation') || 'Personal Information'}</div>
+            
+            <div className={styles.formGroup}>
+              <label>{t('registrationPage.name')}</label>
               <input
                 type="text"
-                value={departmentQuery}
-                onFocus={() => setIsDepartmentMenuOpen(true)}
-                onBlur={() => {
-                  window.setTimeout(() => setIsDepartmentMenuOpen(false), 120);
-                }}
-                onChange={(e) => {
-                  setDepartmentQuery(e.target.value);
-                  setDepartmentId('');
-                  setIsDepartmentMenuOpen(true);
-                }}
-                placeholder="Search by department name, abbreviation, or faculty"
-                aria-label="Search departments"
-                autoComplete="off"
-                required={!departmentId}
+                value={name}
+                onChange={e => setName(e.target.value)}
+                required
+                placeholder="Enter your full name"
               />
-
-              {isDepartmentMenuOpen ? (
-                <div className={styles.dropdownMenu} role="listbox" aria-label="Department options">
-                  {filteredDepartments.length > 0 ? (
-                    filteredDepartments.map((d) => {
-                      const id = String(d?.dpt_id || '');
-                      const label = `${d.department_name}${d.abbreviation ? ` (${d.abbreviation})` : ''}${d.faculty ? ` - ${d.faculty}` : ''}`;
-                      const isActive = id === departmentId || label === departmentQuery;
-                      return (
-                        <button
-                          key={id}
-                          type="button"
-                          className={`${styles.dropdownOption} ${isActive ? styles.dropdownOptionActive : ''}`}
-                          onMouseDown={(e) => e.preventDefault()}
-                          onClick={() => {
-                            setDepartmentId(id);
-                            setDepartmentQuery(label);
-                            setIsDepartmentMenuOpen(false);
-                          }}
-                        >
-                          {label}
-                        </button>
-                      );
-                    })
-                  ) : (
-                    <div className={styles.dropdownEmpty}>No departments match your search.</div>
-                  )}
-                </div>
-              ) : null}
             </div>
 
-            {!departmentId && !departmentQuery.trim() ? (
-              <small style={{ color: '#64748b', marginTop: 6 }}>{t('registrationPage.selectDepartment')}</small>
-            ) : null}
-            {departmentId && selectedDepartment ? (
-              <small style={{ color: '#16a34a', marginTop: 6 }}>
-                Selected: {selectedDepartment.department_name}
-                {selectedDepartment.abbreviation ? ` (${selectedDepartment.abbreviation})` : ''}
-              </small>
-            ) : null}
-          </div>
+            <div className={styles.formGroup}>
+              <label>{t('registrationPage.email')}</label>
+              <input
+                type="email"
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+                required
+                placeholder="Enter your email address"
+              />
+            </div>
+
+            <div className={styles.formGroup}>
+              <label>{t('registrationPage.phone')}</label>
+              <input
+                type="tel"
+                value={phone}
+                onChange={e => setPhone(e.target.value)}
+                required
+                placeholder="Enter your phone number"
+              />
+            </div>
+
+            <div className={styles.sectionTitle} style={{ marginTop: 24 }}>🔐 {t('registrationPage.password') || 'Password'}</div>
+
+            <div className={`${styles.formGroup} ${styles.passwordWrapper}`}>
+              <label>{t('registrationPage.password')}</label>
+              <input
+                type={showPassword ? 'text' : 'password'}
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+                required
+                minLength={8}
+                maxLength={20}
+                autoComplete="new-password"
+                placeholder="Min 8 chars: uppercase, lowercase, number, symbol"
+              />
+              <span
+                className={styles.eyeIcon}
+                onClick={() => setShowPassword(!showPassword)}
+                role="button"
+                tabIndex={0}
+                aria-label={showPassword ? "Hide password" : "Show password"}
+                onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setShowPassword(!showPassword); } }}
+              >
+                {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+              </span>
+            </div>
+
+            <div className={`${styles.formGroup} ${styles.passwordWrapper}`}>
+              <label>{t('registrationPage.confirmPassword')}</label>
+              <input
+                type={showConfirmPassword ? 'text' : 'password'}
+                value={confirmPassword}
+                onChange={e => setConfirmPassword(e.target.value)}
+                required
+                minLength={8}
+                maxLength={20}
+                autoComplete="new-password"
+                placeholder="Confirm your password"
+              />
+              <span
+                className={styles.eyeIcon}
+                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                role="button"
+                tabIndex={0}
+                aria-label={showConfirmPassword ? "Hide confirm password" : "Show confirm password"}
+                onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setShowConfirmPassword(!showConfirmPassword); } }}
+              >
+                {showConfirmPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+              </span>
+            </div>
+
+            <button type="submit" className={styles.button}>
+              {t('registrationPage.next') || 'Next'} →
+            </button>
+          </>
         )}
 
-        {program === 'LECTURER' && (
-          <div className={styles.formGroup}>
-            <label>{t('common.language')}</label>
-            <select
-              value={lecturerLanguage}
-              onChange={e => setLecturerLanguage(e.target.value)}
-            >
-              <option value="en">{t('common.english')}</option>
-              <option value="fr">{t('common.french')}</option>
-            </select>
-          </div>
+        {/* STEP 2: Program & Department */}
+        {currentStep === 2 && (
+          <>
+            <div className={styles.sectionTitle}>🏢 {t('registrationPage.programDept') || 'Program & Department'}</div>
+            
+            <div className={styles.formGroup}>
+              <label>{t('common.program')}</label>
+              <select
+                value={program}
+                onChange={e => setProgram(e.target.value)}
+                required
+              >
+                <option value="HND">{t('common.hnd')}</option>
+                <option value="BTS">{t('common.bts')}</option>
+                <option value="LECTURER">LECTURER</option>
+              </select>
+            </div>
+
+            {program !== 'LECTURER' && (
+              <div className={styles.formGroup}>
+                <label>{t('registrationPage.department')}</label>
+                <div className={styles.searchDropdown}>
+                  <input
+                    type="text"
+                    value={departmentQuery}
+                    onFocus={() => setIsDepartmentMenuOpen(true)}
+                    onBlur={() => {
+                      window.setTimeout(() => setIsDepartmentMenuOpen(false), 120);
+                    }}
+                    onChange={(e) => {
+                      setDepartmentQuery(e.target.value);
+                      setDepartmentId('');
+                      setIsDepartmentMenuOpen(true);
+                    }}
+                    placeholder="Search by department name, abbreviation, or faculty"
+                    aria-label="Search departments"
+                    autoComplete="off"
+                    required={!departmentId}
+                  />
+
+                  {isDepartmentMenuOpen ? (
+                    <div className={styles.dropdownMenu} role="listbox" aria-label="Department options">
+                      {filteredDepartments.length > 0 ? (
+                        filteredDepartments.map((d) => {
+                          const id = String(d?.dpt_id || '');
+                          const label = `${d.department_name}${d.abbreviation ? ` (${d.abbreviation})` : ''}${d.faculty ? ` - ${d.faculty}` : ''}`;
+                          const isActive = id === departmentId || label === departmentQuery;
+                          return (
+                            <button
+                              key={id}
+                              type="button"
+                              className={`${styles.dropdownOption} ${isActive ? styles.dropdownOptionActive : ''}`}
+                              onMouseDown={(e) => e.preventDefault()}
+                              onClick={() => {
+                                setDepartmentId(id);
+                                setDepartmentQuery(label);
+                                setIsDepartmentMenuOpen(false);
+                              }}
+                            >
+                              {label}
+                            </button>
+                          );
+                        })
+                      ) : (
+                        <div className={styles.dropdownEmpty}>No departments match your search.</div>
+                      )}
+                    </div>
+                  ) : null}
+                </div>
+
+                {!departmentId && !departmentQuery.trim() ? (
+                  <small style={{ color: '#64748b', marginTop: 6 }}>{t('registrationPage.selectDepartment')}</small>
+                ) : null}
+                {departmentId && selectedDepartment ? (
+                  <small style={{ color: '#16a34a', marginTop: 6 }}>
+                    Selected: {selectedDepartment.department_name}
+                    {selectedDepartment.abbreviation ? ` (${selectedDepartment.abbreviation})` : ''}
+                  </small>
+                ) : null}
+              </div>
+            )}
+
+            {program === 'LECTURER' && (
+              <div className={styles.formGroup}>
+                <label>{t('common.language')}</label>
+                <select
+                  value={lecturerLanguage}
+                  onChange={e => setLecturerLanguage(e.target.value)}
+                >
+                  <option value="en">{t('common.english')}</option>
+                  <option value="fr">{t('common.french')}</option>
+                </select>
+              </div>
+            )}
+
+            <div className={styles.formGroup}>
+              <small style={{ color: '#475569' }}>{t('registrationPage.candidateProgramNote')}</small>
+            </div>
+
+            <div className={styles.buttonGroup}>
+              <button type="button" className={styles.buttonSecondary} onClick={handleBackStep}>
+                ← {t('registrationPage.back') || 'Back'}
+              </button>
+              <button type="submit" className={styles.button}>
+                {t('registrationPage.register') || 'Register'}
+              </button>
+            </div>
+          </>
         )}
-
-        <div className={styles.formGroup}>
-          <small style={{ color: '#475569' }}>{t('registrationPage.candidateProgramNote')}</small>
-        </div>
-
-        <div className={styles.formGroup}>
-          <label>{t('registrationPage.email')}</label>
-          <input
-            type="email"
-            value={email}
-            onChange={e => setEmail(e.target.value)}
-            required
-          />
-        </div>
-
-        <div className={styles.formGroup}>
-          <label>{t('registrationPage.phone')}</label>
-          <input
-            type="tel"
-            value={phone}
-            onChange={e => setPhone(e.target.value)}
-            required
-          />
-        </div>
-
-        <div className={`${styles.formGroup} ${styles.passwordWrapper}`}>
-          <label>{t('registrationPage.password')}</label>
-          <input
-            type={showPassword ? 'text' : 'password'}
-            value={password}
-            onChange={e => setPassword(e.target.value)}
-            required
-            minLength={8}
-            maxLength={20}
-            autoComplete="new-password"
-          />
-          <span
-            className={styles.eyeIcon}
-            onClick={() => setShowPassword(!showPassword)}
-            role="button"
-            tabIndex={0}
-            aria-label={showPassword ? "Hide password" : "Show password"}
-            onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setShowPassword(!showPassword); } }}
-          >
-            {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
-          </span>
-        </div>
-
-        <div className={`${styles.formGroup} ${styles.passwordWrapper}`}>
-          <label>{t('registrationPage.confirmPassword')}</label>
-          <input
-            type={showConfirmPassword ? 'text' : 'password'}
-            value={confirmPassword}
-            onChange={e => setConfirmPassword(e.target.value)}
-            required
-            minLength={8}
-            maxLength={20}
-            autoComplete="new-password"
-          />
-          <span
-            className={styles.eyeIcon}
-            onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-            role="button"
-            tabIndex={0}
-            aria-label={showConfirmPassword ? "Hide confirm password" : "Show confirm password"}
-            onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setShowConfirmPassword(!showConfirmPassword); } }}
-          >
-            {showConfirmPassword ? <EyeOff size={20} /> : <Eye size={20} />}
-          </span>
-        </div>
-
-        <button type="submit" className={styles.button}>{t('registrationPage.register')}</button>
       </form>
+
       <p>
         {t('registrationPage.alreadyHaveAccount')}{' '}
         <Link to="/login" className={styles.link} onClick={triggerLinkLoading}>{t('registrationPage.login')}</Link>
