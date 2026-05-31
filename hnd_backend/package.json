@@ -48,6 +48,8 @@
     "pdf-parse": "^2.4.5",
     "resend": "^1.0.2",
     "web-push": "^3.6.7",
+    "axios": "^1.4.0",
+    "nodemailer": "^6.9.3",
     "winston": "^3.19.0"
   },
   "devDependencies": {

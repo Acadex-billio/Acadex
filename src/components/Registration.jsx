@@ -249,8 +249,8 @@ const Registration = () => {
           aria-label={t('common.language')}
           style={{ height: 40, borderRadius: 12, border: '1px solid #d0d7de', padding: '0 10px' }}
         >
-          <option value="en">{t('common.english')}</option>
-          <option value="fr">{t('common.french')}</option>
+          <option value="en">🇬🇧 {t('common.english')}</option>
+          <option value="fr">🇫🇷 {t('common.french')}</option>
         </select>
       </div>
 
@@ -260,12 +260,12 @@ const Registration = () => {
       <div className={styles.stepIndicator}>
         <div className={`${styles.step} ${currentStep === 1 ? styles.stepActive : ''}`}>
           <div className={styles.stepNumber}>1</div>
-          <div className={styles.stepLabel}>{t('registrationPage.personalInfo') || 'Personal Info & Password'}</div>
+          <div className={styles.stepLabel}>{t('registrationPage.personalInfoShort') || 'PersonInfo'}</div>
         </div>
         <div className={styles.stepLine}></div>
         <div className={`${styles.step} ${currentStep === 2 ? styles.stepActive : ''}`}>
           <div className={styles.stepNumber}>2</div>
-          <div className={styles.stepLabel}>{t('registrationPage.programDept') || 'Program & Department'}</div>
+          <div className={styles.stepLabel}>{t('registrationPage.programDeptShort') || 'SchoolDetails'}</div>
         </div>
       </div>
 
@@ -462,8 +462,8 @@ const Registration = () => {
                   value={lecturerLanguage}
                   onChange={e => setLecturerLanguage(e.target.value)}
                 >
-                  <option value="en">{t('common.english')}</option>
-                  <option value="fr">{t('common.french')}</option>
+                  <option value="en">🇬🇧 {t('common.english')}</option>
+                  <option value="fr">🇫🇷 {t('common.french')}</option>
                 </select>
               </div>
             )}

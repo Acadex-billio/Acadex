@@ -200,12 +200,11 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 20px;
-    margin-bottom: 32px;
-    padding: 0 12px;
+    gap: 16px;
+    margin-bottom: 24px;
+    padding: 0 8px;
     flex-wrap: nowrap; /* never wrap to vertical */
-    overflow-x: auto; /* allow horizontal scrolling if space is tight */
-    -webkit-overflow-scrolling: touch;
+    overflow-x: visible; /* ensure the small section isn't scrollable */
   }
 
   /* Slightly smaller spacing on small screens */
@@ -224,8 +223,8 @@
     gap: 6px;
     opacity: 0.6;
     transition: opacity 0.2s ease, transform 0.15s ease;
-    flex: 0 0 auto; /* do not stretch or wrap */
-    min-width: 48px;
+    flex: 0 1 auto; /* allow shrinking to fit */
+    min-width: 40px;
   }
 
   .step.stepActive { opacity: 1; transform: scale(1.02); }
@@ -253,14 +252,15 @@
 
   .stepLabel {
     font-size: 12px;
-    font-weight: 600;
+    font-weight: 700;
     color: #666;
     text-align: center;
-    max-width: 120px; /* allow longer text but keep on one line */
+    max-width: 110px; /* shortened so the small section fits */
     white-space: nowrap; /* prevent wrapping */
     overflow: hidden;
     text-overflow: ellipsis;
-    line-height: 1.2;
+    line-height: 1.1;
+    flex: 0 1 auto; /* allow label to shrink */
   }
 
   @media (max-width: 540px) {

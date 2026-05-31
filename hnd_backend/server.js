@@ -61,6 +61,7 @@ const aiChatRoutes = require('./Routes/aiChatRoutes');
 const lecturerRoutes = require('./Routes/lecturerRoutes');
 const adRoutes = require('./Routes/adRoutes');
 const { getLibreOfficeQueueStats } = require('./services/libreOfficeQueue');
+const { startKeepalive } = require('./services/keepaliveNotifier');
 
 const app = express();
 const port = process.env.PORT || 5000;
@@ -472,4 +473,10 @@ app.use(globalErrorHandler);
 
 app.listen(port, () => {
   logger.info('Server started', { port, nodeEnv: process.env.NODE_ENV || 'development' });
+  try {
+    // Start keepalive notifier in background if configured
+    startKeepalive();
+  } catch (err) {
+    logger.warn('Failed to start keepalive notifier', { error: err.message });
+  }
 });
