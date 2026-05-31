@@ -6,6 +6,7 @@ const path = require('path');
 const announcementController = require('../controllers/announcementController');
 const { requireAuth, requireAdmin } = require('../middlewares/jwtAuth');
 const { validate, schemas } = require('../middlewares/validateRequest');
+const cacheMiddleware = require('../utils/simpleCache');
 
 const storage = multer.memoryStorage();
 
@@ -24,8 +25,8 @@ const upload = multer({
 
 router.use(requireAuth);
 
-router.get('/active', announcementController.listActiveForCandidate);
-router.get('/active/count', announcementController.getActiveCountForCandidate);
+router.get('/active', cacheMiddleware(60000), announcementController.listActiveForCandidate);
+router.get('/active/count', cacheMiddleware(60000), announcementController.getActiveCountForCandidate);
 router.post('/:id/reactions', validate({ params: schemas.ids.mongoIdParam }), announcementController.toggleReaction);
 router.get('/:id/attachment', validate({ params: schemas.ids.mongoIdParam }), announcementController.downloadAttachment);
 
