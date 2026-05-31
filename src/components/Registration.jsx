@@ -242,13 +242,13 @@ const Registration = () => {
         <meta property="og:site_name" content="Acadex" />
         <meta property="og:title" content="Register | Acadex" />
         <meta property="og:description" content="Create your Acadex account to access study materials and tools." />
-        <meta property="og:url" content="https://hnd-platform.vercel.app/register" />
-        <meta property="og:image" content="https://hnd-platform.vercel.app/hnd-mark.svg" />
+        <meta property="og:url" content="https://www.acadexe.com/register" />
+        <meta property="og:image" content="https://www.acadexe.com/hnd-mark.svg" />
         <meta name="twitter:card" content="summary" />
         <meta name="twitter:title" content="Register | Acadex" />
         <meta name="twitter:description" content="Create your Acadex account to access study materials and tools." />
-        <meta name="twitter:image" content="https://hnd-platform.vercel.app/hnd-mark.svg" />
-        <link rel="canonical" href="https://hnd-platform.vercel.app/register" />
+        <meta name="twitter:image" content="https://www.acadexe.com/hnd-mark.svg" />
+        <link rel="canonical" href="https://www.acadexe.com/register" />
       </Helmet>
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
