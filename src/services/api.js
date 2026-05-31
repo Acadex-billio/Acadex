@@ -28,7 +28,7 @@ const normalizeApiError = (error) => {
 };
 
 const normalizeApiBaseUrl = (rawUrl) => {
-  const fallback = 'https://hnd-platform-backend.onrender.com/api';
+  const fallback = 'https://acadex-hng2.onrender.com/api';
   const value = String(rawUrl || '').trim();
   if (!value) return fallback;
 

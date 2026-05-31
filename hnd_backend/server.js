@@ -185,6 +185,15 @@ const allowedOrigins = String(process.env.CORS_ORIGIN || '')
   .map((s) => s.trim())
   .filter(Boolean);
 
+// If no explicit CORS origins are provided via env, allow common hosting domains
+// for the platform to reduce accidental 403s after redeploys. This is a safe
+// fallback for quick recovery; for stricter security, set `CORS_ORIGIN` in
+// your Render/Vercel environment to the specific frontend URL(s).
+if (allowedOrigins.length === 0) {
+  allowedOrigins.push('https://hnd-platform.vercel.app');
+  allowedOrigins.push('https://acadex-hng2.onrender.com');
+}
+
 if (startupDebugEnabled) {
   logger.debug('CORS debug info', {
     environment: isProduction ? 'production' : 'development',
