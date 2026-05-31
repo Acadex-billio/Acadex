@@ -102,16 +102,6 @@ const Registration = () => {
     }
   }, [program, i18n]);
 
-  const validatePasswordStrength = (pwd) => {
-    if (pwd.length < 8) return "Too short";
-    if (pwd.length > 20) return "Too long";
-    if (!/[A-Z]/.test(pwd)) return "Missing uppercase";
-    if (!/[a-z]/.test(pwd)) return "Missing lowercase";
-    if (!/[0-9]/.test(pwd)) return "Must include number";
-    if (!/[!@#$%^&*(),.?":{}|<>]/.test(pwd)) return "Must include symbol";
-    return "Strong password";
-  };
-
   const getPasswordRequirements = (pwd) => {
     return {
       uppercase: /[A-Z]/.test(pwd),
