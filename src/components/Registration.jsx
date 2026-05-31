@@ -5,8 +5,35 @@ import { useTranslation } from 'react-i18next';
 import api from '../services/api';
 import styles from '../Astyles/Registration.module.css';
 import { showToast } from '../utility/ToastNotification';
-import { Eye, EyeOff } from 'lucide-react';
+import { Eye, EyeOff, Check, X } from 'lucide-react';
 import { useLoading } from '../context/LoadingContext';
+
+// Password Strength Requirement Component
+const PasswordStrengthPopup = ({ password, requirements }) => {
+  const reqsList = [
+    { label: 'Uppercase letter (A-Z)', met: requirements.uppercase },
+    { label: 'Lowercase letter (a-z)', met: requirements.lowercase },
+    { label: 'Number (0-9)', met: requirements.number },
+    { label: 'Symbol (!@#$%^&*)', met: requirements.symbol },
+    { label: 'Minimum 8 characters', met: requirements.minLength },
+  ];
+
+  return (
+    <div className={styles.passwordStrengthPopup}>
+      <div className={styles.popupTitle}>Password Requirements</div>
+      <div className={styles.requirementsList}>
+        {reqsList.map((req, idx) => (
+          <div key={idx} className={`${styles.requirement} ${req.met ? styles.requirementMet : styles.requirementUnmet}`}>
+            <span className={styles.requirementIcon}>
+              {req.met ? <Check size={16} /> : <X size={16} />}
+            </span>
+            <span className={styles.requirementLabel}>{req.label}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
 
 const Registration = () => {
   const navigate = useNavigate();
@@ -30,6 +57,7 @@ const Registration = () => {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [showPasswordTip, setShowPasswordTip] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
 
   useEffect(() => {
@@ -84,6 +112,21 @@ const Registration = () => {
     return "Strong password";
   };
 
+  const getPasswordRequirements = (pwd) => {
+    return {
+      uppercase: /[A-Z]/.test(pwd),
+      lowercase: /[a-z]/.test(pwd),
+      number: /[0-9]/.test(pwd),
+      symbol: /[!@#$%^&*(),.?":{}|<>]/.test(pwd),
+      minLength: pwd.length >= 8,
+    };
+  };
+
+  const isPasswordValid = (pwd) => {
+    const reqs = getPasswordRequirements(pwd);
+    return reqs.uppercase && reqs.lowercase && reqs.number && reqs.symbol && reqs.minLength;
+  };
+
   const validateStep1 = () => {
     setErrorMessage('');
     if (!name.trim()) {
@@ -110,10 +153,17 @@ const Registration = () => {
       showToast(msg, 'warning');
       return false;
     }
-    const pwdValidation = validatePasswordStrength(password);
-    if (pwdValidation !== "Strong password") {
-      setErrorMessage(`Password invalid: ${pwdValidation}`);
-      showToast(`⚠️ Password invalid: ${pwdValidation}`, 'warning');
+    if (!isPasswordValid(password)) {
+      const reqs = getPasswordRequirements(password);
+      const missing = [];
+      if (!reqs.uppercase) missing.push('uppercase letter');
+      if (!reqs.lowercase) missing.push('lowercase letter');
+      if (!reqs.number) missing.push('number');
+      if (!reqs.symbol) missing.push('symbol');
+      if (!reqs.minLength) missing.push('8+ characters');
+      const msg = `Password needs: ${missing.join(', ')}`;
+      setErrorMessage(msg);
+      showToast(`⚠️ ${msg}`, 'warning');
       return false;
     }
     if (!confirmPassword) {
@@ -278,11 +328,13 @@ const Registration = () => {
                 type={showPassword ? 'text' : 'password'}
                 value={password}
                 onChange={e => setPassword(e.target.value)}
+                onFocus={() => setShowPasswordTip(true)}
+                onBlur={() => setTimeout(() => setShowPasswordTip(false), 200)}
                 required
                 minLength={8}
                 maxLength={20}
                 autoComplete="new-password"
-                placeholder="Min 8 chars: uppercase, lowercase, number, symbol"
+                placeholder="Enter a strong password"
               />
               <span
                 className={styles.eyeIcon}
@@ -294,6 +346,11 @@ const Registration = () => {
               >
                 {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
               </span>
+
+              {/* Password Strength Indicator Popup */}
+              {showPasswordTip && password && (
+                <PasswordStrengthPopup password={password} requirements={getPasswordRequirements(password)} />
+              )}
             </div>
 
             <div className={`${styles.formGroup} ${styles.passwordWrapper}`}>
