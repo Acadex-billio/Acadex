@@ -170,6 +170,8 @@ const resources = {
       registrationPage: {
         title: 'Register - Acadex',
         heading: 'Register',
+        personalDetails: 'PersonalDetails',
+        schoolDetails: 'SchoolDetails',
         name: 'Name',
         department: 'Department',
         selectDepartment: '-- Select Department --',
@@ -354,8 +356,8 @@ const resources = {
       },
       registrationPage: {
         title: 'Inscription - Acadex',
-        heading: 'Inscription',
-        name: 'Nom',
+        heading: 'Inscription',        personalDetails: 'Informations personnelles',
+        schoolDetails: 'Détails scolaires',        name: 'Nom',
         department: 'Departement',
         selectDepartment: '-- Selectionner un departement --',
         email: 'Email',

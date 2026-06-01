@@ -107,8 +107,8 @@ const Login = () => {
               onChange={(e) => i18n.changeLanguage(e.target.value)}
               aria-label={t('common.language')}
             >
-              <option value="en">{t('common.english')}</option>
-              <option value="fr">{t('common.french')}</option>
+              <option value="en">🇺🇸 {t('common.english')}</option>
+              <option value="fr">🇫🇷 {t('common.french')}</option>
             </select>
           </div>
           <div className={styles.logo}>Acadex</div>

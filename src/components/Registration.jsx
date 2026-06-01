@@ -249,7 +249,7 @@ const Registration = () => {
           aria-label={t('common.language')}
           style={{ height: 40, borderRadius: 12, border: '1px solid #d0d7de', padding: '0 10px' }}
         >
-          <option value="en">🇬🇧 {t('common.english')}</option>
+          <option value="en">🇺🇸 {t('common.english')}</option>
           <option value="fr">🇫🇷 {t('common.french')}</option>
         </select>
       </div>
@@ -260,12 +260,12 @@ const Registration = () => {
       <div className={styles.stepIndicator}>
         <div className={`${styles.step} ${currentStep === 1 ? styles.stepActive : ''}`}>
           <div className={styles.stepNumber}>1</div>
-          <div className={styles.stepLabel}>{t('registrationPage.personalInfoShort') || 'PersonInfo'}</div>
+          <div className={styles.stepLabel}>{t('registrationPage.personalDetails') || 'PersonalDetails'}</div>
         </div>
         <div className={styles.stepLine}></div>
         <div className={`${styles.step} ${currentStep === 2 ? styles.stepActive : ''}`}>
           <div className={styles.stepNumber}>2</div>
-          <div className={styles.stepLabel}>{t('registrationPage.programDeptShort') || 'SchoolDetails'}</div>
+          <div className={styles.stepLabel}>{t('registrationPage.schoolDetails') || 'SchoolDetails'}</div>
         </div>
       </div>
 
@@ -275,7 +275,7 @@ const Registration = () => {
         {/* STEP 1: Personal Info & Password */}
         {currentStep === 1 && (
           <>
-            <div className={styles.sectionTitle}>👤 {t('registrationPage.personalInformation') || 'Personal Information'}</div>
+            <div className={styles.sectionTitle}>👤 {t('registrationPage.personalDetails') || 'PersonalDetails'}</div>
             
             <div className={styles.formGroup}>
               <label>{t('registrationPage.name')}</label>
@@ -376,7 +376,7 @@ const Registration = () => {
         {/* STEP 2: Program & Department */}
         {currentStep === 2 && (
           <>
-            <div className={styles.sectionTitle}>🏢 {t('registrationPage.programDept') || 'Program & Department'}</div>
+            <div className={styles.sectionTitle}>🏢 {t('registrationPage.schoolDetails') || 'SchoolDetails'}</div>
             
             <div className={styles.formGroup}>
               <label>{t('common.program')}</label>
@@ -462,7 +462,7 @@ const Registration = () => {
                   value={lecturerLanguage}
                   onChange={e => setLecturerLanguage(e.target.value)}
                 >
-                  <option value="en">🇬🇧 {t('common.english')}</option>
+                  <option value="en">�� {t('common.english')}</option>
                   <option value="fr">🇫🇷 {t('common.french')}</option>
                 </select>
               </div>

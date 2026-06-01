@@ -1,7 +1,7 @@
 import React, { Suspense, lazy } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import i18n, { resolveLanguageForUser } from './i18n';
-import ToastNotification from './utility/ToastNotification';
+import ToastNotification, { showToast } from './utility/ToastNotification';
 import GraduationCapLoader from './components/GraduationCapLoader';
 import { LoadingProvider, useLoading } from './context/LoadingContext';
 import ErrorBoundary from './components/ErrorBoundary';
@@ -102,6 +102,37 @@ const LanguageBootstrap = () => {
   return null;
 };
 
+const KeepaliveToast = () => {
+  const { user } = useAuth();
+
+  React.useEffect(() => {
+    if (!user?.role || user.role !== 'developer') return undefined;
+
+    let cancelled = false;
+    const pingBackend = async () => {
+      try {
+        const response = await fetch('/api/health');
+        if (cancelled) return;
+        if (response.ok) {
+          showToast('Your Backend is alive', 'info');
+        }
+      } catch (_err) {
+        if (cancelled) return;
+        showToast('Backend keepalive failed', 'warning');
+      }
+    };
+
+    pingBackend();
+    const interval = setInterval(pingBackend, 3 * 60 * 1000);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, [user]);
+
+  return null;
+};
+
 const App = () => (
   <ErrorBoundary>
     <LoadingProvider>
@@ -109,6 +140,7 @@ const App = () => (
         <LanguageBootstrap />
         <Router>
           <ToastNotification />
+          <KeepaliveToast />
           <LoaderOverlay />
           <RouteLoadingListener />
           <Suspense fallback={<GraduationCapLoader fullscreen size={160} label="Loading..." />}>
