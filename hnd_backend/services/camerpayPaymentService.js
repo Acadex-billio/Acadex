@@ -32,11 +32,17 @@ function sanitizePhoneNumber(raw) {
   return digits;
 }
 
-function mapPaymentMethodToProviderMethod(method) {
+function mapPaymentMethodToProviderMethod(method, amount) {
   const normalized = String(method || '').trim().toLowerCase();
-  if (normalized === 'momo' || normalized === 'mobile_money' || normalized === 'mtn' || normalized === 'mtn_momo') return 'mtn_momo';
+  const rawAmount = Number(amount);
+  const shouldUseOrangeForLowAmount = Number.isFinite(rawAmount) && rawAmount > 0 && rawAmount < 100;
+
+  if (normalized === 'momo' || normalized === 'mobile_money' || normalized === 'mtn' || normalized === 'mtn_momo') {
+    return shouldUseOrangeForLowAmount ? 'orange_money' : 'mtn_momo';
+  }
+
   if (normalized === 'orange_money' || normalized === 'orange') return 'orange_money';
-  return 'orange_money';
+  return shouldUseOrangeForLowAmount ? 'orange_money' : 'mtn_momo';
 }
 
 async function fetchJson(url, options) {
@@ -105,7 +111,7 @@ async function initiateCollectionPayment({
 }) {
   const sanitizedPhone = sanitizePhoneNumber(phoneNumber);
   const paymentCurrency = String(currency || CAMERPAY_CURRENCY).toUpperCase();
-  const providerMethod = mapPaymentMethodToProviderMethod(paymentMethod);
+  const providerMethod = mapPaymentMethodToProviderMethod(paymentMethod, amount);
 
   if (!sanitizedPhone) {
     const err = new Error('A valid phone number is required for payment.');
