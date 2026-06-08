@@ -116,9 +116,10 @@ async function initiateCollectionPayment({
     throw err;
   }
 
+  let payload = null;
   try {
     const reference = externalReference || externalId || crypto.randomUUID();
-    const payload = {
+    payload = {
       payment_method: providerMethod,
       amount: String(amount),
       currency: paymentCurrency,
