@@ -1,12 +1,13 @@
 import api from './api';
 
-export const startSubscriptionPayment = async ({ planCode, phoneNumber, paymentMethod = 'momo', promoCode = '', referralCode = '' }) => {
+export const startSubscriptionPayment = async ({ planCode, phoneNumber, paymentMethod = 'momo', promoCode = '', referralCode = '', redirectUrl = `${window.location.origin}/payment/confirmation` }) => {
   const { data } = await api.post('/candidate/subscription/checkout', {
     planCode,
     phoneNumber,
     paymentMethod,
     promoCode,
     referralCode,
+    redirectUrl,
   });
   return data;
 };
