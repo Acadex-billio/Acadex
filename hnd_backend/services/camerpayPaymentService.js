@@ -5,6 +5,8 @@ const CAMERPAY_TOKEN = String(process.env.CAMERPAY_TOKEN || '').trim();
 const CAMERPAY_API_BASE_URL = String(process.env.CAMERPAY_API_BASE_URL || 'https://camerpay.biz').replace(/\/$/, '');
 const CAMERPAY_CURRENCY = String(process.env.CAMERPAY_CURRENCY || 'XAF').trim().toUpperCase();
 const CAMERPAY_FETCH_TIMEOUT_MS = Math.max(5000, Number(process.env.CAMERPAY_FETCH_TIMEOUT_MS || 15000));
+const CAMERPAY_CALLBACK_URL = String(process.env.CAMERPAY_CALLBACK_URL || '').trim();
+const CAMERPAY_RETURN_URL = String(process.env.CAMERPAY_RETURN_URL || '').trim();
 
 function getProviderMode() {
   return 'production'; // CamerPay is always production-ready
@@ -23,7 +25,7 @@ function sanitizePhoneNumber(raw) {
 
 function mapPaymentMethodToProviderMethod(method) {
   const normalized = String(method || '').trim().toLowerCase();
-  if (normalized === 'momo' || normalized === 'mobile_money') return 'momo';
+  if (normalized === 'momo' || normalized === 'mobile_money' || normalized === 'mtn' || normalized === 'mtn_momo') return 'mtn_momo';
   if (normalized === 'orange_money' || normalized === 'orange') return 'orange_money';
   return 'orange_money';
 }
@@ -125,11 +127,21 @@ async function initiateCollectionPayment({
       source: 'api',
     };
 
-    const callbackUrl = String(process.env.CAMERPAY_CALLBACK_URL || '').trim();
-    if (callbackUrl) payload.merchant_callback_url = callbackUrl;
+    if (!CAMERPAY_CALLBACK_URL) {
+      const missingCallbackUrlError = new Error('CamerPay requires CAMERPAY_CALLBACK_URL to be configured. merchant_callback_url is mandatory.');
+      missingCallbackUrlError.statusCode = 500;
+      throw missingCallbackUrlError;
+    }
 
-    const returnUrl = String(redirectUrl || process.env.CAMERPAY_RETURN_URL || '').trim();
-    if (returnUrl) payload.merchant_return_url = returnUrl;
+    const returnUrl = String(redirectUrl || CAMERPAY_RETURN_URL || '').trim();
+    if (!returnUrl) {
+      const missingReturnUrlError = new Error('CamerPay requires a return URL. Set CAMERPAY_RETURN_URL or provide a redirectUrl.');
+      missingReturnUrlError.statusCode = 500;
+      throw missingReturnUrlError;
+    }
+
+    payload.merchant_callback_url = CAMERPAY_CALLBACK_URL;
+    payload.merchant_return_url = returnUrl;
 
     if (payerMessage) payload.payer_message = String(payerMessage).slice(0, 120);
     if (payeeNote) payload.payee_note = String(payeeNote).slice(0, 240);
@@ -158,7 +170,7 @@ async function initiateCollectionPayment({
       stack: err.stack,
       request: {
         url: `${CAMERPAY_API_BASE_URL}/api/payment/initiate`,
-        payload: { amount, currency: paymentCurrency, customer_phone: sanitizedPhone, payment_method: providerMethod, merchant_invoice_id: externalReference || externalId },
+        payload,
       },
       responseBody: err.responseBody,
     });

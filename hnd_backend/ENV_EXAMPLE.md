@@ -46,6 +46,14 @@ MOMO_MOCK_AUTO_SUCCESS=true
 # Keep false by default. Set true only if you intentionally want mock payments in production.
 ALLOW_MOMO_MOCK_IN_PRODUCTION=false
 
+# CamerPay API Payments
+CAMERPAY_TOKEN=replace-with-your-camerpay-api-token
+CAMERPAY_API_BASE_URL=https://camerpay.biz
+CAMERPAY_CALLBACK_URL=https://your-backend.example.com/api/payment/camerpay/callback
+CAMERPAY_RETURN_URL=https://your-frontend.example.com/payment/confirmation
+CAMERPAY_FETCH_TIMEOUT_MS=15000
+CAMERPAY_WEBHOOK_KEY=replace-with-your-camerpay-webhook-secret
+
 # LiveKit Video Conferencing
 # Example: wss://your-project-xxxx.livekit.cloud
 LIVEKIT_URL=wss://your-livekit-host

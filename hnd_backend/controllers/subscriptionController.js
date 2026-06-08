@@ -249,7 +249,7 @@ exports.startPlanCheckout = async (req, res) => {
     const planCode = String(req.body?.planCode || '').trim().toLowerCase();
     const phoneNumber = String(req.body?.phoneNumber || user.phone || '').trim();
     const requestedPaymentMethod = String(req.body?.paymentMethod || 'momo').trim().toLowerCase();
-    const paymentMethod = ['momo', 'orange_money'].includes(requestedPaymentMethod) ? requestedPaymentMethod : 'momo';
+    const paymentMethod = ['momo', 'mtn_momo', 'orange_money'].includes(requestedPaymentMethod) ? requestedPaymentMethod : 'momo';
     const promoCode = sanitizePromoCodeInput(req.body?.promoCode || req.body?.referralCode);
     const plan = getPlanDefinition(planCode);
 

@@ -68,7 +68,7 @@ const schemas = {
     subscriptionCheckout: Joi.object({
       planCode: Joi.string().trim().valid('pro', 'paygo').required(),
       phoneNumber: phoneSchema.required(),
-      paymentMethod: Joi.string().trim().valid('momo', 'orange_money').default('momo'),
+      paymentMethod: Joi.string().trim().valid('momo', 'mtn_momo', 'orange_money').default('momo'),
       promoCode: promoCodeSchema.allow('', null).optional(),
       referralCode: promoCodeSchema.allow('', null).optional(),
     }),
