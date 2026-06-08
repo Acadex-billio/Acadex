@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import api from '../services/api';
 import GraduationCapLoader from './GraduationCapLoader';
 import { showToast } from '../utility/ToastNotification';
@@ -9,7 +9,7 @@ const PaymentConfirmation = () => {
   const [subscription, setSubscription] = useState(null);
   const [error, setError] = useState(null);
 
-  const fetchByTransaction = async (txId) => {
+  const fetchByTransaction = useCallback(async (txId) => {
     try {
       const { data } = await api.get(`/candidate/payments/${encodeURIComponent(txId)}/status`);
       if (data?.success) {
@@ -21,9 +21,9 @@ const PaymentConfirmation = () => {
     } catch (err) {
       setError(err?.response?.data?.message || 'Failed to fetch payment status');
     }
-  };
+  }, []);
 
-  const fetchLatest = async () => {
+  const fetchLatest = useCallback(async () => {
     try {
       const { data } = await api.get('/candidate/subscription/me');
       if (data?.recent_transactions && data.recent_transactions.length > 0) {
@@ -35,7 +35,7 @@ const PaymentConfirmation = () => {
     } catch (err) {
       setError(err?.response?.data?.message || 'Failed to load recent transactions');
     }
-  };
+  }, [fetchByTransaction]);
 
   useEffect(() => {
     let cancelled = false;
@@ -54,7 +54,7 @@ const PaymentConfirmation = () => {
       }
     })();
     return () => { cancelled = true; };
-  }, []);
+  }, [fetchByTransaction, fetchLatest]);
 
   if (loading) return <GraduationCapLoader fullscreen label="Checking payment status..." />;
 
@@ -112,8 +112,11 @@ const PaymentConfirmation = () => {
           try {
             const params = new URLSearchParams(window.location.search);
             const tx = params.get('transaction_id') || params.get('transactionId') || params.get('tx') || params.get('payment_id') || params.get('external_reference');
-            if (tx) await fetchByTransaction(tx);
-            else await fetchLatest();
+            if (tx) {
+              await fetchByTransaction(tx);
+            } else {
+              await fetchLatest();
+            }
           } catch (err) {
             /* ignore */
           } finally {
