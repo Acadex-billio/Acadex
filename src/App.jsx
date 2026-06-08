@@ -62,6 +62,7 @@ const LecturerAdminPanel = lazy(() => import('./components/LecturerAdminPanel'))
 const AdsManager = lazy(() => import('./components/AdsManager'));
 const LecturerChatGate = lazy(() => import('./components/LecturerChatGate'));
 const StudyModeMaterials = lazy(() => import('./components/StudyModeMaterials'));
+const PaymentConfirmation = lazy(() => import('./components/PaymentConfirmation'));
 
 const RouteLoadingListener = () => {
   const location = useLocation();
@@ -246,6 +247,7 @@ const App = () => (
               <Route path="/viewhistory" element={<Navigate to="/candidate/history" replace />} />
               <Route path="/groupchat" element={<Navigate to="/candidate/chat" replace />} />
               <Route path="/can-profile" element={<Navigate to="/candidate/profile" replace />} />
+              <Route path="/payment/confirmation" element={<PaymentConfirmation />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </Suspense>
