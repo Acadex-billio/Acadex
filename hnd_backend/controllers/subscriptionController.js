@@ -157,7 +157,7 @@ async function applySuccessfulPayment(transaction) {
   return transaction;
 }
 
-async function createTransaction({ candId, phoneNumber, purposeType, purposeCode, resourceType, resourceId, amount, currency, description, metadata }) {
+async function createTransaction({ candId, phoneNumber, purposeType, purposeCode, resourceType, resourceId, amount, currency, description, metadata, paymentMethod }) {
   const isCouponPayment = Number(amount || 0) <= 0 && sanitizePromoCodeInput(metadata?.promo_code);
   if (isCouponPayment) {
     const coupon = { code: metadata?.promo_code, expires_at: metadata?.coupon_expires_at || null, _id: metadata?.coupon_id || null };
@@ -196,6 +196,7 @@ async function createTransaction({ candId, phoneNumber, purposeType, purposeCode
     phoneNumber,
     payerMessage: description.slice(0, 60),
     payeeNote: description.slice(0, 120),
+    paymentMethod,
     onSuccessfulPayment: applySuccessfulPayment,
   });
 }
@@ -282,6 +283,7 @@ exports.startPlanCheckout = async (req, res) => {
         coupon_id: pricing.coupon?._id ? String(pricing.coupon._id) : null,
         coupon_expires_at: pricing.coupon?.expires_at || null,
       },
+      paymentMethod,
     });
 
     return res.json({
@@ -291,7 +293,11 @@ exports.startPlanCheckout = async (req, res) => {
     });
   } catch (err) {
     const normalized = normalizeCheckoutError(err, 'Failed to start subscription payment');
-    return res.status(normalized.statusCode).json({ success: false, message: normalized.message });
+    return res.status(normalized.statusCode).json({
+      success: false,
+      message: normalized.message,
+      provider_error: normalized.provider_error,
+    });
   }
 };
 
@@ -378,7 +384,11 @@ exports.startMaterialCheckout = async (req, res) => {
     return res.json({ success: true, payment: buildPaymentSummary(transaction) });
   } catch (err) {
     const normalized = normalizeCheckoutError(err, 'Failed to start material payment');
-    return res.status(normalized.statusCode).json({ success: false, message: normalized.message });
+    return res.status(normalized.statusCode).json({
+      success: false,
+      message: normalized.message,
+      provider_error: normalized.provider_error,
+    });
   }
 };
 
@@ -436,7 +446,11 @@ exports.startCenterCheckout = async (req, res) => {
     return res.json({ success: true, payment: buildPaymentSummary(transaction) });
   } catch (err) {
     const normalized = normalizeCheckoutError(err, 'Failed to start center payment');
-    return res.status(normalized.statusCode).json({ success: false, message: normalized.message });
+    return res.status(normalized.statusCode).json({
+      success: false,
+      message: normalized.message,
+      provider_error: normalized.provider_error,
+    });
   }
 };
 
@@ -572,6 +586,10 @@ exports.startManualPlanCheckout = async (req, res) => {
     });
   } catch (err) {
     const normalized = normalizeCheckoutError(err, 'Failed to submit manual payment proof');
-    return res.status(normalized.statusCode).json({ success: false, message: normalized.message });
+    return res.status(normalized.statusCode).json({
+      success: false,
+      message: normalized.message,
+      provider_error: normalized.provider_error,
+    });
   }
 };

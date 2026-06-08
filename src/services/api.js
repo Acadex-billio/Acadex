@@ -22,7 +22,7 @@ const normalizeApiError = (error) => {
     status,
     message,
     code: payload?.code || null,
-    details: payload?.details || null,
+    details: payload?.details || payload?.provider_error || null,
     requestUrl: error?.config?.url || null,
   };
 };

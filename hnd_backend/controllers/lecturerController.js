@@ -835,7 +835,11 @@ exports.startBookingPayment = async (req, res) => {
       }
     } catch (err) {
       const normalized = normalizeCheckoutError(err, 'Failed to initialize booking payment request.');
-      return res.status(normalized.statusCode).json({ success: false, message: normalized.message });
+      return res.status(normalized.statusCode).json({
+        success: false,
+        message: normalized.message,
+        provider_error: normalized.provider_error,
+      });
     }
 
     booking.payment_transaction_id = transaction._id;
@@ -1323,7 +1327,11 @@ exports.startInviteConferencePayment = async (req, res) => {
       }
     } catch (err) {
       const normalized = normalizeCheckoutError(err, 'Failed to initialize conference access payment request.');
-      return res.status(normalized.statusCode).json({ success: false, message: normalized.message });
+      return res.status(normalized.statusCode).json({
+        success: false,
+        message: normalized.message,
+        provider_error: normalized.provider_error,
+      });
     }
 
     invite.payment_transaction_id = transaction._id;

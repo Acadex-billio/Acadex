@@ -18,8 +18,14 @@ function sanitizePhoneNumber(raw) {
   const digits = String(raw || '').replace(/\D/g, '');
   if (!digits) return '';
   // CamerPay expects phone numbers in format like 237XXXXXXXXX or just 6XXXXXXXXX
-  // Assumes numbers are already in correct format
   return digits;
+}
+
+function mapPaymentMethodToProviderMethod(method) {
+  const normalized = String(method || '').trim().toLowerCase();
+  if (normalized === 'momo' || normalized === 'mobile_money') return 'momo';
+  if (normalized === 'orange_money' || normalized === 'orange') return 'orange_money';
+  return 'orange_money';
 }
 
 async function fetchJson(url, options) {
@@ -84,12 +90,20 @@ async function initiateCollectionPayment({
   payerMessage,
   payeeNote,
   redirectUrl,
+  paymentMethod,
 }) {
   const sanitizedPhone = sanitizePhoneNumber(phoneNumber);
   const paymentCurrency = String(currency || CAMERPAY_CURRENCY).toUpperCase();
+  const providerMethod = mapPaymentMethodToProviderMethod(paymentMethod);
 
   if (!sanitizedPhone) {
     const err = new Error('A valid phone number is required for payment.');
+    err.statusCode = 400;
+    throw err;
+  }
+
+  if (!Number.isFinite(Number(amount)) || Number(amount) <= 0) {
+    const err = new Error('A valid payment amount is required.');
     err.statusCode = 400;
     throw err;
   }
@@ -102,22 +116,28 @@ async function initiateCollectionPayment({
 
   try {
     const reference = externalReference || externalId || crypto.randomUUID();
-
     const payload = {
-      payment_method: 'orange_money', // Default to Orange Money; can be extended for other methods
-      amount: Number(amount),
+      payment_method: providerMethod,
+      amount: String(amount),
       currency: paymentCurrency,
       customer_phone: sanitizedPhone,
       merchant_invoice_id: reference,
-      merchant_callback_url: process.env.CAMERPAY_CALLBACK_URL || '',
-      merchant_return_url: redirectUrl || process.env.CAMERPAY_RETURN_URL || '',
       source: 'api',
     };
+
+    const callbackUrl = String(process.env.CAMERPAY_CALLBACK_URL || '').trim();
+    if (callbackUrl) payload.merchant_callback_url = callbackUrl;
+
+    const returnUrl = String(redirectUrl || process.env.CAMERPAY_RETURN_URL || '').trim();
+    if (returnUrl) payload.merchant_return_url = returnUrl;
+
+    if (payerMessage) payload.payer_message = String(payerMessage).slice(0, 120);
+    if (payeeNote) payload.payee_note = String(payeeNote).slice(0, 240);
 
     const response = await fetchJson(`${CAMERPAY_API_BASE_URL}/api/payment/initiate`, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${CAMERPAY_TOKEN}`,
+        Authorization: `Bearer ${CAMERPAY_TOKEN}`,
         'Content-Type': 'application/json',
         'User-Agent': 'Acadex/1.0',
       },
@@ -133,7 +153,15 @@ async function initiateCollectionPayment({
       providerResponse: response,
     };
   } catch (err) {
-    logger.error('CamerPay payment initiation failed', { error: err.message, stack: err.stack });
+    logger.error('CamerPay payment initiation failed', {
+      error: err.message,
+      stack: err.stack,
+      request: {
+        url: `${CAMERPAY_API_BASE_URL}/api/payment/initiate`,
+        payload: { amount, currency: paymentCurrency, customer_phone: sanitizedPhone, payment_method: providerMethod, merchant_invoice_id: externalReference || externalId },
+      },
+      responseBody: err.responseBody,
+    });
     throw err;
   }
 }

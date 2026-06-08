@@ -1,4 +1,5 @@
 const crypto = require('crypto');
+const logger = require('../utils/logger');
 const PaymentTransaction = require('../models/PaymentTransaction');
 const { getProviderMode, initiateCollectionPayment, getCollectionPaymentStatus, sanitizePhoneNumber } = require('./camerpayPaymentService');
 
@@ -29,7 +30,18 @@ const normalizeCheckoutError = (err, fallbackMessage) => {
     : (err?.message || fallbackMessage);
 
   const providerStatusCode = Number(err?.statusCode || 0);
-  const statusCode = providerStatusCode >= 400 ? 502 : 500;
+  const statusCode = providerStatusCode >= 400 ? providerStatusCode : 500;
+
+  logger.error('Checkout normalization detected payment provider failure', {
+    statusCode,
+    message,
+    provider_error: providerBody,
+    originalError: {
+      message: err?.message,
+      statusCode: err?.statusCode,
+      responseBody: err?.responseBody,
+    },
+  });
 
   return { statusCode, message, provider_error: providerBody };
 };
@@ -46,6 +58,7 @@ const startCampayPayment = async ({
   phoneNumber,
   payerMessage,
   payeeNote,
+  paymentMethod,
   onSuccessfulPayment,
 }) => {
   const externalReference = transactionPayload.external_reference || crypto.randomUUID();
@@ -66,6 +79,7 @@ const startCampayPayment = async ({
       phoneNumber,
       payerMessage,
       payeeNote,
+      paymentMethod,
     });
   } catch (err) {
     const normalized = normalizeCheckoutError(err, 'Failed to initialize payment request.');
@@ -73,6 +87,13 @@ const startCampayPayment = async ({
     transaction.completed_at = new Date();
     transaction.provider_response = normalized.provider_error || { message: normalized.message };
     await transaction.save();
+
+    logger.error('Payment initialization failed during transaction processing', {
+      transactionId: transaction._id,
+      provider_error: normalized.provider_error,
+      normalizedMessage: normalized.message,
+      originalStatus: err?.statusCode,
+    });
 
     const exposedErr = new Error(normalized.message);
     exposedErr.statusCode = normalized.statusCode;
