@@ -166,10 +166,20 @@ async function initiateCollectionPayment({
       body: JSON.stringify(payload),
     });
 
+    const providerReference = response?.payment_id || response?.reference || reference;
+    logger.info('CamerPay payment initiated successfully', {
+      payment_id: response?.payment_id,
+      reference: reference,
+      providerReference,
+      merchant_invoice_id: payload.merchant_invoice_id,
+      response_keys: Object.keys(response || {}),
+      full_response: response,
+    });
+
     return {
       provider: 'camerpay',
       providerMode: getProviderMode(),
-      providerReference: response?.payment_id || response?.reference || reference,
+      providerReference,
       status: 'pending',
       transactionId: response?.payment_id || response?.transaction_id || null,
       providerResponse: response,
@@ -200,16 +210,25 @@ async function getCollectionPaymentStatus(providerReference) {
   }
 
   try {
-    const response = await fetchJson(
-      `${CAMERPAY_API_BASE_URL}/api/payment/status/${encodeURIComponent(providerReference)}`,
-      {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${CAMERPAY_TOKEN}`,
-          'User-Agent': 'Acadex/1.0',
-        },
-      }
-    );
+    const statusUrl = `${CAMERPAY_API_BASE_URL}/api/payment/status/${encodeURIComponent(providerReference)}`;
+    logger.debug('Checking CamerPay payment status', {
+      url: statusUrl,
+      providerReference,
+    });
+
+    const response = await fetchJson(statusUrl, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${CAMERPAY_TOKEN}`,
+        'User-Agent': 'Acadex/1.0',
+      },
+    });
+
+    logger.info('CamerPay payment status response', {
+      providerReference,
+      response_status: response?.status || response?.payment_status,
+      response_keys: Object.keys(response || {}),
+    });
 
     const providerStatus = String(response?.status || response?.payment_status || '').toLowerCase();
     const normalizedStatus = providerStatus === 'successful' || providerStatus === 'success' || providerStatus === 'completed'
@@ -231,7 +250,13 @@ async function getCollectionPaymentStatus(providerReference) {
       providerResponse: response,
     };
   } catch (err) {
-    logger.error('CamerPay payment status check failed', { error: err.message, stack: err.stack });
+    logger.error('CamerPay payment status check failed', {
+      error: err.message,
+      stack: err.stack,
+      providerReference,
+      statusCode: err.statusCode,
+      responseBody: err.responseBody,
+    });
     return {
       provider: 'camerpay',
       providerMode: getProviderMode(),

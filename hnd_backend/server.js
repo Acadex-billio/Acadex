@@ -60,6 +60,7 @@ const ragRoutes = require('./Routes/ragRoutes');
 const aiChatRoutes = require('./Routes/aiChatRoutes');
 const lecturerRoutes = require('./Routes/lecturerRoutes');
 const adRoutes = require('./Routes/adRoutes');
+const publicRoutes = require('./Routes/publicRoutes');
 const { getLibreOfficeQueueStats } = require('./services/libreOfficeQueue');
 const { startKeepalive } = require('./services/keepaliveNotifier');
 
@@ -331,6 +332,8 @@ sessionStore.on('disconnected', () => {
 
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
+// Public routes (webhooks and other endpoints that don't require auth)
+app.use('/api/payment', publicRoutes);
 
 app.use('/api/auth', authRoutes);
 app.use('/api/candidate', candidateRoutes);
