@@ -339,10 +339,37 @@ const AdminShell = () => {
       </div>
 
       <footer className={styles.footer}>
-        <span>System powered by brightsatck innovations.</span>
-        <a href="https://brightsatckinnovations.com" target="_blank" rel="noreferrer">brightsatckinnovations.com</a>
-        <a href="mailto:brightstackinnovations@gmail.com">brightstackinnovations@gmail.com</a>
-        <a href="https://wa.me/237678507737" target="_blank" rel="noreferrer">WhatsApp 678507737</a>
+        <NavLink to="/admin" end className={({ isActive }) => isActive ? styles.footerLinkActive : ''}>
+          <FaHome />
+          <span>Home</span>
+        </NavLink>
+        {isDeveloper ? (
+          <>
+            <NavLink to="/admin/ads" className={({ isActive }) => isActive ? styles.footerLinkActive : ''}>
+              <FaAd />
+              <span>Ads</span>
+            </NavLink>
+            <NavLink to="/admin/manage-billing" className={({ isActive }) => isActive ? styles.footerLinkActive : ''}>
+              <FaCreditCard />
+              <span>Subscription</span>
+            </NavLink>
+          </>
+        ) : (
+          <>
+            <NavLink to="/admin/question-papers" className={({ isActive }) => isActive ? styles.footerLinkActive : ''}>
+              <FaUpload />
+              <span>Add-Paper</span>
+            </NavLink>
+            <NavLink to="/admin/reports" className={({ isActive }) => isActive ? styles.footerLinkActive : ''}>
+              <FaFileAlt />
+              <span>Add-Report</span>
+            </NavLink>
+          </>
+        )}
+        <NavLink to="/admin/profile" className={({ isActive }) => isActive ? styles.footerLinkActive : ''}>
+          <FaUserCircle />
+          <span>Profile</span>
+        </NavLink>
       </footer>
 
       <FloatingAIIcon

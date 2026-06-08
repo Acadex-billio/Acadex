@@ -29,7 +29,7 @@ const PLAN_DEFINITIONS = {
   paygo: {
     code: 'paygo',
     name: 'PAYGO Plan',
-    price: 50,
+    price: 100,
     currency: 'XAF',
     durationDays: 90,
     description: 'Low upfront fee for 3 months, then pay only for specific premium actions.',

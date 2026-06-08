@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import {
   FaBars,
@@ -13,6 +13,7 @@ import {
   FaSignOutAlt,
   FaLock,
   FaExclamationTriangle,
+  FaUserCircle,
 } from 'react-icons/fa';
 import styles from '../../Astyles/DashboardShell.module.css';
 import lecStyles from '../../Astyles/lecturerPortal.module.css';
@@ -27,6 +28,7 @@ const LecturerShell = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const { user } = useAuth();
   const { startLoading, stopLoading } = useLoading();
+  const [chatUnreadCount, setChatUnreadCount] = useState(0);
 
   const isPending = String(user?.account_status || 'active') !== 'active';
 
@@ -68,6 +70,29 @@ const LecturerShell = () => {
     }
   };
 
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadChatCount = async () => {
+      try {
+        const res = await api.get('/chat/rooms');
+        if (cancelled) return;
+        const rooms = Array.isArray(res.data?.rooms) ? res.data.rooms : [];
+        const total = rooms.reduce((sum, r) => sum + (Number(r.unread_count) || 0), 0);
+        setChatUnreadCount(total);
+      } catch (_) {
+        if (!cancelled) setChatUnreadCount(0);
+      }
+    };
+
+    loadChatCount();
+    const interval = setInterval(loadChatCount, 30000);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, []);
+
   const profileLabel = user?.name?.charAt(0)?.toUpperCase() || 'L';
 
   return (
@@ -77,9 +102,23 @@ const LecturerShell = () => {
           <FaBars />
         </button>
         <div className={styles.brand}>Lecturer Portal</div>
-        <div className={styles.headerInfo}>
-          <div className={styles.headerAvatar}>{profileLabel}</div>
-          <span>{user?.name || user?.email || 'Lecturer'}</span>
+        <div className={styles.headerActions}>
+          <div className={styles.headerActionWrap}>
+            <button
+              type="button"
+              className={styles.headerActionBtn}
+              onClick={() => { startLoading(); navigate('/lecturer/chat'); setTimeout(() => stopLoading(), 350); }}
+              aria-label="Chat"
+              title="Chat"
+            >
+              <FaComments />
+            </button>
+            {chatUnreadCount > 0 && <span className={styles.headerActionBadge}>{chatUnreadCount > 99 ? '99+' : chatUnreadCount}</span>}
+          </div>
+          <div className={styles.headerInfo}>
+            <div className={styles.headerAvatar}>{profileLabel}</div>
+            <span>{user?.name || user?.email || 'Lecturer'}</span>
+          </div>
         </div>
       </header>
 
@@ -164,7 +203,24 @@ const LecturerShell = () => {
         title="AI Assistant"
       />
       <AdDisplay />
-    </div>
+      <footer className={styles.footer}>
+        <NavLink to="/lecturer" end className={({ isActive }) => isActive ? styles.footerLinkActive : ''}>
+          <FaChalkboardTeacher />
+          <span>Home</span>
+        </NavLink>
+        <NavLink to="/lecturer/bookings" className={({ isActive }) => isActive ? styles.footerLinkActive : ''}>
+          <FaCalendarCheck />
+          <span>Bookings</span>
+        </NavLink>
+        <NavLink to="/lecturer/history" className={({ isActive }) => isActive ? styles.footerLinkActive : ''}>
+          <FaHistory />
+          <span>History</span>
+        </NavLink>
+        <NavLink to="/lecturer/profile-verification" className={({ isActive }) => isActive ? styles.footerLinkActive : ''}>
+          <FaUserCircle />
+          <span>Profile</span>
+        </NavLink>
+      </footer>    </div>
   );
 };
 

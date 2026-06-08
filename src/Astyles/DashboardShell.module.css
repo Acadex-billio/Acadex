@@ -21,29 +21,6 @@
   border-bottom: 1px solid var(--border);
 }
 
-.brand {
-  font-weight: 700;
-  letter-spacing: 0.2px;
-}
-
-.iconBtn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  width: 38px;
-  height: 38px;
-  border: none;
-  border-radius: 10px;
-  background: rgba(0, 0, 0, 0.04);
-  color: var(--text);
-  cursor: pointer;
-}
-
-.iconBtn:hover {
-  background: rgba(0, 0, 0, 0.08);
-}
-
 .body {
   flex: 1;
   display: flex;
@@ -60,7 +37,7 @@
   position: fixed;
   top: 56px;
   left: 0;
-  bottom: 44px;
+  bottom: 60px;
   transform: translateX(-110%);
   transition: transform 160ms ease;
   z-index: 30;
@@ -343,27 +320,48 @@
 }
 
 .footer {
-  min-height: 44px;
+  position: sticky;
+  bottom: 0;
+  min-height: 60px;
   background: var(--surface);
   color: var(--muted);
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 10px;
-  flex-wrap: wrap;
-  padding: 8px 12px;
-  font-size: 13px;
+  justify-content: space-around;
+  gap: 8px;
+  padding: 10px 8px;
+  font-size: 12px;
   border-top: 1px solid var(--border);
+  z-index: 15;
 }
 
 .footer a {
   color: var(--primary);
   text-decoration: none;
   font-weight: 600;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  transition: all 0.2s ease;
 }
 
 .footer a:hover {
-  text-decoration: underline;
+  background: rgba(0, 0, 0, 0.04);
+  text-decoration: none;
+  color: var(--primary);
+}
+
+.footer a svg {
+  width: 20px;
+  height: 20px;
+}
+
+.footerLinkActive {
+  color: var(--primary) !important;
+  background: rgba(246, 140, 38, 0.1) !important;
 }
 
 @media (min-width: 1024px) {
@@ -371,7 +369,7 @@
     position: sticky;
     transform: translateX(0);
     top: 56px;
-    bottom: 44px;
+    bottom: 60px;
   }
 
   .backdrop {

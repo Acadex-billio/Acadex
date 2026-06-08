@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { FaBars, FaTimes, FaHome, FaFileAlt, FaBook, FaClipboardList, FaCog, FaCommentDots, FaComments, FaChartLine, FaSignOutAlt, FaUserCircle, FaHistory, FaBullhorn, FaCreditCard, FaLightbulb, FaUsers, FaChevronDown } from 'react-icons/fa';
+import { FaBars, FaTimes, FaHome, FaFileAlt, FaBook, FaClipboardList, FaCog, FaCommentDots, FaComments, FaChartLine, FaSignOutAlt, FaUserCircle, FaHistory, FaBullhorn, FaCreditCard, FaLightbulb, FaUsers, FaChevronDown, FaChalkboardTeacher } from 'react-icons/fa';
 import styles from '../../Astyles/DashboardShell.module.css';
 import { useAuth } from '../../context/AuthContext';
 import { useLoading } from '../../context/LoadingContext';
@@ -27,6 +27,7 @@ const CandidateShell = () => {
   const [announcementCount, setAnnouncementCount] = useState(0);
   const [feedbackCount, setFeedbackCount] = useState(0);
   const [bookingAlertCount, setBookingAlertCount] = useState(0);
+  const [chatUnreadCount, setChatUnreadCount] = useState(0);
   const accountMenuRef = useRef(null);
   const { user, isAuthenticated } = useAuth();
 
@@ -109,6 +110,20 @@ const CandidateShell = () => {
       }
     };
 
+    const loadChatCount = async () => {
+      try {
+        const res = await api.get('/chat/rooms');
+        if (cancelled) return;
+        const rooms = Array.isArray(res.data?.rooms) ? res.data.rooms : [];
+        const total = rooms.reduce((sum, r) => sum + (Number(r.unread_count) || 0), 0);
+        setChatUnreadCount(total);
+        return true;
+      } catch (_) {
+        if (!cancelled) setChatUnreadCount(0);
+        return false;
+      }
+    };
+
     const pollIndicators = async () => {
       if (cancelled) return;
 
@@ -117,13 +132,14 @@ const CandidateShell = () => {
         return;
       }
 
-      const [countOk, feedbackOk, bookingOk] = await Promise.all([
+      const [countOk, feedbackOk, bookingOk, chatOk] = await Promise.all([
         loadCount(),
         loadFeedbackCount(),
         loadBookingIndicators(),
+        loadChatCount(),
       ]);
 
-      const hasFailure = [countOk, feedbackOk, bookingOk].some((ok) => ok === false);
+      const hasFailure = [countOk, feedbackOk, bookingOk, chatOk].some((ok) => ok === false);
       timer = setTimeout(pollIndicators, hasFailure ? 120000 : 30000);
     };
 
@@ -240,6 +256,19 @@ const CandidateShell = () => {
         </button>
         <div className={styles.brand}>{t('nav.candidateDashboard')}</div>
         <div className={styles.headerActions} ref={accountMenuRef}>
+          <div className={styles.headerActionWrap}>
+            <button
+              type="button"
+              className={styles.headerActionBtn}
+              onClick={() => { startLoading(); navigate('/candidate/chat'); setTimeout(() => stopLoading(), 450); }}
+              aria-label="Chat"
+              title="Chat"
+            >
+              <FaComments />
+            </button>
+            {chatUnreadCount > 0 && <span className={styles.headerActionBadge}>{chatUnreadCount > 99 ? '99+' : chatUnreadCount}</span>}
+          </div>
+
           <button
             type="button"
             className={styles.headerActionBtn}
@@ -347,10 +376,22 @@ const CandidateShell = () => {
       <AdDisplay />
 
       <footer className={styles.footer}>
-        <span>System powered by brightsatck innovations.</span>
-        <a href="https://brightsatckinnovations.com" target="_blank" rel="noreferrer">brightsatckinnovations.com</a>
-        <a href="mailto:brightstackinnovations@gmail.com">brightstackinnovations@gmail.com</a>
-        <a href="https://wa.me/237678507737" target="_blank" rel="noreferrer">WhatsApp 678507737</a>
+        <NavLink to="/candidate" end className={({ isActive }) => isActive ? styles.footerLinkActive : ''}>
+          <FaHome />
+          <span>Home</span>
+        </NavLink>
+        <NavLink to="/candidate/question-papers" className={({ isActive }) => isActive ? styles.footerLinkActive : ''}>
+          <FaClipboardList />
+          <span>Papers</span>
+        </NavLink>
+        <NavLink to="/candidate/chat" className={({ isActive }) => isActive ? styles.footerLinkActive : ''}>
+          <FaChalkboardTeacher />
+          <span>Lecturers</span>
+        </NavLink>
+        <NavLink to="/candidate/profile" className={({ isActive }) => isActive ? styles.footerLinkActive : ''}>
+          <FaUserCircle />
+          <span>Profile</span>
+        </NavLink>
       </footer>
     </div>
   );

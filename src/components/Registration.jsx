@@ -11,11 +11,9 @@ import { useLoading } from '../context/LoadingContext';
 // Password Strength Requirement Component
 const PasswordStrengthPopup = ({ password, requirements }) => {
   const reqsList = [
-    { label: 'Uppercase letter (A-Z)', met: requirements.uppercase },
-    { label: 'Lowercase letter (a-z)', met: requirements.lowercase },
+    { label: 'Letter (A-Z, a-z)', met: requirements.letter },
     { label: 'Number (0-9)', met: requirements.number },
-    { label: 'Symbol (!@#$%^&*)', met: requirements.symbol },
-    { label: 'Minimum 8 characters', met: requirements.minLength },
+    { label: 'Minimum 5 characters', met: requirements.minLength },
   ];
 
   return (
@@ -104,17 +102,15 @@ const Registration = () => {
 
   const getPasswordRequirements = (pwd) => {
     return {
-      uppercase: /[A-Z]/.test(pwd),
-      lowercase: /[a-z]/.test(pwd),
+      letter: /[a-zA-Z]/.test(pwd),
       number: /[0-9]/.test(pwd),
-      symbol: /[!@#$%^&*(),.?":{}|<>]/.test(pwd),
-      minLength: pwd.length >= 8,
+      minLength: pwd.length >= 5,
     };
   };
 
   const isPasswordValid = (pwd) => {
     const reqs = getPasswordRequirements(pwd);
-    return reqs.uppercase && reqs.lowercase && reqs.number && reqs.symbol && reqs.minLength;
+    return reqs.letter && reqs.number && reqs.minLength;
   };
 
   const validateStep1 = () => {
@@ -146,11 +142,9 @@ const Registration = () => {
     if (!isPasswordValid(password)) {
       const reqs = getPasswordRequirements(password);
       const missing = [];
-      if (!reqs.uppercase) missing.push('uppercase letter');
-      if (!reqs.lowercase) missing.push('lowercase letter');
+      if (!reqs.letter) missing.push('letter');
       if (!reqs.number) missing.push('number');
-      if (!reqs.symbol) missing.push('symbol');
-      if (!reqs.minLength) missing.push('8+ characters');
+      if (!reqs.minLength) missing.push('5+ characters');
       const msg = `Password needs: ${missing.join(', ')}`;
       setErrorMessage(msg);
       showToast(`⚠️ ${msg}`, 'warning');
@@ -321,7 +315,7 @@ const Registration = () => {
                 onFocus={() => setShowPasswordTip(true)}
                 onBlur={() => setTimeout(() => setShowPasswordTip(false), 200)}
                 required
-                minLength={8}
+                minLength={5}
                 maxLength={20}
                 autoComplete="new-password"
                 placeholder="Enter a strong password"
@@ -350,7 +344,7 @@ const Registration = () => {
                 value={confirmPassword}
                 onChange={e => setConfirmPassword(e.target.value)}
                 required
-                minLength={8}
+                minLength={5}
                 maxLength={20}
                 autoComplete="new-password"
                 placeholder="Confirm your password"
