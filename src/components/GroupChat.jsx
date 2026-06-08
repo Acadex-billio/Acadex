@@ -476,10 +476,11 @@ const GroupChat = ({ mode = 'candidate' }) => {
             description: requirement.message,
             amount: requirement.amount,
             currency: requirement.currency,
-            onStartPayment: async (phoneNumber, _paymentMethod = 'momo', promoCode = '') => {
+            onStartPayment: async ({ phoneNumber, paymentMethod = 'momo', promoCode = '' }) => {
               const { data } = await api.post('/candidate/payments/centers/checkout', {
                 action: 'join',
                 roomId: requirement.resource_id,
+                paymentMethod,
                 phoneNumber,
                 promoCode,
                 referralCode: promoCode,
@@ -655,9 +656,10 @@ const GroupChat = ({ mode = 'candidate' }) => {
           description: requirement.message,
           amount: requirement.amount,
           currency: requirement.currency,
-          onStartPayment: async (phoneNumber, _paymentMethod = 'momo', promoCode = '') => {
+          onStartPayment: async ({ phoneNumber, paymentMethod = 'momo', promoCode = '' }) => {
             const { data } = await api.post('/candidate/payments/centers/checkout', {
               action: 'create',
+              paymentMethod,
               phoneNumber,
               promoCode,
               referralCode: promoCode,
@@ -737,10 +739,11 @@ const GroupChat = ({ mode = 'candidate' }) => {
           description: requirement.message,
           amount: requirement.amount,
           currency: requirement.currency,
-          onStartPayment: async (phoneNumber, _paymentMethod = 'momo', promoCode = '') => {
+          onStartPayment: async ({ phoneNumber, paymentMethod = 'momo', promoCode = '' }) => {
             const { data } = await api.post('/candidate/payments/centers/checkout', {
               action: 'join',
               roomId: requirement.resource_id,
+              paymentMethod,
               phoneNumber,
               promoCode,
               referralCode: promoCode,

@@ -165,11 +165,12 @@ const QuestionPapers = () => {
       : 'PAYGO requires a separate payment before you can preview every page of this question paper.'),
     amount: requirement?.amount || (action === 'download' ? 100 : 50),
     currency: requirement?.currency || 'XAF',
-    onStartPayment: async (phoneNumber, _paymentMethod = 'momo', promoCode = '') => {
+    onStartPayment: async ({ phoneNumber, paymentMethod = 'momo', promoCode = '' }) => {
       const { data } = await api.post('/candidate/payments/materials/checkout', {
         resourceType: 'question_paper',
         resourceId: paper.qp_id,
         action,
+        paymentMethod,
         phoneNumber,
         promoCode,
         referralCode: promoCode,

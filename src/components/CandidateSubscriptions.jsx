@@ -6,7 +6,7 @@ import PaymentActionModal from './PaymentActionModal';
 import { getErrorMessage } from '../utility/getErrorMessage';
 import { showToast } from '../utility/ToastNotification';
 import { useAuth } from '../context/AuthContext';
-import { startManualSubscriptionPayment } from '../services/paymentFlowService';
+import { startSubscriptionPayment } from '../services/paymentFlowService';
 
 const CandidateSubscriptions = () => {
   const { user, updateUser } = useAuth();
@@ -167,22 +167,17 @@ const CandidateSubscriptions = () => {
 
       <PaymentActionModal
         isOpen={Boolean(selectedPlan)}
-        title={selectedPlan ? `Simulate payment for ${selectedPlan.name}` : ''}
-        description={selectedPlan ? `Use manual payment verification to activate ${selectedPlan.name}.` : ''}
+        title={selectedPlan ? `Pay for ${selectedPlan.name}` : ''}
+        description={selectedPlan ? `Pay with CamerPay mobile money to activate ${selectedPlan.name}.` : ''}
         amount={selectedPlan?.price || 0}
         currency={selectedPlan?.currency || 'XAF'}
-        confirmLabel={selectedPlan ? `Simulate payment` : 'Simulate payment'}
-        manualMode
-        manualRecipientNumber="678507737"
-        manualRecipientName="TEBEI NOEL FORKANG"
-        manualWaitMinutes={10}
-        manualProofLabel="Transaction ID or MTN MoMo success message"
-        manualProofPlaceholder="Example: TX123456789 or paste the MoMo success SMS text"
+        confirmLabel={selectedPlan ? 'Pay now' : 'Pay now'}
         onClose={() => setSelectedPlan(null)}
-        onStartPayment={async ({ manualProof, promoCode = '' }) => {
-          return startManualSubscriptionPayment({
+        onStartPayment={async ({ phoneNumber, paymentMethod, promoCode = '' }) => {
+          return startSubscriptionPayment({
             planCode: selectedPlan.code,
-            paymentProof: manualProof,
+            phoneNumber,
+            paymentMethod,
             promoCode,
             referralCode: promoCode,
           });

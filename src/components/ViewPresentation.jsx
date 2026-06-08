@@ -140,11 +140,12 @@ const ViewPresentation = () => {
       : 'PAYGO requires a separate payment before you can preview every page of this presentation.'),
     amount: requirement?.amount || (action === 'download' ? 100 : 50),
     currency: requirement?.currency || 'XAF',
-    onStartPayment: async (phoneNumber, _paymentMethod = 'momo', promoCode = '') => {
+    onStartPayment: async ({ phoneNumber, paymentMethod = 'momo', promoCode = '' }) => {
       const { data } = await api.post('/candidate/payments/materials/checkout', {
         resourceType: 'presentation',
         resourceId: presentation.presentation_id,
         action,
+        paymentMethod,
         phoneNumber,
         promoCode,
         referralCode: promoCode,

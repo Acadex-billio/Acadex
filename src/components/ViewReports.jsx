@@ -144,11 +144,12 @@ const ViewReport = () => {
       : 'PAYGO requires a separate payment before you can preview every page of this report.'),
     amount: requirement?.amount || 100,
     currency: requirement?.currency || 'XAF',
-    onStartPayment: async (phoneNumber, _paymentMethod = 'momo', promoCode = '') => {
+    onStartPayment: async ({ phoneNumber, paymentMethod = 'momo', promoCode = '' }) => {
       const { data } = await api.post('/candidate/payments/materials/checkout', {
         resourceType: 'report',
         resourceId: report.report_id,
         action,
+        paymentMethod,
         phoneNumber,
         promoCode,
         referralCode: promoCode,

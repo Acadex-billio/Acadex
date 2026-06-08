@@ -11,16 +11,6 @@ export const startSubscriptionPayment = async ({ planCode, phoneNumber, paymentM
   return data;
 };
 
-export const startManualSubscriptionPayment = async ({ planCode, paymentProof, promoCode = '', referralCode = '' }) => {
-  const { data } = await api.post('/candidate/subscription/manual-checkout', {
-    planCode,
-    paymentProof,
-    promoCode,
-    referralCode,
-  });
-  return data;
-};
-
 export const startBookingPayment = async ({ bookingId, phoneNumber, promoCode = '', referralCode = '' }) => {
   const { data } = await api.post(`/lecturers/bookings/${encodeURIComponent(bookingId)}/pay`, {
     phone_number: phoneNumber,
