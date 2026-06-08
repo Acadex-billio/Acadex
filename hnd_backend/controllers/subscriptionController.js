@@ -179,7 +179,7 @@ async function createTransaction({ candId, phoneNumber, purposeType, purposeCode
   return startCampayPayment({
     transactionPayload: {
       user_cand_id: candId,
-      provider: 'campay',
+      provider: 'camerpay',
       purpose_type: purposeType,
       purpose_code: purposeCode,
       resource_type: resourceType,
@@ -202,7 +202,7 @@ async function createTransaction({ candId, phoneNumber, purposeType, purposeCode
 
 async function refreshTransactionStatus(transaction) {
   if (!transaction) return transaction;
-  if (String(transaction.provider || '').toLowerCase() !== 'campay') return transaction;
+  if (String(transaction.provider || '').toLowerCase() !== 'camerpay') return transaction;
   return refreshCampayPaymentStatus(transaction, applySuccessfulPayment);
 }
 

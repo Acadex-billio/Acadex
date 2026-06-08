@@ -15,7 +15,7 @@ const { sendBulkPushNotification, isWebPushConfigured } = require('../utils/webP
 const { sendEmail } = require('../services/emailService');
 const {
   sanitizePhoneNumber,
-} = require('../services/campayPaymentService');
+} = require('../services/camerpayPaymentService');
 const {
   normalizeCheckoutError,
   startCampayPayment,
@@ -802,7 +802,7 @@ exports.startBookingPayment = async (req, res) => {
         transaction = await startCampayPayment({
           transactionPayload: {
             user_cand_id: candidateId,
-            provider: 'campay',
+            provider: 'camerpay',
             purpose_type: 'tutorship_booking',
             purpose_code: 'lecturer_booking_payment',
             resource_type: 'lecturer_booking',
@@ -1292,7 +1292,7 @@ exports.startInviteConferencePayment = async (req, res) => {
         transaction = await startCampayPayment({
           transactionPayload: {
             user_cand_id: inviteeId,
-            provider: 'campay',
+            provider: 'camerpay',
             purpose_type: 'tutorship_booking',
             purpose_code: 'lecturer_booking_invite_access',
             resource_type: 'lecturer_booking',

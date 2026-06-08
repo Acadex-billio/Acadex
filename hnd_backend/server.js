@@ -100,11 +100,8 @@ const isAiFeaturesEnabled = String(process.env.AI_FEATURES_ENABLED || 'true').tr
 
 const getServiceReadiness = () => {
   const payment = {
-    provider: 'campay',
-    hasApiId: Boolean(String(process.env.CAMPAY_API_ID || '').trim()),
-    hasAppUsername: Boolean(String(process.env.CAMPAY_APP_USERNAME || '').trim()),
-    hasAppPassword: Boolean(String(process.env.CAMPAY_APP_PASSWORD || '').trim()),
-    hasAccessToken: Boolean(String(process.env.CAMPAY_PERMANENT_ACCESS_TOKEN || '').trim()),
+    provider: 'camerpay',
+    hasToken: Boolean(String(process.env.CAMERPAY_TOKEN || '').trim()),
   };
 
   const storage = {
@@ -125,11 +122,7 @@ const getServiceReadiness = () => {
   };
 
   const ready = {
-    payment:
-      payment.hasApiId &&
-      payment.hasAppUsername &&
-      payment.hasAppPassword &&
-      payment.hasAccessToken,
+    payment: payment.hasToken,
     storage:
       storage.hasAccessKeyId &&
       storage.hasSecretAccessKey &&
@@ -145,23 +138,8 @@ const getServiceReadiness = () => {
 if (isProduction) {
   const readiness = getServiceReadiness();
 
-  if (!readiness.payment.hasApiId) {
-    logger.error('Missing CAMPAY_API_ID in production');
-    process.exit(1);
-  }
-
-  if (!readiness.payment.hasAppUsername) {
-    logger.error('Missing CAMPAY_APP_USERNAME in production');
-    process.exit(1);
-  }
-
-  if (!readiness.payment.hasAppPassword) {
-    logger.error('Missing CAMPAY_APP_PASSWORD in production');
-    process.exit(1);
-  }
-
-  if (!readiness.payment.hasAccessToken) {
-    logger.error('Missing CAMPAY_PERMANENT_ACCESS_TOKEN in production');
+  if (!readiness.payment.hasToken) {
+    logger.error('Missing CAMERPAY_TOKEN in production');
     process.exit(1);
   }
 

@@ -1,6 +1,6 @@
 const crypto = require('crypto');
 const PaymentTransaction = require('../models/PaymentTransaction');
-const { getProviderMode, initiateCollectionPayment, getCollectionPaymentStatus, sanitizePhoneNumber } = require('./campayPaymentService');
+const { getProviderMode, initiateCollectionPayment, getCollectionPaymentStatus, sanitizePhoneNumber } = require('./camerpayPaymentService');
 
 const parseProviderBody = (rawBody) => {
   if (!rawBody) return null;
