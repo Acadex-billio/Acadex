@@ -21,6 +21,7 @@ exports.handleCamerpayCallback = async (req, res) => {
 
     logger.info('CamerPay webhook received', {
       payment_id: payload?.payment_id,
+      transaction_uuid: payload?.transaction_uuid,
       status: payload?.status,
       merchant_invoice_id: payload?.merchant_invoice_id,
       signature_present: Boolean(signature),
@@ -42,6 +43,7 @@ exports.handleCamerpayCallback = async (req, res) => {
     const transaction = await PaymentTransaction.findOne({
       $or: [
         { provider_reference: payload?.payment_id },
+        { provider_reference: payload?.transaction_uuid },
         { external_reference: payload?.merchant_invoice_id },
         { external_id: payload?.external_id || payload?.reference },
       ],

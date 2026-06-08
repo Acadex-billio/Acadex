@@ -166,9 +166,10 @@ async function initiateCollectionPayment({
       body: JSON.stringify(payload),
     });
 
-    const providerReference = response?.payment_id || response?.reference || reference;
+    const providerReference = response?.transaction_uuid || response?.payment_id || response?.reference || reference;
     logger.info('CamerPay payment initiated successfully', {
       payment_id: response?.payment_id,
+      transaction_uuid: response?.transaction_uuid,
       reference: reference,
       providerReference,
       merchant_invoice_id: payload.merchant_invoice_id,
@@ -181,7 +182,7 @@ async function initiateCollectionPayment({
       providerMode: getProviderMode(),
       providerReference,
       status: 'pending',
-      transactionId: response?.payment_id || response?.transaction_id || null,
+      transactionId: response?.transaction_uuid || response?.payment_id || response?.transaction_id || null,
       providerResponse: response,
     };
   } catch (err) {
@@ -244,7 +245,7 @@ async function getCollectionPaymentStatus(providerReference) {
       providerMode: getProviderMode(),
       providerReference,
       status: normalizedStatus,
-      transactionId: response?.payment_id || response?.transaction_id || null,
+      transactionId: response?.transaction_uuid || response?.payment_id || response?.transaction_id || null,
       amount: response?.amount,
       currency: response?.currency,
       providerResponse: response,

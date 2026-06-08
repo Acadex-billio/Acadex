@@ -102,7 +102,10 @@ const startCampayPayment = async ({
     throw exposedErr;
   }
 
-  transaction.provider_reference = providerResult.providerReference || externalReference;
+  // Prefer provider-returned transaction id (transaction_uuid/payment_id) when available,
+  // fall back to providerReference or our merchant externalReference.
+  const chosenProviderRef = providerResult.transactionId || providerResult.providerReference || externalReference;
+  transaction.provider_reference = chosenProviderRef;
   transaction.provider_mode = providerResult.providerMode || transaction.provider_mode;
   transaction.provider_response = providerResult.providerResponse || null;
   transaction.status = mapProviderStatusToTransactionStatus(providerResult.status);
