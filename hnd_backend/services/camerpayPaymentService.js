@@ -8,6 +8,15 @@ const CAMERPAY_FETCH_TIMEOUT_MS = Math.max(5000, Number(process.env.CAMERPAY_FET
 const CAMERPAY_CALLBACK_URL = String(process.env.CAMERPAY_CALLBACK_URL || '').trim();
 const CAMERPAY_RETURN_URL = String(process.env.CAMERPAY_RETURN_URL || '').trim();
 
+// Log presence of critical CamerPay configuration (no secrets are logged)
+try {
+  logger.info('CamerPay configuration', {
+    has_token: Boolean(String(process.env.CAMERPAY_TOKEN || '').trim()),
+    has_callback_url: Boolean(CAMERPAY_CALLBACK_URL),
+    has_return_url: Boolean(CAMERPAY_RETURN_URL),
+    api_base: CAMERPAY_API_BASE_URL,
+  });
+} catch (_) {}
 function getProviderMode() {
   return 'production'; // CamerPay is always production-ready
 }

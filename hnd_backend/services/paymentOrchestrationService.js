@@ -59,6 +59,7 @@ const startCampayPayment = async ({
   payerMessage,
   payeeNote,
   paymentMethod,
+  redirectUrl,
   onSuccessfulPayment,
 }) => {
   const externalReference = transactionPayload.external_reference || crypto.randomUUID();
@@ -79,6 +80,7 @@ const startCampayPayment = async ({
       phoneNumber,
       payerMessage,
       payeeNote,
+      redirectUrl,
       paymentMethod,
     });
   } catch (err) {

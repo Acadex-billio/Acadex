@@ -197,6 +197,7 @@ async function createTransaction({ candId, phoneNumber, purposeType, purposeCode
     payerMessage: description.slice(0, 60),
     payeeNote: description.slice(0, 120),
     paymentMethod,
+    redirectUrl: metadata?.redirectUrl || metadata?.returnUrl || null,
     onSuccessfulPayment: applySuccessfulPayment,
   });
 }
@@ -250,6 +251,7 @@ exports.startPlanCheckout = async (req, res) => {
     const phoneNumber = String(req.body?.phoneNumber || user.phone || '').trim();
     const requestedPaymentMethod = String(req.body?.paymentMethod || 'momo').trim().toLowerCase();
     const paymentMethod = ['momo', 'mtn_momo', 'orange_money'].includes(requestedPaymentMethod) ? requestedPaymentMethod : 'momo';
+    const redirectUrl = String(req.body?.redirectUrl || req.body?.returnUrl || '').trim();
     const promoCode = sanitizePromoCodeInput(req.body?.promoCode || req.body?.referralCode);
     const plan = getPlanDefinition(planCode);
 
@@ -277,6 +279,7 @@ exports.startPlanCheckout = async (req, res) => {
       metadata: {
         plan_code: plan.code,
         payment_method: paymentMethod,
+        redirectUrl: redirectUrl || null,
         original_amount: plan.price,
         discount_amount: pricing.discountAmount,
         promo_code: pricing.promoCode,
