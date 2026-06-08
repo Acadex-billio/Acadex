@@ -11,6 +11,7 @@ const adminPresentationController = require('../controllers/adminPresentationCon
 const adminCandidateController = require('../controllers/adminCandidateController');
 const internshipTopicController = require('../controllers/internshipTopicController');
 const couponController = require('../controllers/couponController');
+const adminBillingController = require('../controllers/adminBillingController');
 const { validateDocumentUpload } = require('../middlewares/uploadValidation');
 const { requireAuth, requireAdmin, requireDeveloper, requireSuperAdmin } = require('../middlewares/jwtAuth');
 const { validate, schemas } = require('../middlewares/validateRequest');
@@ -124,6 +125,7 @@ router.delete('/billing/subscriptions/:candId', requireDeveloper, validate({ par
 router.get('/billing/manual-payments', requireDeveloper, adminCandidateController.listManualPaymentVerifications);
 router.post('/billing/manual-payments/:transactionId/approve', requireDeveloper, validate({ params: schemas.ids.transactionIdParam, body: schemas.admin.manualPaymentApprove }), adminCandidateController.approveManualPaymentVerification);
 router.post('/billing/manual-payments/:transactionId/reject', requireDeveloper, validate({ params: schemas.ids.transactionIdParam, body: schemas.admin.manualPaymentReject }), adminCandidateController.rejectManualPaymentVerification);
+router.post('/billing/transactions/:transactionId/repair', requireDeveloper, adminBillingController.repairTransaction);
 router.get('/billing/coupons', requireDeveloper, couponController.listCoupons);
 router.post('/billing/coupons', requireDeveloper, couponController.createCoupon);
 router.put('/billing/coupons/:code', requireDeveloper, validate({ params: schemas.ids.codeParam }), couponController.updateCoupon);
