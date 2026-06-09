@@ -4,7 +4,6 @@ import {
   FaBars,
   FaTimes,
   FaChalkboardTeacher,
-  FaIdCard,
   FaCalendarCheck,
   FaHistory,
   FaComments,
