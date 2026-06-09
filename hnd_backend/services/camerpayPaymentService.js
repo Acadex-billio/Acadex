@@ -162,7 +162,7 @@ async function initiateCollectionPayment({
     if (payerMessage) payload.payer_message = String(payerMessage).slice(0, 120);
     if (payeeNote) payload.payee_note = String(payeeNote).slice(0, 240);
 
-    const response = await fetchJson(`${CAMERPAY_API_BASE_URL}/payment/collect`, {
+    const response = await fetchJson(`${CAMERPAY_API_BASE_URL}/api/payment/initiate`, {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${CAMERPAY_TOKEN}`,
@@ -217,6 +217,8 @@ async function getCollectionPaymentStatus(providerReference) {
   }
 
   const statusUrls = [
+    `${CAMERPAY_API_BASE_URL}/api/payment/collect/${encodeURIComponent(providerReference)}`,
+    `${CAMERPAY_API_BASE_URL}/api/payment/status/${encodeURIComponent(providerReference)}`,
     `${CAMERPAY_API_BASE_URL}/payment/collect/${encodeURIComponent(providerReference)}`,
     `${CAMERPAY_API_BASE_URL}/payment/status/${encodeURIComponent(providerReference)}`,
   ];
