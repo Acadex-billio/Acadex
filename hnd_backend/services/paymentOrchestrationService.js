@@ -48,8 +48,9 @@ const normalizeCheckoutError = (err, fallbackMessage) => {
 
 const mapProviderStatusToTransactionStatus = (status) => {
   const normalized = String(status || '').toLowerCase();
-  if (['pending', 'successful', 'failed', 'cancelled', 'expired'].includes(normalized)) return normalized;
-  if (['unknown', 'processing', 'initiated'].includes(normalized)) return 'pending';
+  if (['successful', 'success', 'completed', 'paid', 'paid_success', 'paid_successful', 'settled'].includes(normalized)) return 'successful';
+  if (['pending', 'processing', 'initiated', 'created', 'unknown', 'queued', 'started'].includes(normalized)) return 'pending';
+  if (['failed', 'cancelled', 'expired'].includes(normalized)) return normalized;
   return 'failed';
 };
 
@@ -141,7 +142,9 @@ const startCampayPayment = async ({
 };
 
 const refreshCampayPaymentStatus = async (transaction, onSuccessfulPayment) => {
-  if (!transaction || transaction.status !== 'pending') return transaction;
+  if (!transaction) return transaction;
+  const currentStatus = String(transaction.status || '').toLowerCase();
+  if (!['pending', 'unknown'].includes(currentStatus)) return transaction;
 
   const providerResult = await getCollectionPaymentStatus(transaction.provider_reference || transaction.external_reference);
   transaction.provider_response = providerResult.providerResponse || transaction.provider_response;

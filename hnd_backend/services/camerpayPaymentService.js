@@ -254,11 +254,11 @@ async function getCollectionPaymentStatus(providerReference) {
     });
 
     const providerStatus = String(response?.status || response?.payment_status || '').toLowerCase();
-    const normalizedStatus = providerStatus === 'successful' || providerStatus === 'success' || providerStatus === 'completed'
+    const normalizedStatus = ['successful', 'success', 'completed', 'paid', 'paid_success', 'paid_successful', 'settled'].includes(providerStatus)
       ? 'successful'
-      : providerStatus === 'failed' || providerStatus === 'cancelled'
+      : ['failed', 'cancelled', 'declined', 'expired'].includes(providerStatus)
         ? 'failed'
-        : providerStatus === 'pending' || providerStatus === 'processing'
+        : ['pending', 'processing', 'initiated', 'created', 'queued', 'started', 'unknown'].includes(providerStatus)
           ? 'pending'
           : 'pending';
 

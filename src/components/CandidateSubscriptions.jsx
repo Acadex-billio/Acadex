@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import styles from '../Astyles/CandidateSubscriptions.module.css';
 import GraduationCapLoader from './GraduationCapLoader';
@@ -10,6 +11,7 @@ import { startSubscriptionPayment } from '../services/paymentFlowService';
 
 const CandidateSubscriptions = () => {
   const { user, updateUser } = useAuth();
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [subscriptionData, setSubscriptionData] = useState(null);
   const [selectedPlan, setSelectedPlan] = useState(null);
@@ -182,7 +184,12 @@ const CandidateSubscriptions = () => {
             referralCode: promoCode,
           });
         }}
-        onSuccess={async () => {
+        onSuccess={async (result) => {
+          const transactionId = result?.payment?.transaction_id || result?.transaction_id;
+          if (transactionId) {
+            navigate(`/payment/confirmation?transaction_id=${encodeURIComponent(transactionId)}`);
+            return;
+          }
           await loadData();
         }}
       />
