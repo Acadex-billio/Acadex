@@ -2,7 +2,7 @@ const crypto = require('crypto');
 const logger = require('../utils/logger');
 
 const CAMERPAY_TOKEN = String(process.env.CAMERPAY_TOKEN || '').trim();
-const CAMERPAY_API_BASE_URL = String(process.env.CAMERPAY_API_BASE_URL || 'https://camerpay.biz').replace(/\/$/, '');
+const CAMERPAY_API_BASE_URL = String(process.env.CAMERPAY_API_BASE_URL || 'https://api.campay.net').replace(/\/$/, '');
 const CAMERPAY_CURRENCY = String(process.env.CAMERPAY_CURRENCY || 'XAF').trim().toUpperCase();
 const CAMERPAY_FETCH_TIMEOUT_MS = Math.max(5000, Number(process.env.CAMERPAY_FETCH_TIMEOUT_MS || 15000));
 const CAMERPAY_CALLBACK_URL = String(process.env.CAMERPAY_CALLBACK_URL || '').trim();
@@ -162,7 +162,7 @@ async function initiateCollectionPayment({
     if (payerMessage) payload.payer_message = String(payerMessage).slice(0, 120);
     if (payeeNote) payload.payee_note = String(payeeNote).slice(0, 240);
 
-    const response = await fetchJson(`${CAMERPAY_API_BASE_URL}/api/payment/initiate`, {
+    const response = await fetchJson(`${CAMERPAY_API_BASE_URL}/payment/collect`, {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${CAMERPAY_TOKEN}`,
@@ -196,7 +196,7 @@ async function initiateCollectionPayment({
       error: err.message,
       stack: err.stack,
       request: {
-        url: `${CAMERPAY_API_BASE_URL}/api/payment/initiate`,
+        url: `${CAMERPAY_API_BASE_URL}/payment/collect`,
         payload,
       },
       responseBody: err.responseBody,
@@ -217,8 +217,6 @@ async function getCollectionPaymentStatus(providerReference) {
   }
 
   const statusUrls = [
-    `${CAMERPAY_API_BASE_URL}/api/payment/status/${encodeURIComponent(providerReference)}`,
-    `${CAMERPAY_API_BASE_URL}/api/payment/collect/${encodeURIComponent(providerReference)}`,
     `${CAMERPAY_API_BASE_URL}/payment/collect/${encodeURIComponent(providerReference)}`,
     `${CAMERPAY_API_BASE_URL}/payment/status/${encodeURIComponent(providerReference)}`,
   ];
