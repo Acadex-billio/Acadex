@@ -34,11 +34,9 @@ const LecturerShell = () => {
 
   const navItems = useMemo(
     () => [
-      { to: '/lecturer', label: 'Dashboard', icon: FaChalkboardTeacher, locked: false, end: true },
-      { to: '/lecturer/profile-verification', label: 'Profile & Verification', icon: FaIdCard, locked: false },
-      { to: '/lecturer/history', label: 'History', icon: FaHistory, locked: false },
+      // Footer contains Home/Bookings/History/Profile - avoid duplicating those here
+      // Keep primary non-footer items here (chat shown in header/footer is separate)
       { to: '/lecturer/chat', label: 'Chat', icon: FaComments, locked: true },
-      { to: '/lecturer/bookings', label: 'Bookings', icon: FaCalendarCheck, locked: true },
     ],
     []
   );

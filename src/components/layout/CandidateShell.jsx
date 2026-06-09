@@ -181,13 +181,10 @@ const CandidateShell = () => {
 
   const sidebarMainItems = useMemo(
     () => [
-      { to: '/candidate', label: t('nav.dashboard'), icon: FaHome },
-      { to: '/candidate/question-papers', label: t('nav.questionPapers'), icon: FaClipboardList },
       { to: '/candidate/reports', label: t('nav.reports'), icon: FaFileAlt },
       { to: '/candidate/presentations', label: t('nav.presentations'), icon: FaBook },
       { to: '/candidate/announcements', label: t('nav.announcements'), icon: FaBullhorn, badge: announcementCount },
       { to: '/candidate/internship-topics', label: t('nav.internshipTopics'), icon: FaLightbulb },
-      { to: '/candidate/chat', label: t('nav.chat'), icon: FaComments },
       { to: '/candidate/tutorship-bookings', label: 'Tutorship Bookings', icon: FaComments, badge: bookingAlertCount },
     ],
     [announcementCount, bookingAlertCount, t]

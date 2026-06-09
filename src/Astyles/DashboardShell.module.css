@@ -15,9 +15,11 @@
   align-items: center;
   justify-content: space-between;
   padding: 0 14px;
-  position: sticky;
+  position: fixed;
   top: 0;
-  z-index: 20;
+  left: 0;
+  right: 0;
+  z-index: 60;
   border-bottom: 1px solid var(--border);
 }
 
@@ -305,7 +307,7 @@
 
 .backdrop {
   position: fixed;
-  inset: 56px 0 44px 0;
+  inset: 56px 0 60px 0;
   background: rgba(0, 0, 0, 0.45);
   z-index: 25;
 }
@@ -313,6 +315,8 @@
 .main {
   flex: 1;
   padding: 16px;
+  padding-top: calc(16px + 56px);
+  padding-bottom: calc(16px + 60px);
   margin-top: 0;
   min-width: 0;
   width: 100%;
@@ -320,9 +324,12 @@
 }
 
 .footer {
-  position: sticky;
+  position: fixed;
+  left: 0;
+  right: 0;
   bottom: 0;
   min-height: 60px;
+  height: 60px;
   background: var(--surface);
   color: var(--muted);
   display: flex;
@@ -332,7 +339,7 @@
   padding: 10px 8px;
   font-size: 12px;
   border-top: 1px solid var(--border);
-  z-index: 15;
+  z-index: 55;
 }
 
 .footer a {
@@ -366,7 +373,7 @@
 
 @media (min-width: 1024px) {
   .sidebar {
-    position: sticky;
+    position: fixed;
     transform: translateX(0);
     top: 56px;
     bottom: 60px;

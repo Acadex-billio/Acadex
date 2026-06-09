@@ -134,8 +134,8 @@ const AdminShell = () => {
     };
   }, []);
 
-  const navItems = useMemo(
-    () => [
+  const navItems = useMemo(() => {
+    const initial = [
       { to: '/admin', label: t('nav.dashboard'), icon: FaHome },
       ...(isDeveloper
         ? [{ to: '/admin/manage-users', label: t('nav.manageUsers'), icon: FaUsers }]
@@ -150,9 +150,15 @@ const AdminShell = () => {
       ...(isDeveloper ? [{ to: '/admin/lecturers', label: 'Lecturer Approvals', icon: FaChalkboardTeacher }] : []),
       ...(isDeveloper ? [{ to: '/admin/study-mode-materials', label: 'Study Mode Materials', icon: FaClipboardList }] : []),
       ...(isDeveloper ? [{ to: '/admin/ads', label: 'Ads Manager', icon: FaAd }] : []),
-    ],
-    [isDeveloper, t]
-  );
+    ];
+
+    // Remove any routes that are surfaced in the footer to avoid duplication
+    const footerPaths = isDeveloper
+      ? ['/admin', '/admin/ads', '/admin/manage-billing', '/admin/profile']
+      : ['/admin', '/admin/question-papers', '/admin/reports', '/admin/profile'];
+
+    return initial.filter((item) => !footerPaths.includes(item.to));
+  }, [isDeveloper, t]);
 
   const accountMenuItems = useMemo(
     () => [
