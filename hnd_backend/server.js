@@ -334,6 +334,7 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Public routes (webhooks and other endpoints that don't require auth)
 app.use('/api/payment', publicRoutes);
+app.use('/api', publicRoutes); // Also mount publicRoutes at /api root for webhooks path (/api/webhooks/campay)
 
 app.use('/api/auth', authRoutes);
 app.use('/api/candidate', candidateRoutes);
