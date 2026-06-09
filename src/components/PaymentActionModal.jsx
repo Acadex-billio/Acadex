@@ -62,16 +62,25 @@ const PaymentActionModal = ({
   if (!isOpen) return null;
 
   const pollStatus = async (transactionId) => {
-    for (let attempt = 0; attempt < 10; attempt += 1) {
-      const { data } = await api.get(`/candidate/payments/${encodeURIComponent(transactionId)}/status`);
-      const status = String(data?.payment?.status || '').toLowerCase();
-      if (status === 'successful') return data;
-      if (['failed', 'cancelled', 'expired'].includes(status)) {
-        const err = new Error(`Payment ${status}.`);
-        err.paymentData = data;
+    for (let attempt = 0; attempt < 15; attempt += 1) {
+      try {
+        const { data } = await api.get(`/candidate/payments/${encodeURIComponent(transactionId)}/status`);
+        const status = String(data?.payment?.status || '').toLowerCase();
+        if (status === 'successful') return data;
+        if (['failed', 'cancelled', 'expired'].includes(status)) {
+          const err = new Error(`Payment ${status}.`);
+          err.paymentData = data;
+          throw err;
+        }
+        setStatusText(`Waiting for payment confirmation${attempt < 14 ? '...' : '.'}`);
+      } catch (err) {
+        if (attempt < 14) {
+          setStatusText('Retrying payment status...');
+          await wait(3000);
+          continue;
+        }
         throw err;
       }
-      setStatusText(`Waiting for payment confirmation${attempt < 9 ? '...' : '.'}`);
       await wait(3000);
     }
 
