@@ -173,7 +173,7 @@ async function initiateCollectionPayment({
     if (payerMessage) payload.payer_message = String(payerMessage).slice(0, 120);
     if (payeeNote) payload.payee_note = String(payeeNote).slice(0, 240);
 
-    const requestUrl = `${CAMERPAY_API_BASE_URL}/api/payment/initiate`;
+    let requestUrl = `${CAMERPAY_API_BASE_URL}/api/payment/initiate`;
     const response = await fetchJson(requestUrl, {
       method: 'POST',
       headers: {
@@ -228,82 +228,71 @@ async function getCollectionPaymentStatus(providerReference) {
     };
   }
 
-  const statusUrls = [
-    `${CAMERPAY_API_BASE_URL}/api/payment/${encodeURIComponent(providerReference)}/status`,
-  ];
+  const statusUrl = `${CAMERPAY_API_BASE_URL}/api/payment/${encodeURIComponent(providerReference)}/status`;
 
-  let lastError = null;
-  for (const statusUrl of statusUrls) {
-    try {
-      logger.debug('Checking CamerPay payment status', {
-        url: statusUrl,
-        providerReference,
-      });
+  try {
+    logger.debug('Checking CamerPay payment status', {
+      url: statusUrl,
+      providerReference,
+    });
 
-      const response = await fetchJson(statusUrl, {
-        method: 'GET',
-        headers: {
-          Authorization: `Bearer ${CAMERPAY_TOKEN}`,
-          'User-Agent': 'Acadex/1.0',
-        },
-      });
+    const response = await fetchJson(statusUrl, {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${CAMERPAY_TOKEN}`,
+        'User-Agent': 'Acadex/1.0',
+      },
+    });
 
-      logger.info('CamerPay payment status response', {
-        providerReference,
-        statusUrl,
-        response_status: response?.status || response?.payment_status,
-        response_keys: Object.keys(response || {}),
-      });
+    const payUrl = response?.pay_url || '';
+    logger.info('CamerPay payment status response', {
+      providerReference,
+      status_url: statusUrl,
+      provider_status: response?.status,
+      pay_url: payUrl ? '[present]' : '[missing]',
+      response_keys: Object.keys(response || {}),
+    });
 
-      const providerStatus = String(response?.status || response?.payment_status || '').toLowerCase();
-      const normalizedStatus = providerStatus === 'successful' || providerStatus === 'success' || providerStatus === 'completed'
-        ? 'successful'
-        : providerStatus === 'failed' || providerStatus === 'cancelled'
-          ? 'failed'
-          : providerStatus === 'pending' || providerStatus === 'processing'
-            ? 'pending'
-            : 'pending';
+    const providerStatus = String(response?.status || response?.payment_status || '').toLowerCase();
+    const normalizedStatus = providerStatus === 'successful' || providerStatus === 'success' || providerStatus === 'completed'
+      ? 'successful'
+      : providerStatus === 'failed' || providerStatus === 'cancelled'
+        ? 'failed'
+        : providerStatus === 'pending' || providerStatus === 'processing'
+          ? 'pending'
+          : 'pending';
 
-      return {
-        provider: 'camerpay',
-        providerMode: getProviderMode(),
-        providerReference,
-        status: normalizedStatus,
-        transactionId: response?.transaction_uuid || response?.payment_id || response?.transaction_id || null,
-        amount: response?.amount,
-        currency: response?.currency,
-        providerResponse: response,
-      };
-    } catch (err) {
-      lastError = err;
-      logger.warn('CamerPay payment status endpoint failed, trying next fallback', {
-        error: err.message,
-        providerReference,
-        statusUrl,
+    return {
+      provider: 'camerpay',
+      providerMode: getProviderMode(),
+      providerReference,
+      status: normalizedStatus,
+      transactionId: response?.transaction_uuid || response?.payment_id || response?.transaction_id || null,
+      amount: response?.amount,
+      currency: response?.currency,
+      providerResponse: response,
+    };
+  } catch (err) {
+    logger.error('CamerPay payment status check failed', {
+      providerReference,
+      status_url: statusUrl,
+      error: err.message,
+      statusCode: err.statusCode,
+      responseBody: err.responseBody,
+    });
+
+    return {
+      provider: 'camerpay',
+      providerMode: getProviderMode(),
+      providerReference,
+      status: 'unknown',
+      providerResponse: {
+        error: err.message || 'Unable to determine payment status',
         statusCode: err.statusCode,
         responseBody: err.responseBody,
-      });
-    }
+      },
+    };
   }
-
-  logger.error('CamerPay payment status check failed for all fallback URLs', {
-    providerReference,
-    lastError: lastError?.message,
-    statusCode: lastError?.statusCode,
-    responseBody: lastError?.responseBody,
-  });
-
-  return {
-    provider: 'camerpay',
-    providerMode: getProviderMode(),
-    providerReference,
-    status: 'unknown',
-    providerResponse: {
-      error: lastError?.message || 'Unable to determine payment status',
-      statusCode: lastError?.statusCode,
-      responseBody: lastError?.responseBody,
-    },
-  };
 }
 
 function verifyWebhookSignature(payload, signature, rawBody) {
