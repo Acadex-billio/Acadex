@@ -377,6 +377,23 @@
     transform: translateX(0);
     top: 56px;
     bottom: 60px;
+    width: 280px;
+    left: 0;
+  }
+
+  /* Shift main content and header/footer to account for fixed sidebar */
+  .main {
+    margin-left: 280px;
+  }
+
+  .header {
+    left: 280px;
+    right: 0;
+  }
+
+  .footer {
+    left: 280px;
+    right: 0;
   }
 
   .backdrop {
