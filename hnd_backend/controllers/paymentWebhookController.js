@@ -17,7 +17,9 @@ const PLAN_DURATION_MS = 90 * 24 * 60 * 60 * 1000;
 exports.handleCamerpayCallback = async (req, res) => {
   try {
     const payload = req.body;
+    const rawBody = req.rawBody;
     const signature = req.headers['x-camerpay-signature'] || req.query.signature || '';
+    const respond = res && typeof res.status === 'function' && typeof res.json === 'function';
 
     logger.info('CamerPay webhook received', {
       payment_id: payload?.payment_id,
@@ -28,15 +30,18 @@ exports.handleCamerpayCallback = async (req, res) => {
     });
 
     // Verify webhook signature
-    if (!verifyWebhookSignature(payload, signature)) {
+    if (!verifyWebhookSignature(payload, signature, rawBody, rawBody)) {
       logger.warn('CamerPay webhook signature verification failed', {
         payment_id: payload?.payment_id,
         signature_provided: Boolean(signature),
       });
-      return res.status(401).json({
-        success: false,
-        message: 'Webhook signature verification failed',
-      });
+      if (respond) {
+        return res.status(401).json({
+          success: false,
+          message: 'Webhook signature verification failed',
+        });
+      }
+      return;
     }
 
     // Find transaction by provider_reference (payment_id from CamerPay)
@@ -56,10 +61,13 @@ exports.handleCamerpayCallback = async (req, res) => {
         merchant_invoice_id: payload?.merchant_invoice_id,
         external_id: payload?.external_id,
       });
-      return res.status(404).json({
-        success: false,
-        message: 'Transaction not found',
-      });
+      if (respond) {
+        return res.status(404).json({
+          success: false,
+          message: 'Transaction not found',
+        });
+      }
+      return;
     }
 
     const paymentStatus = String(payload?.status || '').toLowerCase();
@@ -74,10 +82,13 @@ exports.handleCamerpayCallback = async (req, res) => {
       });
       transaction.provider_response = payload;
       await transaction.save();
-      return res.json({
-        success: true,
-        message: 'Webhook received, payment status is pending',
-      });
+      if (respond) {
+        return res.json({
+          success: true,
+          message: 'Webhook received, payment status is pending',
+        });
+      }
+      return;
     }
 
     if (isFailed) {
@@ -90,10 +101,13 @@ exports.handleCamerpayCallback = async (req, res) => {
       transaction.completed_at = new Date();
       transaction.provider_response = payload;
       await transaction.save();
-      return res.json({
-        success: true,
-        message: 'Webhook processed: payment failed',
-      });
+      if (respond) {
+        return res.json({
+          success: true,
+          message: 'Webhook processed: payment failed',
+        });
+      }
+      return;
     }
 
     // Payment successful
@@ -175,11 +189,14 @@ exports.handleCamerpayCallback = async (req, res) => {
 
     await transaction.save();
 
-    return res.json({
-      success: true,
-      message: 'Webhook processed: payment successful',
-      transaction_id: transaction._id,
-    });
+    if (respond) {
+      return res.json({
+        success: true,
+        message: 'Webhook processed: payment successful',
+        transaction_id: transaction._id,
+      });
+    }
+    return;
   } catch (err) {
     logger.error('CamerPay webhook error', {
       error: err.message,

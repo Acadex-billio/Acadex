@@ -274,14 +274,16 @@ async function getCollectionPaymentStatus(providerReference) {
   }
 }
 
-function verifyWebhookSignature(payload, signature) {
+function verifyWebhookSignature(payload, signature, rawBody) {
   const webhookKey = String(process.env.CAMERPAY_WEBHOOK_KEY || '').trim();
   if (!webhookKey) {
     logger.warn('CAMERPAY_WEBHOOK_KEY not configured, webhook verification skipped');
     return true;
   }
 
-  const payloadString = JSON.stringify(payload);
+  const payloadString = typeof rawBody === 'string' && rawBody.length
+    ? rawBody
+    : JSON.stringify(payload);
   const hash = crypto
     .createHmac('sha256', webhookKey)
     .update(payloadString)

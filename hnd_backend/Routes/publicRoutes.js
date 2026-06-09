@@ -14,9 +14,9 @@ router.post('/webhooks/campay', (req, res) => {
   res.status(200).json({ success: true, message: 'Webhook received' });
   // Process in background without blocking response
   setImmediate(() => {
-    paymentWebhookController.handleCamerpayCallback(req, res).catch((err) => {
+    paymentWebhookController.handleCamerpayCallback(req, null).catch((err) => {
       const logger = require('../utils/logger');
-      logger.error('Async webhook processing error', { error: err.message });
+      logger.error('Async webhook processing error', { error: err.message, stack: err.stack });
     });
   });
 });

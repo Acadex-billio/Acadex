@@ -233,8 +233,14 @@ app.use(
 app.use('/api/', apiRateLimit);
 app.use('/api/admin/', uploadRateLimit);
 
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({
+  verify: (req, _res, buf) => {
+    if (buf && buf.length) req.rawBody = buf.toString('utf8');
+  },
+}));
+app.use(express.urlencoded({ extended: true, verify: (req, _res, buf) => {
+  if (buf && buf.length) req.rawBody = buf.toString('utf8');
+}}));
 
 // Sanitize all incoming queries to prevent injection
 app.use(sanitizeQuery);
