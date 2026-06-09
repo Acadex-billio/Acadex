@@ -228,10 +228,7 @@ async function getCollectionPaymentStatus(providerReference) {
   }
 
   const statusUrls = [
-    `${CAMERPAY_API_BASE_URL}/api/payment/collect/${encodeURIComponent(providerReference)}`,
-    `${CAMERPAY_API_BASE_URL}/api/payment/status/${encodeURIComponent(providerReference)}`,
-    `${CAMERPAY_API_BASE_URL}/payment/collect/${encodeURIComponent(providerReference)}`,
-    `${CAMERPAY_API_BASE_URL}/payment/status/${encodeURIComponent(providerReference)}`,
+    `${CAMERPAY_API_BASE_URL}/api/payment/${encodeURIComponent(providerReference)}/status`,
   ];
 
   let lastError = null;
