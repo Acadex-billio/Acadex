@@ -85,9 +85,30 @@ const startCampayPayment = async ({
     });
   } catch (err) {
     const normalized = normalizeCheckoutError(err, 'Failed to initialize payment request.');
+    const providerBody = parseProviderBody(err?.responseBody);
+    const providerRef = String(providerBody?.transaction_uuid || providerBody?.payment_id || providerBody?.reference || providerBody?.merchant_invoice_id || externalReference).trim();
+
+    transaction.provider_reference = providerRef || transaction.provider_reference;
+    transaction.provider_response = providerBody || { message: normalized.message };
+
+    const statusCode = Number(err?.statusCode || 0);
+    const isTemporaryProviderError = statusCode >= 500 || [408, 429, 0].includes(statusCode) || String(err?.message || '').toLowerCase().includes('unable to reach camerpay');
+    if (isTemporaryProviderError) {
+      transaction.status = 'pending';
+      await transaction.save();
+
+      logger.warn('Payment initialization returned a temporary CamerPay error; preserving pending transaction', {
+        transactionId: transaction._id,
+        provider_error: normalized.provider_error,
+        normalizedMessage: normalized.message,
+        originalStatus: err?.statusCode,
+      });
+
+      return transaction;
+    }
+
     transaction.status = 'failed';
     transaction.completed_at = new Date();
-    transaction.provider_response = normalized.provider_error || { message: normalized.message };
     await transaction.save();
 
     logger.error('Payment initialization failed during transaction processing', {
