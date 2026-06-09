@@ -173,7 +173,8 @@ async function initiateCollectionPayment({
     if (payerMessage) payload.payer_message = String(payerMessage).slice(0, 120);
     if (payeeNote) payload.payee_note = String(payeeNote).slice(0, 240);
 
-    const response = await fetchJson(`${CAMERPAY_API_BASE_URL}/api/payment/initiate`, {
+    const requestUrl = `${CAMERPAY_API_BASE_URL}/api/payment/initiate`;
+    const response = await fetchJson(requestUrl, {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${CAMERPAY_TOKEN}`,
@@ -207,7 +208,7 @@ async function initiateCollectionPayment({
       error: err.message,
       stack: err.stack,
       request: {
-        url: `${CAMERPAY_API_BASE_URL}/payment/collect`,
+        url: requestUrl || `${CAMERPAY_API_BASE_URL}/api/payment/initiate`,
         payload,
       },
       responseBody: err.responseBody,
