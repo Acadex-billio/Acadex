@@ -151,7 +151,8 @@ const AIAssistant = () => {
   const [attachments, setAttachments] = useState([]);
   const [processingStatus, setProcessingStatus] = useState('');
   const [activeAssistantId, setActiveAssistantId] = useState(null);
-  const [assistantMode, setAssistantMode] = useState(ASSISTANT_MODES.RESEARCH);
+  // Default to Study mode while Research is temporarily disabled
+  const [assistantMode, setAssistantMode] = useState(ASSISTANT_MODES.STUDY);
   const [studyPapers, setStudyPapers] = useState([]);
   const [studyLoadingPapers, setStudyLoadingPapers] = useState(false);
   const [selectedStudyMaterialId, setSelectedStudyMaterialId] = useState('');
@@ -928,12 +929,25 @@ const AIAssistant = () => {
               id="assistant-mode-select"
               className={styles.modeSelect}
               value={assistantMode}
-              onChange={(e) => setAssistantMode(e.target.value)}
+              onChange={(e) => {
+                const val = e.target.value;
+                // Prevent switching to research — show friendly in-chat notice instead
+                if (val === ASSISTANT_MODES.RESEARCH) {
+                  addAssistantNotice('Research Mode is temporarily paused. Try Study Mode for guided MCQ practice and quick answers.');
+                  return;
+                }
+                setAssistantMode(val);
+              }}
               disabled={loading || studyBusy}
             >
-              <option value={ASSISTANT_MODES.RESEARCH}>Research Mode</option>
+              <option value={ASSISTANT_MODES.RESEARCH} disabled>
+                Research Mode (temporarily unavailable)
+              </option>
               <option value={ASSISTANT_MODES.STUDY}>Study Mode</option>
             </select>
+            <div className={styles.modeNote}>
+              Research Mode is currently paused. Study Mode offers guided practice and quick answers — recommended for most tasks.
+            </div>
           </div>
         ) : null}
 
