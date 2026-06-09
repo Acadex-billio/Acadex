@@ -223,7 +223,8 @@ exports.getAll = async (req, res) => {
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limit)
-        .select('title writer_names writer_email upload_date keywords description location pages file_path program subscription_access')
+        .select('title writer_names writer_email upload_date keywords description location pages file_path program subscription_access departments')
+        .populate('departments', 'department_name')
         .lean(),
       Report.countDocuments(accessQuery),
     ]);
@@ -235,6 +236,15 @@ exports.getAll = async (req, res) => {
         report_id: r._id,
         upload_date: r.createdAt,
         subscription_access: r.subscription_access || null,
+        departments: (Array.isArray(r.departments)
+          ? r.departments.map((d) => ({
+              dpt_id: d._id?.toString?.() || String(d),
+              dpt_name: d.department_name || '',
+            }))
+          : []),
+        department_ids: Array.isArray(r.departments)
+          ? r.departments.map((d) => d._id?.toString?.() || String(d))
+          : [],
       })),
       pagination: { page, limit, total },
     });

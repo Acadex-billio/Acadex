@@ -77,6 +77,27 @@ const sendPdfResponse = async (res, buffer, access) => {
   return res.send(output);
 };
 
+const parseStudyLinks = (text) => {
+  if (!text) return [];
+  if (Array.isArray(text)) return text.map((link) => String(link || '').trim()).filter(Boolean);
+  const value = String(text).trim();
+  if (!value) return [];
+
+  try {
+    const parsed = JSON.parse(value);
+    if (Array.isArray(parsed)) {
+      return parsed.map((link) => String(link || '').trim()).filter(Boolean);
+    }
+  } catch (_err) {
+    // ignore
+  }
+
+  return value
+    .split(',')
+    .map((link) => String(link || '').trim())
+    .filter((link) => link);
+};
+
 exports.getDepartments = async (req, res) => {
   try {
     const program = String(req.user?.program || 'HND').toUpperCase();
@@ -123,6 +144,7 @@ exports.getQuestionPapers = async (req, res) => {
       program: String(p.program || 'HND').toUpperCase(),
       audience: p.audience,
       more_info: p.more_info,
+      study_links: parseStudyLinks(p.more_info),
       subscription_access: p.subscription_access || null,
       departments: (p.departments || []).map((d) => ({
         dpt_id: (d && d._id ? d._id : d)?.toString?.() ?? String(d),

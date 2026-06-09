@@ -23,6 +23,7 @@ const ViewPresentation = () => {
   const [actionLabel, setActionLabel] = useState("Preparing material...");
   const [previewMeta, setPreviewMeta] = useState({ plan: 'basic', allowCopy: false, pageLimit: null, item: null });
   const [paymentRequest, setPaymentRequest] = useState(null);
+  const [linkMenu, setLinkMenu] = useState({ open: false, id: null, title: '', items: [], fallback: false });
 
   useEffect(() => {
     // No need for axios defaults when using api service
@@ -70,6 +71,47 @@ const ViewPresentation = () => {
   }, [presentations, search]);
 
   const extractFileName = (file) => file?.replace(/\\/g, "/").split("/").pop();
+
+  const formatTimeAgo = (timestamp) => {
+    const date = new Date(timestamp);
+    if (Number.isNaN(date.getTime())) return '';
+    const diff = Date.now() - date.getTime();
+    const minutes = Math.floor(diff / 60000);
+    if (minutes < 1) return 'just now';
+    if (minutes < 60) return `${minutes} min${minutes === 1 ? '' : 's'} ago`;
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) return `${hours} hour${hours === 1 ? '' : 's'} ago`;
+    const days = Math.floor(hours / 24);
+    if (days < 7) return `${days} day${days === 1 ? '' : 's'} ago`;
+    return date.toLocaleDateString();
+  };
+
+  const getMaterialLinks = (presentation) => {
+    if (Array.isArray(presentation.study_links) && presentation.study_links.length) {
+      return presentation.study_links
+        .map((link) => String(link || '').trim())
+        .filter((link) => /^https?:\/\//i.test(link))
+        .map((link) => ({ label: link.replace(/^https?:\/\/(www\.)?/, ''), href: link }));
+    }
+
+    return (presentation.report_departments || []).map((department) => ({
+      label: department.dpt_name || 'Department',
+      href: null,
+    }));
+  };
+
+  const openLinkMenu = (presentation) => {
+    const items = getMaterialLinks(presentation);
+    setLinkMenu({
+      open: true,
+      id: presentation.presentation_id,
+      title: items.length ? (presentation.study_links?.length ? 'Study Links' : 'Related Departments') : 'No related links',
+      items,
+      fallback: !Array.isArray(presentation.study_links) || presentation.study_links.length === 0,
+    });
+  };
+
+  const closeLinkMenu = () => setLinkMenu({ open: false, id: null, title: '', items: [], fallback: false });
 
   const closePreview = () => {
     if (previewUrl) URL.revokeObjectURL(previewUrl);
@@ -276,10 +318,41 @@ const ViewPresentation = () => {
         ) : (
           filteredPresentations.map((p) => (
             <div key={p.presentation_id} className={styles.card}>
-              <div className={styles.docPreview}>
-                <div className={styles.docPreviewLabel}>Presentation</div>
-                <div className={styles.docPreviewTitle}>{p.presentation_title}</div>
+              <div className={styles.cardHeader}>
+                <div>
+                  <div className={styles.cardBadge}>Presentation</div>
+                  <h3 className={styles.title}>{p.presentation_title}</h3>
+                </div>
+                <button
+                  type="button"
+                  className={styles.menuButton}
+                  onClick={() => linkMenu.open && linkMenu.id === p.presentation_id ? closeLinkMenu() : openLinkMenu(p)}
+                >
+                  ⋯
+                </button>
               </div>
+
+              {linkMenu.open && linkMenu.id === p.presentation_id && (
+                <div className={styles.linkMenu}>
+                  <div className={styles.linkMenuTitle}>{linkMenu.title}</div>
+                  {linkMenu.items.length ? (
+                    linkMenu.items.map((item, index) => (
+                      <div key={index} className={styles.linkMenuItem}>
+                        {item.href ? (
+                          <a href={item.href} target="_blank" rel="noreferrer" className={styles.linkMenuLink}>
+                            {item.label}
+                          </a>
+                        ) : (
+                          <span>{item.label}</span>
+                        )}
+                      </div>
+                    ))
+                  ) : (
+                    <div className={styles.linkMenuItem}>No related links found.</div>
+                  )}
+                  <button type="button" className={styles.linkMenuClose} onClick={closeLinkMenu}>Close</button>
+                </div>
+              )}
 
               <div className={styles.docBody}>
                 <div className={styles.docIconWrap}>
@@ -287,8 +360,7 @@ const ViewPresentation = () => {
                 </div>
 
                 <div className={styles.docTextWrap}>
-                  <h3 className={styles.title}>{p.presentation_title}</h3>
-                  <p className={styles.meta}>
+                  <div className={styles.meta}>
                     Presenter: {p.presenter_name}
                     <br />
                     {p.report_id ? (
@@ -301,7 +373,11 @@ const ViewPresentation = () => {
                     ) : (
                       'Standalone'
                     )}
-                  </p>
+                  </div>
+                  <div className={styles.paperMeta}>
+                    <span>{formatTimeAgo(p.upload_date)}</span>
+                    <span>Pages: {p.report_pages || 'N/A'}</span>
+                  </div>
                 </div>
               </div>
 

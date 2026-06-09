@@ -186,7 +186,11 @@ exports.getAll = async (req, res) => {
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limit)
-        .populate('report_id', 'title')
+        .populate({
+          path: 'report_id',
+          select: 'title departments pages',
+          populate: { path: 'departments', select: 'department_name' },
+        })
         .lean(),
       Presentation.countDocuments(accessQuery),
     ]);
@@ -201,6 +205,16 @@ exports.getAll = async (req, res) => {
       program: String(p.program || 'HND').toUpperCase(),
       report_id: p.report_id?._id,
       report_title: p.report_id?.title || null,
+      report_pages: p.report_id?.pages || null,
+      report_departments: (Array.isArray(p.report_id?.departments)
+        ? p.report_id.departments.map((d) => ({
+            dpt_id: d._id?.toString?.() || String(d),
+            dpt_name: d.department_name || '',
+          }))
+        : []),
+      department_ids: Array.isArray(p.report_id?.departments)
+        ? p.report_id.departments.map((d) => d._id?.toString?.() || String(d))
+        : [],
       subscription_access: p.subscription_access || null,
     }));
 

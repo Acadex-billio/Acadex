@@ -23,6 +23,7 @@ const QuestionPapers = () => {
   const [actionLabel, setActionLabel] = useState("Preparing material...");
   const [previewMeta, setPreviewMeta] = useState({ plan: 'basic', allowCopy: false, pageLimit: null, item: null });
   const [paymentRequest, setPaymentRequest] = useState(null);
+  const [linkMenu, setLinkMenu] = useState({ open: false, id: null, title: '', items: [], fallback: false });
 
   useEffect(() => {
     // JWT handles credentials automatically
@@ -185,6 +186,52 @@ const QuestionPapers = () => {
 
   const extractFileName = (file) => String(file || '').replace(/\\/g, '/').split('/').pop();
 
+  const formatTimeAgo = (timestamp) => {
+    const date = new Date(timestamp);
+    if (Number.isNaN(date.getTime())) return '';
+    const diff = Date.now() - date.getTime();
+    const minutes = Math.floor(diff / 60000);
+    if (minutes < 1) return 'just now';
+    if (minutes < 60) return `${minutes} min${minutes === 1 ? '' : 's'} ago`;
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) return `${hours} hour${hours === 1 ? '' : 's'} ago`;
+    const days = Math.floor(hours / 24);
+    if (days < 7) return `${days} day${days === 1 ? '' : 's'} ago`;
+    return date.toLocaleDateString();
+  };
+
+  const getMaterialLinks = (paper) => {
+    const raw = Array.isArray(paper.study_links) ? paper.study_links : [];
+    const validUrls = raw
+      .map((link) => String(link || '').trim())
+      .filter((link) => /^https?:\/\//i.test(link));
+
+    if (validUrls.length) {
+      return validUrls.map((link) => ({
+        label: link.replace(/^https?:\/\/(www\.)?/, ''),
+        href: link,
+      }));
+    }
+
+    return (paper.departments || []).map((department) => ({
+      label: department.dpt_name || 'Department',
+      href: null,
+    }));
+  };
+
+  const openLinkMenu = (paper) => {
+    const items = getMaterialLinks(paper);
+    setLinkMenu({
+      open: true,
+      id: paper.qp_id,
+      title: items.length ? (paper.study_links?.length ? 'Study Links' : 'Related Departments') : 'No related links',
+      items,
+      fallback: !Array.isArray(paper.study_links) || paper.study_links.length === 0,
+    });
+  };
+
+  const closeLinkMenu = () => setLinkMenu({ open: false, id: null, title: '', items: [], fallback: false });
+
   const handlePreview = async (paper, options = {}) => {
     const requested = String(paper?.paper_file || '').trim();
     if (!requested) return;
@@ -329,20 +376,54 @@ const QuestionPapers = () => {
         ) : (
           filteredPapers.map((p) => (
             <div key={p.qp_id} className={styles.paperCard}>
-              <div className={styles.docPreview}>
-                <div className={styles.docPreviewLabel}>Question Paper</div>
-                <div className={styles.docPreviewTitle}>{p.paper_title}</div>
+              <div className={styles.cardHeader}>
+                <div>
+                  <div className={styles.cardBadge}>Question Paper</div>
+                  <h3 className={styles.paperTitle}>{p.paper_title}</h3>
+                </div>
+                <button
+                  type="button"
+                  className={styles.menuButton}
+                  onClick={() => linkMenu.open && linkMenu.id === p.qp_id ? closeLinkMenu() : openLinkMenu(p)}
+                >
+                  ⋯
+                </button>
               </div>
+
+              {linkMenu.open && linkMenu.id === p.qp_id && (
+                <div className={styles.linkMenu}>
+                  <div className={styles.linkMenuTitle}>{linkMenu.title}</div>
+                  {linkMenu.items.length ? (
+                    linkMenu.items.map((item, index) => (
+                      <div key={index} className={styles.linkMenuItem}>
+                        {item.href ? (
+                          <a href={item.href} target="_blank" rel="noreferrer" className={styles.linkMenuLink}>
+                            {item.label}
+                          </a>
+                        ) : (
+                          <span>{item.label}</span>
+                        )}
+                      </div>
+                    ))
+                  ) : (
+                    <div className={styles.linkMenuItem}>No related links found.</div>
+                  )}
+                  <button type="button" className={styles.linkMenuClose} onClick={closeLinkMenu}>Close</button>
+                </div>
+              )}
 
               <div className={styles.docBody}>
                 <div className={styles.docIconWrap}>
                   <FaFilePdf className={styles.docIcon} />
                 </div>
                 <div className={styles.docTextWrap}>
-                  <h3 className={styles.paperTitle}>{p.paper_title}</h3>
-                  <p className={styles.paperInfo}>
-                    Year {p.hnd_year} • {p.departments.map((d) => d.dpt_name).join(", ") || "General"}
-                  </p>
+                  <div className={styles.paperInfo}>
+                    Year {p.hnd_year} • {p.departments.map((d) => d.dpt_name).join(', ') || 'General'}
+                  </div>
+                  <div className={styles.paperMeta}>
+                    <span>{formatTimeAgo(p.upload_date)}</span>
+                    <span>Pages: N/A</span>
+                  </div>
                 </div>
               </div>
 
@@ -350,7 +431,6 @@ const QuestionPapers = () => {
                 <button className={styles.previewBtn} onClick={() => handlePreview(p)}>
                   Preview
                 </button>
-
                 <button className={styles.downloadBtn} onClick={() => handleDownload(p)}>
                   Download
                 </button>

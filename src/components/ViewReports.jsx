@@ -24,6 +24,7 @@ const ViewReport = () => {
   const [actionLabel, setActionLabel] = useState("Preparing material...");
   const [previewMeta, setPreviewMeta] = useState({ plan: 'basic', allowCopy: false, pageLimit: null, item: null });
   const [paymentRequest, setPaymentRequest] = useState(null);
+  const [linkMenu, setLinkMenu] = useState({ open: false, id: null, title: '', items: [], fallback: false });
 
   useEffect(() => {
     // No need for axios defaults when using api service
@@ -72,6 +73,47 @@ const ViewReport = () => {
   }, [reports, search]);
 
   const extractFileName = useCallback((file) => file?.replace(/\\/g, "/").split("/").pop(), []);
+
+  const formatTimeAgo = (timestamp) => {
+    const date = new Date(timestamp);
+    if (Number.isNaN(date.getTime())) return '';
+    const diff = Date.now() - date.getTime();
+    const minutes = Math.floor(diff / 60000);
+    if (minutes < 1) return 'just now';
+    if (minutes < 60) return `${minutes} min${minutes === 1 ? '' : 's'} ago`;
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) return `${hours} hour${hours === 1 ? '' : 's'} ago`;
+    const days = Math.floor(hours / 24);
+    if (days < 7) return `${days} day${days === 1 ? '' : 's'} ago`;
+    return date.toLocaleDateString();
+  };
+
+  const getMaterialLinks = (report) => {
+    if (Array.isArray(report.study_links) && report.study_links.length) {
+      return report.study_links
+        .map((link) => String(link || '').trim())
+        .filter((link) => /^https?:\/\//i.test(link))
+        .map((link) => ({ label: link.replace(/^https?:\/\/(www\.)?/, ''), href: link }));
+    }
+
+    return (report.departments || []).map((department) => ({
+      label: department.dpt_name || 'Department',
+      href: null,
+    }));
+  };
+
+  const openLinkMenu = (report) => {
+    const items = getMaterialLinks(report);
+    setLinkMenu({
+      open: true,
+      id: report.report_id,
+      title: items.length ? (report.study_links?.length ? 'Study Links' : 'Related Departments') : 'No related links',
+      items,
+      fallback: !Array.isArray(report.study_links) || report.study_links.length === 0,
+    });
+  };
+
+  const closeLinkMenu = () => setLinkMenu({ open: false, id: null, title: '', items: [], fallback: false });
 
   const closePreview = () => {
     if (previewUrl) URL.revokeObjectURL(previewUrl);
@@ -294,10 +336,41 @@ const ViewReport = () => {
         ) : (
           filteredReports.map((r) => (
             <div key={r.report_id} className={styles.card}>
-              <div className={styles.docPreview}>
-                <div className={styles.docPreviewLabel}>Report</div>
-                <div className={styles.docPreviewTitle}>{r.title}</div>
+              <div className={styles.cardHeader}>
+                <div>
+                  <div className={styles.cardBadge}>Report</div>
+                  <h3 className={styles.title}>{r.title}</h3>
+                </div>
+                <button
+                  type="button"
+                  className={styles.menuButton}
+                  onClick={() => linkMenu.open && linkMenu.id === r.report_id ? closeLinkMenu() : openLinkMenu(r)}
+                >
+                  ⋯
+                </button>
               </div>
+
+              {linkMenu.open && linkMenu.id === r.report_id && (
+                <div className={styles.linkMenu}>
+                  <div className={styles.linkMenuTitle}>{linkMenu.title}</div>
+                  {linkMenu.items.length ? (
+                    linkMenu.items.map((item, index) => (
+                      <div key={index} className={styles.linkMenuItem}>
+                        {item.href ? (
+                          <a href={item.href} target="_blank" rel="noreferrer" className={styles.linkMenuLink}>
+                            {item.label}
+                          </a>
+                        ) : (
+                          <span>{item.label}</span>
+                        )}
+                      </div>
+                    ))
+                  ) : (
+                    <div className={styles.linkMenuItem}>No related links found.</div>
+                  )}
+                  <button type="button" className={styles.linkMenuClose} onClick={closeLinkMenu}>Close</button>
+                </div>
+              )}
 
               <div className={styles.docBody}>
                 <div className={styles.docIconWrap}>
@@ -309,12 +382,15 @@ const ViewReport = () => {
                 </div>
 
                 <div className={styles.docTextWrap}>
-                  <h3 className={styles.title}>{r.title}</h3>
-                  <p className={styles.meta}>
+                  <div className={styles.meta}>
                     Author: {r.writer_names} ({r.writer_email})
                     <br />
-                    Location: {r.location} | Pages: {r.pages}
-                  </p>
+                    Location: {r.location || 'Unknown'}
+                  </div>
+                  <div className={styles.paperMeta}>
+                    <span>{formatTimeAgo(r.upload_date)}</span>
+                    <span>Pages: {r.pages || 'N/A'}</span>
+                  </div>
                 </div>
               </div>
 
