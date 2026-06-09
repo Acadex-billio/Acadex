@@ -1,15 +1,14 @@
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
-import GraduationCapLoader from './GraduationCapLoader';
 import { showToast } from '../utility/ToastNotification';
 
 const PaymentConfirmation = () => {
   const navigate = useNavigate();
-  const [loading, setLoading] = useState(true);
   const [payment, setPayment] = useState(null);
   const [subscription, setSubscription] = useState(null);
   const [error, setError] = useState(null);
+  const [loading, setLoading] = useState(false);
 
   const fetchByTransaction = useCallback(async (txId) => {
     try {
@@ -69,7 +68,6 @@ const PaymentConfirmation = () => {
 
   const isSuccess = statusLabel === 'Successful';
   const isPending = statusLabel === 'Pending';
-  const isFailure = statusLabel === 'Failed';
 
   const renderStatusPanel = () => {
     if (error) {
@@ -159,6 +157,17 @@ const PaymentConfirmation = () => {
       </div>
     );
   };
+
+  if (loading) {
+    return (
+      <div style={{ padding: 24, maxWidth: 980, margin: '0 auto' }}>
+        <div style={{ padding: 28, borderRadius: 24, background: '#f3f7ff', border: '1px solid #d8e2fb', textAlign: 'center' }}>
+          <h2 style={{ margin: 0, color: '#1c3e70' }}>Checking payment status...</h2>
+          <p style={{ marginTop: 12, color: '#405d7e' }}>Please wait while we confirm your transaction.</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={{ padding: 24, maxWidth: 980, margin: '0 auto' }}>
