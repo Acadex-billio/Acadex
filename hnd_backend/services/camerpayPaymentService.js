@@ -2,7 +2,18 @@ const crypto = require('crypto');
 const logger = require('../utils/logger');
 
 const CAMERPAY_TOKEN = String(process.env.CAMERPAY_TOKEN || '').trim();
-const CAMERPAY_API_BASE_URL = String(process.env.CAMERPAY_API_BASE_URL || 'https://api.campay.net').replace(/\/$/, '');
+let CAMERPAY_API_BASE_URL = String(process.env.CAMERPAY_API_BASE_URL || 'https://api.campay.net').replace(/\/$/, '');
+// Production hosts have diverged; prefer the known live host when misconfiguration
+try {
+  if (String(CAMERPAY_API_BASE_URL || '').toLowerCase().includes('campay.net')) {
+    logger.warn('CAMERPAY_API_BASE_URL looks like campay.net — overriding to https://camerpay.biz to avoid DNS/connectivity issues', {
+      configured_value: CAMERPAY_API_BASE_URL,
+    });
+    CAMERPAY_API_BASE_URL = 'https://camerpay.biz';
+  }
+} catch (e) {
+  // swallow logging errors
+}
 const CAMERPAY_CURRENCY = String(process.env.CAMERPAY_CURRENCY || 'XAF').trim().toUpperCase();
 const CAMERPAY_FETCH_TIMEOUT_MS = Math.max(5000, Number(process.env.CAMERPAY_FETCH_TIMEOUT_MS || 15000));
 const CAMERPAY_CALLBACK_URL = String(process.env.CAMERPAY_CALLBACK_URL || '').trim();
