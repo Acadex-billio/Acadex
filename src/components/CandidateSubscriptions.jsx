@@ -136,7 +136,7 @@ const CandidateSubscriptions = () => {
       <section className={styles.explainerCard}>
         <h2>PAYGO charging details</h2>
         <div className={styles.chargeGrid}>
-          <div className={styles.chargeItem}><strong>Upfront PAYGO access:</strong> 100 XAF for 3 months.</div>
+          <div className={styles.chargeItem}><strong>Upfront PAYGO access:</strong> 200 XAF for 3 months.</div>
           <div className={styles.chargeItem}><strong>Presentation full preview:</strong> 50 XAF for 1 hour.</div>
           <div className={styles.chargeItem}><strong>Presentation download:</strong> 100 XAF for 1 hour.</div>
           <div className={styles.chargeItem}><strong>Question paper full preview:</strong> 50 XAF for 1 hour.</div>

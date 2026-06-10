@@ -72,10 +72,11 @@ const PaymentActionModal = ({
           err.paymentData = data;
           throw err;
         }
-        setStatusText(`Waiting for payment confirmation${attempt < 14 ? '...' : '.'}`);
+
+        setStatusText(`Waiting approval${attempt < 14 ? '...' : ''}`);
       } catch (err) {
         if (attempt < 14) {
-          setStatusText('Retrying payment status...');
+          setStatusText('Still waiting for approval...');
           await wait(3000);
           continue;
         }
@@ -119,9 +120,11 @@ const PaymentActionModal = ({
       let finalResult = startResult;
       const normalizedStatus = String(payment.status || '').toLowerCase();
       if (normalizedStatus !== 'successful') {
+        setStatusText('Waiting approval...');
         finalResult = await pollStatus(payment.transaction_id);
       }
 
+      setStatusText('Payment completed. Redirecting...');
       showToast('Payment confirmed successfully.', 'success');
       await onSuccess?.(finalResult);
       onClose?.();
@@ -134,16 +137,23 @@ const PaymentActionModal = ({
   };
 
   return (
-    <div
-      style={{
-        position: 'fixed',
-        inset: 0,
-        zIndex: 2000,
-        overflowY: 'auto',
-        padding: '24px 12px',
-        boxSizing: 'border-box',
-      }}
-    >
+    <>
+      <style>{`
+        @keyframes tradeLineMove {
+          0% { transform: translateX(-140%); }
+          100% { transform: translateX(140%); }
+        }
+      `}</style>
+      <div
+        style={{
+          position: 'fixed',
+          inset: 0,
+          zIndex: 2000,
+          overflowY: 'auto',
+          padding: '24px 12px',
+          boxSizing: 'border-box',
+        }}
+      >
       <div
         style={{ position: 'absolute', inset: 0, background: 'rgba(4, 22, 40, 0.58)' }}
         onClick={() => !submitting && onClose?.()}
@@ -180,6 +190,25 @@ const PaymentActionModal = ({
           <div style={{ color: '#6c7b88', fontSize: 13, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Amount</div>
           <div style={{ fontSize: 30, fontWeight: 700, color: '#0e5f84', marginTop: 4 }}>{amount} {currency}</div>
         </div>
+
+        {submitting && (
+          <div style={{ marginTop: 18, display: 'grid', gap: 10 }}>
+            <div style={{ position: 'relative', height: 8, borderRadius: 999, overflow: 'hidden', background: '#def7e6' }}>
+              <div
+                style={{
+                  position: 'absolute',
+                  top: 0,
+                  left: '-140%',
+                  width: '260%',
+                  height: '100%',
+                  background: 'linear-gradient(135deg, transparent 20%, #22a74a 28%, #76d59f 35%, #22a74a 45%, transparent 55%, transparent 65%, #22a74a 72%, #76d59f 78%, #22a74a 86%, transparent 94%)',
+                  animation: 'tradeLineMove 1.2s linear infinite',
+                }}
+              />
+            </div>
+            <div style={{ color: '#166534', fontWeight: 600 }}>{statusText || 'Processing payment...'}</div>
+          </div>
+        )}
 
             <div
               style={{
@@ -301,7 +330,7 @@ const PaymentActionModal = ({
           }}
         />
 
-        {statusText ? <div style={{ marginTop: 12, color: '#0e5f84', fontSize: 14 }}>{statusText}</div> : null}
+        {!submitting && statusText ? <div style={{ marginTop: 12, color: '#0e5f84', fontSize: 14 }}>{statusText}</div> : null}
 
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12, marginTop: 24 }}>
           <button
@@ -338,6 +367,7 @@ const PaymentActionModal = ({
         </div>
       </div>
     </div>
+    </>
   );
 };
 

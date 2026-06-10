@@ -2,6 +2,7 @@ import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import { showToast } from '../utility/ToastNotification';
+import { useAuth } from '../context/AuthContext';
 
 const PaymentConfirmation = () => {
   const navigate = useNavigate();
@@ -9,6 +10,7 @@ const PaymentConfirmation = () => {
   const [subscription, setSubscription] = useState(null);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
+  const { user, updateUser } = useAuth();
 
   const fetchByTransaction = useCallback(async (txId) => {
     try {
@@ -17,13 +19,16 @@ const PaymentConfirmation = () => {
         setPayment(data.payment || null);
         setSubscription(data.subscription || null);
         setError(null);
+        if (data.subscription && updateUser && user) {
+          updateUser({ ...user, subscription: data.subscription });
+        }
       } else {
         setError(data?.message || 'Failed to fetch payment status');
       }
     } catch (err) {
       setError(err?.response?.data?.message || 'Failed to fetch payment status');
     }
-  }, []);
+  }, [updateUser, user]);
 
   const fetchLatest = useCallback(async () => {
     try {
@@ -178,6 +183,21 @@ const PaymentConfirmation = () => {
           <p style={{ marginTop: 12, color: '#4b5d7b', maxWidth: 680 }}>This page shows the final CamerPay transaction status and your Acadex access state.</p>
         </div>
         <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+          <button
+            type="button"
+            onClick={() => navigate('/')}
+            style={{
+              border: '1px solid #d2dce8',
+              borderRadius: 999,
+              padding: '12px 18px',
+              background: '#fff',
+              color: '#15345f',
+              cursor: 'pointer',
+              fontWeight: 700,
+            }}
+          >
+            Back to home
+          </button>
           <button
             type="button"
             onClick={() => navigate('/candidate/subscription')}

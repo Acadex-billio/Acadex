@@ -24,6 +24,15 @@ const QuestionPapers = () => {
   const [previewMeta, setPreviewMeta] = useState({ plan: 'basic', allowCopy: false, pageLimit: null, item: null });
   const [paymentRequest, setPaymentRequest] = useState(null);
   const [linkMenu, setLinkMenu] = useState({ open: false, id: null, title: '', items: [], fallback: false });
+  const [topicPopup, setTopicPopup] = useState({ open: false, id: null, topic: '' });
+
+  const openTopicPopup = (paper) => {
+    setTopicPopup({ open: true, id: paper.qp_id, topic: paper.paper_title || 'No title available' });
+  };
+
+  const closeTopicPopup = () => setTopicPopup({ open: false, id: null, topic: '' });
+
+  const isLongTopic = (text) => String(text || '').trim().length > 80;
 
   useEffect(() => {
     // JWT handles credentials automatically
@@ -411,21 +420,24 @@ const QuestionPapers = () => {
                     <FaFilePdf className={styles.fileIcon} />
                   </div>
                   <div className={styles.cardContent}>
-                    <h3 className={styles.title}>{p.paper_title}</h3>
-                    <div className={styles.chipRow}>
+                    <div className={styles.titleRow}>
+                      <h3 className={styles.title}>{p.paper_title}</h3>
+                      {isLongTopic(p.paper_title) && (
+                        <button type="button" className={styles.readAllLink} onClick={() => openTopicPopup(p)}>
+                          Read All
+                        </button>
+                      )}
+                    </div>
+                    <div className={styles.infoRow}>
                       <span className={styles.chip}><FaCalendarAlt className={styles.chipIcon} /> Year {p.hnd_year}</span>
                       <span className={styles.chip}><FaBuilding className={styles.chipIcon} /> {p.departments.map((d) => d.dpt_name).join(', ') || 'General'}</span>
-                    </div>
-                    <div className={styles.statsRow}>
-                      <span className={styles.smallMeta}><FaClock className={styles.smallIcon} /> {formatTimeAgo(p.upload_date)}</span>
-                      <span className={styles.smallMeta}><FaRegFileAlt className={styles.smallIcon} /> Pages: N/A</span>
+                      <span className={styles.chip}><FaRegFileAlt className={styles.chipIcon} /> Pages: N/A</span>
+                      <span className={styles.chip}><FaClock className={styles.chipIcon} /> {formatTimeAgo(p.upload_date)}</span>
                     </div>
                   </div>
                 </div>
 
                 <div className={styles.actionGroup}>
-                  <button className={styles.textAction} onClick={() => handlePreview(p)}>Preview</button>
-                  <button className={styles.textAction} onClick={() => handleDownload(p)}>Download</button>
                   <button
                     type="button"
                     className={styles.menuButton}
@@ -433,6 +445,8 @@ const QuestionPapers = () => {
                   >
                     ⋯
                   </button>
+                  <button className={`${styles.textAction} ${styles.primaryAction}`} onClick={() => handlePreview(p)}>Preview</button>
+                  <button className={`${styles.textAction} ${styles.primaryAction}`} onClick={() => handleDownload(p)}>Download</button>
                 </div>
               </div>
 
@@ -462,6 +476,16 @@ const QuestionPapers = () => {
           ))
         )}
       </div>
+
+      {topicPopup.open && (
+        <div className={styles.topicPopupOverlay} onClick={closeTopicPopup}>
+          <div className={styles.topicPopupBox} onClick={(e) => e.stopPropagation()}>
+            <div className={styles.topicPopupHeader}>Full title</div>
+            <p className={styles.topicPopupText}>{topicPopup.topic}</p>
+            <button type="button" className={styles.topicPopupClose} onClick={closeTopicPopup}>Close</button>
+          </div>
+        </div>
+      )}
 
       {/* Preview Modal */}
       {previewFile && (

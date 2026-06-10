@@ -1,5 +1,6 @@
 const logger = require('../utils/logger');
 const PaymentTransaction = require('../models/PaymentTransaction');
+const { sendEmail } = require('../services/emailService');
 const { verifyWebhookSignature } = require('../services/camerpayPaymentService');
 const {
   resolveSubscription,
@@ -117,6 +118,10 @@ exports.handleCamerpayCallback = async (req, res) => {
       user_cand_id: transaction.user_cand_id,
     });
 
+    const receiptUser = transaction.user_cand_id
+      ? await User.findOne({ cand_id: transaction.user_cand_id }).select('email name allow_emails').lean()
+      : null;
+
     transaction.status = 'successful';
     transaction.completed_at = new Date();
     transaction.provider_response = payload;
@@ -188,6 +193,40 @@ exports.handleCamerpayCallback = async (req, res) => {
     } catch (_) {}
 
     await transaction.save();
+
+    if (receiptUser?.email && receiptUser.allow_emails !== false) {
+      const planLabel = transaction.purpose_type === 'subscription'
+        ? (transaction.purpose_code === 'plan_pro' ? 'Pro subscription' : 'PAYGO subscription')
+        : transaction.purpose_type.replace(/_/g, ' ');
+      const emailSubject = `Acadex payment receipt — ${transaction.description}`;
+      const emailText = [
+        `Hello ${receiptUser.name || 'Acadex learner'},`,
+        '',
+        'Your payment was successful.',
+        `Transaction: ${transaction._id}`,
+        `Description: ${transaction.description}`,
+        `Type: ${planLabel}`,
+        `Amount: ${transaction.amount} ${transaction.currency}`,
+        `Status: Successful`,
+        `Date: ${new Date(transaction.completed_at).toLocaleString()}`,
+        '',
+        'Thank you for choosing Acadex. Your access has been updated and is available immediately.',
+      ].join('\n');
+
+      try {
+        await sendEmail({
+          to: receiptUser.email,
+          subject: emailSubject,
+          text: emailText,
+        });
+      } catch (emailErr) {
+        logger.error('Failed to send payment receipt email', {
+          error: emailErr?.message || emailErr,
+          email: receiptUser.email,
+          transaction_id: transaction._id,
+        });
+      }
+    }
 
     if (respond) {
       return res.json({
