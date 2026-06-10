@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Helmet } from 'react-helmet';
 import styles from '../Astyles/dashboard.module.css';
-import { FaUsers, FaFileAlt, FaChartBar, FaBook, FaLayerGroup, FaUserCircle } from 'react-icons/fa';
 import { Bar, Line } from 'react-chartjs-2';
 import {
   Chart as ChartJS, ArcElement, CategoryScale, LinearScale,
@@ -28,6 +27,15 @@ const buildImageUrl = (url) => {
   return `${window.location.origin}/${url}`;
 };
 
+const formatCurrency = (value) => {
+  const amount = Number(value || 0);
+  return amount.toLocaleString('en-US', {
+    style: 'currency',
+    currency: 'XAF',
+    maximumFractionDigits: 0,
+  });
+};
+
 const AdminDashboard = () => {
   const { loading, startLoading, stopLoading } = useLoading();
   const { user } = useAuth();
@@ -38,6 +46,15 @@ const AdminDashboard = () => {
   const [summary, setSummary] = useState(null);
   const [departmentTrends, setDepartmentTrends] = useState({ labels: [], series: [] });
   const [accountStats, setAccountStats] = useState(null);
+  const [paymentAnalytics, setPaymentAnalytics] = useState({
+    total_revenue: 0,
+    labels: [],
+    subscription_revenue: [],
+    material_revenue: [],
+    booking_revenue: [],
+    payment_method_mtn: [],
+    payment_method_om: [],
+  });
   const [recentRegistrations, setRecentRegistrations] = useState([]);
   const [dataLoading, setDataLoading] = useState(false);
 
@@ -49,14 +66,24 @@ const AdminDashboard = () => {
         setDataLoading(true);
         startLoading();
 
-        const [summaryRes, trendsRes, statusRes, registrationsRes] = await Promise.all([
+        const [summaryRes, paymentRes, trendsRes, statusRes, registrationsRes] = await Promise.all([
           api.get('/ai-tools/summary'),
+          api.get('/ai-tools/payments/analytics'),
           api.get('/admin/departments/trends?limit=3'),
           api.get('/ai-tools/accounts/status-stats'),
-          api.get('/ai-tools/recent-registrations?count=6'),
+          api.get('/ai-tools/recent-registrations?count=3'),
         ]);
 
         setSummary(summaryRes.data?.summary || {});
+        setPaymentAnalytics(paymentRes.data?.analytics || {
+          total_revenue: 0,
+          labels: [],
+          subscription_revenue: [],
+          material_revenue: [],
+          booking_revenue: [],
+          payment_method_mtn: [],
+          payment_method_om: [],
+        });
         setDepartmentTrends({
           labels: Array.isArray(trendsRes.data?.labels) ? trendsRes.data.labels : [],
           series: Array.isArray(trendsRes.data?.series) ? trendsRes.data.series : [],
@@ -82,6 +109,7 @@ const AdminDashboard = () => {
     { label: 'Question Papers', value: summary?.total_question_papers },
     { label: 'Reports', value: summary?.total_reports },
     { label: 'Presentations', value: summary?.total_presentations },
+    { label: 'Total Lecturers', value: summary?.total_lecturers },
   ], [summary]);
 
   const topDepartmentsLineData = useMemo(() => {
@@ -185,6 +213,87 @@ const AdminDashboard = () => {
     },
   }), []);
 
+  const paymentRevenueData = useMemo(() => ({
+    labels: paymentAnalytics.labels || [],
+    datasets: [
+      {
+        label: 'Subscription revenue',
+        data: paymentAnalytics.subscription_revenue || [],
+        backgroundColor: 'rgba(33, 150, 243, 0.85)',
+      },
+      {
+        label: 'Material revenue',
+        data: paymentAnalytics.material_revenue || [],
+        backgroundColor: 'rgba(76, 175, 80, 0.8)',
+      },
+      {
+        label: 'Booking revenue',
+        data: paymentAnalytics.booking_revenue || [],
+        backgroundColor: 'rgba(255, 152, 0, 0.8)',
+      },
+    ],
+  }), [paymentAnalytics]);
+
+  const paymentRevenueOptions = useMemo(() => ({
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: { position: 'top' },
+      tooltip: { mode: 'index', intersect: false },
+    },
+    scales: {
+      x: {
+        grid: { display: false },
+      },
+      y: {
+        beginAtZero: true,
+      },
+    },
+  }), []);
+
+  const paymentMethodData = useMemo(() => ({
+    labels: paymentAnalytics.labels || [],
+    datasets: [
+      {
+        label: 'MTN',
+        data: paymentAnalytics.payment_method_mtn || [],
+        borderColor: '#2196F3',
+        backgroundColor: 'rgba(33, 150, 243, 0.12)',
+        fill: true,
+        tension: 0.35,
+      },
+      {
+        label: 'Orange Money',
+        data: paymentAnalytics.payment_method_om || [],
+        borderColor: '#FB8C00',
+        backgroundColor: 'rgba(255, 152, 0, 0.15)',
+        fill: true,
+        tension: 0.35,
+      },
+    ],
+  }), [paymentAnalytics]);
+
+  const paymentMethodOptions = useMemo(() => ({
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: { position: 'bottom' },
+      tooltip: { mode: 'index', intersect: false },
+    },
+    interaction: {
+      mode: 'nearest',
+      intersect: false,
+    },
+    scales: {
+      x: {
+        grid: { display: false },
+      },
+      y: {
+        beginAtZero: true,
+      },
+    },
+  }), []);
+
   const materialComparisonData = useMemo(() => ({
     labels: ['Question Papers', 'Reports', 'Presentations'],
     datasets: [
@@ -256,24 +365,40 @@ const AdminDashboard = () => {
         </div>
       </div>
 
-      <div className={styles.statsGrid}>
-        {statCards.map((card) => (
-          <div key={card.label} className={styles.statCard}>
-            <div className={styles.statCardIcon}>
-              {card.label.includes('Users') && <FaUsers />}
-              {card.label.includes('Candidates') && <FaUsers />}
-              {card.label.includes('Admin') && <FaUserCircle />}
-              {card.label.includes('Departments') && <FaLayerGroup />}
-              {card.label.includes('Question Papers') && <FaBook />}
-              {card.label.includes('Reports') && <FaFileAlt />}
-              {card.label.includes('Presentations') && <FaChartBar />}
+      <div className={styles.summaryBox}>
+        <div className={styles.sectionHeader}>
+          <h3>Platform summary</h3>
+        </div>
+        <div className={styles.summaryGrid}>
+          {statCards.map((card) => (
+            <div key={card.label} className={styles.summaryItem}>
+              <span>{card.label}</span>
+              <strong>{card.value ?? 0}</strong>
             </div>
-            <div className={styles.statCardContent}>
-              <span className={styles.statCardLabel}>{card.label}</span>
-              <span className={styles.statCardValue}>{card.value ?? 0}</span>
-            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className={styles.analyticsGrid}>
+        <div className={styles.chartBox}>
+          <div className={styles.sectionHeader}>
+            <h3>Payment revenue by type</h3>
           </div>
-        ))}
+          <div className={styles.paymentSummary}>
+            <span>Total revenue</span>
+            <strong>{formatCurrency(paymentAnalytics.total_revenue)}</strong>
+          </div>
+          <div className={styles.chartWrapper}>
+            <Bar data={paymentRevenueData} options={paymentRevenueOptions} />
+          </div>
+        </div>
+
+        <div className={styles.chartBox}>
+          <h3>Payment method trend</h3>
+          <div className={styles.chartWrapper}>
+            <Line data={paymentMethodData} options={paymentMethodOptions} />
+          </div>
+        </div>
       </div>
 
       <div className={styles.analyticsGrid}>

@@ -8,6 +8,7 @@ const Announcement = require('../models/Announcement');
 const ChatRoom = require('../models/ChatRoom');
 const ChatMessage = require('../models/ChatMessage');
 const ChatMembership = require('../models/ChatMembership');
+const PaymentTransaction = require('../models/PaymentTransaction');
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -268,6 +269,7 @@ exports.getSummary = async (_req, res) => {
       totalQuestionPapers,
       totalReports,
       totalPresentations,
+      totalLecturers,
       materialCounts,
     ] = await Promise.all([
       User.countDocuments(),
@@ -277,6 +279,7 @@ exports.getSummary = async (_req, res) => {
       QuestionPaper.countDocuments(),
       Report.countDocuments(),
       Presentation.countDocuments(),
+      User.countDocuments({ role: 'lecturer' }),
       History.aggregate([
         {
           $match: {
@@ -338,6 +341,7 @@ exports.getSummary = async (_req, res) => {
         total_candidates: totalCandidates,
         total_admins: totalAdmins,
         total_departments: totalDepartments,
+        total_lecturers: Number(totalLecturers || 0),
         total_question_papers: totalQuestionPapers,
         total_reports: totalReports,
         total_presentations: totalPresentations,
@@ -351,6 +355,186 @@ exports.getSummary = async (_req, res) => {
     });
   } catch (err) {
     return res.status(500).json({ success: false, message: err.message || 'Failed to load summary' });
+  }
+};
+
+function buildMonthKey(year, month) {
+  return `${year}-${String(month).padStart(2, '0')}`;
+}
+
+function formatMonthLabel(year, month) {
+  const date = new Date(year, month - 1, 1);
+  return date.toLocaleString('en-US', { month: 'short', year: 'numeric' });
+}
+
+function normalizePaymentMethod(provider, providerResponse) {
+  const rawMethod = String(providerResponse?.payment_method || '').trim().toLowerCase();
+  const normalizedProvider = String(provider || '').trim().toLowerCase();
+
+  if (rawMethod.includes('orange')) return 'om';
+  if (rawMethod.includes('orange_money')) return 'om';
+  if (rawMethod.includes('om')) return 'om';
+  if (rawMethod.includes('mtn')) return 'mtn';
+  if (rawMethod.includes('momo')) return 'mtn';
+
+  if (normalizedProvider === 'manual_momo' || normalizedProvider === 'momo' || normalizedProvider === 'camerpay') {
+    return 'mtn';
+  }
+
+  return 'unknown';
+}
+
+function normalizePurposeCategory(purposeType) {
+  const rawPurpose = String(purposeType || '').trim().toLowerCase();
+  if (rawPurpose === 'subscription') return 'subscription';
+  if (rawPurpose === 'material_access') return 'materials';
+  if (['tutorship_booking', 'center_access'].includes(rawPurpose)) return 'bookings';
+  return 'bookings';
+}
+
+exports.getPaymentAnalytics = async (req, res) => {
+  try {
+    const months = clamp(parseIntSafe(req.query.months, 10), 3, 12);
+    const now = new Date();
+    const startDate = new Date(now.getFullYear(), now.getMonth() - (months - 1), 1);
+
+    const labels = Array.from({ length: months }, (_, index) => {
+      const d = new Date(startDate.getFullYear(), startDate.getMonth() + index, 1);
+      return formatMonthLabel(d.getFullYear(), d.getMonth() + 1);
+    });
+
+    const monthKeys = Array.from({ length: months }, (_, index) => {
+      const d = new Date(startDate.getFullYear(), startDate.getMonth() + index, 1);
+      return buildMonthKey(d.getFullYear(), d.getMonth() + 1);
+    });
+
+    const rows = await PaymentTransaction.aggregate([
+      {
+        $match: {
+          status: 'successful',
+          createdAt: { $gte: startDate },
+        },
+      },
+      {
+        $project: {
+          amount: 1,
+          purpose_type: 1,
+          provider: { $toLower: { $ifNull: ['$provider', ''] } },
+          provider_response: 1,
+          createdAt: 1,
+        },
+      },
+      {
+        $addFields: {
+          payment_method_field: {
+            $toLower: {
+              $ifNull: ['$provider_response.payment_method', ''],
+            },
+          },
+        },
+      },
+      {
+        $addFields: {
+          method_label: {
+            $switch: {
+              branches: [
+                {
+                  case: { $gte: [{ $indexOfBytes: ['$payment_method_field', 'orange'] }, 0] },
+                  then: 'om',
+                },
+                {
+                  case: { $gte: [{ $indexOfBytes: ['$payment_method_field', 'mtn'] }, 0] },
+                  then: 'mtn',
+                },
+                {
+                  case: { $gte: [{ $indexOfBytes: ['$provider', 'orange'] }, 0] },
+                  then: 'om',
+                },
+                {
+                  case: {
+                    $or: [
+                      { $eq: ['$provider', 'momo'] },
+                      { $eq: ['$provider', 'manual_momo'] },
+                      { $eq: ['$provider', 'camerpay'] },
+                    ],
+                  },
+                  then: 'mtn',
+                },
+              ],
+              default: 'unknown',
+            },
+          },
+        },
+      },
+      {
+        $addFields: {
+          year: { $year: '$createdAt' },
+          month: { $month: '$createdAt' },
+        },
+      },
+      {
+        $group: {
+          _id: {
+            year: '$year',
+            month: '$month',
+            purpose_type: '$purpose_type',
+            method_label: '$method_label',
+          },
+          total_amount: { $sum: '$amount' },
+        },
+      },
+      {
+        $sort: {
+          '_id.year': 1,
+          '_id.month': 1,
+        },
+      },
+    ]);
+
+    const bucketTemplate = {
+      subscription: 0,
+      materials: 0,
+      bookings: 0,
+      mtn: 0,
+      om: 0,
+    };
+
+    const buckets = monthKeys.reduce((acc, key) => {
+      acc[key] = { ...bucketTemplate };
+      return acc;
+    }, {});
+
+    let totalRevenue = 0;
+
+    rows.forEach((row) => {
+      const { year, month, purpose_type, method_label } = row._id;
+      const key = buildMonthKey(year, month);
+      const bucket = buckets[key];
+      const amount = Number(row.total_amount || 0);
+      totalRevenue += amount;
+      if (!bucket) return;
+
+      const category = normalizePurposeCategory(purpose_type);
+      bucket[category] += amount;
+
+      if (method_label === 'mtn') bucket.mtn += amount;
+      else if (method_label === 'om') bucket.om += amount;
+    });
+
+    return res.json({
+      success: true,
+      analytics: {
+        total_revenue: totalRevenue,
+        labels,
+        subscription_revenue: monthKeys.map((key) => buckets[key].subscription),
+        material_revenue: monthKeys.map((key) => buckets[key].materials),
+        booking_revenue: monthKeys.map((key) => buckets[key].bookings),
+        payment_method_mtn: monthKeys.map((key) => buckets[key].mtn),
+        payment_method_om: monthKeys.map((key) => buckets[key].om),
+      },
+    });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: err.message || 'Failed to load payment analytics' });
   }
 };
 
@@ -378,6 +562,8 @@ exports.getRecentRegistrations = async (req, res) => {
     });
   } catch (err) {
     return res.status(500).json({ success: false, message: err.message || 'Failed to load registrations' });
+  }
+};
   }
 };
 

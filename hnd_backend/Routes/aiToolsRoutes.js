@@ -9,6 +9,7 @@ router.use(requireAuth);
 router.use(requireAdmin);
 
 router.get('/summary', aiToolsController.getSummary);
+router.get('/payments/analytics', aiToolsController.getPaymentAnalytics);
 router.get('/recent-registrations', aiToolsController.getRecentRegistrations);
 router.get('/departments/stats', aiToolsController.getDepartmentStats);
 router.get('/chat/activity', aiToolsController.getChatroomActivity);
