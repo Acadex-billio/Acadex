@@ -25,7 +25,16 @@ const ViewReport = () => {
   const [previewMeta, setPreviewMeta] = useState({ plan: 'basic', allowCopy: false, pageLimit: null, item: null });
   const [paymentRequest, setPaymentRequest] = useState(null);
   const [linkMenu, setLinkMenu] = useState({ open: false, id: null, title: '', items: [], fallback: false });
+  const [topicPopup, setTopicPopup] = useState({ open: false, id: null, topic: '' });
   const [studyLinksByDept, setStudyLinksByDept] = useState({});
+
+  const openTopicPopup = (report) => {
+    setTopicPopup({ open: true, id: report.report_id, topic: report.title || 'No topic available' });
+  };
+
+  const closeTopicPopup = () => setTopicPopup({ open: false, id: null, topic: '' });
+
+  const isLongTopic = (text) => String(text || '').trim().length > 80;
 
   useEffect(() => {
     const loadStudyLinks = async () => {
@@ -391,14 +400,19 @@ const ViewReport = () => {
                     <div className={styles.badgeRow}>
                       <div className={styles.cardBadge}>Report</div>
                     </div>
-                    <h3 className={styles.title}>{r.title}</h3>
-                    <div className={styles.chipRow}>
+                    <div className={styles.titleRow}>
+                      <h3 className={styles.title}>{r.title}</h3>
+                      {isLongTopic(r.title) && (
+                        <button type="button" className={styles.readAllLink} onClick={() => openTopicPopup(r)}>
+                          Read All
+                        </button>
+                      )}
+                    </div>
+                    <div className={styles.infoRow}>
                       <span className={styles.chip}><FaCalendarAlt className={styles.chipIcon} /> {new Date(r.upload_date).getFullYear()}</span>
                       <span className={styles.chip}><FaBuilding className={styles.chipIcon} /> {(r.departments || [])[0]?.dpt_name || r.audience || 'General'}</span>
-                    </div>
-                    <div className={styles.statsRow}>
-                      <span className={styles.smallMeta}><FaClock className={styles.smallIcon} /> {formatTimeAgo(r.upload_date)}</span>
-                      <span className={styles.smallMeta}><FaRegFileAlt className={styles.smallIcon} /> Pages: {r.pages || 'N/A'}</span>
+                      <span className={styles.chip}><FaRegFileAlt className={styles.chipIcon} /> {r.pages || 'N/A'} pages</span>
+                      <span className={styles.chip}><FaClock className={styles.chipIcon} /> {formatTimeAgo(r.upload_date)}</span>
                     </div>
                     <div className={styles.meta}>
                       {r.writer_names || 'Unknown author'}
@@ -408,8 +422,6 @@ const ViewReport = () => {
                 </div>
 
                 <div className={styles.actionGroup}>
-                  <button className={styles.textAction} onClick={() => handlePreview(r)}>Preview</button>
-                  <button className={styles.textAction} onClick={() => handleDownload(r)}>Download</button>
                   <button
                     type="button"
                     className={styles.menuButton}
@@ -417,6 +429,8 @@ const ViewReport = () => {
                   >
                     ⋯
                   </button>
+                  <button className={`${styles.textAction} ${styles.primaryAction}`} onClick={() => handlePreview(r)}>Preview</button>
+                  <button className={`${styles.textAction} ${styles.primaryAction}`} onClick={() => handleDownload(r)}>Download</button>
                 </div>
               </div>
 
@@ -446,6 +460,16 @@ const ViewReport = () => {
           ))
         )}
       </div>
+
+      {topicPopup.open && (
+        <div className={styles.topicPopupOverlay} onClick={closeTopicPopup}>
+          <div className={styles.topicPopupBox} onClick={(e) => e.stopPropagation()}>
+            <div className={styles.topicPopupHeader}>Full topic</div>
+            <p className={styles.topicPopupText}>{topicPopup.topic}</p>
+            <button type="button" className={styles.topicPopupClose} onClick={closeTopicPopup}>Close</button>
+          </div>
+        </div>
+      )}
 
       {/* Preview Modal */}
       {previewFile && (

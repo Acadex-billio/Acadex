@@ -24,7 +24,16 @@ const ViewPresentation = () => {
   const [previewMeta, setPreviewMeta] = useState({ plan: 'basic', allowCopy: false, pageLimit: null, item: null });
   const [paymentRequest, setPaymentRequest] = useState(null);
   const [linkMenu, setLinkMenu] = useState({ open: false, id: null, title: '', items: [], fallback: false });
+  const [topicPopup, setTopicPopup] = useState({ open: false, id: null, topic: '' });
   const [studyLinksByDept, setStudyLinksByDept] = useState({});
+
+  const openTopicPopup = (presentation) => {
+    setTopicPopup({ open: true, id: presentation.presentation_id, topic: presentation.presentation_title || 'No topic available' });
+  };
+
+  const closeTopicPopup = () => setTopicPopup({ open: false, id: null, topic: '' });
+
+  const isLongTopic = (text) => String(text || '').trim().length > 80;
 
   useEffect(() => {
     const loadStudyLinks = async () => {
@@ -358,7 +367,7 @@ const ViewPresentation = () => {
       <div className={styles.container}>
       <h2 className={styles.heading}>PowerPoint Presentations</h2>
       <p className={styles.noResults}>
-        Your activity (last 7 days): Downloads {myCounts.downloads} • Previews {myCounts.previews}
+        Your activity (last 7 days): Downloads {myCounts.downloads} ΓÇó Previews {myCounts.previews}
       </p>
 
       <div className={styles.filterBox}>
@@ -383,21 +392,24 @@ const ViewPresentation = () => {
                     <FaFilePowerpoint className={styles.fileIcon} />
                   </div>
                   <div className={styles.cardContent}>
-                    <h3 className={styles.title}>{p.presentation_title}</h3>
-                    <div className={styles.chipRow}>
-                      <span className={styles.chip}><FaCalendarAlt className={styles.chipIcon} /> Year {new Date(p.upload_date).getFullYear()}</span>
-                      <span className={styles.chip}><FaBuilding className={styles.chipIcon} /> {p.audience || p.program || 'General'}</span>
+                    <div className={styles.titleRow}>
+                      <h3 className={styles.title}>{p.presentation_title}</h3>
+                      {isLongTopic(p.presentation_title) && (
+                        <button type="button" className={styles.readAllLink} onClick={() => openTopicPopup(p)}>
+                          Read All
+                        </button>
+                      )}
                     </div>
-                    <div className={styles.statsRow}>
-                      <span className={styles.smallMeta}><FaClock className={styles.smallIcon} /> {formatTimeAgo(p.upload_date)}</span>
-                      <span className={styles.smallMeta}><FaRegFileAlt className={styles.smallIcon} /> Pages: {p.report_pages || 'N/A'}</span>
+                    <div className={styles.infoRow}>
+                      <span className={styles.chip}><FaCalendarAlt className={styles.chipIcon} /> {new Date(p.upload_date).getFullYear()}</span>
+                      <span className={styles.chip}><FaBuilding className={styles.chipIcon} /> {p.audience || p.program || 'General'}</span>
+                      <span className={styles.chip}><FaRegFileAlt className={styles.chipIcon} /> {p.report_pages || 'N/A'} pages</span>
+                      <span className={styles.chip}><FaClock className={styles.chipIcon} /> {formatTimeAgo(p.upload_date)}</span>
                     </div>
                   </div>
                 </div>
 
                 <div className={styles.actionGroup}>
-                  <button className={styles.textAction} onClick={() => handlePreview(p)}>Preview</button>
-                  <button className={styles.textAction} onClick={() => handleDownload(p)}>Download</button>
                   <button
                     type="button"
                     className={styles.menuButton}
@@ -405,6 +417,8 @@ const ViewPresentation = () => {
                   >
                     ⋯
                   </button>
+                  <button className={`${styles.textAction} ${styles.primaryAction}`} onClick={() => handlePreview(p)}>Preview</button>
+                  <button className={`${styles.textAction} ${styles.primaryAction}`} onClick={() => handleDownload(p)}>Download</button>
                 </div>
               </div>
 
@@ -439,6 +453,16 @@ const ViewPresentation = () => {
         )}
       </div>
 
+      {topicPopup.open && (
+        <div className={styles.topicPopupOverlay} onClick={closeTopicPopup}>
+          <div className={styles.topicPopupBox} onClick={(e) => e.stopPropagation()}>
+            <div className={styles.topicPopupHeader}>Full topic</div>
+            <p className={styles.topicPopupText}>{topicPopup.topic}</p>
+            <button type="button" className={styles.topicPopupClose} onClick={closeTopicPopup}>Close</button>
+          </div>
+        </div>
+      )}
+
       {/* Preview Modal */}
       {previewFile && (
         <div
@@ -459,7 +483,7 @@ const ViewPresentation = () => {
               className={styles.modalClose}
               onClick={closePreview}
             >
-              ×
+              ├ù
             </button>
 
             {previewUrl && (
