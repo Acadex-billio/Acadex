@@ -120,6 +120,8 @@ const getServiceReadiness = () => {
     enabled: isAiFeaturesEnabled,
     hasOpenAIKey: Boolean(String(process.env.OPENAI_API_KEY || '').trim()),
     hasTavilyKey: Boolean(String(process.env.TAVILY_API_KEY || '').trim()),
+    hasDeepseekKey: Boolean(String(process.env.DEEPSEEK_API_KEY || '').trim()),
+    hasGroqKey: Boolean(String(process.env.GROQ_API_KEY || '').trim()),
   };
 
   const ready = {
@@ -433,6 +435,8 @@ app.get('/api/health', async (req, res) => {
           checks: {
             hasOpenAIKey: readiness.ai.hasOpenAIKey,
             hasTavilyKey: readiness.ai.hasTavilyKey,
+            hasDeepseekKey: readiness.ai.hasDeepseekKey,
+            hasGroqKey: readiness.ai.hasGroqKey,
           },
         },
         conversionQueue: {

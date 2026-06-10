@@ -243,14 +243,30 @@ const chatStream = async (req, res) => {
           : 'Loading... preparing your response.',
     });
 
-    // 1. Query the RAG knowledge base for context
+    // 1. Query the RAG knowledge base for context.
+    // If OpenAI embeddings are unavailable or quota-limited, continue without RAG context.
     pushEvent({
       status:
         languageRaw === 'fr'
           ? 'Analyse de la demande... recherche du contexte HND.'
           : 'Analyzing request... retrieving HND context.',
     });
-    const ragResult = await queryKnowledge(effectiveMessage, 5);
+
+    let ragResult = { answer: '' };
+    try {
+      ragResult = await queryKnowledge(effectiveMessage, 5);
+    } catch (ragErr) {
+      console.warn('[AI Chat] RAG embeddings failed, continuing without HND context:', ragErr.message);
+      if (/quota|429|billing|OPENAI_API_KEY|not configured/i.test(String(ragErr.message || ''))) {
+        pushEvent({
+          status:
+            languageRaw === 'fr'
+              ? 'Le service de recherche de contexte HND est temporairement indisponible.'
+              : 'HND context lookup is temporarily unavailable.',
+        });
+      }
+    }
+
     const ragContext = ragResult.answer ? `${ragResult.answer}\n\n` : '';
     const routeAwareContext = await getRouteAwareContext({ routePath: currentRoute, strictMode: strictHndMode });
 
