@@ -60,7 +60,11 @@ const buildProviderResponse = async (provider, messages, options = {}) => {
 
   const baseUrl = provider === 'deepseek' ? DEEPSEEK_BASE_URL : GROQ_BASE_URL;
   const apiKey = provider === 'deepseek' ? DEEPSEEK_API_KEY : GROQ_API_KEY;
-  const targetModel = model || 'default';
+  // Use provider-specific default models if not specified
+  let targetModel = model;
+  if (!targetModel) {
+    targetModel = provider === 'deepseek' ? 'deepseek-chat' : 'llama-3.1-8b-instant';
+  }
 
   const response = await fetch(`${baseUrl}/chat/completions`, {
     method: 'POST',
