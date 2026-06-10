@@ -5,10 +5,15 @@
  * Simplified flow: Query → Embed → Search Knowledge Base → GPT-4o Chat
  */
 
-const { streamChatCompletion, getChatCompletion } = require('../services/openaiService');
 const { queryKnowledge } = require('../services/ragService');
 const { searchTavily } = require('../services/tavilyService');
 const { getRouteAwareContext } = require('../services/hndAssistantContextService');
+const {
+  normalizeProviderSelection,
+  streamChatCompletion,
+  getChatCompletion,
+  getHealthInfo,
+} = require('../services/aiProviderService');
 const AiMemoryProfile = require('../models/AiMemoryProfile');
 
 const MAX_ATTACHMENTS = 3;
@@ -283,7 +288,11 @@ const chatStream = async (req, res) => {
     const combinedContext = `${ragContext}${webContext}${attachmentContext ? `\n\n${attachmentContext}` : ''}`.trim();
     const finalContext = `${routeAwareContext ? `${routeAwareContext}\n\n` : ''}${combinedContext}`.trim();
 
-    // 2. Build messages for GPT
+    const preferredModel = normalizeProviderSelection(
+      req.body?.model || req.body?.selectedModel || req.body?.provider || 'auto'
+    );
+
+    // 2. Build messages for the selected AI provider(s)
     const systemPrompt = `You are the official Acadex AI assistant.
 
   Your goal is to give high-quality, practical answers that feel like an expert support engineer and tutor.
@@ -314,7 +323,7 @@ const chatStream = async (req, res) => {
       },
     ];
 
-    // 3. Stream the chat completion
+    // 3. Stream the chat completion using the requested provider or fallback order
     pushEvent({
       status:
         languageRaw === 'fr'
@@ -324,7 +333,11 @@ const chatStream = async (req, res) => {
 
     let fullText = '';
     try {
-      for await (const chunk of streamChatCompletion(messages, { model: 'gpt-4o', maxTokens: 1200, temperature: 0.35 })) {
+      for await (const chunk of streamChatCompletion(messages, {
+        preferredModel,
+        maxTokens: 1200,
+        temperature: 0.35,
+      })) {
         fullText += chunk;
         pushEvent({ text: chunk });
       }
@@ -348,7 +361,11 @@ const chatStream = async (req, res) => {
 
       if (!quotaLikeError) {
         try {
-          const fallbackCompletion = await getChatCompletion(messages, { model: 'gpt-4o', maxTokens: 1200, temperature: 0.35 });
+          const fallbackCompletion = await getChatCompletion(messages, {
+            preferredModel,
+            maxTokens: 1200,
+            temperature: 0.35,
+          });
           const fallbackText = String(fallbackCompletion?.text || '').trim();
           if (fallbackText) {
             pushEvent({ text: fallbackText });
@@ -522,12 +539,11 @@ const updateProfile = async (req, res) => {
  */
 const health = async (_req, res) => {
   try {
-    const hasOpenAI = Boolean(process.env.OPENAI_API_KEY);
+    const status = getHealthInfo();
     return res.json({
       success: true,
-      openaiConfigured: hasOpenAI,
+      ...status,
       tavilyConfigured: Boolean(process.env.TAVILY_API_KEY),
-      model: 'gpt-4o',
       embeddingModel: 'text-embedding-3-small',
     });
   } catch (err) {

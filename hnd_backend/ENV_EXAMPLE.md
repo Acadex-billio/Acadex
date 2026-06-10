@@ -29,6 +29,10 @@ CORS_ORIGIN=http://localhost:3000
 
 # AI feature switch (set false to disable AI startup requirements)
 AI_FEATURES_ENABLED=true
+DEEPSEEK_API_KEY=replace-with-your-deepseek-api-key
+GROQ_API_KEY=replace-with-your-groq-api-key
+DEEPSEEK_BASE_URL=https://api.deepseek.ai/v1
+GROQ_BASE_URL=https://api.groq.ai/v1
 
 # Chroma Vector DB (RAG)
 CHROMA_URL=http://localhost:8000

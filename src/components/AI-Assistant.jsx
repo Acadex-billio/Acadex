@@ -20,7 +20,24 @@ const DEFAULT_SETTINGS = {
   strictHndMode: true,
   tone: 'balanced',
   answerDepth: 'balanced',
+  selectedAiModel: 'auto',
 };
+
+const AI_MODELS = {
+  AUTO: 'auto',
+  GPT: 'gpt',
+  DEEPSEEK: 'deepseek',
+  GROQ: 'groq',
+};
+
+const MODEL_LABELS = {
+  [AI_MODELS.AUTO]: 'Auto (GPT → Deepseek → GROQ)',
+  [AI_MODELS.GPT]: 'GPT-4 (OpenAI)',
+  [AI_MODELS.DEEPSEEK]: 'Deepseek',
+  [AI_MODELS.GROQ]: 'GROQ',
+};
+
+const MODEL_STORAGE_KEY = 'hnd-ai-chat-model-v1';
 
 const ASSISTANT_MODES = {
   RESEARCH: 'research',
@@ -54,10 +71,13 @@ const safeParse = (raw) => {
 };
 
 const getInitialSettings = () => {
-  const parsed = safeParse(localStorage.getItem(SETTINGS_STORAGE_KEY));
+  const parsedSettings = safeParse(localStorage.getItem(SETTINGS_STORAGE_KEY));
+  const parsedModel = String(localStorage.getItem(MODEL_STORAGE_KEY) || '').trim().toLowerCase();
+
   return {
     ...DEFAULT_SETTINGS,
-    ...(parsed && typeof parsed === 'object' ? parsed : {}),
+    ...(parsedSettings && typeof parsedSettings === 'object' ? parsedSettings : {}),
+    selectedAiModel: ['auto', 'gpt', 'deepseek', 'groq'].includes(parsedModel) ? parsedModel : DEFAULT_SETTINGS.selectedAiModel,
   };
 };
 
@@ -139,6 +159,11 @@ const AIAssistant = () => {
       ? initialSettings.answerDepth
       : 'balanced'
   );
+  const [selectedAiModel, setSelectedAiModel] = useState(
+    ['auto', 'gpt', 'deepseek', 'groq'].includes(initialSettings.selectedAiModel)
+      ? initialSettings.selectedAiModel
+      : 'auto'
+  );
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   const [messages, setMessages] = useState(() => [
@@ -152,7 +177,7 @@ const AIAssistant = () => {
   const [processingStatus, setProcessingStatus] = useState('');
   const [activeAssistantId, setActiveAssistantId] = useState(null);
   // Default to Study mode while Research is temporarily disabled
-  const [assistantMode, setAssistantMode] = useState(ASSISTANT_MODES.STUDY);
+  const [assistantMode, setAssistantMode] = useState(ASSISTANT_MODES.RESEARCH);
   const [studyPapers, setStudyPapers] = useState([]);
   const [studyLoadingPapers, setStudyLoadingPapers] = useState(false);
   const [selectedStudyMaterialId, setSelectedStudyMaterialId] = useState('');
@@ -239,9 +264,14 @@ const AIAssistant = () => {
         strictHndMode,
         tone,
         answerDepth,
+        selectedAiModel,
       })
     );
-  }, [storeConversation, showSources, responseLanguage, memoryTurns, strictHndMode, tone, answerDepth]);
+  }, [storeConversation, showSources, responseLanguage, memoryTurns, strictHndMode, tone, answerDepth, selectedAiModel]);
+
+  useEffect(() => {
+    localStorage.setItem(MODEL_STORAGE_KEY, selectedAiModel);
+  }, [selectedAiModel]);
 
   useEffect(() => {
     let cancelled = false;
@@ -594,6 +624,7 @@ const AIAssistant = () => {
           language: responseLanguage,
           includeSources: showSources,
           strictHndMode,
+          model: selectedAiModel,
           profile: {
             tone,
             answerDepth,
@@ -787,7 +818,7 @@ const AIAssistant = () => {
           <div>
             <div className={styles.title}>AI Assistant</div>
             <div className={styles.subtitle}>
-              Powered by GPT-4 - Ask me anything about the Acadex
+              Powered by GPT-4, Deepseek, and GROQ - Ask me anything about the Acadex
             </div>
           </div>
 
@@ -877,6 +908,24 @@ const AIAssistant = () => {
                 </div>
 
                 <div className={styles.settingBlock}>
+                  <label className={styles.settingLabel} htmlFor="menu-ai-model-select">
+                    Preferred AI model
+                  </label>
+                  <select
+                    id="menu-ai-model-select"
+                    className={styles.settingSelect}
+                    value={selectedAiModel}
+                    onChange={(e) => setSelectedAiModel(e.target.value)}
+                    disabled={loading}
+                  >
+                    <option value={AI_MODELS.AUTO}>{MODEL_LABELS[AI_MODELS.AUTO]}</option>
+                    <option value={AI_MODELS.GPT}>{MODEL_LABELS[AI_MODELS.GPT]}</option>
+                    <option value={AI_MODELS.DEEPSEEK}>{MODEL_LABELS[AI_MODELS.DEEPSEEK]}</option>
+                    <option value={AI_MODELS.GROQ}>{MODEL_LABELS[AI_MODELS.GROQ]}</option>
+                  </select>
+                </div>
+
+                <div className={styles.settingBlock}>
                   <label className={styles.settingLabel} htmlFor="menu-ai-depth-select">
                     Answer depth
                   </label>
@@ -931,22 +980,17 @@ const AIAssistant = () => {
               value={assistantMode}
               onChange={(e) => {
                 const val = e.target.value;
-                // Prevent switching to research — show friendly in-chat notice instead
-                if (val === ASSISTANT_MODES.RESEARCH) {
-                  addAssistantNotice('Research Mode is temporarily paused. Try Study Mode for guided MCQ practice and quick answers.');
-                  return;
-                }
                 setAssistantMode(val);
               }}
               disabled={loading || studyBusy}
             >
-              <option value={ASSISTANT_MODES.RESEARCH} disabled>
-                Research Mode (temporarily unavailable)
+              <option value={ASSISTANT_MODES.RESEARCH}>
+                Research Mode
               </option>
               <option value={ASSISTANT_MODES.STUDY}>Study Mode</option>
             </select>
             <div className={styles.modeNote}>
-              Research Mode is currently paused. Study Mode offers guided practice and quick answers — recommended for most tasks.
+              Research Mode is unlocked. Use Study Mode for guided MCQ practice when you want a structured session.
             </div>
           </div>
         ) : null}
@@ -1024,6 +1068,23 @@ const AIAssistant = () => {
 
         {assistantMode === ASSISTANT_MODES.RESEARCH ? (
         <div className={styles.composerWrap}>
+          <div className={styles.composerTopRow}>
+            <label className={styles.langLabel} htmlFor="composer-ai-model-select">
+              Model
+            </label>
+            <select
+              id="composer-ai-model-select"
+              className={styles.langSelect}
+              value={selectedAiModel}
+              onChange={(e) => setSelectedAiModel(e.target.value)}
+              disabled={loading}
+            >
+              <option value={AI_MODELS.AUTO}>{MODEL_LABELS[AI_MODELS.AUTO]}</option>
+              <option value={AI_MODELS.GPT}>{MODEL_LABELS[AI_MODELS.GPT]}</option>
+              <option value={AI_MODELS.DEEPSEEK}>{MODEL_LABELS[AI_MODELS.DEEPSEEK]}</option>
+              <option value={AI_MODELS.GROQ}>{MODEL_LABELS[AI_MODELS.GROQ]}</option>
+            </select>
+          </div>
           <div className={styles.attachmentControls}>
             <button
               type="button"
