@@ -7,7 +7,7 @@ import SecurePdfPreview from "./SecurePdfPreview";
 import { showToast } from "../utility/ToastNotification";
 import PaymentActionModal from "./PaymentActionModal";
 import { useNavigate } from "react-router-dom";
-import { FaFilePdf } from "react-icons/fa";
+import { FaFilePdf, FaCalendarAlt, FaBuilding, FaClock, FaRegFileAlt } from "react-icons/fa";
 
 const QuestionPapers = () => {
   const navigate = useNavigate();
@@ -200,6 +200,27 @@ const QuestionPapers = () => {
     return date.toLocaleDateString();
   };
 
+  const findFallbackLinks = (sourcePaper) => {
+    const sourceDeptIds = (sourcePaper.departments || []).map((d) => String(d.dpt_id));
+    const links = [];
+    papers.forEach((item) => {
+      if (String(item.qp_id) === String(sourcePaper.qp_id)) return;
+      const itemDeptIds = (item.departments || []).map((d) => String(d.dpt_id));
+      if (!itemDeptIds.some((id) => sourceDeptIds.includes(id))) return;
+      const raw = Array.isArray(item.study_links) ? item.study_links : [];
+      raw.forEach((link) => {
+        const normalized = String(link || '').trim();
+        if (/^https?:\/\//i.test(normalized) && !links.includes(normalized)) {
+          links.push(normalized);
+        }
+      });
+    });
+    return links.slice(0, 2).map((link) => ({
+      label: link.replace(/^https?:\/\/(www\.)?/, ''),
+      href: link,
+    }));
+  };
+
   const getMaterialLinks = (paper) => {
     const raw = Array.isArray(paper.study_links) ? paper.study_links : [];
     const validUrls = raw
@@ -213,6 +234,9 @@ const QuestionPapers = () => {
       }));
     }
 
+    const fallback = findFallbackLinks(paper);
+    if (fallback.length) return fallback;
+
     return (paper.departments || []).map((department) => ({
       label: department.dpt_name || 'Department',
       href: null,
@@ -221,12 +245,17 @@ const QuestionPapers = () => {
 
   const openLinkMenu = (paper) => {
     const items = getMaterialLinks(paper);
+    const hasOwnLinks = Array.isArray(paper.study_links) && paper.study_links.length;
     setLinkMenu({
       open: true,
       id: paper.qp_id,
-      title: items.length ? (paper.study_links?.length ? 'Study Links' : 'Related Departments') : 'No related links',
+      title: items.length
+        ? hasOwnLinks
+          ? 'Verified sites to get well structured notes that covers your syllabus'
+          : 'Verified sites in your department to support the syllabus'
+        : 'No related links found',
       items,
-      fallback: !Array.isArray(paper.study_links) || paper.study_links.length === 0,
+      fallback: !hasOwnLinks,
     });
   };
 
@@ -376,23 +405,41 @@ const QuestionPapers = () => {
         ) : (
           filteredPapers.map((p) => (
             <div key={p.qp_id} className={styles.paperCard}>
-              <div className={styles.cardHeader}>
-                <div>
-                  <div className={styles.cardBadge}>Question Paper</div>
-                  <h3 className={styles.paperTitle}>{p.paper_title}</h3>
+              <div className={styles.cardRow}>
+                <div className={styles.cardSummary}>
+                  <div className={styles.iconBlock}>
+                    <FaFilePdf className={styles.fileIcon} />
+                  </div>
+                  <div className={styles.cardContent}>
+                    <h3 className={styles.title}>{p.paper_title}</h3>
+                    <div className={styles.chipRow}>
+                      <span className={styles.chip}><FaCalendarAlt className={styles.chipIcon} /> Year {p.hnd_year}</span>
+                      <span className={styles.chip}><FaBuilding className={styles.chipIcon} /> {p.departments.map((d) => d.dpt_name).join(', ') || 'General'}</span>
+                    </div>
+                    <div className={styles.statsRow}>
+                      <span className={styles.smallMeta}><FaClock className={styles.smallIcon} /> {formatTimeAgo(p.upload_date)}</span>
+                      <span className={styles.smallMeta}><FaRegFileAlt className={styles.smallIcon} /> Pages: N/A</span>
+                    </div>
+                  </div>
                 </div>
-                <button
-                  type="button"
-                  className={styles.menuButton}
-                  onClick={() => linkMenu.open && linkMenu.id === p.qp_id ? closeLinkMenu() : openLinkMenu(p)}
-                >
-                  ⋯
-                </button>
+
+                <div className={styles.actionGroup}>
+                  <button className={styles.textAction} onClick={() => handlePreview(p)}>Preview</button>
+                  <button className={styles.textAction} onClick={() => handleDownload(p)}>Download</button>
+                  <button
+                    type="button"
+                    className={styles.menuButton}
+                    onClick={() => linkMenu.open && linkMenu.id === p.qp_id ? closeLinkMenu() : openLinkMenu(p)}
+                  >
+                    ⋯
+                  </button>
+                </div>
               </div>
 
               {linkMenu.open && linkMenu.id === p.qp_id && (
                 <div className={styles.linkMenu}>
                   <div className={styles.linkMenuTitle}>{linkMenu.title}</div>
+                  <div className={styles.linkMenuSubtitle}>Verified sites to get well structured notes that covers your syllabus.</div>
                   {linkMenu.items.length ? (
                     linkMenu.items.map((item, index) => (
                       <div key={index} className={styles.linkMenuItem}>
@@ -411,30 +458,6 @@ const QuestionPapers = () => {
                   <button type="button" className={styles.linkMenuClose} onClick={closeLinkMenu}>Close</button>
                 </div>
               )}
-
-              <div className={styles.docBody}>
-                <div className={styles.docIconWrap}>
-                  <FaFilePdf className={styles.docIcon} />
-                </div>
-                <div className={styles.docTextWrap}>
-                  <div className={styles.paperInfo}>
-                    Year {p.hnd_year} • {p.departments.map((d) => d.dpt_name).join(', ') || 'General'}
-                  </div>
-                  <div className={styles.paperMeta}>
-                    <span>{formatTimeAgo(p.upload_date)}</span>
-                    <span>Pages: N/A</span>
-                  </div>
-                </div>
-              </div>
-
-              <div className={styles.actions}>
-                <button className={styles.previewBtn} onClick={() => handlePreview(p)}>
-                  Preview
-                </button>
-                <button className={styles.downloadBtn} onClick={() => handleDownload(p)}>
-                  Download
-                </button>
-              </div>
             </div>
           ))
         )}

@@ -31,10 +31,11 @@
 
 /* Individual Paper Card */
 .paperCard {
-  background: #d9f2d7;
+  background: #ffffff;
+  border-left: 4px solid #45b26b;
   border-radius: 18px;
-  border: 1px solid #c3e6c0;
-  box-shadow: 0 6px 16px rgba(8, 40, 18, 0.08);
+  border: 1px solid #e6efe8;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06);
   padding: 16px;
   display: flex;
   flex-direction: column;
@@ -42,11 +43,135 @@
   transition: transform 0.2s ease, box-shadow 0.3s ease;
 }
 
-.cardHeader {
+.paperCard:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 14px 30px rgba(15, 23, 42, 0.1);
+}
+
+.cardRow {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
+  gap: 16px;
+}
+
+.cardSummary {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  flex: 1;
+}
+
+.iconBlock {
+  width: 54px;
+  min-width: 54px;
+  height: 54px;
+  border-radius: 18px;
+  background: rgba(239, 68, 68, 0.1);
+  display: grid;
+  place-items: center;
+}
+
+.fileIcon {
+  color: #dc2626;
+  font-size: 22px;
+}
+
+.cardContent {
+  min-width: 0;
+}
+
+.title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0 0 8px;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.chipRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: #f3fdf4;
+  color: #166534;
+  font-size: 0.84rem;
+  font-weight: 600;
+}
+
+.chipIcon,
+.smallIcon {
+  width: 14px;
+  height: 14px;
+}
+
+.statsRow {
+  display: flex;
+  flex-wrap: wrap;
   gap: 12px;
+  align-items: center;
+}
+
+.smallMeta {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #475569;
+  font-size: 0.88rem;
+}
+
+.actionGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: flex-end;
+}
+
+.textAction {
+  border: none;
+  background: transparent;
+  color: #127452;
+  font-weight: 700;
+  font-size: 0.95rem;
+  cursor: pointer;
+  padding: 8px 12px;
+  border-radius: 999px;
+  transition: background 0.2s ease;
+}
+
+.textAction:hover {
+  background: rgba(16, 116, 84, 0.08);
+}
+
+.linkMenu {
+  background: #f9fafb;
+  border: 1px solid #dbeafe;
+  border-radius: 16px;
+  padding: 14px;
+}
+
+.linkMenuTitle {
+  font-size: 0.98rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin-bottom: 6px;
+}
+
+.linkMenuSubtitle {
+  font-size: 0.85rem;
+  color: #475569;
+  margin-bottom: 12px;
 }
 
 .cardBadge {

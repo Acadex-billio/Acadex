@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useMemo, useCallback } from "react";
 import styles from "../Astyles/viewReport.module.css";
 import { getErrorMessage } from "../utility/getErrorMessage";
-import { FaFileWord, FaFilePdf } from "react-icons/fa";
+import { FaFileWord, FaFilePdf, FaCalendarAlt, FaBuilding, FaClock, FaRegFileAlt } from "react-icons/fa";
 import api from "../services/api";
 import GraduationCapLoader from "./GraduationCapLoader";
 import { useLocation, useNavigate } from "react-router-dom";
@@ -25,9 +25,33 @@ const ViewReport = () => {
   const [previewMeta, setPreviewMeta] = useState({ plan: 'basic', allowCopy: false, pageLimit: null, item: null });
   const [paymentRequest, setPaymentRequest] = useState(null);
   const [linkMenu, setLinkMenu] = useState({ open: false, id: null, title: '', items: [], fallback: false });
+  const [studyLinksByDept, setStudyLinksByDept] = useState({});
 
   useEffect(() => {
-    // No need for axios defaults when using api service
+    const loadStudyLinks = async () => {
+      try {
+        const { data } = await api.get('/candidate/question-papers');
+        const papers = Array.isArray(data?.papers) ? data.papers : [];
+        const map = {};
+        papers.forEach((paper) => {
+          const links = Array.isArray(paper.study_links) ? paper.study_links : [];
+          const valid = links
+            .map((ln) => String(ln || '').trim())
+            .filter((ln) => /^https?:\/\//i.test(ln));
+          (paper.departments || []).forEach((dept) => {
+            const deptId = String(dept.dpt_id);
+            map[deptId] = map[deptId] || [];
+            valid.forEach((link) => {
+              if (!map[deptId].includes(link)) map[deptId].push(link);
+            });
+          });
+        });
+        setStudyLinksByDept(map);
+      } catch (_err) {
+        setStudyLinksByDept({});
+      }
+    };
+    loadStudyLinks();
   }, []);
 
   useEffect(() => {
@@ -96,6 +120,14 @@ const ViewReport = () => {
         .map((link) => ({ label: link.replace(/^https?:\/\/(www\.)?/, ''), href: link }));
     }
 
+    const fallback = (report.departments || [])
+      .flatMap((dept) => studyLinksByDept[String(dept.dpt_id)] || [])
+      .filter((link, index, arr) => link && arr.indexOf(link) === index)
+      .slice(0, 2)
+      .map((link) => ({ label: link.replace(/^https?:\/\/(www\.)?/, ''), href: link }));
+
+    if (fallback.length) return fallback;
+
     return (report.departments || []).map((department) => ({
       label: department.dpt_name || 'Department',
       href: null,
@@ -104,12 +136,23 @@ const ViewReport = () => {
 
   const openLinkMenu = (report) => {
     const items = getMaterialLinks(report);
+    if (report.writer_email) {
+      items.unshift({
+        label: `Contact writer by email (${report.writer_email})`,
+        href: `mailto:${report.writer_email}`,
+      });
+    }
+    const hasOwnLinks = Array.isArray(report.study_links) && report.study_links.length;
     setLinkMenu({
       open: true,
       id: report.report_id,
-      title: items.length ? (report.study_links?.length ? 'Study Links' : 'Related Departments') : 'No related links',
+      title: items.length
+        ? hasOwnLinks
+          ? 'Verified sites to get well structured notes that covers your syllabus'
+          : 'Verified sites in your department to support the syllabus'
+        : 'No related links found',
       items,
-      fallback: !Array.isArray(report.study_links) || report.study_links.length === 0,
+      fallback: !hasOwnLinks,
     });
   };
 
@@ -301,9 +344,8 @@ const ViewReport = () => {
     if (!reportId) return;
 
     const linkedReport = reports.find((r) => String(r.report_id) === reportId);
-    if (linkedReport?.file_path) {
-      if (linkedReport?.title) setSearch(linkedReport.title);
-      handlePreview(linkedReport);
+    if (linkedReport?.title) {
+      setSearch(linkedReport.title);
     }
 
     navigate('/candidate/reports', { replace: true });
@@ -336,23 +378,52 @@ const ViewReport = () => {
         ) : (
           filteredReports.map((r) => (
             <div key={r.report_id} className={styles.card}>
-              <div className={styles.cardHeader}>
-                <div>
-                  <div className={styles.cardBadge}>Report</div>
-                  <h3 className={styles.title}>{r.title}</h3>
+              <div className={styles.cardRow}>
+                <div className={styles.cardSummary}>
+                  <div className={styles.iconBlock}>
+                    {r.file_path?.endsWith('.pdf') ? (
+                      <FaFilePdf className={styles.fileIcon} />
+                    ) : (
+                      <FaFileWord className={styles.fileIcon} />
+                    )}
+                  </div>
+                  <div className={styles.cardContent}>
+                    <div className={styles.badgeRow}>
+                      <div className={styles.cardBadge}>Report</div>
+                    </div>
+                    <h3 className={styles.title}>{r.title}</h3>
+                    <div className={styles.chipRow}>
+                      <span className={styles.chip}><FaCalendarAlt className={styles.chipIcon} /> {new Date(r.upload_date).getFullYear()}</span>
+                      <span className={styles.chip}><FaBuilding className={styles.chipIcon} /> {(r.departments || [])[0]?.dpt_name || r.audience || 'General'}</span>
+                    </div>
+                    <div className={styles.statsRow}>
+                      <span className={styles.smallMeta}><FaClock className={styles.smallIcon} /> {formatTimeAgo(r.upload_date)}</span>
+                      <span className={styles.smallMeta}><FaRegFileAlt className={styles.smallIcon} /> Pages: {r.pages || 'N/A'}</span>
+                    </div>
+                    <div className={styles.meta}>
+                      {r.writer_names || 'Unknown author'}
+                      {r.writer_email ? ` • ${r.writer_email}` : ''}
+                    </div>
+                  </div>
                 </div>
-                <button
-                  type="button"
-                  className={styles.menuButton}
-                  onClick={() => linkMenu.open && linkMenu.id === r.report_id ? closeLinkMenu() : openLinkMenu(r)}
-                >
-                  ⋯
-                </button>
+
+                <div className={styles.actionGroup}>
+                  <button className={styles.textAction} onClick={() => handlePreview(r)}>Preview</button>
+                  <button className={styles.textAction} onClick={() => handleDownload(r)}>Download</button>
+                  <button
+                    type="button"
+                    className={styles.menuButton}
+                    onClick={() => linkMenu.open && linkMenu.id === r.report_id ? closeLinkMenu() : openLinkMenu(r)}
+                  >
+                    ⋯
+                  </button>
+                </div>
               </div>
 
               {linkMenu.open && linkMenu.id === r.report_id && (
                 <div className={styles.linkMenu}>
                   <div className={styles.linkMenuTitle}>{linkMenu.title}</div>
+                  <div className={styles.linkMenuSubtitle}>Verified sites to get well structured notes that covers your syllabus.</div>
                   {linkMenu.items.length ? (
                     linkMenu.items.map((item, index) => (
                       <div key={index} className={styles.linkMenuItem}>
@@ -371,43 +442,6 @@ const ViewReport = () => {
                   <button type="button" className={styles.linkMenuClose} onClick={closeLinkMenu}>Close</button>
                 </div>
               )}
-
-              <div className={styles.docBody}>
-                <div className={styles.docIconWrap}>
-                  {r.file_path?.endsWith('.pdf') ? (
-                    <FaFilePdf className={styles.fileIcon} />
-                  ) : (
-                    <FaFileWord className={styles.fileIcon} />
-                  )}
-                </div>
-
-                <div className={styles.docTextWrap}>
-                  <div className={styles.meta}>
-                    Author: {r.writer_names} ({r.writer_email})
-                    <br />
-                    Location: {r.location || 'Unknown'}
-                  </div>
-                  <div className={styles.paperMeta}>
-                    <span>{formatTimeAgo(r.upload_date)}</span>
-                    <span>Pages: {r.pages || 'N/A'}</span>
-                  </div>
-                </div>
-              </div>
-
-              <div className={styles.actions}>
-                <button
-                  className={styles.previewBtn}
-                  onClick={() => handlePreview(r)}
-                >
-                  Preview
-                </button>
-                <button
-                  className={styles.downloadBtn}
-                  onClick={() => handleDownload(r)}
-                >
-                  Download
-                </button>
-              </div>
             </div>
           ))
         )}
