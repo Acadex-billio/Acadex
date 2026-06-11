@@ -20,16 +20,17 @@ const TermsOfService = () => {
           property="og:description"
           content="Review permitted use, account responsibilities, and platform rules for using Acadex."
         />
-        <meta property="og:url" content="https://hnd-platform.vercel.app/terms-of-service" />
-        <meta property="og:image" content="https://hnd-platform.vercel.app/hnd-mark.svg" />
+        <meta property="og:url" content="https://www.acadexe.com/terms-of-service" />
+        <meta property="og:image" content="https://www.acadexe.com/hnd-mark.svg" />
         <meta name="twitter:card" content="summary" />
         <meta name="twitter:title" content="Terms of Service | Acadex" />
         <meta
           name="twitter:description"
           content="Review permitted use, account responsibilities, and platform rules for using Acadex."
         />
-        <meta name="twitter:image" content="https://hnd-platform.vercel.app/hnd-mark.svg" />
-        <link rel="canonical" href="https://hnd-platform.vercel.app/terms-of-service" />
+        <meta name="twitter:image" content="https://www.acadexe.com/hnd-mark.svg" />
+        <link rel="canonical" href="https://www.acadexe.com/terms-of-service" />
+        <meta name="keywords" content="Acadex terms of service, platform rules, HND student agreement, BTS platform terms" />
       </Helmet>
 
       <section className={styles.panel}>

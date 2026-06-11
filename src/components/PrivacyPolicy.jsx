@@ -20,16 +20,17 @@ const PrivacyPolicy = () => {
           property="og:description"
           content="Understand how Acadex collects, uses, and protects user data for secure educational access."
         />
-        <meta property="og:url" content="https://hnd-platform.vercel.app/privacy-policy" />
-        <meta property="og:image" content="https://hnd-platform.vercel.app/hnd-mark.svg" />
+        <meta property="og:url" content="https://www.acadexe.com/privacy-policy" />
+        <meta property="og:image" content="https://www.acadexe.com/hnd-mark.svg" />
         <meta name="twitter:card" content="summary" />
         <meta name="twitter:title" content="Privacy Policy | Acadex" />
         <meta
           name="twitter:description"
           content="Understand how Acadex collects, uses, and protects user data for secure educational access."
         />
-        <meta name="twitter:image" content="https://hnd-platform.vercel.app/hnd-mark.svg" />
-        <link rel="canonical" href="https://hnd-platform.vercel.app/privacy-policy" />
+        <meta name="twitter:image" content="https://www.acadexe.com/hnd-mark.svg" />
+        <link rel="canonical" href="https://www.acadexe.com/privacy-policy" />
+        <meta name="keywords" content="Acadex privacy policy, data protection, HND student privacy, BTS platform security" />
       </Helmet>
 
       <section className={styles.panel}>

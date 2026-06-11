@@ -47,18 +47,23 @@ const Home = () => {
                 <title>{t('homePage.brand')} | Question Papers, Reports and Presentations</title>
                 <meta name="description" content="Acadex helps Higher National Diploma students access question papers, reports, presentations, announcements, and academic collaboration tools from one portal." />
                 <meta name="robots" content="index,follow" />
-                <meta name="keywords" content="HND past questions, internship reports, Yaounde HND board, student academic materials, HND resources" />
-                <meta property="og:title" content="Acadex | Question Papers, Reports and Presentations" />
-                <meta property="og:description" content="Explore academic resources, announcements, and study materials built for HND students and administrators." />
-                <meta property="og:url" content="https://hnd-platform.vercel.app/" />
-                <link rel="canonical" href="https://hnd-platform.vercel.app/" />
+                <meta name="keywords" content="Acadex, Acadexe, HND study materials, BTS resources, past question papers, verified reports, presentations, internship topics, academic collaboration, student chat" />
+                <meta property="og:title" content="Acadex | Global HND & BTS Academic Resource Hub" />
+                <meta property="og:description" content="Explore verified HND and BTS question papers, reports, presentations, announcements, and AI-powered study resources on Acadex." />
+                <meta property="og:url" content="https://www.acadexe.com/" />
+                <meta property="og:image" content="https://www.acadexe.com/hnd-mark.svg" />
+                <meta name="twitter:card" content="summary_large_image" />
+                <meta name="twitter:title" content="Acadex | Global HND & BTS Academic Resource Hub" />
+                <meta name="twitter:description" content="A secure, 24/7 learning portal for HND/BTS candidates and lecturers, offering question papers, reports, presentations, chats, and AI study tools." />
+                <meta name="twitter:image" content="https://www.acadexe.com/hnd-mark.svg" />
+                <link rel="canonical" href="https://www.acadexe.com/" />
                 <script type="application/ld+json">
                     {JSON.stringify({
                         '@context': 'https://schema.org',
                         '@type': 'EducationalOrganization',
                         name: 'Acadex',
-                        url: 'https://hnd-platform.vercel.app/',
-                        description: 'Access verified HND past questions, reports, and internship topics in one portal.',
+                        url: 'https://www.acadexe.com/',
+                        description: 'Access verified HND and BTS question papers, reports, presentations, internship topics, and academic collaboration tools in one platform.',
                         contactPoint: {
                             '@type': 'ContactPoint',
                             contactType: 'customer support',

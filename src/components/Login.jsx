@@ -79,16 +79,17 @@ const Login = () => {
           property="og:description"
           content="Secure login for students and administrators to access HND academic resources and collaboration tools."
         />
-        <meta property="og:url" content="https://hnd-platform.vercel.app/login" />
-        <meta property="og:image" content="https://hnd-platform.vercel.app/hnd-mark.svg" />
-        <meta name="twitter:card" content="summary" />
+        <meta property="og:url" content="https://www.acadexe.com/login" />
+        <meta property="og:image" content="https://www.acadexe.com/hnd-mark.svg" />
+        <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="Acadex Login" />
         <meta
           name="twitter:description"
-          content="Login portal for Acadex users to access academic materials and platform services."
+          content="Login to Acadex to access secure HND and BTS study resources, reports, presentations, and collaboration tools."
         />
-        <meta name="twitter:image" content="https://hnd-platform.vercel.app/hnd-mark.svg" />
-        <link rel="canonical" href="https://hnd-platform.vercel.app/login" />
+        <meta name="twitter:image" content="https://www.acadexe.com/hnd-mark.svg" />
+        <link rel="canonical" href="https://www.acadexe.com/login" />
+        <meta name="keywords" content="Acadex login, HND portal, BTS student login, academic resource access" />
       </Helmet>
 
       <div className={styles.card}>

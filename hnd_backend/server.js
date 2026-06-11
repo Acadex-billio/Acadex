@@ -177,6 +177,7 @@ const allowedOrigins = String(process.env.CORS_ORIGIN || '')
 // fallback for quick recovery; for stricter security, set `CORS_ORIGIN` in
 // your Render/Vercel environment to the specific frontend URL(s).
 if (allowedOrigins.length === 0) {
+  allowedOrigins.push('https://www.acadexe.com');
   allowedOrigins.push('https://hnd-platform.vercel.app');
   allowedOrigins.push('https://acadex-hng2.onrender.com');
 }
@@ -370,7 +371,7 @@ if (process.env.NODE_ENV !== 'production') {
 
 // Root route - redirect to frontend
 app.get('/', (req, res) => {
-  res.redirect('https://hnd-platform.vercel.app/');
+  res.redirect('https://www.acadexe.com/');
 });
 
 // Health check endpoint - with database validation

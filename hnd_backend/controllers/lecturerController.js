@@ -1127,7 +1127,7 @@ exports.inviteConferenceParticipants = async (req, res) => {
     }
 
     const now = new Date();
-    const appBase = String(process.env.APP_URL || 'https://hnd-platform.vercel.app').replace(/\/$/, '');
+    const appBase = String(process.env.APP_URL || 'https://www.acadexe.com').replace(/\/$/, '');
     const invitePath = '/candidate/tutorship-bookings';
     const inviteFee = calculateInviteAccessAmount(booking);
     const newInvites = users.map((u) => ({

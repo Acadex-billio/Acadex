@@ -49,16 +49,17 @@ const Documentation = () => {
           property="og:description"
           content="Understand key Acadex features, including question papers, reports, presentations, and announcements."
         />
-        <meta property="og:url" content="https://hnd-platform.vercel.app/documentation" />
-        <meta property="og:image" content="https://hnd-platform.vercel.app/hnd-mark.svg" />
-        <meta name="twitter:card" content="summary" />
+        <meta property="og:url" content="https://www.acadexe.com/documentation" />
+        <meta property="og:image" content="https://www.acadexe.com/hnd-mark.svg" />
+        <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="About Acadex | Documentation" />
         <meta
           name="twitter:description"
-          content="A quick guide to the academic resources and tools available on Acadex."
+          content="A quick guide to academic resources and tools available on Acadex for HND and BTS students, lecturers, and institutions."
         />
-        <meta name="twitter:image" content="https://hnd-platform.vercel.app/hnd-mark.svg" />
-        <link rel="canonical" href="https://hnd-platform.vercel.app/documentation" />
+        <meta name="twitter:image" content="https://www.acadexe.com/hnd-mark.svg" />
+        <link rel="canonical" href="https://www.acadexe.com/documentation" />
+        <meta name="keywords" content="Acadex documentation, HND study portal, BTS platform guide, academic resource platform, Brightstack Innovations" />
       </Helmet>
 
       <section className={styles.panel}>

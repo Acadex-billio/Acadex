@@ -2,4 +2,4 @@
 User-agent: *
 Disallow:
 
-Sitemap: https://hnd-platform.vercel.app/sitemap.xml
+Sitemap: https://www.acadexe.com/sitemap.xml

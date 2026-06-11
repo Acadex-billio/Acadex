@@ -23,7 +23,7 @@ mongoose.connect(process.env.MONGODB_URI).then(async () => {
     method: 'GET',
     headers: {
       'Authorization': 'Bearer ' + tok,
-      'Origin': 'https://hnd-platform.vercel.app',
+      'Origin': 'https://www.acadexe.com',
       'Content-Type': 'application/json'
     }
   };

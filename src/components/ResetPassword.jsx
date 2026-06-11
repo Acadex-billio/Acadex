@@ -74,7 +74,20 @@ const ResetPassword = ({ onClose }) => {
         <>
             <Helmet>
                 <title>Reset Password - Acadex</title>
-                <meta name="description" content="Reset your password for Acadex." />
+                <meta name="description" content="Reset your Acadex password to access HND and BTS study resources, presentations, and reports securely." />
+                <meta name="robots" content="index,follow" />
+                <meta property="og:type" content="website" />
+                <meta property="og:site_name" content="Acadex" />
+                <meta property="og:title" content="Reset Password - Acadex" />
+                <meta property="og:description" content="Reset your Acadex password to regain access to HND and BTS academic materials and collaboration tools." />
+                <meta property="og:url" content="https://www.acadexe.com/reset-password" />
+                <meta property="og:image" content="https://www.acadexe.com/hnd-mark.svg" />
+                <meta name="twitter:card" content="summary" />
+                <meta name="twitter:title" content="Reset Password - Acadex" />
+                <meta name="twitter:description" content="Securely reset your Acadex password and continue accessing academic resources." />
+                <meta name="twitter:image" content="https://www.acadexe.com/hnd-mark.svg" />
+                <link rel="canonical" href="https://www.acadexe.com/reset-password" />
+                <meta name="keywords" content="Acadex reset password, HND password reset, BTS account recovery" />
             </Helmet>
             <div className={styles.backdrop} onClick={onClose} />
             <div className={styles.popupContainer}>
