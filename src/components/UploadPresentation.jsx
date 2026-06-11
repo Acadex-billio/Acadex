@@ -29,6 +29,7 @@ const UploadPresentation = () => {
   const [presentations, setPresentations] = useState([]);
   const [search, setSearch] = useState('');
   const [activeId, setActiveId] = useState(null);
+  const [highlightedId, setHighlightedId] = useState(null);
   const [pageIndex, setPageIndex] = useState(0);
 
   const clearForm = () => {
@@ -156,7 +157,9 @@ const UploadPresentation = () => {
 
       if (res.data.success) {
         showToast('Presentation uploaded successfully!', 'success');
+        setHighlightedId(res.data.presentation_id || null);
         resetForm();
+        await fetchPresentations();
       } else {
         showToast(res.data.message || 'Upload failed', 'error');
       }
@@ -236,6 +239,12 @@ const UploadPresentation = () => {
       return hay.includes(q);
     });
   }, [presentations, search]);
+
+  const recentlyAddedPresentations = useMemo(() => {
+    return [...presentations]
+      .sort((a, b) => new Date(b.upload_date) - new Date(a.upload_date))
+      .slice(0, 4);
+  }, [presentations]);
 
   const totalPages = useMemo(
     () => Math.max(1, Math.ceil(filteredPresentations.length / PAGE_SIZE)),
@@ -362,6 +371,31 @@ const UploadPresentation = () => {
           <div className={crudStyles.cardHeader}>
             <h3 className={crudStyles.cardTitle}>Existing Presentations</h3>
           </div>
+
+          {recentlyAddedPresentations.length > 0 && (
+            <div className={crudStyles.recentSection}>
+              <div className={crudStyles.recentLabel}>Recently added</div>
+              <div className={crudStyles.recentList}>
+                {recentlyAddedPresentations.map((p) => {
+                  const id = p.presentation_id || p._id;
+                  return (
+                    <button
+                      key={`recent-${id}`}
+                      type="button"
+                      className={`${crudStyles.recentItem} ${String(activeId) === String(id) ? crudStyles.itemActive : ''}`}
+                      onClick={() => selectForEdit(p)}
+                    >
+                      <span>{p.title}</span>
+                      <span className={crudStyles.recentMeta}>
+                        {p.presenter_name} • {p.report_title || 'Standalone'}
+                        {String(highlightedId) === String(id) && <span className={crudStyles.newBadge}>New</span>}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           <input
             className={crudStyles.search}
