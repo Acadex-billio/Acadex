@@ -1,14 +1,14 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import api from '../services/api';
 import styles from '../Astyles/uploadPresentation.module.css';
 import crudStyles from '../Astyles/AdminCrudTwoCol.module.css';
-import api from '../services/api';
 import { showToast } from '../utility/ToastNotification';
 import { getErrorMessage } from '../utility/getErrorMessage';
-import { Helmet } from 'react-helmet';
 import { useLoading } from '../context/LoadingContext';
 import { useAuth } from '../context/AuthContext';
 import GraduationCapLoader from './GraduationCapLoader';
 import { useTranslation } from 'react-i18next';
+import SecurePdfPreview from './SecurePdfPreview';
 
 const PAGE_SIZE = 7;
 
@@ -19,18 +19,23 @@ const UploadPresentation = () => {
 
   const [reports, setReports] = useState([]);
   const [program, setProgram] = useState(String(user?.program || 'HND').toUpperCase());
-  const [report_id, setReportId] = useState(null); // null for random
+  const [report_id, setReportId] = useState(null);
   const [title, setTitle] = useState('');
   const [presenterName, setPresenterName] = useState('');
   const [presenterEmail, setPresenterEmail] = useState('');
   const [presentationFile, setPresentationFile] = useState(null);
-  const [popupVisible, setPopupVisible] = useState(false);
 
   const [presentations, setPresentations] = useState([]);
   const [search, setSearch] = useState('');
   const [activeId, setActiveId] = useState(null);
-  const [highlightedId, setHighlightedId] = useState(null);
   const [pageIndex, setPageIndex] = useState(0);
+
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const confirmRef = useRef(null);
+
+  const [previewFile, setPreviewFile] = useState(null);
+  const [previewUrl, setPreviewUrl] = useState(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
 
   const clearForm = () => {
     setActiveId(null);
@@ -40,53 +45,6 @@ const UploadPresentation = () => {
     setPresenterEmail('');
     setPresentationFile(null);
   };
-
-  const getPresentationUrl = (filePath) => {
-    if (!filePath) return null;
-    if (/^https?:\/\//i.test(filePath)) return filePath;
-    return `${window.location.origin}/uploads/presentations/${encodeURIComponent(filePath)}`;
-  };
-
-  const handlePreviewExisting = (presentation, e) => {
-    if (e) e.stopPropagation();
-    const url = getPresentationUrl(presentation.file_path);
-    if (!url) {
-      showToast('No file is available for preview.', 'warning');
-      return;
-    }
-    window.open(url, '_blank', 'noopener,noreferrer');
-  };
-
-  const selectForEdit = (p) => {
-    const id = p?.presentation_id || p?._id;
-    if (!id) return;
-    setActiveId(String(id));
-    setProgram(String(p.program || 'HND').toUpperCase());
-    setReportId(p.report_id || null);
-    setTitle(p.title || '');
-    setPresenterName(p.presenter_name || '');
-    setPresenterEmail(p.presenter_email || '');
-    setPresentationFile(null);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
-
-  /** Fetch reports - mount only, no retry on failure */
-  useEffect(() => {
-    let cancelled = false;
-    const fetchReports = async () => {
-      try {
-        startLoading();
-        const res = await api.get(`/admin/reports?program=${encodeURIComponent(program)}`);
-        if (!cancelled) setReports(Array.isArray(res.data) ? res.data : []);
-      } catch (err) {
-        if (!cancelled) showToast(getErrorMessage(err, 'Failed to load reports. Check connection and try again.'), 'error');
-      } finally {
-        stopLoading();
-      }
-    };
-    fetchReports();
-    return () => { cancelled = true; };
-  }, [program, startLoading, stopLoading]);
 
   const fetchPresentations = useCallback(async () => {
     try {
@@ -104,13 +62,65 @@ const UploadPresentation = () => {
     }
   }, [program, startLoading, stopLoading]);
 
+  /** Fetch reports - mount only, no retry on failure */
+  useEffect(() => {
+    let ignore = false;
+    (async () => {
+      try {
+        startLoading();
+        const res = await api.get(`/admin/reports?program=${encodeURIComponent(program)}`);
+        const arr = Array.isArray(res.data) ? res.data : [];
+        if (!ignore) setReports(arr);
+      } catch (e) {
+        if (!ignore) showToast(getErrorMessage(e, 'Failed to fetch reports. Check connection and try again.'), 'error');
+      } finally {
+        stopLoading();
+      }
+    })();
+    return () => { ignore = true; };
+  }, [program, startLoading, stopLoading]);
+
   useEffect(() => {
     fetchPresentations();
   }, [fetchPresentations]);
 
-  // Handle report selection
+  // close modal on outside click
+  useEffect(() => {
+    const onDown = (e) => {
+      if (confirmOpen && confirmRef.current && !confirmRef.current.contains(e.target)) {
+        setConfirmOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', onDown);
+    return () => document.removeEventListener('mousedown', onDown);
+  }, [confirmOpen]);
+
+  const closePreview = () => {
+    if (previewUrl) URL.revokeObjectURL(previewUrl);
+    setPreviewUrl(null);
+    setPreviewFile(null);
+  };
+
+  const openConfirm = (e) => {
+    e.preventDefault();
+    setConfirmOpen(true);
+  };
+
+  const selectForEdit = (p) => {
+    const id = p?.presentation_id || p?._id;
+    if (!id) return;
+    setActiveId(String(id));
+    setProgram(String(p.program || 'HND').toUpperCase());
+    setReportId(p.report_id || null);
+    setTitle(p.title || '');
+    setPresenterName(p.presenter_name || '');
+    setPresenterEmail(p.presenter_email || '');
+    setPresentationFile(null);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   const handleReportChange = (e) => {
-    const selectedId = e.target.value || null; // null for random
+    const selectedId = e.target.value || null;
     setReportId(selectedId);
 
     if (selectedId) {
@@ -123,7 +133,6 @@ const UploadPresentation = () => {
         setPresenterEmail('');
       }
     } else {
-      // Random / Not linked
       setPresenterName('');
       setPresenterEmail('');
     }
@@ -148,53 +157,8 @@ const UploadPresentation = () => {
     setPresentationFile(file);
   };
 
-  // Handle presentation upload
-  const handleUpload = async (notify) => {
-    if (!title || !presenterName || !presenterEmail || !presentationFile) {
-      showToast('All fields are required', 'warning');
-      return;
-    }
-
-    startLoading();
-    const formData = new FormData();
-    formData.append('report_id', report_id || ''); // '' triggers backend null
-    formData.append('title', title);
-    formData.append('presenter_name', presenterName);
-    formData.append('presenter_email', presenterEmail);
-    formData.append('program', program);
-    formData.append('presentationFile', presentationFile);
-    formData.append('notify', notify ? 'true' : 'false');
-
-    try {
-      const res = await api.post(
-        '/admin/upload-presentation',
-        formData
-      );
-
-      if (res.data.success) {
-        showToast('Presentation uploaded successfully!', 'success');
-        setHighlightedId(res.data.presentation_id || null);
-        resetForm();
-        await fetchPresentations();
-      } else {
-        showToast(res.data.message || 'Upload failed', 'error');
-      }
-    } catch (err) {
-      showToast(getErrorMessage(err, 'Upload error occurred. Please try again.'), 'error');
-    } finally {
-      stopLoading();
-    }
-
-    setPopupVisible(false);
-  };
-
-  const handleUpdate = async () => {
+  const onUpdate = async () => {
     if (!activeId) return;
-    if (!title || !presenterName || !presenterEmail) {
-      showToast('All fields are required', 'warning');
-      return;
-    }
-
     try {
       startLoading();
       const payload = {
@@ -220,7 +184,7 @@ const UploadPresentation = () => {
     }
   };
 
-  const handleDelete = async (p, e) => {
+  const onDelete = async (p, e) => {
     if (e) e.stopPropagation();
     const id = p?.presentation_id || p?._id;
     if (!id) return;
@@ -244,6 +208,68 @@ const UploadPresentation = () => {
     }
   };
 
+  const onUpload = async (notify) => {
+    try {
+      startLoading();
+      const fd = new FormData();
+      fd.append('report_id', report_id || '');
+      fd.append('title', title.trim());
+      fd.append('presenter_name', presenterName.trim());
+      fd.append('presenter_email', presenterEmail.trim());
+      fd.append('program', program);
+      fd.append('presentationFile', presentationFile);
+      fd.append('notify', notify ? 'true' : 'false');
+
+      const res = await api.post('/admin/upload-presentation', fd, {
+        onUploadProgress: (evt) => {
+          if (!evt.total) return;
+        },
+      });
+
+      if (res.data.success) {
+        showToast('Presentation uploaded successfully!', 'success');
+        clearForm();
+        await fetchPresentations();
+      } else {
+        showToast(res.data.message || 'Upload failed', 'error');
+      }
+    } catch (e) {
+      showToast(getErrorMessage(e, 'Server error during upload. Please try again.'), 'error');
+    } finally {
+      stopLoading();
+      setConfirmOpen(false);
+    }
+  };
+
+  const handlePreviewPresentation = async (presentation) => {
+    const requested = String(presentation?.file_path || '').trim();
+    if (!requested) {
+      showToast('No file available for preview.', 'warning');
+      return;
+    }
+
+    setPreviewLoading(true);
+    try {
+      const safeFile = encodeURIComponent(requested);
+      const res = await api.get(`/candidate/presentations/preview/${safeFile}`, {
+        responseType: 'blob',
+        timeout: 120000,
+      });
+
+      const blob = res.data instanceof Blob
+        ? new Blob([res.data], { type: 'application/pdf' })
+        : new Blob([res.data], { type: 'application/pdf' });
+
+      const url = URL.createObjectURL(blob);
+      setPreviewFile(requested || 'presentation');
+      setPreviewUrl(url);
+    } catch (err) {
+      showToast(getErrorMessage(err, 'Failed to preview presentation.'), 'error');
+    } finally {
+      setPreviewLoading(false);
+    }
+  };
+
   const filteredPresentations = useMemo(() => {
     const q = search.trim().toLowerCase();
     if (!q) return presentations;
@@ -255,12 +281,6 @@ const UploadPresentation = () => {
       return hay.includes(q);
     });
   }, [presentations, search]);
-
-  const recentlyAddedPresentations = useMemo(() => {
-    return [...presentations]
-      .sort((a, b) => new Date(b.upload_date) - new Date(a.upload_date))
-      .slice(0, 4);
-  }, [presentations]);
 
   const totalPages = useMemo(
     () => Math.max(1, Math.ceil(filteredPresentations.length / PAGE_SIZE)),
@@ -280,16 +300,10 @@ const UploadPresentation = () => {
     setPageIndex((prev) => Math.min(prev, totalPages - 1));
   }, [totalPages]);
 
-  const resetForm = () => {
-    clearForm();
-  };
 
   return (
     <div className={crudStyles.page}>
-      {loading && <GraduationCapLoader fullscreen label="Uploading presentation… Please wait" />}
-      <Helmet>
-        <title>Upload Presentation | Admin Panel</title>
-      </Helmet>
+      {loading && <GraduationCapLoader fullscreen label="Processing presentation… Please wait" />}
 
       <div className={crudStyles.grid}>
         <section className={crudStyles.card}>
@@ -302,17 +316,17 @@ const UploadPresentation = () => {
             )}
           </div>
 
-          <form className={styles.form} onSubmit={(e) => e.preventDefault()}>
+          <form className={styles.form} onSubmit={openConfirm}>
             <div className={styles.field}>
-              <label>{t('uploads.reportProgramLabel')}</label>
-              <select value={program} onChange={(e) => { setProgram(e.target.value); setReportId(null); }}>
+              <label className={styles.label}>{t('uploads.reportProgramLabel')} <span>*</span></label>
+              <select value={program} onChange={(e) => setProgram(e.target.value)}>
                 <option value="HND">{t('common.hnd')}</option>
                 <option value="BTS">{t('common.bts')}</option>
               </select>
             </div>
 
             <div className={styles.field}>
-              <label>Link to Report (optional)</label>
+              <label className={styles.label}>Link to Report (optional)</label>
               <select value={report_id || ''} onChange={handleReportChange}>
                 <option value="">Random / Not Linked</option>
                 {reports.map((r) => (
@@ -324,7 +338,7 @@ const UploadPresentation = () => {
             </div>
 
             <div className={styles.field}>
-              <label>Presentation Title</label>
+              <label className={styles.label}>Presentation Title <span>*</span></label>
               <input
                 type="text"
                 value={title}
@@ -334,8 +348,8 @@ const UploadPresentation = () => {
             </div>
 
             <div className={styles.row}>
-              <div className={styles.field}>
-                <label>Presenter Name</label>
+              <div className={styles.fieldFlex}>
+                <label className={styles.label}>Presenter Name <span>*</span></label>
                 <input
                   type="text"
                   value={presenterName}
@@ -344,8 +358,8 @@ const UploadPresentation = () => {
                 />
               </div>
 
-              <div className={styles.field}>
-                <label>Presenter Email</label>
+              <div className={styles.fieldFlex}>
+                <label className={styles.label}>Presenter Email <span>*</span></label>
                 <input
                   type="email"
                   value={presenterEmail}
@@ -356,7 +370,7 @@ const UploadPresentation = () => {
             </div>
 
             <div className={styles.field}>
-              <label>Upload PowerPoint</label>
+              <label className={styles.label}>Upload PowerPoint (PPT/PPTX) <span>*</span></label>
               <input
                 type="file"
                 accept=".ppt,.pptx"
@@ -372,11 +386,11 @@ const UploadPresentation = () => {
             </div>
 
             {activeId ? (
-              <button type="button" className={styles.uploadBtn} onClick={handleUpdate}>
+              <button type="button" className={styles.uploadBtn} onClick={onUpdate}>
                 Update Presentation
               </button>
             ) : (
-              <button type="button" className={styles.uploadBtn} onClick={() => setPopupVisible(true)}>
+              <button type="submit" className={styles.uploadBtn}>
                 Upload Presentation
               </button>
             )}
@@ -387,31 +401,6 @@ const UploadPresentation = () => {
           <div className={crudStyles.cardHeader}>
             <h3 className={crudStyles.cardTitle}>Existing Presentations</h3>
           </div>
-
-          {recentlyAddedPresentations.length > 0 && (
-            <div className={crudStyles.recentSection}>
-              <div className={crudStyles.recentLabel}>Recently added</div>
-              <div className={crudStyles.recentList}>
-                {recentlyAddedPresentations.map((p) => {
-                  const id = p.presentation_id || p._id;
-                  return (
-                    <button
-                      key={`recent-${id}`}
-                      type="button"
-                      className={`${crudStyles.recentItem} ${String(activeId) === String(id) ? crudStyles.itemActive : ''}`}
-                      onClick={() => selectForEdit(p)}
-                    >
-                      <span>{p.title}</span>
-                      <span className={crudStyles.recentMeta}>
-                        {p.presenter_name} • {p.report_title || 'Standalone'}
-                        {String(highlightedId) === String(id) && <span className={crudStyles.newBadge}>New</span>}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          )}
 
           <input
             className={crudStyles.search}
@@ -474,15 +463,19 @@ const UploadPresentation = () => {
                         <button
                           type="button"
                           className={`${crudStyles.btn} ${crudStyles.btnGhost}`}
-                          onClick={(e) => handlePreviewExisting(p, e)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handlePreviewPresentation(p);
+                          }}
                           title="Preview presentation"
+                          disabled={previewLoading}
                         >
                           Preview
                         </button>
                         <button
                           type="button"
                           className={`${crudStyles.btn} ${crudStyles.btnDanger}`}
-                          onClick={(e) => handleDelete(p, e)}
+                          onClick={(e) => onDelete(p, e)}
                           title="Delete presentation"
                         >
                           Delete
@@ -497,12 +490,37 @@ const UploadPresentation = () => {
         </section>
       </div>
 
-      {popupVisible && (
-        <div className={styles.popup}>
-          <div className={styles.popupBox}>
+      {confirmOpen && (
+        <div className={styles.confirmOverlay}>
+          <div className={styles.confirmBox} ref={confirmRef}>
             <p>Notify users about this upload?</p>
-            <button onClick={() => handleUpload(true)}>Yes</button>
-            <button onClick={() => handleUpload(false)}>No</button>
+            <div style={{ display: 'flex', gap: 10, marginTop: 20 }}>
+              <button
+                type="button"
+                onClick={() => onUpload(true)}
+                className={styles.uploadBtn}
+              >
+                Yes, Notify
+              </button>
+              <button
+                type="button"
+                onClick={() => onUpload(false)}
+                className={`${styles.uploadBtn} ${styles.secondary}`}
+              >
+                No, Skip
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {previewFile && (
+        <div className={styles.modalOverlay} onClick={closePreview}>
+          <div className={styles.modalBox} onClick={(e) => e.stopPropagation()}>
+            <button className={styles.modalClose} onClick={closePreview}>×</button>
+            {previewUrl && (
+              <SecurePdfPreview fileUrl={previewUrl} maxPages={null} allowTextSelection={true} />
+            )}
           </div>
         </div>
       )}
