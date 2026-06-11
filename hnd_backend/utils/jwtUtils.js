@@ -212,7 +212,6 @@ const isSelfOrAdmin = (req, candId) => {
 };
 
 module.exports = {
-  generateToken,
   generateAccessToken,
   generateRefreshToken,
   verifyToken,

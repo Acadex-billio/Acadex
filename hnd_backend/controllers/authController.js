@@ -9,7 +9,7 @@ const History = require('../models/History');
 const Department = require('../models/Department');
 const VerificationCode = require('../models/VerificationCode');
 const { sendEmail } = require('../services/emailService');
-const { generateToken, generateAccessToken, generateRefreshToken, jwtAuthMiddleware } = require('../utils/jwtUtils');
+const { generateAccessToken, generateRefreshToken, jwtAuthMiddleware } = require('../utils/jwtUtils');
 const { buildSubscriptionResponse } = require('../utils/subscriptionUtils');
 
 const isProduction = process.env.NODE_ENV === 'production';
