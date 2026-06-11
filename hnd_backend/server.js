@@ -1,5 +1,11 @@
 // v2.1.0 — includes billing subscription management routes
-require('dotenv').config({ quiet: true });
+const path = require('path');
+const dotenv = require('dotenv');
+
+const rootEnvPath = path.resolve(__dirname, '..', '.env');
+dotenv.config({ path: rootEnvPath, quiet: true });
+dotenv.config({ path: path.resolve(__dirname, '.env'), quiet: true, override: true });
+
 const logger = require('./utils/logger');
 
 // Validate critical environment variables
@@ -30,7 +36,6 @@ const rateLimit = require('express-rate-limit');
 const session = require('express-session');
 const MongoStore = require('connect-mongo');
 const mongoose = require('mongoose');
-const path = require('path');
 
 const connectDB = require('./config/database');
 const { globalErrorHandler, AuthorizationError } = require('./utils/errorHandler');
