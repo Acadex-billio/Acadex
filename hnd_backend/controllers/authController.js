@@ -9,8 +9,32 @@ const History = require('../models/History');
 const Department = require('../models/Department');
 const VerificationCode = require('../models/VerificationCode');
 const { sendEmail } = require('../services/emailService');
-const { generateToken, jwtAuthMiddleware } = require('../utils/jwtUtils');
+const { generateToken, generateAccessToken, generateRefreshToken, jwtAuthMiddleware } = require('../utils/jwtUtils');
 const { buildSubscriptionResponse } = require('../utils/subscriptionUtils');
+
+const isProduction = process.env.NODE_ENV === 'production';
+const ACCESS_TOKEN_COOKIE_MAX_AGE = 15 * 60 * 1000; // 15 minutes
+const REFRESH_TOKEN_REMEMBER_ME_MAX_AGE = 30 * 24 * 60 * 60 * 1000; // 30 days
+const REFRESH_TOKEN_DEFAULT_MAX_AGE = 24 * 60 * 60 * 1000; // 1 day
+
+const getCookieOptions = (maxAge) => ({
+  httpOnly: true,
+  secure: isProduction,
+  sameSite: isProduction ? 'none' : 'lax',
+  maxAge,
+  path: '/',
+});
+
+const clearAuthCookies = (res) => {
+  const options = {
+    httpOnly: true,
+    secure: isProduction,
+    sameSite: isProduction ? 'none' : 'lax',
+    path: '/',
+  };
+  res.clearCookie('access_token', options);
+  res.clearCookie('refresh_token', options);
+};
 
 const generateCandId = async () => {
   // Randomized candidate ID avoids count-based race conditions under concurrent registrations.
@@ -240,10 +264,16 @@ exports.login = async (req, res) => {
       console.log('[Auth Controller] ✅ User role updated to', role);
     }
 
-    // Generate JWT token
-    const token = generateToken(user);
-    console.log('[Auth Controller] ✅ JWT token generated:', { cand_id: user.cand_id });
-    
+    const rememberMe = String(req.body.rememberMe || '').toLowerCase() === 'true' || req.body.rememberMe === true;
+    const accessToken = generateAccessToken(user);
+    const refreshToken = generateRefreshToken(user);
+    const refreshCookieAge = rememberMe ? REFRESH_TOKEN_REMEMBER_ME_MAX_AGE : REFRESH_TOKEN_DEFAULT_MAX_AGE;
+
+    res.cookie('access_token', accessToken, getCookieOptions(ACCESS_TOKEN_COOKIE_MAX_AGE));
+    res.cookie('refresh_token', refreshToken, getCookieOptions(refreshCookieAge));
+
+    console.log('[Auth Controller] ✅ JWT cookies set for login:', { cand_id: user.cand_id, rememberMe });
+
     const userData = {
       cand_id: user.cand_id,
       email: user.email,
@@ -261,7 +291,8 @@ exports.login = async (req, res) => {
       cand_id: user.cand_id,
       role: role,
       is_admin: isAdmin,
-      account_status: accountStatus
+      account_status: accountStatus,
+      rememberMe,
     });
 
     try {
@@ -279,7 +310,7 @@ exports.login = async (req, res) => {
     res.status(200).json({
       success: true,
       message: 'Login successful',
-      token,
+      token: accessToken,
       user: userData
     });
   } catch (err) {
