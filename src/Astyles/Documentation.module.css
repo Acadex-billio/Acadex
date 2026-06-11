@@ -75,6 +75,32 @@
   gap: 10px;
 }
 
+.details {
+  margin-top: 32px;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.details article {
+  background: #ffffff;
+  border: 1px solid rgba(47, 111, 199, 0.14);
+  border-radius: 14px;
+  padding: 20px;
+}
+
+.details h2 {
+  margin: 0 0 10px;
+  font-size: 18px;
+  color: #1e3a63;
+}
+
+.details p {
+  margin: 0;
+  color: #34445e;
+  line-height: 1.6;
+}
+
 .primaryBtn,
 .secondaryBtn {
   border: 0;

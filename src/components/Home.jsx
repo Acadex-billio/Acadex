@@ -77,7 +77,11 @@ const Home = () => {
             <div className={styles.heroCard}>
                 <header className={styles.topBar}>
                     <div className={styles.brand}>
-                        <span className={styles.brandIcon}>🎓</span>
+                        <img
+                            src={process.env.PUBLIC_URL + '/hnd-mark.svg'}
+                            alt="Acadex logo"
+                            className={styles.brandLogo}
+                        />
                         <span className={styles.brandText}>{t('homePage.brand')}</span>
                     </div>
 

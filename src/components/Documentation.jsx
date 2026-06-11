@@ -7,19 +7,35 @@ import { useLoading } from '../context/LoadingContext';
 const docs = [
   {
     title: 'Question Papers',
-    description: 'Browse and download previous HND examination question papers by department and level.'
+    description: 'Browse verified HND and BTS question papers, filter by department, level, semester, and year, then download or bookmark your most relevant exam resources for fast revision.'
   },
   {
     title: 'Reports',
-    description: 'Access project and internship reports uploaded by admins for reference and review.'
+    description: 'Access internship, project, and research reports uploaded by administrators. Review report summaries, compare sample structures, and discover high-quality academic insights.'
   },
   {
     title: 'Presentations',
-    description: 'Explore approved presentation materials and supporting slides in one place.'
+    description: 'Explore approved presentation decks, supporting slides, and study notes for coursework, seminars, and internship defenses.'
   },
   {
-    title: 'Announcements',
-    description: 'Stay updated with important academic notices and platform updates.'
+    title: 'Internship Topics',
+    description: 'Browse verified internship and research topic ideas by discipline, then select and prepare submission-ready proposals with lecturer guidance.'
+  },
+  {
+    title: 'AI Study Mode',
+    description: 'Use the platform’s AI-powered study and research assistant to summarize concepts, generate question prompts, and support academic planning.'
+  },
+  {
+    title: 'Chat & Tutorship',
+    description: 'Connect with lecturers, join group discussions, and use center or community chats for collaborative study and real-time tutoring support.'
+  },
+  {
+    title: 'Payments & Pricing',
+    description: 'Pay securely with MTN MOMO or Orange Money, choose affordable access plans, and view receipts instantly after payment.'
+  },
+  {
+    title: 'Announcements & Notifications',
+    description: 'Receive timely email alerts, in-app updates, and toast notifications for academic notices, platform news, and scheduled events.'
   }
 ];
 
@@ -47,17 +63,22 @@ const Documentation = () => {
         <meta property="og:title" content="About Acadex | Documentation" />
         <meta
           property="og:description"
-          content="Understand key Acadex features, including question papers, reports, presentations, and announcements."
+          content="Understand key Acadex features, including question papers, reports, presentations, announcements, internships, AI study mode, and tutoring." 
         />
+        <meta property="og:locale" content="en_US" />
         <meta property="og:url" content="https://www.acadexe.com/documentation" />
         <meta property="og:image" content="https://www.acadexe.com/hnd-mark.svg" />
+        <meta property="og:image:alt" content="Acadex documentation preview" />
         <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:site" content="@AcadexOfficial" />
+        <meta name="twitter:creator" content="@AcadexOfficial" />
         <meta name="twitter:title" content="About Acadex | Documentation" />
         <meta
           name="twitter:description"
           content="A quick guide to academic resources and tools available on Acadex for HND and BTS students, lecturers, and institutions."
         />
         <meta name="twitter:image" content="https://www.acadexe.com/hnd-mark.svg" />
+        <meta name="twitter:image:alt" content="Acadex documentation preview" />
         <link rel="canonical" href="https://www.acadexe.com/documentation" />
         <meta name="keywords" content="Acadex documentation, HND study portal, BTS platform guide, academic resource platform, Brightstack Innovations" />
       </Helmet>
@@ -78,6 +99,33 @@ const Documentation = () => {
             </article>
           ))}
         </div>
+
+        <section className={styles.details}>
+          <article>
+            <h2>Candidate Experience</h2>
+            <p>
+              HND and BTS candidates access a secure dashboard to retrieve study materials,
+              register for tutoring sessions, manage payments, and track announcements.
+              Student workflows are designed to keep learning focused and compliant with institutional standards.
+            </p>
+          </article>
+          <article>
+            <h2>Lecturer Support</h2>
+            <p>
+              Verified lecturers manage profiles, set hourly or session rates, receive bookings,
+              and upload academic resources. Lecturers also collaborate with candidates through
+              personal and group chat channels while earning revenue on platform-enabled bookings.
+            </p>
+          </article>
+          <article>
+            <h2>Administrator Controls</h2>
+            <p>
+              Admins publish verified content, approve reports and presentations, manage pricing,
+              monitor ads, and handle support requests. Administrative tools keep the platform secure,
+              compliant, and easy to maintain.
+            </p>
+          </article>
+        </section>
 
         <div className={styles.actions}>
           <button type="button" className={styles.primaryBtn} onClick={() => navigateWithLoader('/login')}>
