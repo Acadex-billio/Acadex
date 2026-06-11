@@ -244,6 +244,8 @@ const App = () => (
               <Route path="/questionpapers" element={<Navigate to="/candidate/question-papers" replace />} />
               <Route path="/viewreports" element={<Navigate to="/candidate/reports" replace />} />
               <Route path="/viewpresentation" element={<Navigate to="/candidate/presentations" replace />} />
+              <Route path="/notifications" element={<Navigate to="/candidate/announcements" replace />} />
+              <Route path="/candidate/notifications" element={<Navigate to="/candidate/announcements" replace />} />
               <Route path="/viewhistory" element={<Navigate to="/candidate/history" replace />} />
               <Route path="/groupchat" element={<Navigate to="/candidate/chat" replace />} />
               <Route path="/can-profile" element={<Navigate to="/candidate/profile" replace />} />

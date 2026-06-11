@@ -41,6 +41,22 @@ const UploadPresentation = () => {
     setPresentationFile(null);
   };
 
+  const getPresentationUrl = (filePath) => {
+    if (!filePath) return null;
+    if (/^https?:\/\//i.test(filePath)) return filePath;
+    return `${window.location.origin}/uploads/presentations/${encodeURIComponent(filePath)}`;
+  };
+
+  const handlePreviewExisting = (presentation, e) => {
+    if (e) e.stopPropagation();
+    const url = getPresentationUrl(presentation.file_path);
+    if (!url) {
+      showToast('No file is available for preview.', 'warning');
+      return;
+    }
+    window.open(url, '_blank', 'noopener,noreferrer');
+  };
+
   const selectForEdit = (p) => {
     const id = p?.presentation_id || p?._id;
     if (!id) return;
@@ -455,6 +471,14 @@ const UploadPresentation = () => {
                       </div>
 
                       <div className={crudStyles.actions}>
+                        <button
+                          type="button"
+                          className={`${crudStyles.btn} ${crudStyles.btnGhost}`}
+                          onClick={(e) => handlePreviewExisting(p, e)}
+                          title="Preview presentation"
+                        >
+                          Preview
+                        </button>
                         <button
                           type="button"
                           className={`${crudStyles.btn} ${crudStyles.btnDanger}`}
