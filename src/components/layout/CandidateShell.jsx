@@ -381,7 +381,7 @@ const CandidateShell = () => {
           <FaClipboardList />
           <span>Papers</span>
         </NavLink>
-        <NavLink to="/candidate/chat" className={({ isActive }) => isActive ? styles.footerLinkActive : ''}>
+        <NavLink to="/candidate/lecturers" className={({ isActive }) => isActive ? styles.footerLinkActive : ''}>
           <FaChalkboardTeacher />
           <span>Lecturers</span>
         </NavLink>
