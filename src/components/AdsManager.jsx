@@ -481,10 +481,8 @@ const AdsManager = () => {
     setLogoUploading(true);
     try {
       const data = new FormData();
-      data.append('logo', file);
-      const res = await api.post('/ads/upload-logo', data, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      });
+      data.append('logo', file, file.name);
+      const res = await api.post('/ads/upload-logo', data);
 
       const nextLogoUrl = String(res.data?.logoUrl || '').trim();
       if (!nextLogoUrl) {

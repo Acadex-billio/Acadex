@@ -62,6 +62,7 @@ const uploadFile = async (buffer, originalName, mimeType, folder = 'uploads') =>
     Key: key,
     Body: buffer,
     ContentType: mimeType || 'application/octet-stream',
+    ACL: 'public-read',
   };
 
   try {

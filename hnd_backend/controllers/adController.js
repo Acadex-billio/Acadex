@@ -376,10 +376,14 @@ exports.getPerformance = async (req, res) => {
     // Load any manual overrides
     const overrides = await AdPerformance.findOne({ ad_id: ad._id }).lean();
 
-    const impressions = overrides?.impressions ?? ad.impressions ?? 0;
-    const clicks = overrides?.clicks ?? ad.clicks ?? 0;
-    const registrations = overrides?.registrations ?? 0;
-    const amountPaid = overrides?.amountPaid ?? null;
+    const impressions = Number(overrides?.impressions ?? ad.impressions ?? 0);
+    const clicks = Number(overrides?.clicks ?? ad.clicks ?? 0);
+    const registrations = Number(overrides?.registrations ?? 0);
+    const amountPaid = Number(overrides?.amountPaid ?? 0);
+    const modalOpens = Number(overrides?.modalOpens ?? 0);
+    const modalCloses = Number(overrides?.modalCloses ?? 0);
+    const dismissCount = Number(overrides?.dismissCount ?? 0);
+    const averageViewTimeSeconds = Number(overrides?.averageViewTimeSeconds ?? 0);
 
     const ctr = impressions > 0 ? (clicks / impressions) * 100 : 0;
     const conversionRate = clicks > 0 ? (registrations / clicks) * 100 : 0;
@@ -397,10 +401,10 @@ exports.getPerformance = async (req, res) => {
         daily: daily.map((d) => ({ day: d._id, impressions: d.impressions, clicks: d.clicks })),
         audienceByDept,
         audienceByProgram,
-        modalOpens: overrides?.modalOpens ?? null,
-        modalCloses: overrides?.modalCloses ?? null,
-        dismissCount: overrides?.dismissCount ?? null,
-        averageViewTimeSeconds: overrides?.averageViewTimeSeconds ?? null,
+        modalOpens,
+        modalCloses,
+        dismissCount,
+        averageViewTimeSeconds,
         peakHours: overrides?.peakHours ?? '',
         linkAnalyticsNotes: overrides?.linkAnalyticsNotes ?? '',
         destinationTrackingNotes: overrides?.destinationTrackingNotes ?? '',
