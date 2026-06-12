@@ -1,6 +1,7 @@
 const Ad = require('../models/Ad');
 const AdDeliveryLog = require('../models/AdDeliveryLog');
 const User = require('../models/User');
+const AdPerformance = require('../models/AdPerformance');
 const { uploadFile } = require('../utils/s3Uploader');
 
 /* ───── helpers ───── */
@@ -16,7 +17,9 @@ const pick = (obj, keys) => {
 };
 
 const STYLE_FIELDS = [
-  'backgroundColor', 'textColor', 'buttonColor', 'buttonTextColor',
+  'backgroundColor', 'textColor', 'titleColor', 'subtitleColor', 'bodyColor',
+  'tagBackgroundColor', 'tagTextColor', 'buttonColor', 'buttonTextColor',
+  'buttonBorderColor', 'buttonBorderRadius', 'buttonBorderWidth',
   'overlayColor', 'borderRadius', 'borderColor', 'imagePosition',
 ];
 
@@ -322,5 +325,142 @@ exports.trackClick = async (req, res) => {
     return res.json({ success: true });
   } catch (_) {
     return res.json({ success: true });
+  }
+};
+
+/* ───── GET /api/ads/:id/performance  (developer only) ───── */
+exports.getPerformance = async (req, res) => {
+  try {
+    const adId = req.params.id;
+    const ad = await Ad.findById(adId).lean();
+    if (!ad) return res.status(404).json({ success: false, message: 'Ad not found' });
+
+    // Aggregate unique viewers from delivery logs
+    const uniqueAgg = await AdDeliveryLog.aggregate([
+      { $match: { ad_id: ad._id } },
+      { $group: { _id: '$user_key' } },
+      { $count: 'unique' },
+    ]);
+    const uniqueViewers = uniqueAgg?.[0]?.unique ?? 0;
+
+    // Daily views (by day_key)
+    const daily = await AdDeliveryLog.aggregate([
+      { $match: { ad_id: ad._id } },
+      { $group: { _id: '$day_key', impressions: { $sum: '$impressions' }, clicks: { $sum: '$clicks' } } },
+      { $sort: { _id: 1 } },
+    ]);
+
+    // Audience analytics - best-effort by resolving candidate ids from user_key
+    const logs = await AdDeliveryLog.find({ ad_id: ad._id }).limit(10000).lean();
+    const parsed = logs.map((l) => {
+      const parts = String(l.user_key || '').split(':');
+      return { role: parts[0] || 'unknown', uid: parts.slice(1).join(':') || null };
+    });
+    const candidateIds = parsed.filter((p) => p.role === 'candidate').map((p) => p.uid).filter(Boolean);
+    let audienceByDept = [];
+    let audienceByProgram = [];
+    if (candidateIds.length) {
+      const users = await User.find({ cand_id: { $in: candidateIds } }).select('cand_id department program').lean();
+      const byDept = {};
+      const byProg = {};
+      users.forEach((u) => {
+        const d = u.department || 'UNKNOWN';
+        const p = String(u.program || 'UNKNOWN').toUpperCase();
+        byDept[d] = (byDept[d] || 0) + 1;
+        byProg[p] = (byProg[p] || 0) + 1;
+      });
+      audienceByDept = Object.keys(byDept).map((k) => ({ department: k, count: byDept[k] }));
+      audienceByProgram = Object.keys(byProg).map((k) => ({ program: k, count: byProg[k] }));
+    }
+
+    // Load any manual overrides
+    const overrides = await AdPerformance.findOne({ ad_id: ad._id }).lean();
+
+    const impressions = overrides?.impressions ?? ad.impressions ?? 0;
+    const clicks = overrides?.clicks ?? ad.clicks ?? 0;
+    const registrations = overrides?.registrations ?? 0;
+    const amountPaid = overrides?.amountPaid ?? null;
+
+    const ctr = impressions > 0 ? (clicks / impressions) * 100 : 0;
+    const conversionRate = clicks > 0 ? (registrations / clicks) * 100 : 0;
+
+    return res.json({
+      success: true,
+      performance: {
+        impressions,
+        uniqueViewers: overrides?.uniqueViewers ?? uniqueViewers,
+        clicks,
+        ctr,
+        amountPaid,
+        registrations,
+        conversionRate,
+        daily: daily.map((d) => ({ day: d._id, impressions: d.impressions, clicks: d.clicks })),
+        audienceByDept,
+        audienceByProgram,
+        modalOpens: overrides?.modalOpens ?? null,
+        modalCloses: overrides?.modalCloses ?? null,
+        dismissCount: overrides?.dismissCount ?? null,
+        averageViewTimeSeconds: overrides?.averageViewTimeSeconds ?? null,
+        peakHours: overrides?.peakHours ?? '',
+        linkAnalyticsNotes: overrides?.linkAnalyticsNotes ?? '',
+        destinationTrackingNotes: overrides?.destinationTrackingNotes ?? '',
+        weeklyReport: overrides?.weeklyReport ?? '',
+        monthlyReport: overrides?.monthlyReport ?? '',
+        durationReport: overrides?.durationReport ?? '',
+        recommendation: overrides?.recommendation ?? '',
+        notes: overrides?.notes ?? '',
+      },
+      ad: pick(ad, ['_id', 'title', 'logoUrl', 'createdAt']),
+    });
+  } catch (err) {
+    console.error('[AdController] getPerformance:', err);
+    return res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
+/* ───── PUT /api/ads/:id/performance  (developer only) ───── */
+exports.updatePerformance = async (req, res) => {
+  try {
+    const adId = req.params.id;
+    const ad = await Ad.findById(adId).lean();
+    if (!ad) return res.status(404).json({ success: false, message: 'Ad not found' });
+
+    const {
+      impressions, uniqueViewers, clicks, registrations, amountPaid, notes,
+      modalOpens, modalCloses, dismissCount, averageViewTimeSeconds,
+      peakHours, linkAnalyticsNotes, destinationTrackingNotes,
+      weeklyReport, monthlyReport, durationReport, recommendation,
+    } = req.body;
+    const doc = await AdPerformance.findOneAndUpdate(
+      { ad_id: ad._id },
+      {
+        $set: {
+          impressions,
+          uniqueViewers,
+          clicks,
+          registrations,
+          amountPaid,
+          notes,
+          modalOpens,
+          modalCloses,
+          dismissCount,
+          averageViewTimeSeconds,
+          peakHours,
+          linkAnalyticsNotes,
+          destinationTrackingNotes,
+          weeklyReport,
+          monthlyReport,
+          durationReport,
+          recommendation,
+          updated_by: req.user?.id || null,
+        },
+      },
+      { upsert: true, new: true, setDefaultsOnInsert: true }
+    );
+
+    return res.json({ success: true, performance: doc });
+  } catch (err) {
+    console.error('[AdController] updatePerformance:', err);
+    return res.status(500).json({ success: false, message: 'Server error' });
   }
 };
