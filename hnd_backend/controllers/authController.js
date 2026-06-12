@@ -421,7 +421,7 @@ exports.resetPasswordRequest = async (req, res) => {
     await VerificationCode.findOneAndUpdate(
       { email: normalizedEmail },
       { code, expiresAt, used: false },
-      { upsert: true, new: true }
+      { upsert: true, returnDocument: 'after' }
     );
 
     res.json({ message: 'Verification code sent to your email' });

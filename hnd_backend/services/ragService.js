@@ -289,7 +289,7 @@ async function ingestDocument({ text, pdfBuffer, source, sourceType = 'text' }) 
   await KnowledgeDoc.findOneAndUpdate(
     { docId },
     { docId, source, sourceType, chunkCount: validPairs.length, createdAt: new Date() },
-    { upsert: true, new: true }
+    { upsert: true, returnDocument: 'after' }
   );
 
   return {

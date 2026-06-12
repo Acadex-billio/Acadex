@@ -72,6 +72,7 @@ const adSchema = new mongoose.Schema(
     // Analytics
     impressions: { type: Number, default: 0 },
     clicks: { type: Number, default: 0 },
+    amountPaid: { type: Number, default: 0 },
   },
   { timestamps: true }
 );

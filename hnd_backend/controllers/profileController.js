@@ -154,7 +154,7 @@ exports.uploadPicture = async (req, res) => {
     const updatedUser = await User.findOneAndUpdate(
       { cand_id },
       { $set: { profile_picture } },
-      { new: true }
+      { returnDocument: 'after' }
     );
 
     if (!updatedUser) {

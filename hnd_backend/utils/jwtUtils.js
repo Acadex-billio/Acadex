@@ -127,7 +127,7 @@ const blacklistToken = async (token) => {
       await TokenBlacklist.findOneAndUpdate(
         { token },
         { token, expiresAt },
-        { upsert: true, new: true }
+        { upsert: true, returnDocument: 'after' }
       );
     } catch (error) {
       console.error('Error blacklisting token:', error);

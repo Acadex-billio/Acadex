@@ -536,7 +536,7 @@ const updateProfile = async (req, res) => {
     const updated = await AiMemoryProfile.findOneAndUpdate(
       { user_id: userId },
       { $set: updatePayload },
-      { new: true, upsert: true, setDefaultsOnInsert: true }
+      { returnDocument: 'after', upsert: true, setDefaultsOnInsert: true }
     ).lean();
 
     return res.json({

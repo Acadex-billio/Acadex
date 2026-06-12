@@ -464,7 +464,7 @@ exports.uploadMyProfilePicture = async (req, res) => {
     const updatedUser = await User.findOneAndUpdate(
       { cand_id: lecturerId, role: 'lecturer' },
       { $set: { profile_picture: upload.url } },
-      { new: true }
+      { returnDocument: 'after' }
     ).select('cand_id name email phone profile_picture').lean();
 
     if (!updatedUser) {
@@ -571,7 +571,7 @@ exports.updateMyProfile = async (req, res) => {
     const profile = await LecturerProfile.findOneAndUpdate(
       { lecturer_cand_id: lecturerId },
       { $set: update },
-      { new: true, upsert: true, setDefaultsOnInsert: true }
+      { returnDocument: 'after', upsert: true, setDefaultsOnInsert: true }
     ).lean();
 
     await User.updateOne(
@@ -1713,7 +1713,7 @@ exports.setLecturerApproval = async (req, res) => {
           approved_at: new Date(),
         },
       },
-      { upsert: true, new: true, setDefaultsOnInsert: true }
+      { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true }
     );
 
     return res.json({ success: true, message: `Lecturer ${approval} successfully.` });
@@ -1754,7 +1754,7 @@ exports.deactivateLecturerAccount = async (req, res) => {
           approved_at: new Date(),
         },
       },
-      { upsert: true, new: true, setDefaultsOnInsert: true }
+      { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true }
     );
 
     return res.json({ success: true, message: 'Lecturer account deactivated successfully.' });
@@ -1926,7 +1926,7 @@ exports.uploadDocument = async (req, res) => {
           approved_at: null,
         },
       },
-      { upsert: true, new: true, setDefaultsOnInsert: true }
+      { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true }
     );
 
     await User.updateOne({ cand_id: lecturerId, role: 'lecturer' }, { $set: { account_status: 'pending_approval' } });

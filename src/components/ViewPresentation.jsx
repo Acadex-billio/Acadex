@@ -82,15 +82,20 @@ const ViewPresentation = () => {
     };
   }, []);
 
+  const [loadingPresentations, setLoadingPresentations] = useState(true);
+
   /** Fetch presentations - mount only */
   useEffect(() => {
     let cancelled = false;
     const fetchPresentations = async () => {
       try {
         const { data } = await api.get('/candidate/presentations');
-        if (!cancelled) setPresentations(data?.presentations || []);
+        const payload = data?.presentations ?? data ?? [];
+        if (!cancelled) setPresentations(Array.isArray(payload) ? payload : []);
       } catch (err) {
         if (!cancelled) showToast(getErrorMessage(err, "Failed to load presentations. Check connection and try again."), 'error');
+      } finally {
+        if (!cancelled) setLoadingPresentations(false);
       }
     };
     fetchPresentations();
@@ -98,8 +103,9 @@ const ViewPresentation = () => {
   }, []);
 
   const filteredPresentations = useMemo(() => {
+    const q = String(search || '').trim().toLowerCase();
     return presentations.filter((p) =>
-      p.presentation_title.toLowerCase().includes(search.toLowerCase())
+      String(p?.presentation_title || p?.title || '').toLowerCase().includes(q)
     );
   }, [presentations, search]);
 
@@ -381,7 +387,9 @@ const ViewPresentation = () => {
       </div>
 
       <div className={styles.presentationList}>
-        {filteredPresentations.length === 0 ? (
+        {loadingPresentations ? (
+          <p className={styles.noResults}>Loading presentations…</p>
+        ) : filteredPresentations.length === 0 ? (
           <p className={styles.noResults}>No presentation found.</p>
         ) : (
           filteredPresentations.map((p) => (
@@ -392,9 +400,12 @@ const ViewPresentation = () => {
                     <FaFilePowerpoint className={styles.fileIcon} />
                   </div>
                   <div className={styles.cardContent}>
+                    <div className={styles.badgeRow}>
+                      <div className={styles.cardBadge}>Presentation</div>
+                    </div>
                     <div className={styles.titleRow}>
-                      <h3 className={styles.title}>{p.presentation_title}</h3>
-                      {isLongTopic(p.presentation_title) && (
+                      <h3 className={styles.title}>{p.presentation_title || p.title}</h3>
+                      {isLongTopic(p.presentation_title || p.title) && (
                         <button type="button" className={styles.readAllLink} onClick={() => openTopicPopup(p)}>
                           Read All
                         </button>
@@ -406,6 +417,9 @@ const ViewPresentation = () => {
                       <span className={styles.chip}><FaRegFileAlt className={styles.chipIcon} /> {p.report_pages || 'N/A'} pages</span>
                       <span className={styles.chip}><FaClock className={styles.chipIcon} /> {formatTimeAgo(p.upload_date)}</span>
                     </div>
+                    <p className={styles.meta}>
+                      {p.presenter_name || 'Unknown presenter'}{p.presenter_email ? ` • ${p.presenter_email}` : ''}
+                    </p>
                   </div>
                 </div>
 

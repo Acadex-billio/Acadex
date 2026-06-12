@@ -14,7 +14,7 @@
 
 ## System Overview
 
-The **Acadex** is a full-stack educational management system for Higher National Diploma (HND) students. It provides:
+The **Acadex** is a full-stack educational management system for Higher National Diploma (HND) and Brevet de Technicien Supérieur (BTS) students. It provides:
 
 - **Candidate features:** Access to question papers, reports, presentations, profile management, group chat
 - **Admin features:** Upload materials, manage departments, view analytics, broadcast notifications

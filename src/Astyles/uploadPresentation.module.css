@@ -1,11 +1,11 @@
 .container {
-    max-width: 800px;
-    margin: 40px auto;
-    padding: 30px;
-    background-color: var(--surface);
-    border-radius: 16px;
-    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-  }
+  max-width: 800px;
+  margin: 40px auto;
+  padding: 30px;
+  background-color: var(--surface);
+  border-radius: 16px;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+}
 
 @media (max-width: 640px) {
   .container {
@@ -19,125 +19,177 @@
     flex-direction: column;
   }
 }
-  
-  h2 {
-    font-size: 1.8rem;
-    text-align: center;
-    margin-bottom: 25px;
-    color: #333;
-  }
-  
-  .form {
-    display: flex;
-    flex-direction: column;
-    gap: 20px;
-  }
-  
-  .field {
-    display: flex;
-    flex-direction: column;
-  }
-  
-  .field label {
-    font-weight: 600;
-    margin-bottom: 5px;
-    color: #222;
-  }
-  
-  .field input,
-  .field select,
-  .field textarea {
-    padding: 10px;
-    font-size: 1rem;
-    border: 1px solid #ccc;
-    border-radius: 8px;
-    background-color: #f9f9f9;
-    transition: border 0.3s ease;
-  }
-  
-  .field input:focus,
-  .field select:focus,
-  .field textarea:focus {
-    border-color: var(--primary);
-    background-color: var(--surface);
-    outline: none;
-  }
-  
-  .row {
-    display: flex;
-    gap: 20px;
-    flex-wrap: wrap;
-  }
-  
-  .uploadBtn {
-    padding: 12px 20px;
-    font-size: 1rem;
-    background-color: var(--primary);
-    color: #fff;
-    border: none;
-    border-radius: 8px;
-    cursor: pointer;
-    transition: background 0.3s ease;
-    width: 100%;
-  }
-  
-  .uploadBtn:hover {
-    background-color: var(--primary-hover);
-  }
-  
-  .popup {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(0, 0, 0, 0.4);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-  
-  .popupBox {
-    background: #fff;
-    padding: 30px;
-    border-radius: 12px;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
-    text-align: center;
-    width: 90%;
-    max-width: 400px;
-  }
-  
-  .popupBox p {
-    font-size: 1.1rem;
-    margin-bottom: 20px;
-    color: #333;
-  }
-  
-  .popupBox button {
-    padding: 10px 16px;
-    margin: 0 10px;
-    border: none;
-    border-radius: 8px;
-    font-size: 1rem;
-    cursor: pointer;
-    transition: background 0.3s ease;
-  }
-  
-  .popupBox button:first-of-type {
-    background-color: #1976d2;
-    color: #fff;
-  }
-  
-  .popupBox button:first-of-type:hover {
-    background-color: #0d47a1;
-  }
-  
-  .popupBox button:last-of-type {
-    background-color: #e0e0e0;
-    color: #333;
-  }
-  
-  .popupBox button:last-of-type:hover {
-    background-color: #c2c2c2;
-  }
+
+h2 {
+  font-size: 1.8rem;
+  text-align: center;
+  margin-bottom: 25px;
+  color: #333;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+}
+
+.field label {
+  font-weight: 600;
+  margin-bottom: 5px;
+  color: #222;
+}
+
+.field input,
+.field select,
+.field textarea {
+  padding: 10px;
+  font-size: 1rem;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  background-color: #f9f9f9;
+  transition: border 0.3s ease;
+}
+
+.field input:focus,
+.field select:focus,
+.field textarea:focus {
+  border-color: var(--primary);
+  background-color: var(--surface);
+  outline: none;
+}
+
+.row {
+  display: flex;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.uploadBtn {
+  padding: 12px 20px;
+  font-size: 1rem;
+  background-color: var(--primary);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.3s ease;
+  width: 100%;
+}
+
+.uploadBtn:hover {
+  background-color: var(--primary-hover);
+}
+
+.secondary {
+  background-color: #e2e8f0;
+  color: #0f172a;
+}
+
+.secondary:hover {
+  background-color: #cbd5e1;
+}
+
+.confirmOverlay,
+.modalOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+  padding: 16px;
+}
+
+.confirmBox,
+.modalBox {
+  width: 100%;
+  max-width: 460px;
+  background: #ffffff;
+  border-radius: 18px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.18);
+  padding: 24px;
+  position: relative;
+}
+
+.confirmBox p {
+  margin: 0;
+  font-size: 1rem;
+  color: #1f2937;
+  line-height: 1.6;
+}
+
+.modalClose {
+  position: absolute;
+  top: 12px;
+  right: 14px;
+  width: 38px;
+  height: 38px;
+  border: none;
+  background: transparent;
+  color: #334155;
+  font-size: 24px;
+  cursor: pointer;
+}
+
+.popup {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.popupBox {
+  background: #fff;
+  padding: 30px;
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+  text-align: center;
+  width: 90%;
+  max-width: 400px;
+}
+
+.popupBox p {
+  font-size: 1.1rem;
+  margin-bottom: 20px;
+  color: #333;
+}
+
+.popupBox button {
+  padding: 10px 16px;
+  margin: 0 10px;
+  border: none;
+  border-radius: 8px;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: background 0.3s ease;
+}
+
+.popupBox button:first-of-type {
+  background-color: #1976d2;
+  color: #fff;
+}
+
+.popupBox button:first-of-type:hover {
+  background-color: #0d47a1;
+}
+
+.popupBox button:last-of-type {
+  background-color: #e0e0e0;
+  color: #333;
+}
+
+.popupBox button:last-of-type:hover {
+  background-color: #c2c2c2;
+}
   

@@ -25,7 +25,7 @@ async function run() {
         $set: { role: 'lecturer', program: 'LECTURER' },
         $unset: { student: '' },
       },
-      { new: true }
+      { returnDocument: 'after' }
     ).lean();
 
     console.log('After:', { cand_id: updated.cand_id, role: updated.role, program: updated.program });

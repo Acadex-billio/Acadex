@@ -132,7 +132,7 @@ router.post('/reset-password', async (req, res) => {
         await VerificationCode.findOneAndUpdate(
             { email },
             { code: verificationCode, expiresAt: new Date(expirationTime), used: false },
-            { upsert: true, new: true }
+            { upsert: true, returnDocument: 'after' }
         );
         res.json({ message: 'Verification code sent to your email' });
     } catch (error) {

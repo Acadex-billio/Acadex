@@ -17,6 +17,10 @@ router.use(requireAuth);
 // Public (authenticated) — fetch active ads for current user role
 router.get('/active', adController.listActive);
 
+// Performance (developer only)
+router.get('/:id/performance', requireDeveloper, validate({ params: schemas.ids.mongoIdParam }), adController.getPerformance);
+router.put('/:id/performance', requireDeveloper, validate({ params: schemas.ids.mongoIdParam }), adController.updatePerformance);
+
 // Track impression / click (any authenticated user)
 router.post('/:id/impression', validate({ params: schemas.ids.mongoIdParam }), adController.trackImpression);
 router.post('/:id/click', validate({ params: schemas.ids.mongoIdParam }), adController.trackClick);

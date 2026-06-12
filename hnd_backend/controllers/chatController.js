@@ -297,7 +297,7 @@ const ensureMembership = async (roomId, candId, role = 'member', opts = {}) => {
     await ChatMembership.findOneAndUpdate(
       { room_id: roomId, user_cand_id: candId },
       { $set: updateData },
-      { upsert: true, new: true }
+      { upsert: true, returnDocument: 'after' }
     );
   } catch (err) {
     // If we get a duplicate key error, it means another thread just created it
@@ -359,7 +359,7 @@ const getOrCreateGeneralRoom = async (program) => {
   const room = await ChatRoom.findOneAndUpdate(
     { type: 'general', program },
     { type: 'general', name: 'General Chat', description, program },
-    { upsert: true, new: true, setDefaultsOnInsert: true }
+    { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true }
   ).lean();
   
   return room;
@@ -376,7 +376,7 @@ const getOrCreateDepartmentRoom = async (deptObjectId, program) => {
   const room = await ChatRoom.findOneAndUpdate(
     { type: 'department', dpt_id: deptObjectId, program },
     { type: 'department', name, description, dpt_id: deptObjectId, program },
-    { upsert: true, new: true, setDefaultsOnInsert: true }
+    { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true }
   ).lean();
   
   return room;
@@ -386,7 +386,7 @@ const getOrCreateAdminRoom = async (program) => {
   const room = await ChatRoom.findOneAndUpdate(
     { type: 'admin', program },
     { type: 'admin', name: 'Admin Chat', description: buildAdminDescription(), program },
-    { upsert: true, new: true, setDefaultsOnInsert: true }
+    { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true }
   ).lean();
   return room;
 };
@@ -1206,7 +1206,7 @@ exports.getOrCreateDm = async (req, res) => {
     const room = await ChatRoom.findOneAndUpdate(
       { type: 'dm', dm_key, program },
       { type: 'dm', name: 'Direct Message', dm_key, program, created_by: candId },
-      { upsert: true, new: true, setDefaultsOnInsert: true }
+      { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true }
     ).lean();
 
     await ensureMembership(room._id, candId);

@@ -64,6 +64,13 @@
   margin-bottom: 10px;
 }
 
+.badgeRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
 .infoRow {
   display: flex;
   flex-wrap: wrap;

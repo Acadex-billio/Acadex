@@ -148,10 +148,10 @@ const convertToPdf = async (sourcePath, outputDir) => {
 
 const canAccessPresentation = (presentation, deptId) => {
   if (!presentation) return false;
-  const aud = String(presentation.audience || '').toUpperCase();
+  const aud = String(presentation.audience || 'GENERAL').toUpperCase();
   if (aud === 'GENERAL') return true;
   if (!deptId) return false;
-  const deptIds = (presentation.departments || []).map((d) => String(d));
+  const deptIds = (presentation.departments || []).map((d) => String(d._id || d));
   return deptIds.includes(String(deptId));
 };
 
@@ -203,6 +203,7 @@ exports.getAll = async (req, res) => {
       file_path: p.file_path,
       upload_date: p.createdAt,
       program: String(p.program || 'HND').toUpperCase(),
+      audience: String(p.audience || 'GENERAL').toUpperCase(),
       report_id: p.report_id?._id,
       report_title: p.report_id?.title || null,
       report_pages: p.report_id?.pages || null,

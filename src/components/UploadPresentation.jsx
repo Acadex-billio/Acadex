@@ -29,6 +29,10 @@ const UploadPresentation = () => {
   const [search, setSearch] = useState('');
   const [activeId, setActiveId] = useState(null);
   const [pageIndex, setPageIndex] = useState(0);
+  const [departments, setDepartments] = useState([]);
+  const [audience, setAudience] = useState('GENERAL');
+  const [dptId, setDptId] = useState('');
+  const [dptIds, setDptIds] = useState([]);
 
   const [confirmOpen, setConfirmOpen] = useState(false);
   const confirmRef = useRef(null);
@@ -44,7 +48,38 @@ const UploadPresentation = () => {
     setPresenterName('');
     setPresenterEmail('');
     setPresentationFile(null);
+    setAudience('GENERAL');
+    setDptId('');
+    setDptIds([]);
   };
+
+  useEffect(() => {
+    if (audience === 'GENERAL') {
+      setDptId('');
+      setDptIds([]);
+    } else if (audience === 'SINGLE') {
+      setDptIds([]);
+    } else if (audience === 'MULTIPLE') {
+      setDptId('');
+    }
+  }, [audience]);
+
+  useEffect(() => {
+    let ignore = false;
+    (async () => {
+      try {
+        startLoading();
+        const res = await api.get(`/admin/departments?program=${encodeURIComponent(program)}`);
+        const arr = Array.isArray(res.data) ? res.data : [];
+        if (!ignore) setDepartments(arr);
+      } catch (e) {
+        if (!ignore) showToast(getErrorMessage(e, 'Failed to fetch departments. Check connection and try again.'), 'error');
+      } finally {
+        stopLoading();
+      }
+    })();
+    return () => { ignore = true; };
+  }, [program, startLoading, stopLoading]);
 
   const fetchPresentations = useCallback(async () => {
     try {
@@ -81,6 +116,8 @@ const UploadPresentation = () => {
   }, [program, startLoading, stopLoading]);
 
   useEffect(() => {
+    // Clear activeId on mount to prevent stale selections after page refresh
+    setActiveId(null);
     fetchPresentations();
   }, [fetchPresentations]);
 
@@ -111,6 +148,18 @@ const UploadPresentation = () => {
     if (!id) return;
     setActiveId(String(id));
     setProgram(String(p.program || 'HND').toUpperCase());
+    setAudience(String(p.audience || 'GENERAL').toUpperCase());
+    const deptIds = Array.isArray(p.departments) ? p.departments.map((d) => d.dpt_id).filter(Boolean) : [];
+    if ((p.audience || '').toUpperCase() === 'SINGLE') {
+      setDptId(deptIds[0] || '');
+      setDptIds([]);
+    } else if ((p.audience || '').toUpperCase() === 'MULTIPLE') {
+      setDptId('');
+      setDptIds(deptIds);
+    } else {
+      setDptId('');
+      setDptIds([]);
+    }
     setReportId(p.report_id || null);
     setTitle(p.title || '');
     setPresenterName(p.presenter_name || '');
@@ -167,6 +216,9 @@ const UploadPresentation = () => {
         presenter_name: presenterName.trim(),
         presenter_email: presenterEmail.trim(),
         program,
+        audience,
+        dpt_id: audience === 'SINGLE' ? dptId : undefined,
+        dpt_ids: audience === 'MULTIPLE' ? JSON.stringify(dptIds) : undefined,
       };
 
       const res = await api.put(`/admin/presentations/${activeId}`, payload);
@@ -217,6 +269,9 @@ const UploadPresentation = () => {
       fd.append('presenter_name', presenterName.trim());
       fd.append('presenter_email', presenterEmail.trim());
       fd.append('program', program);
+      fd.append('audience', audience);
+      if (audience === 'SINGLE') fd.append('dpt_id', dptId);
+      if (audience === 'MULTIPLE') fd.append('dpt_ids', JSON.stringify(dptIds));
       fd.append('presentationFile', presentationFile);
       fd.append('notify', notify ? 'true' : 'false');
 
@@ -324,6 +379,53 @@ const UploadPresentation = () => {
                 <option value="BTS">{t('common.bts')}</option>
               </select>
             </div>
+
+            <div className={styles.field}>
+              <label className={styles.label}>Audience <span>*</span></label>
+              <select value={audience} onChange={(e) => setAudience(e.target.value)}>
+                <option value="GENERAL">General (all candidates)</option>
+                <option value="SINGLE">Single Department</option>
+                <option value="MULTIPLE">Multiple Departments</option>
+              </select>
+            </div>
+
+            {audience === 'SINGLE' && (
+              <div className={styles.field}>
+                <label className={styles.label}>Department <span>*</span></label>
+                <select value={dptId} onChange={(e) => setDptId(e.target.value)} required>
+                  <option value="">Select a department</option>
+                  {departments.map((d) => (
+                    <option key={d.dpt_id} value={d.dpt_id}>
+                      {d.dpt_name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            {audience === 'MULTIPLE' && (
+              <div className={styles.field}>
+                <label className={styles.label}>Departments <span>*</span></label>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  {departments.map((d) => (
+                    <label key={d.dpt_id} style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                      <input
+                        type="checkbox"
+                        checked={dptIds.includes(String(d.dpt_id))}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setDptIds([...dptIds, String(d.dpt_id)]);
+                          } else {
+                            setDptIds(dptIds.filter((id) => id !== String(d.dpt_id)));
+                          }
+                        }}
+                      />
+                      {d.dpt_name}
+                    </label>
+                  ))}
+                </div>
+              </div>
+            )}
 
             <div className={styles.field}>
               <label className={styles.label}>Link to Report (optional)</label>
@@ -455,7 +557,7 @@ const UploadPresentation = () => {
                         <div className={crudStyles.itemMeta}>
                           {p.presenter_name} • {p.presenter_email}
                           <br />
-                          Linked report: {p.report_title || 'Standalone'}
+                          Audience: {p.audience || 'General'} • Linked report: {p.report_title || 'Standalone'}
                         </div>
                       </div>
 

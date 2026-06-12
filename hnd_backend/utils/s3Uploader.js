@@ -62,7 +62,6 @@ const uploadFile = async (buffer, originalName, mimeType, folder = 'uploads') =>
     Key: key,
     Body: buffer,
     ContentType: mimeType || 'application/octet-stream',
-    ACL: 'public-read',
   };
 
   try {
@@ -72,15 +71,48 @@ const uploadFile = async (buffer, originalName, mimeType, folder = 'uploads') =>
       region: AWS_REGION,
     });
 
-    await s3.send(new PutObjectCommand(params));
+    try {
+      // Try upload with ACL when explicitly allowed by env flag
+      const allowAcls = String(process.env.AWS_ALLOW_ACLS || '').toLowerCase() === 'true';
+      if (allowAcls) {
+        const paramsWithAcl = Object.assign({}, params, { ACL: 'public-read' });
+        await s3.send(new PutObjectCommand(paramsWithAcl));
+      } else {
+        await s3.send(new PutObjectCommand(params));
+      }
 
-    const url = `${AWS_S3_URL.replace(/\/$/, '')}/${key}`;
-    console.log('[S3Uploader] Upload successful:', {
-      key,
-      url,
-    });
+      const url = `${AWS_S3_URL.replace(/\/$/, '')}/${key}`;
+      console.log('[S3Uploader] Upload successful:', {
+        key,
+        url,
+      });
 
-    return { key, url };
+      return { key, url };
+    } catch (err) {
+      // If the bucket does not allow ACLs, retry without ACL
+      const msg = String(err?.message || '').toLowerCase();
+      const code = err?.code || '';
+      if (msg.includes('does not allow acls') || msg.includes('accesscontrol') || code === 'AccessControlListNotSupported') {
+        console.warn('[S3Uploader] Bucket rejected ACLs; retrying without ACL');
+        try {
+          await s3.send(new PutObjectCommand(params));
+          const url = `${AWS_S3_URL.replace(/\/$/, '')}/${key}`;
+          console.log('[S3Uploader] Upload successful (without ACL):', { key, url });
+          return { key, url };
+        } catch (err2) {
+          console.error('[S3Uploader] Retry without ACL failed:', { error: err2.message, code: err2.code });
+          throw err2;
+        }
+      }
+      console.error('[S3Uploader] Upload failed:', {
+        error: err.message,
+        code: err.code,
+        statusCode: err.statusCode,
+        key,
+        bucket: AWS_BUCKET_NAME,
+      });
+      throw err;
+    }
   } catch (err) {
     console.error('[S3Uploader] Upload failed:', {
       error: err.message,

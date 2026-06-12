@@ -3,6 +3,8 @@ const AdDeliveryLog = require('../models/AdDeliveryLog');
 const User = require('../models/User');
 const AdPerformance = require('../models/AdPerformance');
 const { uploadFile } = require('../utils/s3Uploader');
+const fs = require('fs');
+const path = require('path');
 
 /* ───── helpers ───── */
 const safeNum = (val, fallback) => {
@@ -64,7 +66,22 @@ exports.uploadLogo = async (req, res) => {
     });
   } catch (err) {
     console.error('[AdController] uploadLogo:', err);
-    return res.status(500).json({ success: false, message: 'Failed to upload logo' });
+    // If S3 is not configured in this environment, fall back to saving locally
+    try {
+      const msg = String(err?.message || '').toLowerCase();
+      if (msg.includes('s3 configuration') || msg.includes('aws s3 configuration') || msg.includes('bucket')) {
+        const uploadsDir = path.join(__dirname, '..', 'uploads', 'ads');
+        if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
+        const safeName = `${Date.now()}-${Math.random().toString(36).slice(2,8)}-${path.basename(req.file.originalname).replace(/[^a-zA-Z0-9._-]/g, '_')}`;
+        const dest = path.join(uploadsDir, safeName);
+        fs.writeFileSync(dest, req.file.buffer);
+        const url = `${req.protocol}://${req.get('host')}/uploads/ads/${safeName}`;
+        return res.status(201).json({ success: true, logoUrl: url, key: `uploads/ads/${safeName}`, originalname: req.file.originalname });
+      }
+    } catch (fallbackErr) {
+      console.error('[AdController] uploadLogo fallback failed:', fallbackErr);
+    }
+    return res.status(500).json({ success: false, message: err?.message || 'Failed to upload logo' });
   }
 };
 
@@ -180,6 +197,7 @@ exports.create = async (req, res) => {
       closeTimerSeconds, intervalSeconds, dailyCapPerUser, priority,
       displayScope, specificRoutes,
       startDate, endDate, styling,
+      amountPaid,
     } = req.body;
 
     if (!title || !String(title).trim()) {
@@ -210,6 +228,7 @@ exports.create = async (req, res) => {
       startDate: startDate ? new Date(startDate) : null,
       endDate: endDate ? new Date(endDate) : null,
       styling: styling ? pick(styling, STYLE_FIELDS) : {},
+      amountPaid: safeNum(amountPaid, 0),
       created_by: req.user?.id || req.user?.cand_id || null,
     });
 
@@ -233,6 +252,7 @@ exports.update = async (req, res) => {
       'targetAudience', 'displayType', 'showCloseButton', 'closeOnTimer',
       'closeTimerSeconds', 'intervalSeconds', 'dailyCapPerUser', 'priority',
       'displayScope', 'specificRoutes', 'startDate', 'endDate',
+      'amountPaid',
     ];
 
     allowed.forEach((key) => {
@@ -261,7 +281,7 @@ exports.publish = async (req, res) => {
     const ad = await Ad.findByIdAndUpdate(
       req.params.id,
       { isPublished: true },
-      { new: true }
+      { returnDocument: 'after' }
     );
     if (!ad) return res.status(404).json({ success: false, message: 'Ad not found' });
     return res.json({ success: true, ad });
@@ -277,7 +297,7 @@ exports.unpublish = async (req, res) => {
     const ad = await Ad.findByIdAndUpdate(
       req.params.id,
       { isPublished: false },
-      { new: true }
+      { returnDocument: 'after' }
     );
     if (!ad) return res.status(404).json({ success: false, message: 'Ad not found' });
     return res.json({ success: true, ad });
@@ -309,7 +329,7 @@ exports.trackImpression = async (req, res) => {
       AdDeliveryLog.findOneAndUpdate(
         { ad_id: req.params.id, user_key: userKey, day_key: dayKey },
         { $inc: { impressions: 1 } },
-        { upsert: true, new: true, setDefaultsOnInsert: true }
+        { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true }
       ),
     ]);
     return res.json({ success: true });
@@ -459,7 +479,7 @@ exports.updatePerformance = async (req, res) => {
           updated_by: req.user?.id || null,
         },
       },
-      { upsert: true, new: true, setDefaultsOnInsert: true }
+      { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true }
     );
 
     return res.json({ success: true, performance: doc });

@@ -149,7 +149,7 @@ exports.suspendCandidate = async (req, res) => {
           block: { reason: null, set_by: null, set_at: null },
         },
       },
-      { new: true }
+      { returnDocument: 'after' }
     ).lean();
 
     if (!updated) return res.status(404).json({ success: false, message: 'Candidate not found' });
@@ -177,7 +177,7 @@ exports.blockCandidate = async (req, res) => {
           suspension: { start_at: null, end_at: null, reason: null, set_by: null, set_at: null },
         },
       },
-      { new: true }
+      { returnDocument: 'after' }
     ).lean();
 
     if (!updated) return res.status(404).json({ success: false, message: 'Candidate not found' });
@@ -201,7 +201,7 @@ exports.reactivateCandidate = async (req, res) => {
           block: { reason: null, set_by: null, set_at: null },
         },
       },
-      { new: true }
+      { returnDocument: 'after' }
     ).lean();
 
     if (!updated) return res.status(404).json({ success: false, message: 'Candidate not found' });

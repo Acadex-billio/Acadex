@@ -439,7 +439,7 @@ exports.republish = async (req, res) => {
     const updated = await Announcement.findByIdAndUpdate(
       id,
       { $set: { expires_at: nextExpiry } },
-      { new: true }
+      { returnDocument: 'after' }
     );
 
     if (!updated) {

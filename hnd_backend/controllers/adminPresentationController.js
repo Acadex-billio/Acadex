@@ -53,15 +53,34 @@ exports.getReports = async (req, res) => {
 
 exports.uploadPresentation = async (req, res) => {
   try {
-    const { report_id, title, presenter_name, presenter_email, notify, program } = req.body;
+    const { report_id, title, presenter_name, presenter_email, notify, program, audience, dpt_id, dpt_ids } = req.body;
     const normalizedProgram = String(program || 'HND').trim().toUpperCase();
     if (!['HND', 'BTS'].includes(normalizedProgram)) {
       return res.status(400).json({ success: false, message: 'Program must be HND or BTS.' });
     }
 
+    const normalizedAudience = String(audience || 'GENERAL').trim().toUpperCase();
+    if (!['GENERAL', 'SINGLE', 'MULTIPLE'].includes(normalizedAudience)) {
+      return res.status(400).json({ success: false, message: 'Audience must be GENERAL, SINGLE, or MULTIPLE.' });
+    }
 
     if (!title || !presenter_name || !presenter_email || !req.file) {
       return res.status(400).json({ success: false, message: 'Missing required fields or file.' });
+    }
+
+    let departmentIds = [];
+    if (normalizedAudience === 'SINGLE' && dpt_id) {
+      departmentIds = [String(dpt_id)];
+    } else if (normalizedAudience === 'MULTIPLE' && dpt_ids) {
+      try {
+        departmentIds = typeof dpt_ids === 'string' ? JSON.parse(dpt_ids) : (Array.isArray(dpt_ids) ? dpt_ids : []);
+      } catch (_) {
+        departmentIds = [];
+      }
+    }
+
+    if (normalizedAudience !== 'GENERAL' && departmentIds.length === 0) {
+      return res.status(400).json({ success: false, message: 'Audience requires at least one department.' });
     }
 
     if (report_id) {
@@ -106,6 +125,8 @@ exports.uploadPresentation = async (req, res) => {
       presenter_name: presenter_name.trim(),
       presenter_email: presenter_email.trim(),
       program: normalizedProgram,
+      audience: normalizedAudience,
+      departments: departmentIds,
       file_path: file_path,
     });
 
@@ -161,6 +182,7 @@ exports.listPresentations = async (req, res) => {
     const rows = await Presentation.find(query)
       .sort({ createdAt: -1 })
       .populate('report_id', 'title')
+      .populate('departments', 'department_name')
       .lean();
 
     const formatted = rows.map((p) => ({
@@ -170,6 +192,8 @@ exports.listPresentations = async (req, res) => {
       presenter_email: p.presenter_email,
       file_path: p.file_path,
       program: String(p.program || 'HND').toUpperCase(),
+      audience: p.audience || 'GENERAL',
+      departments: (Array.isArray(p.departments) ? p.departments.map(d => ({ dpt_id: d._id, dpt_name: d.department_name })) : []),
       report_id: p.report_id?._id || null,
       report_title: p.report_id?.title || null,
       upload_date: p.createdAt,
@@ -185,15 +209,34 @@ exports.listPresentations = async (req, res) => {
 exports.updatePresentation = async (req, res) => {
   try {
     const { id } = req.params;
-    const { report_id, title, presenter_name, presenter_email, program } = req.body;
+    const { report_id, title, presenter_name, presenter_email, program, audience, dpt_id, dpt_ids } = req.body;
     const normalizedProgram = String(program || 'HND').trim().toUpperCase();
     if (!['HND', 'BTS'].includes(normalizedProgram)) {
       return res.status(400).json({ success: false, message: 'Program must be HND or BTS.' });
     }
 
+    const normalizedAudience = String(audience || 'GENERAL').trim().toUpperCase();
+    if (!['GENERAL', 'SINGLE', 'MULTIPLE'].includes(normalizedAudience)) {
+      return res.status(400).json({ success: false, message: 'Audience must be GENERAL, SINGLE, or MULTIPLE.' });
+    }
 
     if (!title || !presenter_name || !presenter_email) {
       return res.status(400).json({ success: false, message: 'Missing required fields.' });
+    }
+
+    let departmentIds = [];
+    if (normalizedAudience === 'SINGLE' && dpt_id) {
+      departmentIds = [String(dpt_id)];
+    } else if (normalizedAudience === 'MULTIPLE' && dpt_ids) {
+      try {
+        departmentIds = typeof dpt_ids === 'string' ? JSON.parse(dpt_ids) : (Array.isArray(dpt_ids) ? dpt_ids : []);
+      } catch (_) {
+        departmentIds = [];
+      }
+    }
+
+    if (normalizedAudience !== 'GENERAL' && departmentIds.length === 0) {
+      return res.status(400).json({ success: false, message: 'Audience requires at least one department.' });
     }
 
     if (report_id) {
@@ -210,6 +253,8 @@ exports.updatePresentation = async (req, res) => {
     pres.presenter_name = String(presenter_name).trim();
     pres.presenter_email = String(presenter_email).trim();
     pres.program = normalizedProgram;
+    pres.audience = normalizedAudience;
+    pres.departments = departmentIds;
     pres.report_id = report_id ? report_id : null;
     await pres.save();
 
