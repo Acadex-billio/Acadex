@@ -66,7 +66,6 @@ const aiChatRoutes = require('./Routes/aiChatRoutes');
 const lecturerRoutes = require('./Routes/lecturerRoutes');
 const adRoutes = require('./Routes/adRoutes');
 const publicRoutes = require('./Routes/publicRoutes');
-const debugRoutes = require('./Routes/debugRoutes');
 const { getLibreOfficeQueueStats } = require('./services/libreOfficeQueue');
 const { startKeepalive } = require('./services/keepaliveNotifier');
 
@@ -367,8 +366,6 @@ app.use('/api/ads', adRoutes);
 // Dev-only routes (enabled locally or when DEBUG_ROUTES_ENABLED=true)
 if (allowDebugRoutes) {
   app.use('/api/storage', s3TestRoutes);
-  app.use('/api/debug', debugRoutes);
-  logger.info('Debug routes available (development/non-hosted environment)');
   logger.info('S3 test routes available (development/non-hosted environment)');
 }
 
