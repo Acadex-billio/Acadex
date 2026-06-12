@@ -399,7 +399,7 @@ exports.getPerformance = async (req, res) => {
     const impressions = Number(overrides?.impressions ?? ad.impressions ?? 0);
     const clicks = Number(overrides?.clicks ?? ad.clicks ?? 0);
     const registrations = Number(overrides?.registrations ?? 0);
-    const amountPaid = Number(overrides?.amountPaid ?? 0);
+    const amountPaid = Number(overrides?.amountPaid ?? ad.amountPaid ?? 0);
     const modalOpens = Number(overrides?.modalOpens ?? 0);
     const modalCloses = Number(overrides?.modalCloses ?? 0);
     const dismissCount = Number(overrides?.dismissCount ?? 0);

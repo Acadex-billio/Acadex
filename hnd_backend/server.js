@@ -66,6 +66,7 @@ const aiChatRoutes = require('./Routes/aiChatRoutes');
 const lecturerRoutes = require('./Routes/lecturerRoutes');
 const adRoutes = require('./Routes/adRoutes');
 const publicRoutes = require('./Routes/publicRoutes');
+const debugRoutes = require('./Routes/debugRoutes');
 const { getLibreOfficeQueueStats } = require('./services/libreOfficeQueue');
 const { startKeepalive } = require('./services/keepaliveNotifier');
 
@@ -102,6 +103,7 @@ const isHostedDeployment = Boolean(
   process.env.FLY_APP_NAME
 );
 const isProduction = String(process.env.NODE_ENV || '').toLowerCase() === 'production' && isHostedDeployment;
+const allowDebugRoutes = String(process.env.DEBUG_ROUTES_ENABLED || 'true').trim().toLowerCase() === 'true' || !isProduction;
 const isAiFeaturesEnabled = String(process.env.AI_FEATURES_ENABLED || 'true').trim().toLowerCase() !== 'false';
 
 const getServiceReadiness = () => {
@@ -362,10 +364,12 @@ app.use('/api/ai', aiChatRoutes);
 app.use('/api/lecturers', lecturerRoutes);
 app.use('/api/ads', adRoutes);
 
-// Development-only routes (DO NOT expose in production)
-if (process.env.NODE_ENV !== 'production') {
+// Dev-only routes (enabled locally or when DEBUG_ROUTES_ENABLED=true)
+if (allowDebugRoutes) {
   app.use('/api/storage', s3TestRoutes);
-  logger.info('S3 test routes available (development only)');
+  app.use('/api/debug', debugRoutes);
+  logger.info('Debug routes available (development/non-hosted environment)');
+  logger.info('S3 test routes available (development/non-hosted environment)');
 }
 
 
