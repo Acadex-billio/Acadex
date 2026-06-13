@@ -11,6 +11,7 @@ const historyController = require('../controllers/historyController');
 const candidateAnalyticsController = require('../controllers/candidateAnalyticsController');
 const candidateQuestionPaperController = require('../controllers/candidateQuestionPaperController');
 const candidateAccountController = require('../controllers/candidateAccountController');
+const { checkMaterialAccess, getMaterialAccessInfo } = require('../middlewares/materialAccessMiddleware');
 const subscriptionController = require('../controllers/subscriptionController');
 const internshipTopicController = require('../controllers/internshipTopicController');
 const { validateProfileImage, ALLOWED_EXTENSIONS } = require('../middlewares/uploadValidation');
@@ -53,17 +54,17 @@ router.post(
 );
 
 router.get('/reports', reportController.getAll);
-router.get('/reports/file/:filename', reportController.downloadFile);
-router.get('/reports/preview/:filename', reportController.previewFile);
+router.get('/reports/file/:filename', checkMaterialAccess('report', 'download'), reportController.downloadFile);
+router.get('/reports/preview/:filename', checkMaterialAccess('report', 'preview'), reportController.previewFile);
 
 router.get('/presentations', presentationController.getAll);
-router.get('/presentations/file/:filename', presentationController.downloadFile);
-router.get('/presentations/preview/:filename', presentationController.previewFile);
+router.get('/presentations/file/:filename', checkMaterialAccess('presentation', 'download'), presentationController.downloadFile);
+router.get('/presentations/preview/:filename', checkMaterialAccess('presentation', 'preview'), presentationController.previewFile);
 
 router.get('/departments', candidateQuestionPaperController.getDepartments);
 router.get('/question-papers', candidateQuestionPaperController.getQuestionPapers);
-router.get('/question-papers/file/:filename', candidateQuestionPaperController.downloadPaper);
-router.get('/question-papers/preview/:filename', candidateQuestionPaperController.previewPaper);
+router.get('/question-papers/file/:filename', checkMaterialAccess('questionPaper', 'download'), candidateQuestionPaperController.downloadPaper);
+router.get('/question-papers/preview/:filename', checkMaterialAccess('questionPaper', 'preview'), candidateQuestionPaperController.previewPaper);
 
 router.get('/analytics/materials/summary', candidateAnalyticsController.getMyMaterialSummary);
 router.get('/analytics/materials/activity', candidateAnalyticsController.getMyMaterialActivity);

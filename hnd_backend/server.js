@@ -65,6 +65,7 @@ const ragRoutes = require('./Routes/ragRoutes');
 const aiChatRoutes = require('./Routes/aiChatRoutes');
 const lecturerRoutes = require('./Routes/lecturerRoutes');
 const adRoutes = require('./Routes/adRoutes');
+const materialAccessRoutes = require('./Routes/materialAccessRoutes');
 const publicRoutes = require('./Routes/publicRoutes');
 const { getLibreOfficeQueueStats } = require('./services/libreOfficeQueue');
 const { startKeepalive } = require('./services/keepaliveNotifier');
@@ -362,6 +363,7 @@ app.use('/api/rag', ragRoutes);
 app.use('/api/ai', aiChatRoutes);
 app.use('/api/lecturers', lecturerRoutes);
 app.use('/api/ads', adRoutes);
+app.use('/api/material-access', materialAccessRoutes);
 
 // Dev-only routes (enabled locally or when DEBUG_ROUTES_ENABLED=true)
 if (allowDebugRoutes) {

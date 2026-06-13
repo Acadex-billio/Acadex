@@ -83,6 +83,6 @@ exports.repairTransaction = async (req, res) => {
     return res.json({ success: true, message: 'Repair attempted', transaction: refreshed });
   } catch (err) {
     logger.error('Admin repair transaction failed', { error: err.message, stack: err.stack });
-    return res.status(500).json({ success: false, message: 'Repair attempt failed' });
+    return res.status(1000).json({ success: false, message: 'Repair attempt failed' });
   }
 };

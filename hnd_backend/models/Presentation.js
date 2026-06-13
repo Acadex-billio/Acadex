@@ -8,7 +8,7 @@ const subscriptionAccessSchema = new mongoose.Schema(
     basic_preview_pages: { type: Number, default: 1, min: 1 },
     paygo_preview_pages: { type: Number, default: 3, min: 1 },
     paygo_full_preview_price: { type: Number, default: 50, min: 0 },
-    paygo_download_price: { type: Number, default: 100, min: 0 },
+    paygo_download_price: { type: Number, default: 150, min: 0 },
     paygo_access_minutes: { type: Number, default: 60, min: 1 },
   },
   { _id: false }

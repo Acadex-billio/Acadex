@@ -19,7 +19,7 @@ router.get('/papers', (req, res) => {
   db.query(sql, (err, results) => {
     if (err) {
       console.error('DB fetch error:', err);
-      return res.status(500).json({ success: false, message: 'Failed to fetch papers' });
+      return res.status(1000).json({ success: false, message: 'Failed to fetch papers' });
     }
     const papers = results.map(p => ({
       ...p,
