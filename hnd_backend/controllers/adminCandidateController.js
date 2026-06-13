@@ -307,12 +307,21 @@ exports.updateUserRole = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Invalid role. Must be candidate, lecturer, admin, developer, or superadmin' });
     }
 
-    const canAssignPrivilegedRole = actorRole === 'superadmin';
-    if (!canAssignPrivilegedRole && role !== 'candidate') {
-      return res.status(403).json({ success: false, message: 'Only superadmin can assign admin, developer, or superadmin roles' });
+    // Check role assignment permissions
+    // - superadmin: can assign any role
+    // - developer: can assign admin or candidate roles
+    // - everyone else: can only assign candidate role
+    let hasPermission = false;
+    if (actorRole === 'superadmin') {
+      hasPermission = true; // superadmin can assign any role
+    } else if (actorRole === 'developer') {
+      hasPermission = ['admin', 'candidate'].includes(role); // developer can assign admin or candidate
+    } else {
+      hasPermission = (role === 'candidate'); // others can only assign candidate
     }
-    if (actorRole === 'developer' && role === 'superadmin') {
-      return res.status(403).json({ success: false, message: 'Developer cannot assign superadmin role' });
+
+    if (!hasPermission) {
+      return res.status(403).json({ success: false, message: `You do not have permission to assign ${role} role` });
     }
 
     const user = await User.findOne({ cand_id: candId });

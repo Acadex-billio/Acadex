@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { requireAuth } = require('../middlewares/authMiddleware');
+const { requireAuth } = require('../middlewares/jwtAuth');
 const materialAccessService = require('../services/materialAccessService');
 const paymentCallbackService = require('../services/paymentCallbackService');
 const { getMaterialAccessInfo } = require('../middlewares/materialAccessMiddleware');
