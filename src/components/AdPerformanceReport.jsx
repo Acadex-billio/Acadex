@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { FaArrowLeft, FaChartLine, FaEye, FaClick, FaUser, FaPercent } from 'react-icons/fa';
+import { FaArrowLeft, FaChartLine, FaEye, FaUser, FaPercent } from 'react-icons/fa';
+import { FiMouse } from 'react-icons/fi';
 import styles from '../Astyles/AdPerformanceReport.module.css';
 import api from '../services/api';
 import { showToast } from '../utility/ToastNotification';
@@ -164,7 +165,7 @@ const AdPerformanceReport = () => {
             color="#7ED321"
           />
           <MetricCard
-            icon={<FaClick />}
+            icon={<FiMouse />}
             label="Clicks"
             value={performance.clicks.toLocaleString()}
             description="Total CTA clicks"
