@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { FaPlus, FaEdit, FaTrash, FaEye, FaEyeSlash, FaTimes, FaBullhorn } from 'react-icons/fa';
 import styles from '../Astyles/AdsManager.module.css';
 import api from '../services/api';
