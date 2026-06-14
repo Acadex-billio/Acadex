@@ -180,193 +180,6 @@ const LivePreview = ({ form }) => {
   );
 };
 
-const PerformanceView = ({ data, onChange, onSave }) => {
-  if (!data) return <div>No data loaded. Click Refresh.</div>;
-
-  const local = { ...data };
-  const setField = (k, v) => {
-    local[k] = v;
-    if (typeof onChange === 'function') onChange({ ...local });
-  };
-
-  const calcDerived = (d) => {
-    const impressions = Number(d.impressions || 0);
-    const clicks = Number(d.clicks || 0);
-    const registrations = Number(d.registrations || 0);
-    const modalOpens = Number(d.modalOpens || 0);
-    const dismissCount = Number(d.dismissCount || 0);
-    const avgViewTime = Number(d.averageViewTimeSeconds || 0);
-
-    return {
-      ctr: impressions > 0 ? ((clicks / impressions) * 100).toFixed(2) : '0.00',
-      conversionRate: clicks > 0 ? ((registrations / clicks) * 100).toFixed(2) : '0.00',
-      dismissRate: modalOpens > 0 ? ((dismissCount / modalOpens) * 100).toFixed(2) : '0.00',
-      avgViewTimeLabel: avgViewTime ? `${Math.floor(avgViewTime / 60)}m ${Math.round(avgViewTime % 60)}s` : '0s',
-    };
-  };
-
-  const derived = calcDerived(local);
-
-  return (
-    <div>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-        <div>
-          <label>Impressions</label>
-          <input type="number" className={styles.input} value={local.impressions ?? 0} onChange={(e) => setField('impressions', Number(e.target.value))} />
-        </div>
-        <div>
-          <label>Unique Viewers</label>
-          <input type="number" className={styles.input} value={local.uniqueViewers ?? 0} onChange={(e) => setField('uniqueViewers', Number(e.target.value))} />
-        </div>
-        <div>
-          <label>Clicks</label>
-          <input type="number" className={styles.input} value={local.clicks ?? 0} onChange={(e) => setField('clicks', Number(e.target.value))} />
-        </div>
-        <div>
-          <label>CTR (%)</label>
-          <input className={styles.input} value={`${derived.ctr}`} readOnly />
-        </div>
-        <div>
-          <label>Registrations</label>
-          <input type="number" className={styles.input} value={local.registrations ?? 0} onChange={(e) => setField('registrations', Number(e.target.value))} />
-        </div>
-        <div>
-          <label>Conversion Rate (%)</label>
-          <input className={styles.input} value={`${derived.conversionRate}`} readOnly />
-        </div>
-        <div>
-          <label>Amount Paid</label>
-          <input type="number" className={styles.input} value={local.amountPaid ?? ''} onChange={(e) => setField('amountPaid', Number(e.target.value))} />
-        </div>
-        <div>
-          <label>Modal Opens</label>
-          <input type="number" className={styles.input} value={local.modalOpens ?? 0} onChange={(e) => setField('modalOpens', Number(e.target.value))} />
-        </div>
-        <div>
-          <label>Modal Closes</label>
-          <input type="number" className={styles.input} value={local.modalCloses ?? 0} onChange={(e) => setField('modalCloses', Number(e.target.value))} />
-        </div>
-        <div>
-          <label>Dismiss Count</label>
-          <input type="number" className={styles.input} value={local.dismissCount ?? 0} onChange={(e) => setField('dismissCount', Number(e.target.value))} />
-        </div>
-        <div>
-          <label>Dismiss Rate (%)</label>
-          <input className={styles.input} value={`${derived.dismissRate}`} readOnly />
-        </div>
-        <div>
-          <label>Avg. View Time</label>
-          <input className={styles.input} value={derived.avgViewTimeLabel} readOnly />
-        </div>
-        <div style={{ gridColumn: '1 / -1' }}>
-          <label>Peak Hours</label>
-          <input className={styles.input} value={local.peakHours || ''} onChange={(e) => setField('peakHours', e.target.value)} />
-        </div>
-      </div>
-
-      <div style={{ marginTop: 12 }}>
-        <div className={styles.performanceGrid}>
-          <div className={styles.performanceCard}>
-            <strong>Audience by Department</strong>
-            {Array.isArray(data.audienceByDept) && data.audienceByDept.length ? (
-              data.audienceByDept.map((r) => <div key={r.department}>{r.department}: {r.count}</div>)
-            ) : (<div className={styles.hint}>No audience breakdown available</div>)}
-          </div>
-          <div className={styles.performanceCard}>
-            <strong>Audience by Program</strong>
-            {Array.isArray(data.audienceByProgram) && data.audienceByProgram.length ? (
-              data.audienceByProgram.map((r) => <div key={r.program}>{r.program}: {r.count}</div>)
-            ) : (<div className={styles.hint}>No program analytics available</div>)}
-          </div>
-        </div>
-
-        <div style={{ marginTop: 12 }}>
-          <strong>Daily Views</strong>
-          {Array.isArray(data.daily) && data.daily.length ? (
-            <div style={{ maxHeight: 180, overflow: 'auto' }}>
-              {data.daily.map((d) => <div key={d.day}>{d.day}: {d.impressions} views, {d.clicks} clicks</div>)}
-            </div>
-          ) : (<div className={styles.hint}>No daily data</div>)}
-        </div>
-
-        <div style={{ marginTop: 12, display: 'grid', gap: 12 }}>
-          <div>
-            <label>Link Analytics</label>
-            <textarea className={styles.textarea} value={local.linkAnalyticsNotes || ''} onChange={(e) => setField('linkAnalyticsNotes', e.target.value)} placeholder="Describe link analytics or destination tracking details." />
-          </div>
-          <div>
-            <label>Destination Tracking</label>
-            <textarea className={styles.textarea} value={local.destinationTrackingNotes || ''} onChange={(e) => setField('destinationTrackingNotes', e.target.value)} placeholder="Record destination tracking information or link behavior." />
-          </div>
-        </div>
-        <div style={{ marginTop: 12, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-          <div>
-            <label>Weekly Export Report</label>
-            <textarea className={styles.textarea} value={local.weeklyReport || ''} onChange={(e) => setField('weeklyReport', e.target.value)} placeholder="Weekly summary / export notes." />
-          </div>
-          <div>
-            <label>Monthly Export Report</label>
-            <textarea className={styles.textarea} value={local.monthlyReport || ''} onChange={(e) => setField('monthlyReport', e.target.value)} placeholder="Monthly summary / export notes." />
-          </div>
-        </div>
-        <div style={{ marginTop: 12, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-          <div>
-            <label>Ads Duration Export Report</label>
-            <textarea className={styles.textarea} value={local.durationReport || ''} onChange={(e) => setField('durationReport', e.target.value)} placeholder="Ad duration report details." />
-          </div>
-          <div>
-            <label>Recommendation</label>
-            <textarea className={styles.textarea} value={local.recommendation || ''} onChange={(e) => setField('recommendation', e.target.value)} placeholder="Recommendation based on performance." />
-          </div>
-        </div>
-        <div style={{ marginTop: 12 }}>
-          <label>Notes</label>
-          <textarea className={styles.textarea} value={local.notes || ''} onChange={(e) => setField('notes', e.target.value)} placeholder="Internal notes or comments." />
-        </div>
-      </div>
-
-      <div style={{ marginTop: 12, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-        <button type="button" className={styles.saveBtn} onClick={() => onSave(local)}>Save Overrides</button>
-        <button type="button" className={styles.actionBtn} onClick={() => {
-          const reportHtml = `
-            <div style="font-family: Arial, sans-serif; padding: 24px;">
-              <div style="display:flex; align-items:center; gap:16px; margin-bottom:24px;">
-                <div><img src="https://www.acadexe.com/logo.png" alt="Acadex" style="height:42px; object-fit:contain;" onerror="this.style.display='none'"/></div>
-                <div>
-                  <h1 style="margin:0;font-size:24px;">Acadex Ad Performance Report</h1>
-                  <div style="font-size:13px;color:#555;">Created: ${fmtDate(data.ad?.createdAt)}</div>
-                </div>
-              </div>
-              <h2 style="font-size:18px; color:#111; margin-bottom:8px;">${data.ad?.title || ''}</h2>
-              <div style="margin-bottom:16px;">
-                <p><strong>Impressions:</strong> ${local.impressions}</p>
-                <p><strong>Unique Viewers:</strong> ${local.uniqueViewers}</p>
-                <p><strong>Clicks:</strong> ${local.clicks}</p>
-                <p><strong>CTR:</strong> ${derived.ctr}%</p>
-                <p><strong>Registrations:</strong> ${local.registrations}</p>
-                <p><strong>Conversion Rate:</strong> ${derived.conversionRate}%</p>
-                <p><strong>Amount Paid:</strong> ${local.amountPaid ?? 0}</p>
-                <p><strong>Duration Report:</strong> ${local.durationReport || 'N/A'}</p>
-                <p><strong>Recommendation:</strong> ${local.recommendation || 'No recommendation yet.'}</p>
-              </div>
-              <div style="border-top:1px solid #ddd; padding-top:16px; font-size:12px; color:#555;">
-                <p>Acadex | https://www.acadexe.com</p>
-                <p>Support: acadexmail@gmail.com | WhatsApp 678507737</p>
-                <p>Powered by Brightstack Innovations, Douala Bonaberi</p>
-              </div>
-            </div>
-          `;
-          const w = window.open('', '_blank');
-          w.document.write('<html><head><title>Acadex Ad Performance Report</title></head><body>');
-          w.document.write(reportHtml);
-          w.document.write('</body></html>');
-          w.document.close();
-          w.print();
-        }}>Export PDF</button>
-      </div>
-    </div>
-  );
-};
 
 const AdsManager = () => {
   const [ads, setAds] = useState([]);
@@ -379,10 +192,7 @@ const AdsManager = () => {
   const [customRoute, setCustomRoute] = useState('');
   const [logoUploading, setLogoUploading] = useState(false);
   const [logoFileName, setLogoFileName] = useState('');
-  const [perfOpen, setPerfOpen] = useState(false);
-  const [perfAd, setPerfAd] = useState(null);
-  const [perfLoading, setPerfLoading] = useState(false);
-  const [perfData, setPerfData] = useState(null);
+  const navigate = useNavigate();
 
   const load = useCallback(async () => {
     try {
@@ -604,8 +414,7 @@ const AdsManager = () => {
                 </div>
               </div>
               <div className={styles.adCardActions}>
-                <button type="button" className={`${styles.actionBtn}`} onClick={async () => { setPerfAd(ad); setPerfOpen(true); setPerfLoading(true); try { const res = await api.get(`/ads/${ad._id}/performance`); setPerfData(res.data.performance); } catch (e) { showToast('Failed to load performance', 'error'); } finally { setPerfLoading(false); } }} title="View Performance">Perf</button>
-                  <button type="button" className={`${styles.actionBtn}`} onClick={() => navigate(`/admin/ads/${ad._id}/performance`)} title="View Performance">Perf</button>
+                <button type="button" className={`${styles.actionBtn}`} onClick={() => navigate(`/admin/ads/${ad._id}/performance`)} title="View Performance">Perf</button>
                 <button type="button" className={styles.actionBtn} onClick={() => openEdit(ad)} title="Edit"><FaEdit /> Edit</button>
                 <button type="button" className={`${styles.actionBtn} ${ad.isPublished ? '' : styles.actionBtnPrimary}`} onClick={() => togglePublish(ad)}>
                   {ad.isPublished ? <><FaEyeSlash /> Unpublish</> : <><FaEye /> Publish</>}
@@ -616,83 +425,6 @@ const AdsManager = () => {
           ))}
         </div>
       )}
-
-      {perfOpen && perfAd ? (
-        <div className={styles.overlay} onClick={(e) => { if (e.target === e.currentTarget) { setPerfOpen(false); setPerfData(null); } }}>
-          <div className={styles.performanceModal}>
-            <div className={styles.modalHeader}>
-              <h2 className={styles.modalTitle}>Performance - {perfAd.title}</h2>
-              <button type="button" className={styles.closeBtn} onClick={() => { setPerfOpen(false); setPerfData(null); }} aria-label="Close"><FaTimes /></button>
-            </div>
-            <div className={styles.modalBody}>
-              <div style={{ display: 'flex', gap: 16 }}>
-                <div style={{ flex: 1 }}>
-                  <p><strong>Ad</strong></p>
-                  {perfAd.logoUrl ? <img src={perfAd.logoUrl} alt="logo" style={{ maxWidth: 120, maxHeight: 60, objectFit: 'contain' }} /> : <div style={{ height: 60 }} />}
-                  <p>{perfAd.title}</p>
-                  <p>Created: {fmtDate(perfAd.createdAt)}</p>
-                </div>
-                <div style={{ flex: 2 }}>
-                  <p><strong>Metrics</strong></p>
-                  {perfLoading ? <div>Loading...</div> : (
-                    <PerformanceView data={perfData} onChange={(next) => setPerfData(next)} onSave={async (next) => {
-                      try {
-                        setPerfLoading(true);
-                        const payload = {
-                          impressions: Number(next.impressions || 0),
-                          uniqueViewers: Number(next.uniqueViewers || 0),
-                          clicks: Number(next.clicks || 0),
-                          registrations: Number(next.registrations || 0),
-                          amountPaid: Number(next.amountPaid || 0),
-                          notes: next.notes || '',
-                          modalOpens: Number(next.modalOpens || 0),
-                          modalCloses: Number(next.modalCloses || 0),
-                          dismissCount: Number(next.dismissCount || 0),
-                          averageViewTimeSeconds: Number(next.averageViewTimeSeconds || 0),
-                          peakHours: next.peakHours || '',
-                          linkAnalyticsNotes: next.linkAnalyticsNotes || '',
-                          destinationTrackingNotes: next.destinationTrackingNotes || '',
-                          weeklyReport: next.weeklyReport || '',
-                          monthlyReport: next.monthlyReport || '',
-                          durationReport: next.durationReport || '',
-                          recommendation: next.recommendation || '',
-                        };
-                        await api.put(`/ads/${perfAd._id}/performance`, payload);
-                        showToast('Performance saved', 'success');
-                      } catch (e) {
-                        showToast('Failed to save performance', 'error');
-                      } finally { setPerfLoading(false); }
-                    }} />
-                  )}
-                </div>
-              </div>
-            </div>
-            <div className={styles.modalFooter}>
-              <button type="button" className={styles.cancelBtn} onClick={() => { setPerfOpen(false); setPerfData(null); }}>Close</button>
-              <button type="button" className={styles.saveBtn} onClick={async () => {
-                // fetch performance
-                try {
-                  setPerfLoading(true);
-                  const res = await api.get(`/ads/${perfAd._id}/performance`);
-                  setPerfData(res.data.performance);
-                } catch (e) {
-                  showToast('Failed to load performance', 'error');
-                } finally { setPerfLoading(false); }
-              }}>Refresh</button>
-              <button type="button" className={styles.saveBtn} style={{ background: '#1976d2' }} onClick={() => {
-                // open print view
-                const html = document.querySelector(`.${styles.performanceModal}`).outerHTML;
-                const w = window.open('', '_blank');
-                w.document.write('<html><head><title>Ad Performance</title></head><body>');
-                w.document.write(html);
-                w.document.write('</body></html>');
-                w.document.close();
-                w.print();
-              }}>Export PDF</button>
-            </div>
-          </div>
-        </div>
-      ) : null}
 
       {showModal && (
         <div className={styles.overlay} onClick={(e) => { if (e.target === e.currentTarget) setShowModal(false); }}>
