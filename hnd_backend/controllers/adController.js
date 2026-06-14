@@ -199,7 +199,7 @@ exports.create = async (req, res) => {
       closeTimerSeconds, intervalSeconds, dailyCapPerUser, priority,
       displayScope, specificRoutes,
       startDate, endDate, styling,
-      amountPaid,
+      amountPaid, advertiserName, advertiserLogoUrl, campaignType,
     } = req.body;
 
     if (!title || !String(title).trim()) {
@@ -231,6 +231,9 @@ exports.create = async (req, res) => {
       endDate: endDate ? new Date(endDate) : null,
       styling: styling ? pick(styling, STYLE_FIELDS) : {},
       amountPaid: safeNum(amountPaid, 0),
+      advertiserName: String(advertiserName || '').trim(),
+      advertiserLogoUrl: String(advertiserLogoUrl || '').trim(),
+      campaignType: String(campaignType || '').trim(),
       created_by: req.user?.id || req.user?.cand_id || null,
     });
 
@@ -254,7 +257,7 @@ exports.update = async (req, res) => {
       'targetAudience', 'displayType', 'showCloseButton', 'closeOnTimer',
       'closeTimerSeconds', 'intervalSeconds', 'dailyCapPerUser', 'priority',
       'displayScope', 'specificRoutes', 'startDate', 'endDate',
-      'amountPaid',
+      'amountPaid', 'advertiserName', 'advertiserLogoUrl', 'campaignType',
     ];
 
     allowed.forEach((key) => {
@@ -489,7 +492,42 @@ exports.getPerformance = async (req, res) => {
     const ctr = impressions > 0 ? ((clicks / impressions) * 100) : 0;
     const conversionRate = clicks > 0 ? ((registrations / clicks) * 100) : 0;
 
+    // Derive status
+    let status = 'ACTIVE';
+    if (!ad.isPublished) status = 'DRAFT';
+    else if (ad.startDate && new Date() < new Date(ad.startDate)) status = 'SCHEDULED';
+    else if (ad.endDate && new Date() > new Date(ad.endDate)) status = 'ENDED';
+
+    // Derive recommendation if not manually overridden
+    let derivedRecommendation = '';
+    if (!overrides?.recommendation && clicks > 0) {
+      const hasCtaPrimary = String(ad.ctaText || '').trim().length > 0;
+      const hasCtaSecondary = String(ad.ctaSecondaryText || '').trim().length > 0;
+      const recs = [];
+      if (!hasCtaPrimary && !hasCtaSecondary) {
+        recs.push('No CTA defined. Add clear call-to-action buttons to boost engagement.');
+      }
+      if (ctr < 1 && clicks > 50) {
+        recs.push(`CTR is ${ctr.toFixed(2)}% despite high volume. Refresh ad copy or test different CTA wording.`);
+      } else if (ctr > 5 && clicks > 20) {
+        recs.push(`Strong CTR at ${ctr.toFixed(2)}%. Consider increasing budget or expanding audience.`);
+      }
+      if (conversionRate < 5 && clicks > 10) {
+        recs.push(`Low conversion rate at ${conversionRate.toFixed(2)}%. Optimize landing page or refine audience targeting.`);
+      } else if (conversionRate > 20 && clicks > 10) {
+        recs.push(`Excellent conversion rate at ${conversionRate.toFixed(2)}%. This is a high-performing campaign.`);
+      }
+      if (analytics.dismissRate > 50) {
+        recs.push(`High dismiss rate (${analytics.dismissRate.toFixed(1)}%). Ad may not resonate with audience. Adjust targeting or messaging.`);
+      }
+      if (analytics.averageViewTimeSeconds > 0 && analytics.averageViewTimeSeconds < 2) {
+        recs.push(`Very short view time (${analytics.averageViewTimeSeconds.toFixed(1)}s). Simplify copy or strengthen opening hook.`);
+      }
+      derivedRecommendation = recs.length > 0 ? recs.join(' ') : 'Campaign is performing. Monitor ongoing metrics for optimization opportunities.';
+    }
+
     const performance = {
+      status,
       impressions,
       uniqueViewers,
       clicks,
@@ -513,7 +551,7 @@ exports.getPerformance = async (req, res) => {
       weeklyReport: overrides?.weeklyReport ?? '',
       monthlyReport: overrides?.monthlyReport ?? '',
       durationReport: overrides?.durationReport ?? '',
-      recommendation: overrides?.recommendation ?? '',
+      recommendation: overrides?.recommendation ?? derivedRecommendation,
       notes: overrides?.notes ?? '',
     };
 
@@ -531,6 +569,9 @@ exports.getPerformance = async (req, res) => {
         startDate: ad.startDate,
         endDate: ad.endDate,
         amountPaid: ad.amountPaid,
+        advertiserName: ad.advertiserName,
+        advertiserLogoUrl: ad.advertiserLogoUrl,
+        campaignType: ad.campaignType,
       },
     });
   } catch (err) {

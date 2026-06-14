@@ -69,6 +69,11 @@ const adSchema = new mongoose.Schema(
     isPublished: { type: Boolean, default: false, index: true },
     created_by: { type: String, trim: true, default: null },
 
+    // Advertiser & Campaign Info
+    advertiserName: { type: String, trim: true, default: '' },
+    advertiserLogoUrl: { type: String, trim: true, default: '' },
+    campaignType: { type: String, trim: true, default: '' },
+
     // Analytics
     impressions: { type: Number, default: 0 },
     clicks: { type: Number, default: 0 },

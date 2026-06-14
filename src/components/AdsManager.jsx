@@ -96,6 +96,10 @@ const EMPTY_FORM = {
   startDate: '',
   endDate: '',
   styling: { ...DEFAULT_STYLING },
+  advertiserName: '',
+  advertiserLogoUrl: '',
+  campaignType: '',
+  amountPaid: 0,
 };
 
 const fmtDate = (d) => (d ? new Date(d).toLocaleDateString() : '-');
@@ -242,6 +246,10 @@ const AdsManager = () => {
       startDate: ad.startDate ? ad.startDate.slice(0, 10) : '',
       endDate: ad.endDate ? ad.endDate.slice(0, 10) : '',
       styling: { ...DEFAULT_STYLING, ...(ad.styling || {}) },
+      advertiserName: ad.advertiserName || '',
+      advertiserLogoUrl: ad.advertiserLogoUrl || '',
+      campaignType: ad.campaignType || '',
+      amountPaid: ad.amountPaid ?? 0,
     });
     setRouteQuery('');
     setCustomRoute('');
@@ -436,6 +444,26 @@ const AdsManager = () => {
 
             <div className={styles.modalBody}>
               <LivePreview form={form} />
+
+              <div className={styles.section}>
+                <p className={styles.sectionTitle}>Advertiser & Campaign</p>
+                <div className={styles.row}>
+                  <div className={styles.field}>
+                    <label>Client / Advertiser Name</label>
+                    <input className={styles.input} value={form.advertiserName} onChange={(e) => set('advertiserName', e.target.value)} placeholder="e.g., Acadex Platform" />
+                  </div>
+                  <div className={styles.field}>
+                    <label>Campaign Type</label>
+                    <input className={styles.input} value={form.campaignType} onChange={(e) => set('campaignType', e.target.value)} placeholder="e.g., Modal Advertisement" />
+                  </div>
+                </div>
+                <div className={styles.row}>
+                  <div className={styles.field}>
+                    <label>Amount Paid (XAF)</label>
+                    <input type="number" min={0} className={styles.input} value={form.amountPaid} onChange={(e) => set('amountPaid', Number(e.target.value))} placeholder="0" />
+                  </div>
+                </div>
+              </div>
 
               <div className={styles.section}>
                 <p className={styles.sectionTitle}>Content</p>

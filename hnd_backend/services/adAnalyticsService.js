@@ -137,8 +137,8 @@ async function getAdAnalytics(adId, dateRange = null) {
       const byDept = {};
       const byProg = {};
       users.forEach((u) => {
-        const d = u.department || 'Other';
-        const p = String(u.program || 'Unknown').toUpperCase();
+        const d = u.department || 'All Departments';
+        const p = String(u.program || 'HND').toUpperCase();
         byDept[d] = (byDept[d] || 0) + 1;
         byProg[p] = (byProg[p] || 0) + 1;
       });

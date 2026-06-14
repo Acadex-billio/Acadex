@@ -79,7 +79,7 @@ const AdPerformanceReport = () => {
         <div className={styles.infoGrid}>
           <div className={styles.infoRow}>
             <span className={styles.label}>Client / Advertiser</span>
-            <span className={styles.value}>ACADEX PLATFORM</span>
+            <span className={styles.value}>{ad.advertiserName || 'Acadex Platform'}</span>
           </div>
           <div className={styles.infoRow}>
             <span className={styles.label}>Campaign Name</span>
@@ -91,7 +91,7 @@ const AdPerformanceReport = () => {
           </div>
           <div className={styles.infoRow}>
             <span className={styles.label}>Campaign Type</span>
-            <span className={styles.value}>Modal Advertisement</span>
+            <span className={styles.value}>{ad.campaignType || 'Modal Advertisement'}</span>
           </div>
           <div className={styles.infoRow}>
             <span className={styles.label}>Amount Paid</span>
@@ -107,7 +107,7 @@ const AdPerformanceReport = () => {
           </div>
           <div className={styles.infoRow}>
             <span className={styles.label}>Status</span>
-            <span className={`${styles.value} ${styles.statusActive}`}>ACTIVE</span>
+            <span className={`${styles.value} ${styles.statusActive}`}>{performance.status?.toUpperCase() || 'ACTIVE'}</span>
           </div>
         </div>
       </section>
@@ -269,24 +269,7 @@ const AdPerformanceReport = () => {
       <section className={styles.section}>
         <h2 className={styles.sectionTitle}>⭐ PERFORMANCE RECOMMENDATION</h2>
         <div className={styles.recommendationBox}>
-          <p>
-            Performance is above average. CTR and conversion rate are healthy for the current audience.
-            Consider extending the campaign by 14 days and increasing visibility among BTS candidates.
-          </p>
-          <div className={styles.recommendationActions}>
-            <div className={styles.action}>
-              <span className={styles.actionIcon}>📅</span>
-              <strong>Extend Campaign</strong> by 14 days
-            </div>
-            <div className={styles.action}>
-              <span className={styles.actionIcon}>👥</span>
-              <strong>Focus Audience</strong> BTS Candidates
-            </div>
-            <div className={styles.action}>
-              <span className={styles.actionIcon}>📈</span>
-              <strong>Performance Status</strong> Above Average
-            </div>
-          </div>
+          <p>{performance.recommendation || 'Campaign is running. Monitor metrics for ongoing optimization.'}</p>
         </div>
       </section>
 
@@ -295,9 +278,9 @@ const AdPerformanceReport = () => {
         <div className={styles.footerSection}>
           <h3>📧 ACADEX SUPPORT</h3>
           <div className={styles.footerContent}>
-            <p>📧 academail@gmail.com</p>
-            <p>💬 +237(80)7732</p>
-            <p>🌐 www.acadexee.com</p>
+            <p>📧 acadexmail@gmail.com</p>
+            <p>💬 +237 678507737</p>
+            <p>🌐 www.acadexe.com</p>
           </div>
         </div>
         <div className={styles.footerSection}>
