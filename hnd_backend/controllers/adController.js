@@ -1,8 +1,10 @@
 const Ad = require('../models/Ad');
 const AdDeliveryLog = require('../models/AdDeliveryLog');
+const AdEventLog = require('../models/AdEventLog');
 const User = require('../models/User');
 const AdPerformance = require('../models/AdPerformance');
 const { uploadFile } = require('../utils/s3Uploader');
+const { getAdAnalytics, logAdEvent } = require('../services/adAnalyticsService');
 const fs = require('fs');
 const path = require('path');
 
@@ -324,6 +326,10 @@ exports.trackImpression = async (req, res) => {
   try {
     const userKey = getUserKey(req);
     const dayKey = getUtcDayKey();
+    const userId = req.user?.id || req.user?.cand_id || req.user?._id;
+    const userRole = req.user?.role || 'user';
+
+    // Track in old AdDeliveryLog for backward compatibility
     await Promise.all([
       Ad.findByIdAndUpdate(req.params.id, { $inc: { impressions: 1 } }),
       AdDeliveryLog.findOneAndUpdate(
@@ -332,6 +338,14 @@ exports.trackImpression = async (req, res) => {
         { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true }
       ),
     ]);
+
+    // Log new event
+    await logAdEvent(req.params.id, userId, 'impression', {
+      role: userRole,
+      uid: userId,
+      source_route: req.body?.source_route,
+    });
+
     return res.json({ success: true });
   } catch (_) {
     return res.json({ success: true }); // never fail
@@ -341,7 +355,107 @@ exports.trackImpression = async (req, res) => {
 /* ───── POST /api/ads/:id/click  (authenticated – track click) ───── */
 exports.trackClick = async (req, res) => {
   try {
+    const userId = req.user?.id || req.user?.cand_id || req.user?._id;
+    const userRole = req.user?.role || 'user';
+
     await Ad.findByIdAndUpdate(req.params.id, { $inc: { clicks: 1 } });
+
+    // Log new event
+    await logAdEvent(req.params.id, userId, 'click', {
+      role: userRole,
+      uid: userId,
+    });
+
+    return res.json({ success: true });
+  } catch (_) {
+    return res.json({ success: true });
+  }
+};
+
+/* ───── POST /api/ads/:id/modal-open  (authenticated – track modal open) ───── */
+exports.trackModalOpen = async (req, res) => {
+  try {
+    const userId = req.user?.id || req.user?.cand_id || req.user?._id;
+    const userRole = req.user?.role || 'user';
+
+    await logAdEvent(req.params.id, userId, 'modal_open', {
+      role: userRole,
+      uid: userId,
+      source_route: req.body?.source_route,
+    });
+
+    return res.json({ success: true });
+  } catch (_) {
+    return res.json({ success: true });
+  }
+};
+
+/* ───── POST /api/ads/:id/modal-close  (authenticated – track modal close + view time) ───── */
+exports.trackModalClose = async (req, res) => {
+  try {
+    const userId = req.user?.id || req.user?.cand_id || req.user?._id;
+    const userRole = req.user?.role || 'user';
+    const durationSeconds = Number(req.body?.duration_seconds || 0);
+
+    await logAdEvent(req.params.id, userId, 'modal_close', {
+      role: userRole,
+      uid: userId,
+      duration_seconds: durationSeconds,
+    });
+
+    return res.json({ success: true });
+  } catch (_) {
+    return res.json({ success: true });
+  }
+};
+
+/* ───── POST /api/ads/:id/dismiss  (authenticated – track modal dismiss) ───── */
+exports.trackDismiss = async (req, res) => {
+  try {
+    const userId = req.user?.id || req.user?.cand_id || req.user?._id;
+    const userRole = req.user?.role || 'user';
+
+    await logAdEvent(req.params.id, userId, 'dismiss', {
+      role: userRole,
+      uid: userId,
+    });
+
+    return res.json({ success: true });
+  } catch (_) {
+    return res.json({ success: true });
+  }
+};
+
+/* ───── POST /api/ads/:id/link-click  (authenticated – track link click with destination) ───── */
+exports.trackLinkClick = async (req, res) => {
+  try {
+    const userId = req.user?.id || req.user?.cand_id || req.user?._id;
+    const userRole = req.user?.role || 'user';
+    const { link_destination } = req.body || {};
+
+    await logAdEvent(req.params.id, userId, 'link_click', {
+      role: userRole,
+      uid: userId,
+      link_destination,
+    });
+
+    return res.json({ success: true });
+  } catch (_) {
+    return res.json({ success: true });
+  }
+};
+
+/* ───── POST /api/ads/:id/registration  (authenticated – track registration conversion) ───── */
+exports.trackRegistration = async (req, res) => {
+  try {
+    const userId = req.user?.id || req.user?.cand_id || req.user?._id;
+    const userRole = req.user?.role || 'user';
+
+    await logAdEvent(req.params.id, userId, 'registration', {
+      role: userRole,
+      uid: userId,
+    });
+
     return res.json({ success: true });
   } catch (_) {
     return res.json({ success: true });
@@ -355,86 +469,69 @@ exports.getPerformance = async (req, res) => {
     const ad = await Ad.findById(adId).lean();
     if (!ad) return res.status(404).json({ success: false, message: 'Ad not found' });
 
-    // Aggregate unique viewers from delivery logs
-    const uniqueAgg = await AdDeliveryLog.aggregate([
-      { $match: { ad_id: ad._id } },
-      { $group: { _id: '$user_key' } },
-      { $count: 'unique' },
-    ]);
-    const uniqueViewers = uniqueAgg?.[0]?.unique ?? 0;
+    // Get comprehensive analytics from new event logs
+    const analytics = await getAdAnalytics(adId);
 
-    // Daily views (by day_key)
-    const daily = await AdDeliveryLog.aggregate([
-      { $match: { ad_id: ad._id } },
-      { $group: { _id: '$day_key', impressions: { $sum: '$impressions' }, clicks: { $sum: '$clicks' } } },
-      { $sort: { _id: 1 } },
-    ]);
-
-    // Audience analytics - best-effort by resolving candidate ids from user_key
-    const logs = await AdDeliveryLog.find({ ad_id: ad._id }).limit(10000).lean();
-    const parsed = logs.map((l) => {
-      const parts = String(l.user_key || '').split(':');
-      return { role: parts[0] || 'unknown', uid: parts.slice(1).join(':') || null };
-    });
-    const candidateIds = parsed.filter((p) => p.role === 'candidate').map((p) => p.uid).filter(Boolean);
-    let audienceByDept = [];
-    let audienceByProgram = [];
-    if (candidateIds.length) {
-      const users = await User.find({ cand_id: { $in: candidateIds } }).select('cand_id department program').lean();
-      const byDept = {};
-      const byProg = {};
-      users.forEach((u) => {
-        const d = u.department || 'UNKNOWN';
-        const p = String(u.program || 'UNKNOWN').toUpperCase();
-        byDept[d] = (byDept[d] || 0) + 1;
-        byProg[p] = (byProg[p] || 0) + 1;
-      });
-      audienceByDept = Object.keys(byDept).map((k) => ({ department: k, count: byDept[k] }));
-      audienceByProgram = Object.keys(byProg).map((k) => ({ program: k, count: byProg[k] }));
-    }
-
-    // Load any manual overrides
+    // Load any manual overrides from AdPerformance
     const overrides = await AdPerformance.findOne({ ad_id: ad._id }).lean();
 
-    const impressions = Number(overrides?.impressions ?? ad.impressions ?? 0);
-    const clicks = Number(overrides?.clicks ?? ad.clicks ?? 0);
-    const registrations = Number(overrides?.registrations ?? 0);
-    const amountPaid = Number(overrides?.amountPaid ?? ad.amountPaid ?? 0);
-    const modalOpens = Number(overrides?.modalOpens ?? 0);
-    const modalCloses = Number(overrides?.modalCloses ?? 0);
-    const dismissCount = Number(overrides?.dismissCount ?? 0);
-    const averageViewTimeSeconds = Number(overrides?.averageViewTimeSeconds ?? 0);
+    // Use overrides if present, otherwise use analytics
+    const impressions = overrides?.impressions ?? analytics.impressions;
+    const uniqueViewers = overrides?.uniqueViewers ?? analytics.uniqueViewers;
+    const clicks = overrides?.clicks ?? analytics.clicks;
+    const registrations = overrides?.registrations ?? analytics.registrations;
+    const modalOpens = overrides?.modalOpens ?? analytics.modalOpens;
+    const modalCloses = overrides?.modalCloses ?? analytics.modalCloses;
+    const dismissCount = overrides?.dismissCount ?? analytics.dismissCount;
+    const averageViewTimeSeconds = overrides?.averageViewTimeSeconds ?? analytics.averageViewTimeSeconds;
 
-    const ctr = impressions > 0 ? (clicks / impressions) * 100 : 0;
-    const conversionRate = clicks > 0 ? (registrations / clicks) * 100 : 0;
+    // Calculate derived metrics
+    const ctr = impressions > 0 ? ((clicks / impressions) * 100) : 0;
+    const conversionRate = clicks > 0 ? ((registrations / clicks) * 100) : 0;
+
+    const performance = {
+      impressions,
+      uniqueViewers,
+      clicks,
+      ctr: parseFloat(ctr.toFixed(2)),
+      amountPaid: overrides?.amountPaid ?? ad.amountPaid ?? 0,
+      registrations,
+      conversionRate: parseFloat(conversionRate.toFixed(2)),
+      modalOpens,
+      modalCloses,
+      dismissCount,
+      dismissRate: analytics.dismissRate,
+      averageViewTimeSeconds,
+      daily: analytics.daily,
+      peakHours: analytics.peakHours,
+      linkAnalytics: analytics.linkAnalytics,
+      audienceByDept: analytics.audienceByDept,
+      audienceByProgram: analytics.audienceByProgram,
+      peakHoursText: overrides?.peakHours ?? '',
+      linkAnalyticsNotes: overrides?.linkAnalyticsNotes ?? '',
+      destinationTrackingNotes: overrides?.destinationTrackingNotes ?? '',
+      weeklyReport: overrides?.weeklyReport ?? '',
+      monthlyReport: overrides?.monthlyReport ?? '',
+      durationReport: overrides?.durationReport ?? '',
+      recommendation: overrides?.recommendation ?? '',
+      notes: overrides?.notes ?? '',
+    };
 
     return res.json({
       success: true,
-      performance: {
-        impressions,
-        uniqueViewers: overrides?.uniqueViewers ?? uniqueViewers,
-        clicks,
-        ctr,
-        amountPaid,
-        registrations,
-        conversionRate,
-        daily: daily.map((d) => ({ day: d._id, impressions: d.impressions, clicks: d.clicks })),
-        audienceByDept,
-        audienceByProgram,
-        modalOpens,
-        modalCloses,
-        dismissCount,
-        averageViewTimeSeconds,
-        peakHours: overrides?.peakHours ?? '',
-        linkAnalyticsNotes: overrides?.linkAnalyticsNotes ?? '',
-        destinationTrackingNotes: overrides?.destinationTrackingNotes ?? '',
-        weeklyReport: overrides?.weeklyReport ?? '',
-        monthlyReport: overrides?.monthlyReport ?? '',
-        durationReport: overrides?.durationReport ?? '',
-        recommendation: overrides?.recommendation ?? '',
-        notes: overrides?.notes ?? '',
+      performance,
+      ad: {
+        _id: ad._id,
+        title: ad.title,
+        subtitle: ad.subtitle,
+        logoUrl: ad.logoUrl,
+        tag: ad.tag,
+        targetAudience: ad.targetAudience,
+        createdAt: ad.createdAt,
+        startDate: ad.startDate,
+        endDate: ad.endDate,
+        amountPaid: ad.amountPaid,
       },
-      ad: pick(ad, ['_id', 'title', 'logoUrl', 'createdAt']),
     });
   } catch (err) {
     console.error('[AdController] getPerformance:', err);

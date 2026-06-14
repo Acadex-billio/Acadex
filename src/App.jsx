@@ -60,6 +60,7 @@ const LecturerEarnings = lazy(() => import('./components/LecturerEarnings'));
 const LecturerPendingApproval = lazy(() => import('./components/LecturerPendingApproval'));
 const LecturerAdminPanel = lazy(() => import('./components/LecturerAdminPanel'));
 const AdsManager = lazy(() => import('./components/AdsManager'));
+const AdPerformanceReport = lazy(() => import('./components/AdPerformanceReport'));
 const LecturerChatGate = lazy(() => import('./components/LecturerChatGate'));
 const StudyModeMaterials = lazy(() => import('./components/StudyModeMaterials'));
 const PaymentConfirmation = lazy(() => import('./components/PaymentConfirmation'));
@@ -181,6 +182,7 @@ const App = () => (
                 <Route path="internship-topics" element={<AdminInternshipTopics />} />
                 <Route path="lecturers" element={<ProtectedRoute><DeveloperRoute><LecturerAdminPanel /></DeveloperRoute></ProtectedRoute>} />
                 <Route path="ads" element={<ProtectedRoute><DeveloperRoute><AdsManager /></DeveloperRoute></ProtectedRoute>} />
+                <Route path="ads/:adId/performance" element={<ProtectedRoute><DeveloperRoute><AdPerformanceReport /></DeveloperRoute></ProtectedRoute>} />
                 <Route path="study-mode-materials" element={<ProtectedRoute><DeveloperRoute><StudyModeMaterials /></DeveloperRoute></ProtectedRoute>} />
                 <Route path="ai-assistant" element={<AIAssistant />} />
                 <Route path="profile" element={<Profile />} />

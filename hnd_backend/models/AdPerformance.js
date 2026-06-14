@@ -3,7 +3,7 @@ const mongoose = require('mongoose');
 const adPerformanceSchema = new mongoose.Schema(
   {
     ad_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Ad', required: true, index: true },
-    // Manual overrides (optional)
+    // Manual overrides (optional) - these override the calculated analytics
     impressions: { type: Number, default: 0 },
     uniqueViewers: { type: Number, default: 0 },
     clicks: { type: Number, default: 0 },
@@ -13,6 +13,7 @@ const adPerformanceSchema = new mongoose.Schema(
     modalCloses: { type: Number, default: 0 },
     dismissCount: { type: Number, default: 0 },
     averageViewTimeSeconds: { type: Number, default: 0 },
+    // Note: ctr and conversionRate are calculated, not stored
     peakHours: { type: String, default: '' },
     linkAnalyticsNotes: { type: String, default: '' },
     destinationTrackingNotes: { type: String, default: '' },

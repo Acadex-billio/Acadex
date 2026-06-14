@@ -24,6 +24,11 @@ router.put('/:id/performance', requireDeveloper, validate({ params: schemas.ids.
 // Track impression / click (any authenticated user)
 router.post('/:id/impression', validate({ params: schemas.ids.mongoIdParam }), adController.trackImpression);
 router.post('/:id/click', validate({ params: schemas.ids.mongoIdParam }), adController.trackClick);
+router.post('/:id/modal-open', validate({ params: schemas.ids.mongoIdParam }), adController.trackModalOpen);
+router.post('/:id/modal-close', validate({ params: schemas.ids.mongoIdParam }), adController.trackModalClose);
+router.post('/:id/dismiss', validate({ params: schemas.ids.mongoIdParam }), adController.trackDismiss);
+router.post('/:id/link-click', validate({ params: schemas.ids.mongoIdParam }), adController.trackLinkClick);
+router.post('/:id/registration', validate({ params: schemas.ids.mongoIdParam }), adController.trackRegistration);
 
 // Developer-only management routes
 router.get('/', requireDeveloper, adController.listAll);

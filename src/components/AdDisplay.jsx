@@ -46,10 +46,14 @@ const toExternalUrl = (url) => {
   return `https://${raw}`;
 };
 
-const openUrl = (url, adId) => {
+const openUrl = (url, adId, linkDestination = null) => {
   if (!url) return;
   // fire click tracking (fire-and-forget)
   api.post(`/ads/${adId}/click`).catch(() => { });
+  // Track link click with destination if provided
+  if (linkDestination) {
+    api.post(`/ads/${adId}/link-click`, { link_destination: linkDestination }).catch(() => { });
+  }
   const nextUrl = toExternalUrl(url);
   if (!nextUrl) return;
   window.open(nextUrl, '_blank', 'noopener,noreferrer');
@@ -59,6 +63,9 @@ const openUrl = (url, adId) => {
 const AdModal = ({ ad, onClose }) => {
   const { styling = {}, displayType } = ad;
   const br = styling.borderRadius || '16px';
+
+  // Track modal open time
+  const openTimeRef = useRef(Date.now());
 
   // auto-close timer
   const [timeLeft, setTimeLeft] = useState(ad.closeOnTimer ? (ad.closeTimerSeconds || 8) : null);
@@ -75,10 +82,24 @@ const AdModal = ({ ad, onClose }) => {
     return () => clearInterval(timerRef.current);
   }, [ad.closeOnTimer, onClose]);
 
-  // impression on mount
+  // impression + modal-open on mount
   useEffect(() => {
-    api.post(`/ads/${ad._id}/impression`).catch(() => { });
+    api.post(`/ads/${ad._id}/impression`, { source_route: window.location.pathname }).catch(() => { });
+    api.post(`/ads/${ad._id}/modal-open`, { source_route: window.location.pathname }).catch(() => { });
   }, [ad._id]);
+
+  // Track modal close with duration
+  const handleClose = useCallback((isDismiss = false) => {
+    const durationSeconds = Math.round((Date.now() - openTimeRef.current) / 1000);
+    
+    if (isDismiss) {
+      api.post(`/ads/${ad._id}/dismiss`).catch(() => { });
+    } else {
+      api.post(`/ads/${ad._id}/modal-close`, { duration_seconds: durationSeconds }).catch(() => { });
+    }
+    
+    onClose();
+  }, [ad._id, onClose]);
 
   const containerStyle = {
     backgroundColor: styling.backgroundColor || '#ffffff',
@@ -111,13 +132,13 @@ const AdModal = ({ ad, onClose }) => {
           </div>
           {ad.ctaText && (
             <button type="button" className={styles.bannerCta} style={btnStyle}
-              onClick={() => { openUrl(ad.ctaUrl, ad._id); onClose(); }}>
+              onClick={() => { openUrl(ad.ctaUrl, ad._id, ad.ctaUrl); handleClose(); }}>
               {ad.ctaText}
             </button>
           )}
         </div>
         {(ad.showCloseButton || ad.closeOnTimer) && (
-          <button type="button" className={styles.bannerCloseBtn} onClick={onClose} aria-label="Close ad">
+          <button type="button" className={styles.bannerCloseBtn} onClick={() => handleClose(true)} aria-label="Close ad">
             <FaTimes />
           </button>
         )}
@@ -150,20 +171,20 @@ const AdModal = ({ ad, onClose }) => {
                 <img src={ad.imageUrl} alt="" />
               </div>
               <div className={styles.inner} style={{ padding: '20px 12px 20px 0' }}>
-                <InnerContent ad={ad} btnStyle={btnStyle} onClose={onClose} />
+                <InnerContent ad={ad} btnStyle={btnStyle} handleClose={handleClose} />
               </div>
             </div>
           )}
           {!isSide && (
             <div className={styles.inner}>
-              <InnerContent ad={ad} btnStyle={btnStyle} onClose={onClose} />
+              <InnerContent ad={ad} btnStyle={btnStyle} handleClose={handleClose} />
             </div>
           )}
         </div>
 
         {/* close button */}
         {(ad.showCloseButton || ad.closeOnTimer) && (
-          <button type="button" className={styles.closeBtn} onClick={onClose} aria-label="Close ad">
+          <button type="button" className={styles.closeBtn} onClick={() => handleClose(true)} aria-label="Close ad">
             {ad.closeOnTimer && timeLeft !== null ? timeLeft : <FaTimes />}
           </button>
         )}
@@ -184,7 +205,7 @@ const AdModal = ({ ad, onClose }) => {
 };
 
 /* inner content (shared between modal and side layout) */
-const InnerContent = ({ ad, btnStyle, onClose }) => (
+const InnerContent = ({ ad, btnStyle, handleClose }) => (
   <>
     {ad.logoUrl && <img src={ad.logoUrl} alt="logo" className={styles.logo} />}
     {ad.tag && <span className={styles.tag}>{ad.tag}</span>}
@@ -198,7 +219,7 @@ const InnerContent = ({ ad, btnStyle, onClose }) => (
             type="button"
             className={styles.ctaBtn}
             style={btnStyle}
-            onClick={() => { openUrl(ad.ctaUrl, ad._id); onClose(); }}
+            onClick={() => { openUrl(ad.ctaUrl, ad._id, ad.ctaUrl); handleClose(); }}
           >
             <FaExternalLinkAlt style={{ fontSize: 11 }} />
             {ad.ctaText}
@@ -209,7 +230,7 @@ const InnerContent = ({ ad, btnStyle, onClose }) => (
             type="button"
             className={`${styles.ctaBtn} ${styles.ctaSecondary}`}
             style={{ color: btnStyle.backgroundColor }}
-            onClick={() => { if (ad.ctaSecondaryUrl) openUrl(ad.ctaSecondaryUrl, ad._id); onClose(); }}
+            onClick={() => { if (ad.ctaSecondaryUrl) openUrl(ad.ctaSecondaryUrl, ad._id, ad.ctaSecondaryUrl); handleClose(); }}
           >
             {ad.ctaSecondaryText}
           </button>
