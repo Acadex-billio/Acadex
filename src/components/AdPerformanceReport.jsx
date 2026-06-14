@@ -13,6 +13,20 @@ const AdPerformanceReport = () => {
   const [reportPeriod] = useState({ start: '01 Jun 2026', end: '07 Jun 2026' });
 
   useEffect(() => {
+    const fetchPerformance = async () => {
+      try {
+        setLoading(true);
+        const response = await api.get(`/ads/${adId}/performance`);
+        if (response.data.success) {
+          setData(response.data);
+        }
+      } catch (error) {
+        showToast('Failed to load performance data', 'error');
+      } finally {
+        setLoading(false);
+      }
+    };
+
     fetchPerformance();
   }, [adId]);
 
@@ -404,7 +418,7 @@ const PeakHoursChart = ({ data }) => {
   }
 
   const maxImpressions = Math.max(...data.map((h) => h.impressions || 0), 1);
-  const timeLabels = ['00-04', '04-08', '08-12', '12-16', '16-20', '20-24'];
+  
 
   return (
     <div className={styles.peakHoursContainer}>
