@@ -30,20 +30,6 @@ const AdPerformanceReport = () => {
     fetchPerformance();
   }, [adId]);
 
-  const fetchPerformance = async () => {
-    try {
-      setLoading(true);
-      const response = await api.get(`/ads/${adId}/performance`);
-      if (response.data.success) {
-        setData(response.data);
-      }
-    } catch (error) {
-      showToast('Failed to load performance data', 'error');
-    } finally {
-      setLoading(false);
-    }
-  };
-
   if (loading) {
     return (
       <div className={styles.container}>
