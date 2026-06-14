@@ -604,6 +604,7 @@ const AdsManager = () => {
               </div>
               <div className={styles.adCardActions}>
                 <button type="button" className={`${styles.actionBtn}`} onClick={async () => { setPerfAd(ad); setPerfOpen(true); setPerfLoading(true); try { const res = await api.get(`/ads/${ad._id}/performance`); setPerfData(res.data.performance); } catch (e) { showToast('Failed to load performance', 'error'); } finally { setPerfLoading(false); } }} title="View Performance">Perf</button>
+                  <button type="button" className={`${styles.actionBtn}`} onClick={() => navigate(`/admin/ads/${ad._id}/performance`)} title="View Performance">Perf</button>
                 <button type="button" className={styles.actionBtn} onClick={() => openEdit(ad)} title="Edit"><FaEdit /> Edit</button>
                 <button type="button" className={`${styles.actionBtn} ${ad.isPublished ? '' : styles.actionBtnPrimary}`} onClick={() => togglePublish(ad)}>
                   {ad.isPublished ? <><FaEyeSlash /> Unpublish</> : <><FaEye /> Publish</>}
