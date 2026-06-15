@@ -109,9 +109,31 @@ const AdModal = ({ ad, onClose }) => {
     '--br': br,
   };
 
+  const titleStyle = {
+    color: styling.titleColor || styling.textColor || '#1a1a1a',
+  };
+
+  const subtitleStyle = {
+    color: styling.subtitleColor || styling.textColor || '#575757',
+  };
+
+  const bodyStyle = {
+    color: styling.bodyColor || styling.textColor || '#333333',
+  };
+
+  const tagStyle = {
+    color: styling.tagTextColor || '#111111',
+    backgroundColor: styling.tagBackgroundColor || 'rgba(255,255,255,0.2)',
+  };
+
   const btnStyle = {
     backgroundColor: styling.buttonColor || '#4caf50',
     color: styling.buttonTextColor || '#ffffff',
+    borderColor: styling.buttonBorderColor || 'transparent',
+    borderRadius: styling.buttonBorderRadius || '999px',
+    border: styling.buttonBorderColor && styling.buttonBorderColor !== 'transparent'
+      ? `1px solid ${styling.buttonBorderColor}`
+      : 'none',
   };
 
   const showImage = ad.imageUrl && styling.imagePosition !== 'none';
@@ -171,13 +193,29 @@ const AdModal = ({ ad, onClose }) => {
                 <img src={ad.imageUrl} alt="" />
               </div>
               <div className={styles.inner} style={{ padding: '20px 12px 20px 0' }}>
-                <InnerContent ad={ad} btnStyle={btnStyle} handleClose={handleClose} />
+                <InnerContent
+                  ad={ad}
+                  btnStyle={btnStyle}
+                  handleClose={handleClose}
+                  titleStyle={titleStyle}
+                  subtitleStyle={subtitleStyle}
+                  bodyStyle={bodyStyle}
+                  tagStyle={tagStyle}
+                />
               </div>
             </div>
           )}
           {!isSide && (
             <div className={styles.inner}>
-              <InnerContent ad={ad} btnStyle={btnStyle} handleClose={handleClose} />
+              <InnerContent
+                ad={ad}
+                btnStyle={btnStyle}
+                handleClose={handleClose}
+                titleStyle={titleStyle}
+                subtitleStyle={subtitleStyle}
+                bodyStyle={bodyStyle}
+                tagStyle={tagStyle}
+              />
             </div>
           )}
         </div>
@@ -205,13 +243,20 @@ const AdModal = ({ ad, onClose }) => {
 };
 
 /* inner content (shared between modal and side layout) */
-const InnerContent = ({ ad, btnStyle, handleClose }) => (
+const InnerContent = ({ ad, btnStyle, handleClose, titleStyle, subtitleStyle, bodyStyle, tagStyle }) => (
   <>
-    {ad.logoUrl && <img src={ad.logoUrl} alt="logo" className={styles.logo} />}
-    {ad.tag && <span className={styles.tag}>{ad.tag}</span>}
-    <h2 className={styles.adTitle}>{ad.title}</h2>
-    {ad.subtitle && <p className={styles.adSubtitle}>{ad.subtitle}</p>}
-    {ad.body && <p className={styles.adBody}>{ad.body}</p>}
+    {ad.logoUrl && (
+      <img
+        src={ad.logoUrl}
+        alt="logo"
+        className={styles.logo}
+        onError={(e) => { e.currentTarget.style.display = 'none'; }}
+      />
+    )}
+    {ad.tag && <span className={styles.tag} style={tagStyle}>{ad.tag}</span>}
+    <h2 className={styles.adTitle} style={titleStyle}>{ad.title}</h2>
+    {ad.subtitle && <p className={styles.adSubtitle} style={subtitleStyle}>{ad.subtitle}</p>}
+    {ad.body && <p className={styles.adBody} style={bodyStyle}>{ad.body}</p>}
     {(ad.ctaText || ad.ctaSecondaryText) && (
       <div className={styles.ctaRow}>
         {ad.ctaText && (

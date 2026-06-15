@@ -479,9 +479,9 @@ exports.getPerformance = async (req, res) => {
     const overrides = await AdPerformance.findOne({ ad_id: ad._id }).lean();
 
     // Use overrides if present, otherwise use analytics
-    const impressions = overrides?.impressions ?? analytics.impressions;
+    const impressions = overrides?.impressions ?? Math.max(analytics.impressions, Number(ad.impressions || 0));
     const uniqueViewers = overrides?.uniqueViewers ?? analytics.uniqueViewers;
-    const clicks = overrides?.clicks ?? analytics.clicks;
+    const clicks = overrides?.clicks ?? Math.max(analytics.clicks, Number(ad.clicks || 0));
     const registrations = overrides?.registrations ?? analytics.registrations;
     const modalOpens = overrides?.modalOpens ?? analytics.modalOpens;
     const modalCloses = overrides?.modalCloses ?? analytics.modalCloses;

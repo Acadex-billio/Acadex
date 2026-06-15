@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { FaArrowLeft, FaChartLine, FaEye, FaUser, FaPercent } from 'react-icons/fa';
 import styles from '../Astyles/AdPerformanceReport.module.css';
@@ -50,18 +50,26 @@ const AdPerformanceReport = () => {
   const startDate = ad.startDate ? new Date(ad.startDate).toLocaleDateString('en-GB', { year: 'numeric', month: '2-digit', day: '2-digit' }) : 'N/A';
   const endDate = ad.endDate ? new Date(ad.endDate).toLocaleDateString('en-GB', { year: 'numeric', month: '2-digit', day: '2-digit' }) : 'N/A';
   const createdDate = new Date(ad.createdAt).toLocaleDateString('en-GB', { year: 'numeric', month: 'short', day: '2-digit' });
+  const onPrint = useCallback(() => window.print(), []);
 
   return (
     <div className={styles.container}>
       {/* Header */}
       <div className={styles.header}>
-        <button onClick={() => navigate(-1)} className={styles.backBtn} title="Go back">
-          <FaArrowLeft /> Back
-        </button>
+        <div>
+          <button onClick={() => navigate(-1)} className={styles.backBtn} title="Go back">
+            <FaArrowLeft /> Back
+          </button>
+        </div>
         <div className={styles.titleSection}>
           <h1 className={styles.pageTitle}>AD PERFORMANCE REPORT</h1>
           <p className={styles.platformName}>ACADEX PLATFORM</p>
           <p className={styles.description}>Comprehensive performance overview of your advertisement campaign on the Acadex platform.</p>
+        </div>
+        <div className={styles.headerActions}>
+          <button type="button" className={styles.printBtn} onClick={onPrint}>
+            PRINT PERFORMANCE
+          </button>
         </div>
         <div className={styles.reportPeriod}>
           <div className={styles.periodLabel}>REPORT PERIOD</div>
@@ -271,6 +279,12 @@ const AdPerformanceReport = () => {
         <div className={styles.recommendationBox}>
           <p>{performance.recommendation || 'Campaign is running. Monitor metrics for ongoing optimization.'}</p>
         </div>
+      </section>
+
+      <section className={styles.bottomPrintSection}>
+        <button type="button" className={styles.printBtn} onClick={onPrint}>
+          PRINT PERFORMANCE
+        </button>
       </section>
 
       {/* Footer */}
