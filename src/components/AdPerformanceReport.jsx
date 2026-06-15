@@ -51,6 +51,7 @@ const AdPerformanceReport = () => {
   const startDate = ad.startDate ? new Date(ad.startDate).toLocaleDateString('en-GB', { year: 'numeric', month: '2-digit', day: '2-digit' }) : 'N/A';
   const endDate = ad.endDate ? new Date(ad.endDate).toLocaleDateString('en-GB', { year: 'numeric', month: '2-digit', day: '2-digit' }) : 'N/A';
   const createdDate = new Date(ad.createdAt).toLocaleDateString('en-GB', { year: 'numeric', month: 'short', day: '2-digit' });
+  const reportLogo = ad.logoUrl || `${process.env.PUBLIC_URL || ''}/hnd-mark.svg`;
 
   return (
     <div className={styles.container}>
@@ -62,6 +63,9 @@ const AdPerformanceReport = () => {
           </button>
         </div>
         <div className={styles.titleSection}>
+          <div className={styles.reportLogoWrapper}>
+            <img src={reportLogo} alt="Ad logo" className={styles.reportLogo} onError={(e) => { e.currentTarget.src = `${process.env.PUBLIC_URL || ''}/hnd-mark.svg`; }} />
+          </div>
           <h1 className={styles.pageTitle}>AD PERFORMANCE REPORT</h1>
           <p className={styles.platformName}>ACADEX PLATFORM</p>
           <p className={styles.description}>Comprehensive performance overview of your advertisement campaign on the Acadex platform.</p>
@@ -187,24 +191,24 @@ const AdPerformanceReport = () => {
           />
           <MetricCard
             icon={<FaChartLine />}
-            label="Registrations Generated"
-            value={performance.registrations.toLocaleString()}
-            description="From ad clicks"
+            label="Peak Impression"
+            value={(performance.peakImpression || 0).toLocaleString()}
+            description="Highest daily reach"
             color="#50E3C2"
           />
           <MetricCard
             icon={<FaPercent />}
-            label="Conversion Rate"
-            value={performance.conversionRate.toFixed(2) + '%'}
-            description="Registrations / Clicks"
+            label="Registrations Generated"
+            value={performance.registrations.toLocaleString()}
+            description="Unique registration conversions"
             color="#B8E986"
           />
         </div>
       </section>
 
-      {/* Daily Impressions Chart */}
+      {/* Daily Impressions Trend */}
       <section className={styles.section}>
-        <h2 className={styles.sectionTitle}>📈 DAILY IMPRESSIONS</h2>
+        <h2 className={styles.sectionTitle}>📈 DAILY IMPRESSIONS TREND</h2>
         <div className={styles.chartContainer}>
           <DailyChart data={performance.daily} />
         </div>
@@ -265,14 +269,6 @@ const AdPerformanceReport = () => {
         </section>
       )}
 
-      {/* Peak Hours */}
-      <section className={styles.section}>
-        <h2 className={styles.sectionTitle}>🕐 PEAK HOURS</h2>
-        <div className={styles.chartContainer}>
-          <PeakHoursChart data={performance.peakHours} />
-        </div>
-      </section>
-
       {/* Performance Recommendation */}
       <section className={styles.section}>
         <h2 className={styles.sectionTitle}>⭐ PERFORMANCE RECOMMENDATION</h2>
@@ -332,26 +328,27 @@ const DailyChart = ({ data }) => {
   }
 
   const maxImpressions = Math.max(...data.map((d) => d.impressions || 0), 1);
-  const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-
   return (
     <div className={styles.barChartContainer}>
-      {data.slice(0, 7).map((item, idx) => (
-        <div key={idx} className={styles.barItem}>
-          <div className={styles.barStack}>
-            <div
-              className={styles.bar}
-              style={{
-                height: `${(item.impressions / maxImpressions) * 300}px`,
-                backgroundColor: '#4caf50',
-              }}
-              title={`${item.impressions} impressions`}
-            />
+      {data.slice(0, 7).map((item, idx) => {
+        const label = item.day ? new Date(item.day).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }) : `Day ${idx + 1}`;
+        return (
+          <div key={idx} className={styles.barItem}>
+            <div className={styles.barStack}>
+              <div
+                className={styles.bar}
+                style={{
+                  height: `${(item.impressions / maxImpressions) * 300}px`,
+                  backgroundColor: '#4caf50',
+                }}
+                title={`${item.impressions} impressions`}
+              />
+            </div>
+            <label>{label}</label>
+            <small>{item.impressions}</small>
           </div>
-          <label>{days[idx % 7]}</label>
-          <small>{item.impressions}</small>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 };
@@ -389,41 +386,6 @@ const PieChart = ({ data }) => {
             </span>
           </div>
         ))}
-      </div>
-    </div>
-  );
-};
-
-// Peak Hours Chart Component
-const PeakHoursChart = ({ data }) => {
-  if (!data || data.length === 0) {
-    return <p className={styles.noData}>No data available</p>;
-  }
-
-  const maxImpressions = Math.max(...data.map((h) => h.impressions || 0), 1);
-  
-
-  return (
-    <div className={styles.peakHoursContainer}>
-      <div className={styles.peakHoursChart}>
-        {[...Array(24)].map((_, hour) => (
-          <div key={hour} className={styles.hourBar}>
-            <div
-              className={styles.bar}
-              style={{
-                height: `${((data[hour]?.impressions || 0) / maxImpressions) * 200}px`,
-                backgroundColor: '#4caf50',
-              }}
-              title={`${hour}:00 - ${data[hour]?.impressions || 0} impressions`}
-            />
-            <label className={styles.hourLabel}>{hour.toString().padStart(2, '0')}:00</label>
-          </div>
-        ))}
-      </div>
-      <div className={styles.peakTimeInfo}>
-        <div className={styles.peakInfo}>
-          <strong>Peak Engagement: 08:00 - 10:00, 18:00 - 20:00, 20:00 - 22:00</strong>
-        </div>
       </div>
     </div>
   );

@@ -45,15 +45,23 @@ async function getAdAnalytics(adId, dateRange = null) {
     const modalCloses = eventMap['modal_close'] || 0;
     const dismisses = eventMap['dismiss'] || 0;
     const linkClicks = eventMap['link_click'] || 0;
-    const registrations = eventMap['registration'] || 0;
+    const registrationEvents = eventMap['registration'] || 0;
 
-    // 2. Unique viewers
-    const uniqueViewers = await AdEventLog.aggregate([
-      { $match: match },
+    // 2. Unique viewers based on impression events
+    const uniqueViewersResult = await AdEventLog.aggregate([
+      { $match: { ...match, event_type: 'impression' } },
       { $group: { _id: '$user_key' } },
       { $count: 'unique' },
     ]);
-    const uniqueCount = uniqueViewers?.[0]?.unique || 0;
+    const uniqueCount = uniqueViewersResult?.[0]?.unique || 0;
+
+    // 3. Unique registrations
+    const uniqueRegistrationsResult = await AdEventLog.aggregate([
+      { $match: { ...match, event_type: 'registration' } },
+      { $group: { _id: '$user_key' } },
+      { $count: 'unique' },
+    ]);
+    const distinctRegistrations = uniqueRegistrationsResult?.[0]?.unique || 0;
 
     // 3. Daily breakdown
     const dailyBreakdown = await AdEventLog.aggregate([
@@ -120,12 +128,19 @@ async function getAdAnalytics(adId, dateRange = null) {
     const averageViewTimeSeconds = avgViewTime?.[0]?.avgSeconds || 0;
 
     // 7. Audience demographics (candidate departments and programs)
-    const logs = await AdEventLog.find(match).select('user_key').limit(100000).lean();
-    const candidateIds = logs
-      .map((l) => {
-        const parts = String(l.user_key || '').split(':');
-        return parts[0] === 'candidate' ? parts.slice(1).join(':') : null;
-      })
+    const impressionLogs = await AdEventLog.find({ ...match, event_type: 'impression' })
+      .select('user_key')
+      .limit(100000)
+      .lean();
+    const uniqueCandidateKeys = Array.from(
+      new Set(
+        impressionLogs
+          .map((l) => String(l.user_key || ''))
+          .filter((key) => key.startsWith('candidate:'))
+      )
+    );
+    const candidateIds = uniqueCandidateKeys
+      .map((key) => key.split(':').slice(1).join(':'))
       .filter(Boolean);
 
     let audienceByDept = [];
@@ -153,14 +168,16 @@ async function getAdAnalytics(adId, dateRange = null) {
     // 8. Calculate derived metrics
     const ctr = impressions > 0 ? (clicks / impressions) * 100 : 0;
     const dismissRate = modalOpens > 0 ? (dismisses / modalOpens) * 100 : 0;
-    const conversionRate = clicks > 0 ? (registrations / clicks) * 100 : 0;
+    const conversionRate = clicks > 0 ? (distinctRegistrations / clicks) * 100 : 0;
+    const peakImpression = daily.length > 0 ? Math.max(...daily.map((d) => d.impressions || 0)) : 0;
 
     return {
       impressions,
       uniqueViewers: uniqueCount,
       clicks,
       linkClicks,
-      registrations,
+      registrations: distinctRegistrations,
+      registrationEvents,
       ctr: parseFloat(ctr.toFixed(2)),
       conversionRate: parseFloat(conversionRate.toFixed(2)),
       modalOpens,
@@ -169,6 +186,7 @@ async function getAdAnalytics(adId, dateRange = null) {
       dismissRate: parseFloat(dismissRate.toFixed(2)),
       averageViewTimeSeconds: parseFloat(averageViewTimeSeconds.toFixed(2)),
       daily,
+      peakImpression,
       peakHours: peakHours.map((h) => ({ hour: h._id, impressions: h.count })),
       linkAnalytics,
       audienceByDept,

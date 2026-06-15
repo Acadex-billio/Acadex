@@ -541,7 +541,7 @@ exports.getPerformance = async (req, res) => {
       dismissRate: analytics.dismissRate,
       averageViewTimeSeconds,
       daily: analytics.daily,
-      peakHours: analytics.peakHours,
+      peakImpression: analytics.peakImpression,
       linkAnalytics: analytics.linkAnalytics,
       audienceByDept: analytics.audienceByDept,
       audienceByProgram: analytics.audienceByProgram,
