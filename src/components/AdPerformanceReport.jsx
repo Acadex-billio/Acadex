@@ -11,6 +11,7 @@ const AdPerformanceReport = () => {
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState(null);
   const [reportPeriod] = useState({ start: '01 Jun 2026', end: '07 Jun 2026' });
+  const onPrint = useCallback(() => window.print(), []);
 
   useEffect(() => {
     const fetchPerformance = async () => {
