@@ -46,14 +46,22 @@ const toExternalUrl = (url) => {
   return `https://${raw}`;
 };
 
-const openUrl = (url, adId, linkDestination = null) => {
+const openUrl = async (url, adId, linkDestination = null, button = 'primary') => {
   if (!url) return;
-  // fire click tracking (fire-and-forget)
-  api.post(`/ads/${adId}/click`).catch(() => { });
-  // Track link click with destination if provided
+  // fire click tracking (include button type)
+  try {
+    await api.post(`/ads/${adId}/click`, { button });
+  } catch (_) { }
+  // Track link click with destination and button if provided
   if (linkDestination) {
-    api.post(`/ads/${adId}/link-click`, { link_destination: linkDestination }).catch(() => { });
+    try {
+      await api.post(`/ads/${adId}/link-click`, { link_destination: linkDestination, button });
+    } catch (_) { }
   }
+  // store last clicked ad for potential registration attribution
+  try {
+    localStorage.setItem('last_clicked_ad', JSON.stringify({ adId, button, ts: Date.now() }));
+  } catch (_) {}
   const nextUrl = toExternalUrl(url);
   if (!nextUrl) return;
   window.open(nextUrl, '_blank', 'noopener,noreferrer');
@@ -89,15 +97,15 @@ const AdModal = ({ ad, onClose }) => {
   }, [ad._id]);
 
   // Track modal close with duration
-  const handleClose = useCallback((isDismiss = false) => {
+  const handleClose = useCallback((isDismiss = false, actionTaken = false) => {
     const durationSeconds = Math.round((Date.now() - openTimeRef.current) / 1000);
-    
+
     if (isDismiss) {
       api.post(`/ads/${ad._id}/dismiss`).catch(() => { });
     } else {
-      api.post(`/ads/${ad._id}/modal-close`, { duration_seconds: durationSeconds }).catch(() => { });
+      api.post(`/ads/${ad._id}/modal-close`, { duration_seconds: durationSeconds, action_taken: actionTaken }).catch(() => { });
     }
-    
+
     onClose();
   }, [ad._id, onClose]);
 
@@ -134,6 +142,16 @@ const AdModal = ({ ad, onClose }) => {
     border: styling.buttonBorderColor && styling.buttonBorderColor !== 'transparent'
       ? `1px solid ${styling.buttonBorderColor}`
       : 'none',
+  };
+
+  const secondaryBtnStyle = {
+    backgroundColor: styling.secondaryButtonColor || 'transparent',
+    color: styling.secondaryButtonTextColor || (styling.buttonColor || '#4caf50'),
+    borderColor: styling.secondaryButtonBorderColor || (styling.buttonBorderColor || 'transparent'),
+    borderRadius: styling.secondaryButtonBorderRadius || styling.buttonBorderRadius || '999px',
+    border: styling.secondaryButtonBorderColor && styling.secondaryButtonBorderColor !== 'transparent'
+      ? `1px solid ${styling.secondaryButtonBorderColor}`
+      : `1px solid ${styling.secondaryButtonBorderColor || 'transparent'}`,
   };
 
   const showImage = ad.imageUrl && styling.imagePosition !== 'none';
@@ -196,6 +214,7 @@ const AdModal = ({ ad, onClose }) => {
                 <InnerContent
                   ad={ad}
                   btnStyle={btnStyle}
+                  secondaryBtnStyle={secondaryBtnStyle}
                   handleClose={handleClose}
                   titleStyle={titleStyle}
                   subtitleStyle={subtitleStyle}
@@ -210,6 +229,7 @@ const AdModal = ({ ad, onClose }) => {
               <InnerContent
                 ad={ad}
                 btnStyle={btnStyle}
+                secondaryBtnStyle={secondaryBtnStyle}
                 handleClose={handleClose}
                 titleStyle={titleStyle}
                 subtitleStyle={subtitleStyle}
@@ -243,7 +263,7 @@ const AdModal = ({ ad, onClose }) => {
 };
 
 /* inner content (shared between modal and side layout) */
-const InnerContent = ({ ad, btnStyle, handleClose, titleStyle, subtitleStyle, bodyStyle, tagStyle }) => (
+const InnerContent = ({ ad, btnStyle, secondaryBtnStyle, handleClose, titleStyle, subtitleStyle, bodyStyle, tagStyle }) => (
   <>
     {ad.logoUrl && (
       <img
@@ -259,12 +279,12 @@ const InnerContent = ({ ad, btnStyle, handleClose, titleStyle, subtitleStyle, bo
     {ad.body && <p className={styles.adBody} style={bodyStyle}>{ad.body}</p>}
     {(ad.ctaText || ad.ctaSecondaryText) && (
       <div className={styles.ctaRow}>
-        {ad.ctaText && (
+          {ad.ctaText && (
           <button
             type="button"
             className={styles.ctaBtn}
             style={btnStyle}
-            onClick={() => { openUrl(ad.ctaUrl, ad._id, ad.ctaUrl); handleClose(); }}
+            onClick={async () => { await openUrl(ad.ctaUrl, ad._id, ad.ctaUrl, 'primary'); handleClose(false, true); }}
           >
             <FaExternalLinkAlt style={{ fontSize: 11 }} />
             {ad.ctaText}
@@ -274,8 +294,8 @@ const InnerContent = ({ ad, btnStyle, handleClose, titleStyle, subtitleStyle, bo
           <button
             type="button"
             className={`${styles.ctaBtn} ${styles.ctaSecondary}`}
-            style={{ color: btnStyle.backgroundColor }}
-            onClick={() => { if (ad.ctaSecondaryUrl) openUrl(ad.ctaSecondaryUrl, ad._id, ad.ctaSecondaryUrl); handleClose(); }}
+            style={secondaryBtnStyle}
+            onClick={async () => { if (ad.ctaSecondaryUrl) { await openUrl(ad.ctaSecondaryUrl, ad._id, ad.ctaSecondaryUrl, 'secondary'); } handleClose(false, true); }}
           >
             {ad.ctaSecondaryText}
           </button>

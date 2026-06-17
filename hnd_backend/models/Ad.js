@@ -14,6 +14,12 @@ const adStylingSchema = new mongoose.Schema(
     buttonBorderColor: { type: String, default: 'transparent' },
     buttonBorderRadius: { type: String, default: '999px' },
     buttonBorderWidth: { type: String, default: '0px' },
+    // Secondary CTA styles
+    secondaryButtonColor: { type: String, default: 'transparent' },
+    secondaryButtonTextColor: { type: String, default: '#4caf50' },
+    secondaryButtonBorderColor: { type: String, default: '#4caf50' },
+    secondaryButtonBorderRadius: { type: String, default: '999px' },
+    secondaryButtonBorderWidth: { type: String, default: '0px' },
     overlayColor: { type: String, default: 'rgba(0,0,0,0.55)' },
     borderRadius: { type: String, default: '16px' },
     borderColor: { type: String, default: 'transparent' },

@@ -217,7 +217,7 @@
 .ctaBtn:hover { opacity: 0.82; }
 
 .ctaSecondary {
-  background: rgba(0,0,0,0.12) !important;
+  background: transparent;
   font-weight: 600;
 }
 

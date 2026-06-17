@@ -16,8 +16,8 @@
 
 The **Acadex** is a full-stack educational management system for Higher National Diploma (HND) and Brevet de Technicien Supérieur (BTS) students. It provides:
 
-- **Candidate features:** Access to question papers, reports, presentations, profile management, group chat
-- **Admin features:** Upload materials, manage departments, view analytics, broadcast notifications
+- **Candidate features:** Access to question papers, reports, presentations, internship topics, profile management, group chat, personal chats, video confrencing
+- **Admin features:** Upload materials, manage departments, view analytics, broadcast notifications, manage billings, manage ads
 - **Authentication:** Registration, login, password reset with email verification
 
 ### Technology Stack
@@ -27,8 +27,8 @@ The **Acadex** is a full-stack educational management system for Higher National
 | Frontend   | React 19, React Router, Axios |
 | Backend    | Node.js, Express 5            |
 | Database   | MongoDB (Mongoose)            |
-| File Storage | Local (uploads/)            |
-| Email      | Nodemailer (Gmail)            |
+| File Storage | Local (uploads/) s3 from AWS           |
+| Email      | Resend (Gmail)            |
 
 ---
 

@@ -67,6 +67,12 @@ const DEFAULT_STYLING = {
   buttonBorderColor: 'transparent',
   buttonBorderRadius: '999px',
   buttonBorderWidth: '0px',
+  // Secondary CTA defaults (ghost style)
+  secondaryButtonColor: 'transparent',
+  secondaryButtonTextColor: '#4caf50',
+  secondaryButtonBorderColor: '#4caf50',
+  secondaryButtonBorderRadius: '999px',
+  secondaryButtonBorderWidth: '0px',
   overlayColor: 'rgba(0,0,0,0.55)',
   borderRadius: '16px',
   borderColor: 'transparent',
@@ -159,6 +165,15 @@ const LivePreview = ({ form }) => {
     borderRadius: form.styling.buttonBorderRadius || '999px',
   };
 
+  const secondaryButtonStyle = {
+    background: form.styling.secondaryButtonColor || 'transparent',
+    color: form.styling.secondaryButtonTextColor || (form.styling.buttonColor || '#4caf50'),
+    borderColor: form.styling.secondaryButtonBorderColor || (form.styling.buttonBorderColor || 'transparent'),
+    borderWidth: form.styling.secondaryButtonBorderWidth || '0px',
+    borderStyle: 'solid',
+    borderRadius: form.styling.secondaryButtonBorderRadius || form.styling.buttonBorderRadius || '999px',
+  };
+
   const showLogo = form.logoUrl;
 
   return (
@@ -177,7 +192,7 @@ const LivePreview = ({ form }) => {
         </div>
         <div className={styles.previewButtons}>
           {form.ctaText ? <button type="button" className={styles.previewBtn} style={buttonStyle}>{form.ctaText}</button> : null}
-          {form.ctaSecondaryText ? <button type="button" className={styles.previewBtnGhost} style={{ borderColor: buttonStyle.borderColor, color: buttonStyle.color }}>{form.ctaSecondaryText}</button> : null}
+          {form.ctaSecondaryText ? <button type="button" className={styles.previewBtnGhost} style={secondaryButtonStyle}>{form.ctaSecondaryText}</button> : null}
         </div>
       </div>
     </div>

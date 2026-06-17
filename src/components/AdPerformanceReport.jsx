@@ -164,28 +164,28 @@ const AdPerformanceReport = () => {
           <MetricCard
             icon={<FaEye />}
             label="Impressions"
-            value={performance.impressions.toLocaleString()}
+              value={(performance.impressions || 0).toLocaleString()}
             description="Total ad displays"
             color="#4A90E2"
           />
           <MetricCard
             icon={<FaUser />}
             label="Unique Viewers"
-            value={performance.uniqueViewers.toLocaleString()}
+            value={(performance.uniqueViewers || 0).toLocaleString()}
             description="Distinct users reached"
             color="#7ED321"
           />
           <MetricCard
             icon={<span style={{ fontSize: 22 }}>🖱️</span>}
             label="Clicks"
-            value={performance.clicks.toLocaleString()}
+            value={(performance.clicks || 0).toLocaleString()}
             description="Total CTA clicks"
             color="#F5A623"
           />
           <MetricCard
             icon={<FaPercent />}
             label="CTR"
-            value={performance.ctr.toFixed(2) + '%'}
+            value={`${(performance.ctr || 0).toFixed(2)}%`}
             description="Clicks / Impressions"
             color="#BD10E0"
           />
@@ -196,23 +196,12 @@ const AdPerformanceReport = () => {
             description="Highest daily reach"
             color="#50E3C2"
           />
-          <MetricCard
-            icon={<FaPercent />}
-            label="Registrations Generated"
-            value={performance.registrations.toLocaleString()}
-            description="Unique registration conversions"
-            color="#B8E986"
-          />
+          
         </div>
       </section>
 
-      {/* Daily Impressions Trend */}
-      <section className={styles.section}>
-        <h2 className={styles.sectionTitle}>📈 DAILY IMPRESSIONS TREND</h2>
-        <div className={styles.chartContainer}>
-          <DailyChart data={performance.daily} />
-        </div>
-      </section>
+      {/* Daily Impressions Trend - hide section when there's no daily data */}
+      {/* Daily impressions trend removed per request */}
 
       {/* Audience Analytics */}
       <section className={styles.section}>
@@ -237,10 +226,10 @@ const AdPerformanceReport = () => {
       <section className={styles.section}>
         <h2 className={styles.sectionTitle}>⚙️ ENGAGEMENT METRICS</h2>
         <div className={styles.engagementGrid}>
-          <EngagementItem label="Modal Opened" value={performance.modalOpens.toLocaleString()} />
-          <EngagementItem label="Modal Closed" value={performance.modalCloses.toLocaleString()} />
-          <EngagementItem label="Dismiss Rate" value={performance.dismissRate.toFixed(1) + '%'} />
-          <EngagementItem label="Average Time Viewed" value={performance.averageViewTimeSeconds.toFixed(0) + ' sec'} />
+          <EngagementItem label="Modal Opened" value={(performance.modalOpens || 0).toLocaleString()} />
+          <EngagementItem label="Modal Closed" value={(performance.modalCloses || 0).toLocaleString()} />
+          <EngagementItem label="Dismiss Rate" value={`${(performance.dismissRate || performance.dismissRate === 0 ? performance.dismissRate : performance.dismissCount ? (performance.dismissCount / Math.max(performance.modalOpens || 1,1) * 100) : 0).toFixed(1)}%`} />
+          <EngagementItem label="Average Time Viewed" value={`${Math.round(performance.averageViewTimeSeconds || 0)} sec`} />
         </div>
       </section>
 

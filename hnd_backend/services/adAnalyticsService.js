@@ -2,6 +2,7 @@
  * Ad Analytics Service
  * Aggregates event logs and delivery logs into comprehensive performance metrics
  */
+const mongoose = require('mongoose');
 const AdEventLog = require('../models/AdEventLog');
 const AdDeliveryLog = require('../models/AdDeliveryLog');
 const User = require('../models/User');
@@ -12,7 +13,14 @@ const Ad = require('../models/Ad');
  */
 async function getAdAnalytics(adId, dateRange = null) {
   try {
-    const match = { ad_id: adId };
+    // Ensure ad_id is matched as an ObjectId to existing event documents
+    let adObjectId = adId;
+    try {
+      adObjectId = new mongoose.Types.ObjectId(String(adId));
+    } catch (err) {
+      // fall back to original value if conversion fails
+    }
+    const match = { ad_id: adObjectId };
     
     if (dateRange) {
       const { startDate, endDate } = dateRange;
@@ -40,7 +48,8 @@ async function getAdAnalytics(adId, dateRange = null) {
     });
 
     const impressions = eventMap['impression'] || 0;
-    const clicks = eventMap['click'] || 0;
+    // Count both 'click' and 'link_click' towards total clicks (primary + secondary)
+    const clicks = (eventMap['click'] || 0) + (eventMap['link_click'] || 0);
     const modalOpens = eventMap['modal_open'] || 0;
     const modalCloses = eventMap['modal_close'] || 0;
     const dismisses = eventMap['dismiss'] || 0;
@@ -54,6 +63,39 @@ async function getAdAnalytics(adId, dateRange = null) {
       { $count: 'unique' },
     ]);
     const uniqueCount = uniqueViewersResult?.[0]?.unique || 0;
+    // If no unique viewers found in event logs, fallback to AdDeliveryLog (legacy tracking)
+    let uniqueCountFallback = 0;
+    if (uniqueCount === 0) {
+      try {
+        const agg = await AdDeliveryLog.aggregate([
+          { $match: { ad_id: adObjectId, impressions: { $gt: 0 } } },
+          { $group: { _id: '$user_key' } },
+          { $count: 'unique' },
+        ]);
+        uniqueCountFallback = agg?.[0]?.unique || 0;
+      } catch (e) {
+        // ignore fallback errors
+      }
+    }
+
+    // If there are no events in AdEventLog, fall back to legacy AdDeliveryLog for impressions/clicks/daily
+    let deliveryImpressions = 0;
+    let deliveryClicks = 0;
+    let deliveryDaily = [];
+    if (impressions === 0 && typeof adObjectId !== 'undefined') {
+      try {
+        const dlAgg = await AdDeliveryLog.aggregate([
+          { $match: { ad_id: adObjectId } },
+          { $group: { _id: '$day_key', impressions: { $sum: '$impressions' }, clicks: { $sum: '$clicks' } } },
+          { $sort: { _id: 1 } },
+        ]);
+        deliveryDaily = dlAgg.map((d) => ({ day: d._id, impressions: d.impressions, clicks: d.clicks }));
+        deliveryImpressions = deliveryDaily.reduce((s, d) => s + (d.impressions || 0), 0);
+        deliveryClicks = deliveryDaily.reduce((s, d) => s + (d.clicks || 0), 0);
+      } catch (e) {
+        // ignore
+      }
+    }
 
     // 3. Unique registrations
     const uniqueRegistrationsResult = await AdEventLog.aggregate([
@@ -90,6 +132,8 @@ async function getAdAnalytics(adId, dateRange = null) {
       if (item._id.event === 'dismiss') dailyMap[day].dismisses = item.count;
     });
     const daily = Object.values(dailyMap);
+    // If no daily data from event logs, use delivery daily
+    const finalDaily = daily.length > 0 ? daily : deliveryDaily;
 
     // 4. Peak hours analysis
     const peakHours = await AdEventLog.aggregate([
@@ -116,16 +160,16 @@ async function getAdAnalytics(adId, dateRange = null) {
     ]);
 
     // 6. Average view time
-    const avgViewTime = await AdEventLog.aggregate([
-      { $match: { ...match, event_type: 'modal_close', duration_seconds: { $exists: true } } },
-      {
-        $group: {
-          _id: null,
-          avgSeconds: { $avg: '$duration_seconds' },
-        },
-      },
+    // Prefer average view time for modal_close events where an action was taken (metadata.actionTaken = true).
+    const avgViewTimeAction = await AdEventLog.aggregate([
+      { $match: { ...match, event_type: 'modal_close', duration_seconds: { $exists: true }, 'metadata.actionTaken': true } },
+      { $group: { _id: null, avgSeconds: { $avg: '$duration_seconds' } } },
     ]);
-    const averageViewTimeSeconds = avgViewTime?.[0]?.avgSeconds || 0;
+    const avgViewTimeAny = await AdEventLog.aggregate([
+      { $match: { ...match, event_type: 'modal_close', duration_seconds: { $exists: true } } },
+      { $group: { _id: null, avgSeconds: { $avg: '$duration_seconds' } } },
+    ]);
+    const averageViewTimeSeconds = avgViewTimeAction?.[0]?.avgSeconds ?? avgViewTimeAny?.[0]?.avgSeconds ?? 0;
 
     // 7. Audience demographics (candidate departments and programs)
     const impressionLogs = await AdEventLog.find({ ...match, event_type: 'impression' })
@@ -166,15 +210,17 @@ async function getAdAnalytics(adId, dateRange = null) {
     }
 
     // 8. Calculate derived metrics
-    const ctr = impressions > 0 ? (clicks / impressions) * 100 : 0;
+    const finalImpressions = impressions || deliveryImpressions;
+    const finalClicks = clicks || deliveryClicks;
+    const ctr = finalImpressions > 0 ? (finalClicks / finalImpressions) * 100 : 0;
     const dismissRate = modalOpens > 0 ? (dismisses / modalOpens) * 100 : 0;
     const conversionRate = clicks > 0 ? (distinctRegistrations / clicks) * 100 : 0;
     const peakImpression = daily.length > 0 ? Math.max(...daily.map((d) => d.impressions || 0)) : 0;
 
     return {
-      impressions,
-      uniqueViewers: uniqueCount,
-      clicks,
+      impressions: finalImpressions,
+      uniqueViewers: Math.max(uniqueCount || 0, uniqueCountFallback || 0),
+      clicks: finalClicks,
       linkClicks,
       registrations: distinctRegistrations,
       registrationEvents,
@@ -185,7 +231,7 @@ async function getAdAnalytics(adId, dateRange = null) {
       dismissCount: dismisses,
       dismissRate: parseFloat(dismissRate.toFixed(2)),
       averageViewTimeSeconds: parseFloat(averageViewTimeSeconds.toFixed(2)),
-      daily,
+      daily: finalDaily,
       peakImpression,
       peakHours: peakHours.map((h) => ({ hour: h._id, impressions: h.count })),
       linkAnalytics,
@@ -225,7 +271,9 @@ async function logAdEvent(adId, userId, eventType, eventData = {}) {
       metadata: eventData.metadata || {},
     });
 
-    await log.save();
+    const saved = await log.save();
+    // helpful debug log when running locally
+    try { console.debug('[AdAnalyticsService] logAdEvent saved', { ad: String(adId), event: eventType, user_key: userKey, id: saved._id }); } catch (e) {}
   } catch (error) {
     console.error('[AdAnalyticsService] logAdEvent:', error);
     // Don't throw - this should never block user experience

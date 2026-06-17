@@ -24,14 +24,20 @@ const STYLE_FIELDS = [
   'backgroundColor', 'textColor', 'titleColor', 'subtitleColor', 'bodyColor',
   'tagBackgroundColor', 'tagTextColor', 'buttonColor', 'buttonTextColor',
   'buttonBorderColor', 'buttonBorderRadius', 'buttonBorderWidth',
+  // secondary CTA styles
+  'secondaryButtonColor', 'secondaryButtonTextColor', 'secondaryButtonBorderColor', 'secondaryButtonBorderRadius', 'secondaryButtonBorderWidth',
   'overlayColor', 'borderRadius', 'borderColor', 'imagePosition',
 ];
 
 const getUtcDayKey = (date = new Date()) => date.toISOString().slice(0, 10);
 
 const getUserKey = (req) => {
-  const role = String(req.user?.role || 'user').toLowerCase();
-  const uid = req.user?.id || req.user?.cand_id || req.user?._id || req.user?.email || 'anonymous';
+  // Require authenticated user for ad tracking. All ad tracking routes are behind `requireAuth`.
+  const user = req.user;
+  if (!user) return null;
+  const role = String(user.role || 'user').toLowerCase();
+  const uid = user.id || user._id || user.cand_id || user.email || null;
+  if (!uid) return `${role}:unknown`;
   return `${role}:${String(uid)}`;
 };
 
@@ -360,13 +366,15 @@ exports.trackClick = async (req, res) => {
   try {
     const userId = req.user?.id || req.user?.cand_id || req.user?._id;
     const userRole = req.user?.role || 'user';
+    const button = String(req.body?.button || 'primary');
 
     await Ad.findByIdAndUpdate(req.params.id, { $inc: { clicks: 1 } });
 
-    // Log new event
+    // Log new event with button metadata
     await logAdEvent(req.params.id, userId, 'click', {
       role: userRole,
       uid: userId,
+      metadata: { button },
     });
 
     return res.json({ success: true });
@@ -399,11 +407,13 @@ exports.trackModalClose = async (req, res) => {
     const userId = req.user?.id || req.user?.cand_id || req.user?._id;
     const userRole = req.user?.role || 'user';
     const durationSeconds = Number(req.body?.duration_seconds || 0);
+    const actionTaken = Boolean(req.body?.action_taken || false);
 
     await logAdEvent(req.params.id, userId, 'modal_close', {
       role: userRole,
       uid: userId,
       duration_seconds: durationSeconds,
+      metadata: { actionTaken },
     });
 
     return res.json({ success: true });
@@ -435,11 +445,13 @@ exports.trackLinkClick = async (req, res) => {
     const userId = req.user?.id || req.user?.cand_id || req.user?._id;
     const userRole = req.user?.role || 'user';
     const { link_destination } = req.body || {};
+    const button = String(req.body?.button || 'primary');
 
     await logAdEvent(req.params.id, userId, 'link_click', {
       role: userRole,
       uid: userId,
       link_destination,
+      metadata: { button },
     });
 
     return res.json({ success: true });
