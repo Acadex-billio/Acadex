@@ -9,7 +9,8 @@ function checkMaterialAccess(materialType, accessType = 'preview') {
   return async (req, res, next) => {
     try {
       const userId = req.user?.id || req.user?._id;
-      const materialId = req.params.id || req.body.materialId;
+      // Accept a variety of parameter names: id, filename, file, paperId, materialId
+      const materialId = req.params.id || req.params.filename || req.params.file || req.params.paperId || req.body.materialId || null;
 
       if (!userId || !materialId) {
         return res.status(400).json({
