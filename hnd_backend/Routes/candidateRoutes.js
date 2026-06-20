@@ -10,6 +10,7 @@ const presentationController = require('../controllers/presentationController');
 const historyController = require('../controllers/historyController');
 const candidateAnalyticsController = require('../controllers/candidateAnalyticsController');
 const candidateQuestionPaperController = require('../controllers/candidateQuestionPaperController');
+const downloadsController = require('../controllers/downloadsController');
 const candidateAccountController = require('../controllers/candidateAccountController');
 const { checkMaterialAccess, getMaterialAccessInfo } = require('../middlewares/materialAccessMiddleware');
 const subscriptionController = require('../controllers/subscriptionController');
@@ -65,6 +66,12 @@ router.get('/departments', candidateQuestionPaperController.getDepartments);
 router.get('/question-papers', candidateQuestionPaperController.getQuestionPapers);
 router.get('/question-papers/file/:filename', checkMaterialAccess('questionPaper', 'download'), candidateQuestionPaperController.downloadPaper);
 router.get('/question-papers/preview/:filename', checkMaterialAccess('questionPaper', 'preview'), candidateQuestionPaperController.previewPaper);
+
+// Save download into user's in-app downloads (does not stream file)
+router.post('/downloads/question-papers/:filename', checkMaterialAccess('questionPaper', 'download'), downloadsController.saveDownload);
+
+// List saved downloads for the authenticated candidate
+router.get('/downloads', downloadsController.listDownloads);
 
 router.get('/analytics/materials/summary', candidateAnalyticsController.getMyMaterialSummary);
 router.get('/analytics/materials/activity', candidateAnalyticsController.getMyMaterialActivity);

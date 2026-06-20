@@ -29,6 +29,7 @@ const QuestionUpload = lazy(() => import('./components/QuestionUpload'));
 const Department = lazy(() => import('./components/Department'));
 const Profile = lazy(() => import('./components/Profile'));
 const CandidateSubscriptions = lazy(() => import('./components/CandidateSubscriptions'));
+const MyDownloads = lazy(() => import('./components/MyDownloads'));
 const AdminInternshipTopics = lazy(() => import('./components/AdminInternshipTopics'));
 const CandidateInternshipTopics = lazy(() => import('./components/CandidateInternshipTopics'));
 const InternshipTopicDetail = lazy(() => import('./components/InternshipTopicDetail'));
@@ -200,6 +201,7 @@ const App = () => (
               }>
                 <Route index element={<CandidateDashboard />} />
                 <Route path="question-papers" element={<QuestionPapers />} />
+                <Route path="downloads" element={<MyDownloads />} />
                 <Route path="reports" element={<ViewReports />} />
                 <Route path="presentations" element={<ViewPresentation />} />
                 <Route path="announcements" element={<Announcements />} />

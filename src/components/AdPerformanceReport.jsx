@@ -310,37 +310,7 @@ const MetricCard = ({ icon, label, value, description, color }) => (
   </div>
 );
 
-// Daily Chart Component
-const DailyChart = ({ data }) => {
-  if (!data || data.length === 0) {
-    return <p className={styles.noData}>No data available</p>;
-  }
-
-  const maxImpressions = Math.max(...data.map((d) => d.impressions || 0), 1);
-  return (
-    <div className={styles.barChartContainer}>
-      {data.slice(0, 7).map((item, idx) => {
-        const label = item.day ? new Date(item.day).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }) : `Day ${idx + 1}`;
-        return (
-          <div key={idx} className={styles.barItem}>
-            <div className={styles.barStack}>
-              <div
-                className={styles.bar}
-                style={{
-                  height: `${(item.impressions / maxImpressions) * 300}px`,
-                  backgroundColor: '#4caf50',
-                }}
-                title={`${item.impressions} impressions`}
-              />
-            </div>
-            <label>{label}</label>
-            <small>{item.impressions}</small>
-          </div>
-        );
-      })}
-    </div>
-  );
-};
+// Daily chart removed (previously DailyChart)
 
 // Pie Chart Component
 const PieChart = ({ data }) => {
