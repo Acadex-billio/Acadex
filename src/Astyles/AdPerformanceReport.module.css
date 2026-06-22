@@ -586,25 +586,397 @@
   padding-bottom: 20px;
 }
 
-@media print {
-  .backBtn,
-  .printBtn,
-  .headerActions {
-    display: none !important;
+  .overrideGrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+    margin-top: 20px;
   }
-  .header,
-  .section,
-  .footer,
-  .reportPeriod,
-  .metricsGrid,
-  .audienceGrid,
-  .engagementGrid,
-  .linkAnalyticsTable,
-  .peakHoursChart,
-  .recommendationBox {
-    page-break-inside: avoid;
+
+  .overrideField {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
   }
-}
+
+  .fieldLabel {
+    font-size: 13px;
+    color: #555;
+    font-weight: 600;
+  }
+
+  .fieldInput {
+    width: 100%;
+    padding: 12px 14px;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    font-size: 14px;
+    color: #111;
+    background: #fff;
+  }
+
+  .overridePreview {
+    margin-top: 18px;
+    padding: 16px 20px;
+    background: #f3faf7;
+    border-left: 4px solid #4caf50;
+    border-radius: 8px;
+    color: #1f2937;
+    font-size: 14px;
+  }
+
+  .modalBackdrop {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.55);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 20px;
+    z-index: 9999;
+  }
+
+  .reportModal {
+    width: min(100%, 1100px);
+    max-height: 90vh;
+    overflow-y: auto;
+    background: #ffffff;
+    border-radius: 18px;
+    box-shadow: 0 28px 80px rgba(15, 23, 42, 0.18);
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  .modalHeader,
+  .modalFooter {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+  }
+
+  .closeBtn,
+  .printReportBtn,
+  .secondaryBtn {
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+  }
+
+  .closeBtn {
+    padding: 10px 16px;
+    background: #f3f4f6;
+    color: #111827;
+  }
+
+  .printReportBtn {
+    padding: 12px 18px;
+    background: #2563eb;
+    color: #ffffff;
+    font-weight: 700;
+  }
+
+  .reportPage {
+    border: 1px solid #e5e7eb;
+    border-radius: 16px;
+    padding: 28px;
+    background: #f9fafb;
+  }
+
+  .reportHeaderPreview {
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    align-items: flex-start;
+    margin-bottom: 24px;
+  }
+
+  .reportHeaderPreview h2 {
+    margin: 0 0 8px 0;
+    font-size: 24px;
+  }
+
+  .reportHeaderPreview p {
+    margin: 0;
+    color: #4b5563;
+  }
+
+  .reportSummary {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+
+  .reportSummary div {
+    padding: 18px;
+    background: #ffffff;
+    border-radius: 14px;
+    border: 1px solid #e5e7eb;
+  }
+
+  .reportSummary strong {
+    display: block;
+    margin-bottom: 8px;
+    color: #374151;
+  }
+
+  .reportSection h4 {
+    margin: 0 0 16px 0;
+    font-size: 16px;
+    color: #111827;
+  }
+
+  .reportInfoGrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 16px;
+  }
+
+  .reportInfoGrid div {
+    padding: 18px;
+    background: #ffffff;
+    border-radius: 14px;
+    border: 1px solid #e5e7eb;
+  }
+
+  .reportInfoGrid span {
+    display: block;
+    margin-bottom: 8px;
+    color: #6b7280;
+    font-size: 13px;
+  }
+
+  .reportInfoGrid strong {
+    font-size: 20px;
+    color: #111827;
+  }
+
+  .reportFooterPreview {
+    display: flex;
+    justify-content: space-between;
+    padding: 16px 18px;
+    background: #ffffff;
+    border-radius: 12px;
+    border: 1px solid #e5e7eb;
+    color: #6b7280;
+    font-size: 13px;
+  }
+
+  .reportHero {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 10px;
+    margin-bottom: 24px;
+  }
+
+  .reportHeroLogo {
+    width: 90px;
+    height: 90px;
+    object-fit: contain;
+    border-radius: 18px;
+    background: #ffffff;
+    padding: 12px;
+    box-shadow: 0 12px 30px rgba(15, 23, 42, 0.08);
+  }
+
+  .reportHeroSubtext {
+    margin: 0;
+    color: #475569;
+    font-size: 14px;
+  }
+
+  .reportAdvertiserGrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+    gap: 14px;
+    margin-bottom: 22px;
+  }
+
+  .reportLabel {
+    display: block;
+    font-size: 12px;
+    color: #64748b;
+    margin-bottom: 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  .reportSummary {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 14px;
+    margin-bottom: 20px;
+  }
+
+  .reportStatCard {
+    background: #ffffff;
+    border-radius: 16px;
+    padding: 18px 16px;
+    border: 1px solid #e2e8f0;
+    text-align: center;
+  }
+
+  .reportStatCard span {
+    display: block;
+    color: #475569;
+    font-size: 13px;
+    margin-bottom: 8px;
+  }
+
+  .reportStatCard strong {
+    font-size: 24px;
+    color: #111827;
+  }
+
+  .reportInfoGrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 14px;
+  }
+
+  .reportInfoCard {
+    background: #f8fafc;
+    border-radius: 16px;
+    padding: 18px 16px;
+    border: 1px solid #e2e8f0;
+  }
+
+  .reportInfoCard span {
+    display: block;
+    color: #475569;
+    font-size: 13px;
+    margin-bottom: 8px;
+  }
+
+  .reportInfoCard strong {
+    font-size: 20px;
+    color: #111827;
+  }
+
+  .supportFooter {
+    margin-top: 24px;
+    padding: 20px;
+    background: #ffffff;
+    border-radius: 16px;
+    border: 1px solid #e2e8f0;
+  }
+
+  .supportFooter h4 {
+    margin: 0 0 12px 0;
+    font-size: 16px;
+    color: #111827;
+  }
+
+  .supportFooter ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: grid;
+    gap: 8px;
+  }
+
+  .supportFooter li {
+    color: #334155;
+    font-size: 14px;
+  }
+
+  @media print {
+    html,
+    body {
+      margin: 0;
+      padding: 0;
+      background: #ffffff !important;
+      print-color-adjust: exact;
+      -webkit-print-color-adjust: exact;
+    }
+
+    * {
+      visibility: hidden !important;
+    }
+
+    .modalBackdrop,
+    .modalBackdrop *,
+    .reportModal,
+    .reportModal * {
+      visibility: visible !important;
+    }
+
+    .modalBackdrop {
+      position: static !important;
+      background: transparent !important;
+      box-shadow: none !important;
+      min-height: auto !important;
+      top: auto !important;
+      left: auto !important;
+      right: auto !important;
+      bottom: auto !important;
+      padding: 0 !important;
+      display: block !important;
+    }
+
+    .reportModal {
+      width: auto !important;
+      max-width: 100% !important;
+      max-height: none !important;
+      overflow: visible !important;
+      box-shadow: none !important;
+      border-radius: 0 !important;
+      padding: 0 !important;
+      margin: 0 auto !important;
+      background: transparent !important;
+    }
+
+    .reportPage {
+      border: none !important;
+      border-radius: 0 !important;
+      background: #ffffff !important;
+      padding: 16px !important;
+      margin: 0 !important;
+    }
+
+    .modalHeader,
+    .modalFooter,
+    .closeBtn,
+    .printReportBtn,
+    .secondaryBtn,
+    .backBtn,
+    .headerActions,
+    .printBtn,
+    .footer,
+    .section,
+    .reportPeriod,
+    .metricsGrid,
+    .audienceGrid,
+    .engagementGrid,
+    .linkAnalyticsTable,
+    .peakHoursChart,
+    .recommendationBox,
+    .bottomPrintSection {
+      display: none !important;
+    }
+
+    .reportHero,
+    .reportAdvertiserGrid,
+    .reportSummary,
+    .reportInfoGrid,
+    .supportFooter,
+    .reportPage {
+      page-break-inside: avoid !important;
+    }
+
+    @page {
+      margin: 12mm;
+      size: auto;
+    }
+  }
 
 .loading,
 .error {

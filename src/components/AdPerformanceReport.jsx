@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { FaArrowLeft, FaChartLine, FaEye, FaUser, FaPercent } from 'react-icons/fa';
 import styles from '../Astyles/AdPerformanceReport.module.css';
@@ -10,8 +10,17 @@ const AdPerformanceReport = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState(null);
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [overrideMetrics, setOverrideMetrics] = useState({
+    impressions: 0,
+    uniqueViewers: 0,
+    clicks: 0,
+    amountPaid: 0,
+    modalOpens: 0,
+    averageViewTimeSeconds: 0,
+  });
   const [reportPeriod] = useState({ start: '01 Jun 2026', end: '07 Jun 2026' });
-  const onPrint = useCallback(() => window.print(), []);
+  const onGenerateReport = useCallback(() => setShowReportModal(true), []);
 
   useEffect(() => {
     const fetchPerformance = async () => {
@@ -30,6 +39,18 @@ const AdPerformanceReport = () => {
 
     fetchPerformance();
   }, [adId]);
+
+  useEffect(() => {
+    if (!data?.performance) return;
+    setOverrideMetrics({
+      impressions: Number(data.performance.impressions || 0),
+      uniqueViewers: Number(data.performance.uniqueViewers || 0),
+      clicks: Number(data.performance.clicks || 0),
+      amountPaid: Number(data.performance.amountPaid || 0),
+      modalOpens: Number(data.performance.modalOpens || 0),
+      averageViewTimeSeconds: Number(data.performance.averageViewTimeSeconds || 0),
+    });
+  }, [data]);
 
   if (loading) {
     return (
@@ -52,6 +73,7 @@ const AdPerformanceReport = () => {
   const endDate = ad.endDate ? new Date(ad.endDate).toLocaleDateString('en-GB', { year: 'numeric', month: '2-digit', day: '2-digit' }) : 'N/A';
   const createdDate = new Date(ad.createdAt).toLocaleDateString('en-GB', { year: 'numeric', month: 'short', day: '2-digit' });
   const reportLogo = ad.logoUrl || `${process.env.PUBLIC_URL || ''}/hnd-mark.svg`;
+  const computedCtr = overrideMetrics.impressions > 0 ? ((overrideMetrics.clicks / overrideMetrics.impressions) * 100) : 0;
 
   return (
     <div className={styles.container}>
@@ -71,8 +93,8 @@ const AdPerformanceReport = () => {
           <p className={styles.description}>Comprehensive performance overview of your advertisement campaign on the Acadex platform.</p>
         </div>
         <div className={styles.headerActions}>
-          <button type="button" className={styles.printBtn} onClick={onPrint}>
-            PRINT PERFORMANCE
+          <button type="button" className={styles.printBtn} onClick={onGenerateReport}>
+            GENERATE AD REPORT
           </button>
         </div>
         <div className={styles.reportPeriod}>
@@ -200,8 +222,75 @@ const AdPerformanceReport = () => {
         </div>
       </section>
 
-      {/* Daily Impressions Trend - hide section when there's no daily data */}
-      {/* Daily impressions trend removed per request */}
+      {/* Editable Metric Overrides */}
+      <section className={styles.section}>
+        <h2 className={styles.sectionTitle}>🛠️ Editable Report Values</h2>
+        <div className={styles.overrideGrid}>
+          <div className={styles.overrideField}>
+            <label className={styles.fieldLabel}>Impressions</label>
+            <input
+              className={styles.fieldInput}
+              type="number"
+              min="0"
+              value={overrideMetrics.impressions}
+              onChange={(e) => setOverrideMetrics((prev) => ({ ...prev, impressions: Number(e.target.value) }))}
+            />
+          </div>
+          <div className={styles.overrideField}>
+            <label className={styles.fieldLabel}>Unique Viewers</label>
+            <input
+              className={styles.fieldInput}
+              type="number"
+              min="0"
+              value={overrideMetrics.uniqueViewers}
+              onChange={(e) => setOverrideMetrics((prev) => ({ ...prev, uniqueViewers: Number(e.target.value) }))}
+            />
+          </div>
+          <div className={styles.overrideField}>
+            <label className={styles.fieldLabel}>Clicks</label>
+            <input
+              className={styles.fieldInput}
+              type="number"
+              min="0"
+              value={overrideMetrics.clicks}
+              onChange={(e) => setOverrideMetrics((prev) => ({ ...prev, clicks: Number(e.target.value) }))}
+            />
+          </div>
+          <div className={styles.overrideField}>
+            <label className={styles.fieldLabel}>Amount Paid</label>
+            <input
+              className={styles.fieldInput}
+              type="number"
+              min="0"
+              value={overrideMetrics.amountPaid}
+              onChange={(e) => setOverrideMetrics((prev) => ({ ...prev, amountPaid: Number(e.target.value) }))}
+            />
+          </div>
+          <div className={styles.overrideField}>
+            <label className={styles.fieldLabel}>Modal Opens</label>
+            <input
+              className={styles.fieldInput}
+              type="number"
+              min="0"
+              value={overrideMetrics.modalOpens}
+              onChange={(e) => setOverrideMetrics((prev) => ({ ...prev, modalOpens: Number(e.target.value) }))}
+            />
+          </div>
+          <div className={styles.overrideField}>
+            <label className={styles.fieldLabel}>Avg View Time (sec)</label>
+            <input
+              className={styles.fieldInput}
+              type="number"
+              min="0"
+              value={overrideMetrics.averageViewTimeSeconds}
+              onChange={(e) => setOverrideMetrics((prev) => ({ ...prev, averageViewTimeSeconds: Number(e.target.value) }))}
+            />
+          </div>
+        </div>
+        <div className={styles.overridePreview}>
+          <strong>Preview CTR:</strong> {computedCtr.toFixed(2)}%
+        </div>
+      </section>
 
       {/* Audience Analytics */}
       <section className={styles.section}>
@@ -267,10 +356,109 @@ const AdPerformanceReport = () => {
       </section>
 
       <section className={styles.bottomPrintSection}>
-        <button type="button" className={styles.printBtn} onClick={onPrint}>
-          PRINT PERFORMANCE
+        <button type="button" className={styles.printBtn} onClick={onGenerateReport}>
+          GENERATE AD REPORT
         </button>
       </section>
+
+      {showReportModal && (
+        <div className={styles.modalBackdrop}>
+          <div className={styles.reportModal}>
+            <div className={styles.modalHeader}>
+              <div>
+                <h3>Ad Report Preview</h3>
+                <p>Review the page-styled report before printing or sharing.</p>
+              </div>
+              <button className={styles.closeBtn} onClick={() => setShowReportModal(false)}>
+                Close
+              </button>
+            </div>
+            <div className={styles.reportPage}>
+              <div className={styles.reportHero}>
+                <img src={reportLogo} alt="Acadex logo" className={styles.reportHeroLogo} />
+                <h2>ACADEX AD REPORT</h2>
+                <p className={styles.reportHeroSubtext}>Campaign performance summary</p>
+              </div>
+
+              <div className={styles.reportAdvertiserGrid}>
+                <div>
+                  <span className={styles.reportLabel}>Client / Advertiser</span>
+                  <strong>{ad.advertiserName || 'Acadex Platform'}</strong>
+                </div>
+                <div>
+                  <span className={styles.reportLabel}>Campaign Name</span>
+                  <strong>{ad.title}</strong>
+                </div>
+                <div>
+                  <span className={styles.reportLabel}>Ad ID</span>
+                  <strong>ADX-{ad._id.substring(0, 8).toUpperCase()}</strong>
+                </div>
+                <div>
+                  <span className={styles.reportLabel}>Amount Paid</span>
+                  <strong>{overrideMetrics.amountPaid.toLocaleString()} XAF</strong>
+                </div>
+              </div>
+
+              <div className={styles.reportSummary}>
+                <div className={styles.reportStatCard}>
+                  <span>Impressions</span>
+                  <strong>{overrideMetrics.impressions.toLocaleString()}</strong>
+                </div>
+                <div className={styles.reportStatCard}>
+                  <span>Clicks</span>
+                  <strong>{overrideMetrics.clicks.toLocaleString()}</strong>
+                </div>
+                <div className={styles.reportStatCard}>
+                  <span>CTR</span>
+                  <strong>{computedCtr.toFixed(2)}%</strong>
+                </div>
+              </div>
+
+              <div className={styles.reportSection}>
+                <h4>Engagement Snapshot</h4>
+                <div className={styles.reportInfoGrid}>
+                  <div className={styles.reportInfoCard}>
+                    <span>Unique Viewers</span>
+                    <strong>{overrideMetrics.uniqueViewers.toLocaleString()}</strong>
+                  </div>
+                  <div className={styles.reportInfoCard}>
+                    <span>Modal Opens</span>
+                    <strong>{overrideMetrics.modalOpens.toLocaleString()}</strong>
+                  </div>
+                  <div className={styles.reportInfoCard}>
+                    <span>Average View Time</span>
+                    <strong>{overrideMetrics.averageViewTimeSeconds} sec</strong>
+                  </div>
+                </div>
+              </div>
+
+              <div className={styles.recommendationBox}>
+                <p>{performance.recommendation || 'Campaign is running. Monitor metrics for ongoing optimization.'}</p>
+              </div>
+
+              <div className={styles.supportFooter}>
+                <div>
+                  <h4>📧 ACADEX SUPPORT</h4>
+                  <ul>
+                    <li>acadex@gmail.com</li>
+                    <li>678507737</li>
+                    <li>www.acadexe.com</li>
+                    <li>brightstackinnovations@gmail.com</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+            <div className={styles.modalFooter}>
+              <button type="button" className={styles.printReportBtn} onClick={() => window.print()}>
+                Print Report
+              </button>
+              <button type="button" className={styles.secondaryBtn} onClick={() => setShowReportModal(false)}>
+                Close Preview
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Footer */}
       <section className={styles.footer}>
