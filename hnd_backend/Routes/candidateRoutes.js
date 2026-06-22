@@ -62,16 +62,20 @@ router.get('/presentations', presentationController.getAll);
 router.get('/presentations/file/:filename', checkMaterialAccess('presentation', 'download'), presentationController.downloadFile);
 router.get('/presentations/preview/:filename', checkMaterialAccess('presentation', 'preview'), presentationController.previewFile);
 
+// Save (in-app) endpoints for reports and presentations
+router.post('/reports/save', downloadsController.saveDownload);
+router.post('/presentations/save', downloadsController.saveDownload);
+
 router.get('/departments', candidateQuestionPaperController.getDepartments);
 router.get('/question-papers', candidateQuestionPaperController.getQuestionPapers);
 router.get('/question-papers/file/:filename', checkMaterialAccess('questionPaper', 'download'), candidateQuestionPaperController.downloadPaper);
 router.get('/question-papers/preview/:filename', checkMaterialAccess('questionPaper', 'preview'), candidateQuestionPaperController.previewPaper);
 
-// Save download into user's in-app downloads (does not stream file)
-router.post('/downloads/question-papers/:filename', checkMaterialAccess('questionPaper', 'download'), downloadsController.saveDownload);
-
-// List saved downloads for the authenticated candidate
+// Downloads (in-app saves) - save and list user downloads, and stream saved files
+router.post('/downloads/save', downloadsController.saveDownload);
 router.get('/downloads', downloadsController.listDownloads);
+router.get('/downloads/:downloadId/file', checkMaterialAccess('savedDownload'), downloadsController.streamSavedDownload);
+router.delete('/downloads/:downloadId', downloadsController.deleteDownload);
 
 router.get('/analytics/materials/summary', candidateAnalyticsController.getMyMaterialSummary);
 router.get('/analytics/materials/activity', candidateAnalyticsController.getMyMaterialActivity);

@@ -34,7 +34,7 @@ const userSchema = new mongoose.Schema(
     preferred_language: { type: String, enum: ['en', 'fr'], default: 'en' },
     academic_year: { type: String, default: null, trim: true },
     allow_emails: { type: Boolean, default: true },
-    allow_push_notifications: { type: Boolean, default: false },
+    allow_push_notifications: { type: Boolean, default: true },
     allow_toast_sound: { type: Boolean, default: true },
     login_count: { type: Number, default: 0 },
     first_login_at: { type: Date, default: null },

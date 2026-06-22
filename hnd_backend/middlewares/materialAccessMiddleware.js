@@ -1,4 +1,46 @@
+const mongoose = require('mongoose');
 const materialAccessService = require('../services/materialAccessService');
+const Report = require('../models/Report');
+const Presentation = require('../models/Presentation');
+const QuestionPaper = require('../models/QuestionPaper');
+
+function getRouteMaterialIdentifier(req) {
+  if (req.params.id) return req.params.id;
+  if (req.params.filename) return decodeURIComponent(req.params.filename);
+  if (req.body.materialId) return req.body.materialId;
+  if (req.body.resourceId) return req.body.resourceId;
+  return null;
+}
+
+async function resolveMaterialId(materialType, identifier, req) {
+  if (!identifier) return null;
+  if (mongoose.Types.ObjectId.isValid(identifier)) {
+    return identifier;
+  }
+
+  const decoded = String(identifier || '').trim();
+  if (!decoded) return null;
+
+  const program = String(req.user?.program || 'HND').toUpperCase();
+  let model;
+  let query;
+
+  if (materialType === 'report') {
+    model = Report;
+    query = { file_path: decoded, program };
+  } else if (materialType === 'presentation') {
+    model = Presentation;
+    query = { file_path: decoded, program };
+  } else if (materialType === 'questionPaper') {
+    model = QuestionPaper;
+    query = { paper_file: decoded, program };
+  }
+
+  if (!model || !query) return null;
+
+  const doc = await model.findOne(query).select('_id').lean();
+  return doc?._id || null;
+}
 
 /**
  * Middleware to check if user has access to a material for preview or download
@@ -8,18 +50,24 @@ const materialAccessService = require('../services/materialAccessService');
 function checkMaterialAccess(materialType, accessType = 'preview') {
   return async (req, res, next) => {
     try {
-      const userId = req.user?.id || req.user?._id;
-      // Accept a variety of parameter names: id, filename, file, paperId, materialId
-      const materialId = req.params.id || req.params.filename || req.params.file || req.params.paperId || req.body.materialId || null;
+      const userId = req.user?.id || req.user?._id || req.user?.cand_id;
+      const routeIdentifier = getRouteMaterialIdentifier(req);
 
-      if (!userId || !materialId) {
+      if (!userId || !routeIdentifier) {
         return res.status(400).json({
           success: false,
           message: 'Missing required parameters',
         });
       }
 
-      // Check if user has active access
+      const materialId = await resolveMaterialId(materialType, routeIdentifier, req);
+      if (!materialId) {
+        return res.status(404).json({
+          success: false,
+          message: 'Material not found',
+        });
+      }
+
       const hasAccess = await materialAccessService.hasActiveAccess(
         userId,
         materialId,
@@ -35,14 +83,12 @@ function checkMaterialAccess(materialType, accessType = 'preview') {
         });
       }
 
-      // Get remaining time for reference
       const remainingTime = await materialAccessService.getRemainingAccessTime(
         userId,
         materialId,
         materialType
       );
 
-      // Attach to request for use in route handler
       req.materialAccess = {
         hasAccess: true,
         remainingTime,
@@ -67,10 +113,16 @@ function checkMaterialAccess(materialType, accessType = 'preview') {
 function getMaterialAccessInfo(materialType) {
   return async (req, res, next) => {
     try {
-      const userId = req.user?.id || req.user?._id;
-      const materialId = req.params.id || req.body.materialId;
+      const userId = req.user?.id || req.user?._id || req.user?.cand_id;
+      const routeIdentifier = getRouteMaterialIdentifier(req);
 
-      if (!userId || !materialId) {
+      if (!userId || !routeIdentifier) {
+        return next();
+      }
+
+      const materialId = await resolveMaterialId(materialType, routeIdentifier, req);
+      if (!materialId) {
+        req.materialAccessInfo = { hasAccess: false, remainingTime: -1 };
         return next();
       }
 

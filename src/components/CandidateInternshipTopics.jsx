@@ -1,10 +1,11 @@
-import React, { useCallback, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import React, { useCallback, useMemo, useState, useEffect } from 'react';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import api from '../services/api';
 import styles from '../Astyles/internshipTopicsCandidate.module.css';
 import { getErrorMessage } from '../utility/getErrorMessage';
 import { showToast } from '../utility/ToastNotification';
 import GraduationCapLoader from './GraduationCapLoader';
+import { useAuth } from '../context/AuthContext';
 
 const CandidateInternshipTopics = () => {
   const [loading, setLoading] = useState(true);
@@ -41,6 +42,26 @@ const CandidateInternshipTopics = () => {
   React.useEffect(() => {
     loadTopics();
   }, [loadTopics]);
+
+  const location = useLocation();
+  const navigate = useNavigate();
+  const { user } = useAuth();
+
+  useEffect(() => {
+    if (!topics.length) return;
+    const params = new URLSearchParams(location.search);
+    const topicId = String(params.get('topicId') || '').trim();
+    if (!topicId) return;
+    const linked = topics.find((t) => String(t.topic_id) === topicId || String(t.topic_id) === topicId.replace(/%20/g, ' '));
+    if (linked && linked.title) {
+      // Update query state AND reload with the new filter
+      const newQuery = linked.title;
+      setQuery(newQuery);
+      loadTopics({ query: newQuery, departmentFilter, minRating, sortBy });
+    }
+    navigate('/candidate/internship-topics', { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [topics, location.search]);
 
   const allDepartments = useMemo(() => {
     const map = new Map();
@@ -120,9 +141,26 @@ const CandidateInternshipTopics = () => {
               <span>Reactions: 👍 {topic.metrics.reaction_up_count} / 👎 {topic.metrics.reaction_down_count}</span>
             </div>
 
-            <Link to={`/candidate/internship-topics/${topic.topic_id}`} className={styles.viewBtn}>
-              View full topic
-            </Link>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <Link to={`/candidate/internship-topics/${topic.topic_id}`} className={styles.viewBtn}>
+                View full topic
+              </Link>
+              <button
+                type="button"
+                className={styles.viewBtn}
+                onClick={async () => {
+                  try {
+                    const payload = { content_type: 'internship_topic', content_title: topic.title || 'Topic', action: 'save' };
+                    await api.post('/candidate/history/add', payload);
+                    showToast('Saved topic to your profile', 'success');
+                  } catch (err) {
+                    showToast(getErrorMessage(err, 'Failed to save topic'), 'error');
+                  }
+                }}
+              >
+                Save
+              </button>
+            </div>
           </article>
         ))}
       </div>

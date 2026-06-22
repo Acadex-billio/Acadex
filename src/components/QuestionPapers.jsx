@@ -319,26 +319,27 @@ const QuestionPapers = () => {
    * Download Handler – Using Blob (forces OS Save File Dialog)
    * ---------------------------------------------------------------*/
   const handleDownload = async (paper, options = {}) => {
-    setActionLabel('Saving paper to My Downloads...');
+    setActionLabel('Preparing question paper download...');
     setActionLoading(true);
-    const minWait = 10000; // 10 seconds
-    const start = Date.now();
     try {
       const requested = String(paper?.paper_file || '').trim();
       if (!requested) return;
 
       const safeFile = encodeURIComponent(requested);
-      const res = await api.post(`/candidate/downloads/question-papers/${safeFile}`);
+      const response = await api.get(`/candidate/question-papers/file/${safeFile}`, {
+        responseType: "blob",
+      });
 
-      const elapsed = Date.now() - start;
-      const remaining = Math.max(0, minWait - elapsed);
-      await new Promise((r) => setTimeout(r, remaining));
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = extractFileName(requested) || 'question-paper';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
 
-      if (res?.data?.success) {
-        showToast('Paper saved to My Downloads', 'success');
-      } else {
-        showToast(res?.data?.message || 'Download saved', 'info');
-      }
+      showToast("Download started", 'success');
     } catch (err) {
       const errorData = await parseErrorPayload(err);
       if (!options.skipPaymentHandling && err?.response?.status === 402 && errorData?.payment_requirement) {
@@ -354,7 +355,7 @@ const QuestionPapers = () => {
         showToast(errorData.message, 'warning');
         return;
       }
-      showToast(errorData?.message || 'Unable to save download', 'error');
+      showToast(errorData?.message || "Unable to download file", 'error');
     } finally {
       setActionLoading(false);
     }

@@ -6,7 +6,6 @@ const mongoose = require('mongoose');
 const historySchema = new mongoose.Schema(
   {
     user_id: { type: String, required: true },
-    content_ref: { type: String, default: null },
     user_name: { type: String, default: null },
     content_type: { type: String, required: true },
     content_title: { type: String, required: true },

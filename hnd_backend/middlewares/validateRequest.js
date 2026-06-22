@@ -133,6 +133,21 @@ const schemas = {
     manualPaymentApprove: Joi.object({ note: Joi.string().trim().max(500).allow('', null).optional() }),
     manualPaymentReject: Joi.object({ reason: Joi.string().trim().min(3).max(500).required() }),
   },
+  developer: {
+    userSearch: Joi.object({ q: Joi.string().trim().allow('', null), page: Joi.number().integer().min(1).default(1), limit: Joi.number().integer().min(1).max(100).default(25) }),
+    developerAlert: Joi.object({
+      subject: Joi.string().trim().min(3).max(250).required(),
+      text: Joi.string().trim().min(1).required(),
+      title: Joi.string().trim().min(3).optional(),
+      body: Joi.string().trim().min(1).optional(),
+      url: Joi.string().trim().uri().allow('', null).optional(),
+      departments: Joi.array().items(objectIdSchema).optional(),
+      emails: Joi.array().items(Joi.string().email()).optional(),
+      userIds: Joi.array().items(objectIdSchema).optional(),
+      programs: Joi.array().items(Joi.string().trim().uppercase().valid('HND', 'BTS', 'LECTURER', 'ADMINS')).optional(),
+      inactivityMonths: Joi.alternatives().try(Joi.number().integer().min(0), Joi.array().items(Joi.number().integer().min(0))).optional(),
+    }),
+  },
 };
 
 module.exports = { validate, schemas };

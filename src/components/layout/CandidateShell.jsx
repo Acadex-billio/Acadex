@@ -183,7 +183,6 @@ const CandidateShell = () => {
     () => [
       { to: '/candidate/reports', label: t('nav.reports'), icon: FaFileAlt },
       { to: '/candidate/presentations', label: t('nav.presentations'), icon: FaBook },
-      { to: '/candidate/downloads', label: 'Downloads', icon: FaFileAlt },
       { to: '/candidate/announcements', label: t('nav.announcements'), icon: FaBullhorn, badge: announcementCount },
       { to: '/candidate/internship-topics', label: t('nav.internshipTopics'), icon: FaLightbulb },
       { to: '/candidate/tutorship-bookings', label: 'Tutorship Bookings', icon: FaComments, badge: bookingAlertCount },
@@ -195,7 +194,7 @@ const CandidateShell = () => {
     () => [
       { to: '/candidate/settings', label: t('nav.settings'), icon: FaCog },
       { to: '/candidate/profile', label: t('nav.profile'), icon: FaUserCircle },
-      { to: '/candidate/history', label: t('nav.history'), icon: FaHistory },
+      { to: '/candidate/history', label: t('nav.downloads'), icon: FaHistory },
       { to: '/candidate/activity', label: t('nav.activity'), icon: FaChartLine },
       { to: '/candidate/feedback', label: t('nav.feedback'), icon: FaCommentDots, badge: feedbackCount },
       { to: '/candidate/subscription', label: t('nav.subscriptions'), icon: FaCreditCard },

@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useMemo } from "react";
+import { useLocation } from 'react-router-dom';
 import styles from "../Astyles/viewpresentations.module.css";
 import { FaFilePowerpoint, FaCalendarAlt, FaBuilding, FaClock, FaRegFileAlt } from "react-icons/fa";
 import api from "../services/api";
@@ -81,6 +82,18 @@ const ViewPresentation = () => {
       cancelled = true;
     };
   }, []);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const presentationId = String(params.get('presentationId') || '').trim();
+    if (!presentationId || !presentations.length) return;
+    const linked = presentations.find((p) => String(p.presentation_id) === presentationId);
+    if (linked?.presentation_title) {
+      setSearch(linked.presentation_title);
+    }
+    // clear param
+    window.history.replaceState({}, document.title, '/candidate/presentations');
+  }, [presentations]);
 
   const [loadingPresentations, setLoadingPresentations] = useState(true);
 
@@ -433,6 +446,16 @@ const ViewPresentation = () => {
                   </button>
                   <button className={`${styles.textAction} ${styles.primaryAction}`} onClick={() => handlePreview(p)}>Preview</button>
                   <button className={`${styles.textAction} ${styles.primaryAction}`} onClick={() => handleDownload(p)}>Download</button>
+                  <button className={`${styles.textAction}`} onClick={async () => {
+                    try {
+                      const payload = { resourceType: 'presentation', filename: p.file_path, resourceId: p.presentation_id };
+                      const { data } = await api.post('/candidate/presentations/save', payload);
+                      showToast(data?.message || 'Saved to My Downloads', 'success');
+                    } catch (err) {
+                      const errMsg = (err?.response?.data && err.response.data.message) || err.message || 'Failed to save';
+                      showToast(errMsg, 'error');
+                    }
+                  }}>Save</button>
                 </div>
               </div>
 

@@ -13,6 +13,7 @@ import LecturerRoute from './components/LecturerRoute';
 import QuestionPapers from './components/QuestionPapers';
 import ViewReports from './components/ViewReports';
 import History from './components/History';
+import MyDownloads from './components/MyDownloads';
 import Announcements from './components/Announcements';
 import AdminAnnouncements from './components/AdminAnnouncements';
 import AdminHistory from './components/AdminHistory';
@@ -29,7 +30,6 @@ const QuestionUpload = lazy(() => import('./components/QuestionUpload'));
 const Department = lazy(() => import('./components/Department'));
 const Profile = lazy(() => import('./components/Profile'));
 const CandidateSubscriptions = lazy(() => import('./components/CandidateSubscriptions'));
-const MyDownloads = lazy(() => import('./components/MyDownloads'));
 const AdminInternshipTopics = lazy(() => import('./components/AdminInternshipTopics'));
 const CandidateInternshipTopics = lazy(() => import('./components/CandidateInternshipTopics'));
 const InternshipTopicDetail = lazy(() => import('./components/InternshipTopicDetail'));
@@ -62,6 +62,7 @@ const LecturerPendingApproval = lazy(() => import('./components/LecturerPendingA
 const LecturerAdminPanel = lazy(() => import('./components/LecturerAdminPanel'));
 const AdsManager = lazy(() => import('./components/AdsManager'));
 const AdPerformanceReport = lazy(() => import('./components/AdPerformanceReport'));
+const DeveloperCustomAlert = lazy(() => import('./components/DeveloperCustomAlert'));
 const LecturerChatGate = lazy(() => import('./components/LecturerChatGate'));
 const StudyModeMaterials = lazy(() => import('./components/StudyModeMaterials'));
 const PaymentConfirmation = lazy(() => import('./components/PaymentConfirmation'));
@@ -188,6 +189,7 @@ const App = () => (
                 <Route path="ai-assistant" element={<AIAssistant />} />
                 <Route path="profile" element={<Profile />} />
                 <Route path="settings" element={<Settings />} />
+                <Route path="custom-alert" element={<ProtectedRoute><DeveloperRoute><DeveloperCustomAlert /></DeveloperRoute></ProtectedRoute>} />
               </Route>
 
               <Route path="/candidate/restricted" element={<ProtectedRoute><CandidateAccountStatus /></ProtectedRoute>} />
@@ -201,13 +203,12 @@ const App = () => (
               }>
                 <Route index element={<CandidateDashboard />} />
                 <Route path="question-papers" element={<QuestionPapers />} />
-                <Route path="downloads" element={<MyDownloads />} />
                 <Route path="reports" element={<ViewReports />} />
                 <Route path="presentations" element={<ViewPresentation />} />
                 <Route path="announcements" element={<Announcements />} />
                 <Route path="internship-topics" element={<CandidateInternshipTopics />} />
                 <Route path="internship-topics/:topicId" element={<InternshipTopicDetail />} />
-                <Route path="history" element={<History />} />
+                <Route path="history" element={<MyDownloads />} />
                 <Route path="chat" element={<GroupChat mode="candidate" />} />
                 <Route path="feedback" element={<CandidateFeedback />} />
                 <Route path="activity" element={<CandidateActivity />} />

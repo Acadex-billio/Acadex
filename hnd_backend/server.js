@@ -66,6 +66,7 @@ const aiChatRoutes = require('./Routes/aiChatRoutes');
 const lecturerRoutes = require('./Routes/lecturerRoutes');
 const adRoutes = require('./Routes/adRoutes');
 const materialAccessRoutes = require('./Routes/materialAccessRoutes');
+const developerRoutes = require('./Routes/developerRoutes');
 const publicRoutes = require('./Routes/publicRoutes');
 const { getLibreOfficeQueueStats } = require('./services/libreOfficeQueue');
 const { startKeepalive } = require('./services/keepaliveNotifier');
@@ -364,6 +365,7 @@ app.use('/api/ai', aiChatRoutes);
 app.use('/api/lecturers', lecturerRoutes);
 app.use('/api/ads', adRoutes);
 app.use('/api/material-access', materialAccessRoutes);
+app.use('/api/developer', developerRoutes);
 
 // Dev-only routes (enabled locally or when DEBUG_ROUTES_ENABLED=true)
 if (allowDebugRoutes) {

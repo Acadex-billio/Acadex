@@ -9,6 +9,7 @@ const path = require('path');
 const fs = require('fs');
 const { sanitizeFilename } = require('../middlewares/requestValidation');
 const { getS3ObjectStream } = require('../utils/s3Uploader');
+const materialAccessService = require('../services/materialAccessService');
 const { getMaterialAccessSummary } = require('../utils/subscriptionUtils');
 const { streamToBuffer, subsetPdfBuffer } = require('../utils/pdfAccess');
 
@@ -210,7 +211,6 @@ exports.downloadPaper = async (req, res) => {
         },
       });
     }
-
     const isRemote = /^https?:\/\//i.test(requested);
     const filename = isRemote ? requested : sanitizeFilename(requested);
 
@@ -225,6 +225,16 @@ exports.downloadPaper = async (req, res) => {
         });
       }
     } catch (_) {
+    }
+
+    const user = await User.findOne({ cand_id: req.user?.cand_id }).select('_id').lean();
+    if (!user) return res.status(401).json({ success: false, message: 'User not found' });
+
+    try {
+      await materialAccessService.grantMaterialAccess(user._id, paper._id, 'questionPaper', 'download', null);
+    } catch (grantError) {
+      console.error('[CandidateQuestionPaper] Grant creation failed:', grantError);
+      // continue with download even if My Downloads save fails
     }
 
     if (isRemote) {

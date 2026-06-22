@@ -379,27 +379,29 @@ const AdminDashboard = () => {
         </div>
       </div>
 
-      <div className={styles.analyticsGrid}>
-        <div className={styles.chartBox}>
-          <div className={styles.sectionHeader}>
-            <h3>Payment revenue by type</h3>
+      {user?.role === 'developer' && (
+        <div className={styles.analyticsGrid}>
+          <div className={styles.chartBox}>
+            <div className={styles.sectionHeader}>
+              <h3>Payment revenue by type</h3>
+            </div>
+            <div className={styles.paymentSummary}>
+              <span>Total revenue</span>
+              <strong>{formatCurrency(paymentAnalytics.total_revenue)}</strong>
+            </div>
+            <div className={styles.chartWrapper}>
+              <Bar data={paymentRevenueData} options={paymentRevenueOptions} />
+            </div>
           </div>
-          <div className={styles.paymentSummary}>
-            <span>Total revenue</span>
-            <strong>{formatCurrency(paymentAnalytics.total_revenue)}</strong>
-          </div>
-          <div className={styles.chartWrapper}>
-            <Bar data={paymentRevenueData} options={paymentRevenueOptions} />
-          </div>
-        </div>
 
-        <div className={styles.chartBox}>
-          <h3>Payment method trend</h3>
-          <div className={styles.chartWrapper}>
-            <Line data={paymentMethodData} options={paymentMethodOptions} />
+          <div className={styles.chartBox}>
+            <h3>Payment method trend</h3>
+            <div className={styles.chartWrapper}>
+              <Line data={paymentMethodData} options={paymentMethodOptions} />
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       <div className={styles.analyticsGrid}>
         <div className={styles.chartBox}>

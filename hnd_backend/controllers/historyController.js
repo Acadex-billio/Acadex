@@ -58,7 +58,7 @@ exports.getByUser = async (req, res) => {
 
     const logs = await History.find(query)
       .sort({ createdAt: -1 })
-      .select('user_name content_type content_title content_ref action createdAt')
+      .select('user_name content_type content_title action createdAt')
       .lean();
 
     let fallbackUserName = null;
@@ -72,7 +72,6 @@ exports.getByUser = async (req, res) => {
       user_name: String(l.user_name || '').trim() || fallbackUserName,
       content_type: l.content_type,
       content_title: l.content_title,
-      content_ref: l.content_ref || null,
       action: l.action,
       timestamp: l.createdAt,
     }));

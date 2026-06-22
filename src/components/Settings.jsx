@@ -27,7 +27,7 @@ const Settings = () => {
   const [loading, setLoading] = useState(true);
   const [theme, setTheme] = useState(() => localStorage.getItem(THEME_KEY) || 'light');
   const [allowEmails, setAllowEmails] = useState(true);
-  const [allowPushNotifications, setAllowPushNotifications] = useState(false);
+  const [allowPushNotifications, setAllowPushNotifications] = useState(true);
   const [allowToastSound, setAllowToastSound] = useState(true);
   const [preferredLanguage, setPreferredLanguage] = useState(() => resolveLanguageForUser(user));
   const [updatingPush, setUpdatingPush] = useState(false);

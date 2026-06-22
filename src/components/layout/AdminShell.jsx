@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
-import { FaBars, FaTimes, FaHome, FaFolderOpen, FaFileAlt, FaClipboardList, FaUpload, FaCog, FaUserCircle, FaUsers, FaRobot, FaHistory, FaBullhorn, FaCommentDots, FaComments, FaChartLine, FaSignOutAlt, FaCreditCard, FaLightbulb, FaChalkboardTeacher, FaChevronDown, FaAd } from 'react-icons/fa';
+import { FaBars, FaTimes, FaHome, FaFolderOpen, FaFileAlt, FaClipboardList, FaUpload, FaCog, FaUserCircle, FaUsers, FaRobot, FaHistory, FaBullhorn, FaCommentDots, FaComments, FaChartLine, FaSignOutAlt, FaCreditCard, FaLightbulb, FaChalkboardTeacher, FaChevronDown, FaAd, FaBell } from 'react-icons/fa';
 import AdDisplay from '../AdDisplay';
 import styles from '../../Astyles/DashboardShell.module.css';
 import { useAuth } from '../../context/AuthContext';
@@ -146,6 +146,7 @@ const AdminShell = () => {
       { to: '/admin/question-papers', label: t('nav.questionPapers'), icon: FaUpload },
       { to: '/admin/internship-topics', label: t('nav.internshipTopics'), icon: FaLightbulb },
       { to: '/admin/ai-assistant', label: t('nav.aiAssistant'), icon: FaRobot },
+      ...(isDeveloper ? [{ to: '/admin/custom-alert', label: 'Custom Alerts', icon: FaBell }] : []),
       ...(isDeveloper ? [{ to: '/admin/manage-billing', label: t('nav.manageBilling', 'Manage Billing'), icon: FaCreditCard }] : []),
       ...(isDeveloper ? [{ to: '/admin/lecturers', label: 'Lecturer Approvals', icon: FaChalkboardTeacher }] : []),
       ...(isDeveloper ? [{ to: '/admin/study-mode-materials', label: 'Study Mode Materials', icon: FaClipboardList }] : []),

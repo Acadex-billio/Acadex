@@ -65,6 +65,7 @@ const resources = {
         announcements: 'Announcements',
         internshipTopics: 'Internship Topics',
         history: 'History',
+        downloads: 'Downloads',
         aiAssistant: 'AI Assistant',
         aiKnowledge: 'AI Knowledge',
         profile: 'Profile',

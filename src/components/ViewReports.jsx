@@ -431,6 +431,16 @@ const ViewReport = () => {
                   </button>
                   <button className={`${styles.textAction} ${styles.primaryAction}`} onClick={() => handlePreview(r)}>Preview</button>
                   <button className={`${styles.textAction} ${styles.primaryAction}`} onClick={() => handleDownload(r)}>Download</button>
+                  <button className={`${styles.textAction}`} onClick={async () => {
+                    try {
+                      const payload = { resourceType: 'report', filename: r.file_path, resourceId: r.report_id };
+                      const { data } = await api.post('/candidate/reports/save', payload);
+                      showToast(data?.message || 'Saved to My Downloads', 'success');
+                    } catch (err) {
+                      const errMsg = (err?.response?.data && err.response.data.message) || err.message || 'Failed to save';
+                      showToast(errMsg, 'error');
+                    }
+                  }}>Save</button>
                 </div>
               </div>
 

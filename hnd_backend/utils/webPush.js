@@ -20,6 +20,11 @@ const sendWebPushNotification = async (subscription, payload) => {
     await webpush.sendNotification(subscription, JSON.stringify(payload || {}));
     return { sent: true };
   } catch (err) {
+    console.error('[WebPush] Notification failed:', {
+      statusCode: err?.statusCode,
+      message: err?.message,
+      endpoint: subscription?.endpoint?.substring(0, 50) // Log partial endpoint for debugging
+    });
     return {
       sent: false,
       reason: err?.statusCode || 'send_failed',
