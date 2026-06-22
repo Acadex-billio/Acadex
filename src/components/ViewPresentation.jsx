@@ -1,5 +1,4 @@
 import React, { useEffect, useState, useMemo } from "react";
-import { useLocation } from 'react-router-dom';
 import styles from "../Astyles/viewpresentations.module.css";
 import { FaFilePowerpoint, FaCalendarAlt, FaBuilding, FaClock, FaRegFileAlt } from "react-icons/fa";
 import api from "../services/api";

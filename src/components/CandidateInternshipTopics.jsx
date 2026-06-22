@@ -5,7 +5,6 @@ import styles from '../Astyles/internshipTopicsCandidate.module.css';
 import { getErrorMessage } from '../utility/getErrorMessage';
 import { showToast } from '../utility/ToastNotification';
 import GraduationCapLoader from './GraduationCapLoader';
-import { useAuth } from '../context/AuthContext';
 
 const CandidateInternshipTopics = () => {
   const [loading, setLoading] = useState(true);
@@ -45,7 +44,6 @@ const CandidateInternshipTopics = () => {
 
   const location = useLocation();
   const navigate = useNavigate();
-  const { user } = useAuth();
 
   useEffect(() => {
     if (!topics.length) return;
