@@ -898,14 +898,20 @@
       -webkit-print-color-adjust: exact;
     }
 
-    * {
-      visibility: hidden !important;
+    /* Hide everything by default for print, then explicitly show the modal
+       to avoid leaving hidden elements occupying layout space which can
+       produce blank pages. Using display:none prevents hidden elements
+       from affecting printed layout. */
+    body * {
+      display: none !important;
+      visibility: visible !important;
     }
 
     .modalBackdrop,
     .modalBackdrop *,
     .reportModal,
     .reportModal * {
+      display: block !important;
       visibility: visible !important;
     }
 
@@ -922,8 +928,9 @@
       display: block !important;
     }
 
+    /* Make modal content use printable page width and flow naturally */
     .reportModal {
-      width: auto !important;
+      width: 100% !important;
       max-width: 100% !important;
       max-height: none !important;
       overflow: visible !important;
@@ -932,14 +939,18 @@
       padding: 0 !important;
       margin: 0 auto !important;
       background: transparent !important;
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
     }
 
     .reportPage {
       border: none !important;
       border-radius: 0 !important;
       background: #ffffff !important;
-      padding: 16px !important;
+      padding: 12mm 8mm !important;
       margin: 0 !important;
+      box-sizing: border-box !important;
+      width: calc(210mm - 24mm) !important; /* A4 page width minus margins */
     }
 
     .modalHeader,
@@ -967,9 +978,15 @@
     .reportAdvertiserGrid,
     .reportSummary,
     .reportInfoGrid,
-    .supportFooter,
-    .reportPage {
+    .supportFooter {
       page-break-inside: avoid !important;
+    }
+
+    /* Ensure the reportPage itself starts on a fresh page and avoids trailing
+       blank page by preventing page-break-after on the container. */
+    .reportPage {
+      page-break-after: auto !important;
+      page-break-before: auto !important;
     }
 
     @page {
