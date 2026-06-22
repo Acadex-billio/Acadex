@@ -898,13 +898,19 @@
       -webkit-print-color-adjust: exact;
     }
 
-    /* Hide everything by default for print, then explicitly show the modal
-       to avoid leaving hidden elements occupying layout space which can
-       produce blank pages. Using display:none prevents hidden elements
-       from affecting printed layout. */
+    /* Hide everything by default for print, then explicitly show just the
+       report modal preview. Ensuring the container stays visible prevents the
+       modal from being hidden because its ancestor is display:none. */
     body * {
       display: none !important;
-      visibility: visible !important;
+    }
+
+    .container {
+      display: block !important;
+    }
+
+    .container > * {
+      display: none !important;
     }
 
     .modalBackdrop,
@@ -972,6 +978,21 @@
     .recommendationBox,
     .bottomPrintSection {
       display: none !important;
+    }
+
+    /* Ensure the visible report modal content is not accidentally hidden by
+       a more generic selector. */
+    .modalBackdrop,
+    .reportModal,
+    .reportPage,
+    .reportHero,
+    .reportAdvertiserGrid,
+    .reportSummary,
+    .reportInfoGrid,
+    .reportInfoCard,
+    .supportFooter,
+    .recommendationBox {
+      display: block !important;
     }
 
     .reportHero,
