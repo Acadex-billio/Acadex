@@ -41,14 +41,7 @@ const MyDownloads = () => {
     };
     load();
     return () => { cancelled = true; };
-  }, []);
-
-  const handleStream = (item) => {
-    if (!item || !item.id) return;
-    // Open the stream URL in a new tab — server verifies grant
-    const streamUrl = `/api/candidate/downloads/${item.id}/file`;
-    window.open(streamUrl, '_blank');
-  };
+  }, [user]);
 
   const closePreview = () => {
     if (previewUrl) URL.revokeObjectURL(previewUrl);
