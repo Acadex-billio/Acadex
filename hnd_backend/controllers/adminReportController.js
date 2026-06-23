@@ -35,6 +35,19 @@ const parseDptIds = (val) => {
   }
 };
 
+const parseOptionalPrice = (value) => {
+  const raw = String(value ?? '').trim();
+  if (!raw) return null;
+  const parsed = Number(raw);
+  if (!Number.isFinite(parsed) || parsed < 0) return Number.NaN;
+  return parsed;
+};
+
+const parseGitHubUrl = (value) => {
+  const raw = String(value ?? '').trim();
+  return raw || null;
+};
+
 exports.uploadReport = async (req, res) => {
   try {
     const {
@@ -48,6 +61,8 @@ exports.uploadReport = async (req, res) => {
       location,
       keywords,
       pages,
+      material_price,
+      project_github_url,
       notify,
       program,
     } = req.body;
@@ -70,6 +85,13 @@ exports.uploadReport = async (req, res) => {
     ) {
       return res.status(400).json({ success: false, message: 'Missing required fields or file.' });
     }
+
+    const parsedMaterialPrice = parseOptionalPrice(material_price);
+    if (Number.isNaN(parsedMaterialPrice)) {
+      return res.status(400).json({ success: false, message: 'Material price must be a number greater than or equal to 0.' });
+    }
+
+    const parsedProjectGitHubUrl = parseGitHubUrl(project_github_url);
 
     let targetDeptIds = [];
     if (audience === 'SINGLE') {
@@ -134,6 +156,8 @@ exports.uploadReport = async (req, res) => {
       audience,
       notify_candidates: notify === 'true',
       departments: targetDeptIds,
+      material_price: parsedMaterialPrice,
+      project_github_url: parsedProjectGitHubUrl,
     });
 
     if (notify === 'true') {
@@ -198,6 +222,8 @@ exports.listReports = async (req, res) => {
       program: String(r.program || 'HND').toUpperCase(),
       audience: r.audience,
       notify_candidates: r.notify_candidates,
+      material_price: r.material_price ?? null,
+      project_github_url: r.project_github_url || null,
       departments: (r.departments || []).map((d) => ({
         dpt_id: (d && d._id ? d._id : d)?.toString?.() ?? String(d),
         department_name: (typeof d === 'object' && d?.department_name) || '',
@@ -227,6 +253,8 @@ exports.updateReport = async (req, res) => {
       location,
       keywords,
       pages,
+      material_price,
+      project_github_url,
       program,
     } = req.body;
     const normalizedProgram = String(program || 'HND').trim().toUpperCase();
@@ -238,6 +266,13 @@ exports.updateReport = async (req, res) => {
     if (!title || !writer_names || !writer_email || !description || !location || !keywords || !pages || !audience) {
       return res.status(400).json({ success: false, message: 'Missing required fields.' });
     }
+
+    const parsedMaterialPrice = parseOptionalPrice(material_price);
+    if (Number.isNaN(parsedMaterialPrice)) {
+      return res.status(400).json({ success: false, message: 'Material price must be a number greater than or equal to 0.' });
+    }
+
+    const parsedProjectGitHubUrl = parseGitHubUrl(project_github_url);
 
     let targetDeptIds = [];
     if (audience === 'SINGLE') {
@@ -273,6 +308,8 @@ exports.updateReport = async (req, res) => {
     report.program = normalizedProgram;
     report.audience = String(audience).trim().toUpperCase();
     report.departments = targetDeptIds;
+    report.material_price = parsedMaterialPrice;
+    report.project_github_url = parsedProjectGitHubUrl;
     await report.save();
 
     return res.json({ success: true, message: 'Report updated successfully' });

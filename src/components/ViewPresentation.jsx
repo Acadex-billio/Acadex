@@ -270,7 +270,7 @@ const ViewPresentation = () => {
     description: requirement?.message || (action === 'download'
       ? 'PAYGO requires a separate payment before you can download this presentation.'
       : 'PAYGO requires a separate payment before you can preview every page of this presentation.'),
-    amount: requirement?.amount || (action === 'download' ? 100 : 50),
+    amount: requirement?.amount || (action === 'download' ? 150 : 100),
     currency: requirement?.currency || 'XAF',
     onStartPayment: async ({ phoneNumber, paymentMethod = 'momo', promoCode = '' }) => {
       const { data } = await api.post('/candidate/payments/materials/checkout', {

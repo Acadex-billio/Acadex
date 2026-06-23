@@ -173,7 +173,7 @@ const QuestionPapers = () => {
     description: requirement?.message || (action === 'download'
       ? 'PAYGO requires a separate payment before you can download this question paper.'
       : 'PAYGO requires a separate payment before you can preview every page of this question paper.'),
-    amount: requirement?.amount || (action === 'download' ? 100 : 50),
+    amount: requirement?.amount || (action === 'download' ? 150 : 100),
     currency: requirement?.currency || 'XAF',
     onStartPayment: async ({ phoneNumber, paymentMethod = 'momo', promoCode = '' }) => {
       const { data } = await api.post('/candidate/payments/materials/checkout', {
@@ -194,7 +194,7 @@ const QuestionPapers = () => {
   });
 
   const handlePaymentRequired = (paper, action, requirement) => {
-    const amount = Number(requirement?.amount || (action === 'download' ? 100 : 50));
+    const amount = Number(requirement?.amount || (action === 'download' ? 150 : 100));
     const currency = requirement?.currency || 'XAF';
     const actionText = action === 'download' ? 'download' : 'preview';
 

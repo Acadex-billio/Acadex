@@ -63,10 +63,17 @@ function buildSubscriptionResponse(raw) {
 }
 
 function getMaterialAccessConfig(materialType, doc) {
-  return {
+  const config = {
     ...getMaterialDefaults(materialType),
     ...(doc?.subscription_access || {}),
   };
+
+  const materialPrice = Number(doc?.material_price);
+  if (Number.isFinite(materialPrice) && materialPrice >= 0) {
+    config.paygo_download_price = materialPrice;
+  }
+
+  return config;
 }
 
 async function findActiveGrant({ candId, grantCode, resourceId }) {

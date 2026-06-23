@@ -56,6 +56,8 @@ function buildPaymentSummary(transaction) {
     status: transaction.status,
     provider: transaction.provider,
     provider_mode: transaction.provider_mode,
+    access_minutes: Number(transaction?.metadata?.access_minutes || 0) || null,
+    payment_action: transaction?.metadata?.action || null,
     createdAt: transaction.createdAt,
     completed_at: transaction.completed_at,
   };
@@ -143,15 +145,26 @@ async function applySuccessfulPayment(transaction) {
     if (!existingGrant) {
       await grantMaterialAccess(transaction);
     }
+
+    console.info('[Subscription] Material payment successful', {
+      transaction_id: String(transaction._id),
+      user_cand_id: String(transaction.user_cand_id),
+      resource_type: String(transaction.resource_type || ''),
+      resource_id: String(transaction.resource_id || ''),
+      access_minutes: Number(transaction.metadata?.access_minutes || 60),
+    });
   }
 
   await transaction.save();
 
   try {
+    const materialScope = transaction.purpose_type === 'material_access'
+      ? ` [resource:${transaction.resource_type}:${transaction.resource_id} duration:${Number(transaction.metadata?.access_minutes || 60)}m]`
+      : '';
     await History.create({
       user_id: transaction.user_cand_id,
       content_type: 'payment',
-      content_title: transaction.description,
+      content_title: `${transaction.description}${materialScope}`,
       action: transaction.purpose_code,
     });
   } catch (_) {}
@@ -309,7 +322,7 @@ exports.startPlanCheckout = async (req, res) => {
 async function findMaterial(resourceType, resourceId, program, deptId) {
   const resourceIdValue = String(resourceId || '').trim();
   if (!resourceIdValue) return null;
-  const audienceFields = 'audience departments subscription_access title course_title';
+  const audienceFields = 'audience departments subscription_access material_price title course_title';
   if (resourceType === 'report') {
     const doc = await Report.findOne({ _id: resourceIdValue, program }).select(audienceFields).lean();
     if (!doc) return null;
@@ -378,6 +391,8 @@ exports.startMaterialCheckout = async (req, res) => {
       metadata: {
         access_minutes: paymentDetails.access_minutes,
         action,
+        resource_type: resourceType,
+        resource_id: resourceId,
         original_amount: paymentDetails.amount,
         discount_amount: pricing.discountAmount,
         promo_code: pricing.promoCode,

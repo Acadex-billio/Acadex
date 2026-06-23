@@ -42,6 +42,8 @@ const ReportUpload = () => {
   const [location, setLocation] = useState('');
   const [keywords, setKeywords] = useState('');
   const [pages, setPages] = useState('');
+  const [materialPrice, setMaterialPrice] = useState('');
+  const [projectGithubUrl, setProjectGithubUrl] = useState('');
   const [reportDoc, setReportDoc] = useState(null);
 
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -112,8 +114,13 @@ const ReportUpload = () => {
   // simple validation
   const isValid = useMemo(() => {
     if (!title.trim() || !writerNames.trim() || !writerEmail.trim() ||
-        !description.trim() || !location.trim() || !keywords.trim() ||
-        !pages || !reportDoc) return false;
+      !description.trim() || !location.trim() || !keywords.trim() ||
+      !pages || !materialPrice) return false;
+
+    if (!activeId && !reportDoc) return false;
+
+    const parsedPrice = Number(materialPrice);
+    if (!Number.isFinite(parsedPrice) || parsedPrice < 0) return false;
 
     if (audience === AUDIENCE.SINGLE && !dptId) return false;
     if (audience === AUDIENCE.MULTIPLE && dptIds.length === 0) return false;
@@ -122,7 +129,7 @@ const ReportUpload = () => {
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(writerEmail)) return false;
 
     return true;
-  }, [title, writerNames, writerEmail, description, location, keywords, pages, reportDoc, audience, dptId, dptIds]);
+  }, [title, writerNames, writerEmail, description, location, keywords, pages, materialPrice, reportDoc, audience, dptId, dptIds, activeId]);
 
   const openConfirm = (e) => {
     e.preventDefault();
@@ -168,6 +175,8 @@ const ReportUpload = () => {
     setLocation('');
     setKeywords('');
     setPages('');
+    setMaterialPrice('');
+    setProjectGithubUrl('');
     setReportDoc(null);
     setUploadProgress(0);
   };
@@ -196,6 +205,8 @@ const ReportUpload = () => {
     setLocation(r.location || '');
     setKeywords(r.keywords || '');
     setPages(r.pages || '');
+    setMaterialPrice(r.material_price != null ? String(r.material_price) : '');
+    setProjectGithubUrl(r.project_github_url || '');
     setReportDoc(null);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -215,6 +226,8 @@ const ReportUpload = () => {
         location: location.trim(),
         keywords: keywords.trim(),
         pages: String(pages).trim(),
+        material_price: String(materialPrice).trim(),
+        project_github_url: String(projectGithubUrl || '').trim(),
         program,
       };
 
@@ -312,6 +325,8 @@ const ReportUpload = () => {
       fd.append('location', location.trim());
       fd.append('keywords', keywords.trim());
       fd.append('pages', String(pages));
+      fd.append('material_price', String(materialPrice).trim());
+      fd.append('project_github_url', String(projectGithubUrl || '').trim());
       fd.append('program', program);
       fd.append('reportDoc', reportDoc);
       fd.append('notify', notify ? 'true' : 'false');
@@ -337,6 +352,8 @@ const ReportUpload = () => {
         setLocation('');
         setKeywords('');
         setPages('');
+        setMaterialPrice('');
+        setProjectGithubUrl('');
         setReportDoc(null);
         setUploadProgress(0);
       } else {
@@ -484,6 +501,29 @@ const ReportUpload = () => {
               <div className={styles.fieldFlex}>
                 <label className={styles.label}>Pages <span>*</span></label>
                 <input type="number" min="1" value={pages} onChange={(e) => setPages(e.target.value)} required />
+              </div>
+            </div>
+
+            <div className={styles.row}>
+              <div className={styles.fieldFlex}>
+                <label className={styles.label}>Download Price (XAF) <span>*</span></label>
+                <input
+                  type="number"
+                  min="0"
+                  step="1"
+                  value={materialPrice}
+                  onChange={(e) => setMaterialPrice(e.target.value)}
+                  required
+                />
+              </div>
+              <div className={styles.fieldFlex}>
+                <label className={styles.label}>Project GitHub URL</label>
+                <input
+                  type="url"
+                  placeholder="https://github.com/org/repo"
+                  value={projectGithubUrl}
+                  onChange={(e) => setProjectGithubUrl(e.target.value)}
+                />
               </div>
             </div>
 

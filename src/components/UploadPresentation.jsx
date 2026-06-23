@@ -23,6 +23,8 @@ const UploadPresentation = () => {
   const [title, setTitle] = useState('');
   const [presenterName, setPresenterName] = useState('');
   const [presenterEmail, setPresenterEmail] = useState('');
+  const [materialPrice, setMaterialPrice] = useState('');
+  const [projectGithubUrl, setProjectGithubUrl] = useState('');
   const [presentationFile, setPresentationFile] = useState(null);
 
   const [presentations, setPresentations] = useState([]);
@@ -47,11 +49,23 @@ const UploadPresentation = () => {
     setTitle('');
     setPresenterName('');
     setPresenterEmail('');
+    setMaterialPrice('');
+    setProjectGithubUrl('');
     setPresentationFile(null);
     setAudience('GENERAL');
     setDptId('');
     setDptIds([]);
   };
+
+  const isValid = useMemo(() => {
+    if (!title.trim() || !presenterName.trim() || !presenterEmail.trim() || !materialPrice) return false;
+    if (!activeId && !presentationFile) return false;
+    if (audience === 'SINGLE' && !dptId) return false;
+    if (audience === 'MULTIPLE' && dptIds.length === 0) return false;
+    const parsedPrice = Number(materialPrice);
+    if (!Number.isFinite(parsedPrice) || parsedPrice < 0) return false;
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(presenterEmail);
+  }, [title, presenterName, presenterEmail, materialPrice, activeId, presentationFile, audience, dptId, dptIds]);
 
   useEffect(() => {
     if (audience === 'GENERAL') {
@@ -140,6 +154,10 @@ const UploadPresentation = () => {
 
   const openConfirm = (e) => {
     e.preventDefault();
+    if (!isValid) {
+      showToast('Please complete all required fields correctly.', 'warning');
+      return;
+    }
     setConfirmOpen(true);
   };
 
@@ -164,6 +182,8 @@ const UploadPresentation = () => {
     setTitle(p.title || '');
     setPresenterName(p.presenter_name || '');
     setPresenterEmail(p.presenter_email || '');
+    setMaterialPrice(p.material_price != null ? String(p.material_price) : '');
+    setProjectGithubUrl(p.project_github_url || '');
     setPresentationFile(null);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -215,6 +235,8 @@ const UploadPresentation = () => {
         title: title.trim(),
         presenter_name: presenterName.trim(),
         presenter_email: presenterEmail.trim(),
+        material_price: String(materialPrice).trim(),
+        project_github_url: String(projectGithubUrl || '').trim(),
         program,
         audience,
         dpt_id: audience === 'SINGLE' ? dptId : undefined,
@@ -268,6 +290,8 @@ const UploadPresentation = () => {
       fd.append('title', title.trim());
       fd.append('presenter_name', presenterName.trim());
       fd.append('presenter_email', presenterEmail.trim());
+      fd.append('material_price', String(materialPrice).trim());
+      fd.append('project_github_url', String(projectGithubUrl || '').trim());
       fd.append('program', program);
       fd.append('audience', audience);
       if (audience === 'SINGLE') fd.append('dpt_id', dptId);
@@ -467,6 +491,29 @@ const UploadPresentation = () => {
                   value={presenterEmail}
                   onChange={(e) => setPresenterEmail(e.target.value)}
                   required
+                />
+              </div>
+            </div>
+
+            <div className={styles.row}>
+              <div className={styles.fieldFlex}>
+                <label className={styles.label}>Download Price (XAF) <span>*</span></label>
+                <input
+                  type="number"
+                  min="0"
+                  step="1"
+                  value={materialPrice}
+                  onChange={(e) => setMaterialPrice(e.target.value)}
+                  required
+                />
+              </div>
+              <div className={styles.fieldFlex}>
+                <label className={styles.label}>Project GitHub URL</label>
+                <input
+                  type="url"
+                  placeholder="https://github.com/org/repo"
+                  value={projectGithubUrl}
+                  onChange={(e) => setProjectGithubUrl(e.target.value)}
                 />
               </div>
             </div>

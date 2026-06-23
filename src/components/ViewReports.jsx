@@ -236,7 +236,7 @@ const ViewReport = () => {
     description: requirement?.message || (action === 'download'
       ? 'PAYGO requires a separate payment before you can download this report.'
       : 'PAYGO requires a separate payment before you can preview every page of this report.'),
-    amount: requirement?.amount || (action === 'download' ? 200 : 100),
+    amount: requirement?.amount || (action === 'download' ? 200 : 150),
     currency: requirement?.currency || 'XAF',
     onStartPayment: async ({ phoneNumber, paymentMethod = 'momo', promoCode = '' }) => {
       const { data } = await api.post('/candidate/payments/materials/checkout', {
@@ -257,7 +257,7 @@ const ViewReport = () => {
   });
 
   const handlePaymentRequired = (report, action, requirement) => {
-    const amount = Number(requirement?.amount || (action === 'download' ? 200 : 100));
+    const amount = Number(requirement?.amount || (action === 'download' ? 200 : 150));
     const currency = requirement?.currency || 'XAF';
     const actionText = action === 'download' ? 'download' : 'preview';
 

@@ -116,6 +116,9 @@ exports.handleCamerpayCallback = async (req, res) => {
       transaction_id: transaction._id,
       payment_id: payload?.payment_id,
       user_cand_id: transaction.user_cand_id,
+      resource_type: transaction.resource_type,
+      resource_id: transaction.resource_id,
+      access_minutes: Number(transaction.metadata?.access_minutes || 0) || null,
     });
 
     const receiptUser = transaction.user_cand_id
@@ -178,16 +181,22 @@ exports.handleCamerpayCallback = async (req, res) => {
         transaction_id: transaction._id,
         user_cand_id: transaction.user_cand_id,
         grant_code: grantCode,
+        resource_type: transaction.resource_type,
+        resource_id: transaction.resource_id,
+        access_minutes: Number(transaction.metadata?.access_minutes || 60),
       });
     }
 
     // Record payment history
     try {
       const History = require('../models/History');
+      const materialScope = transaction.purpose_type === 'material_access'
+        ? ` [resource:${transaction.resource_type}:${transaction.resource_id} duration:${Number(transaction.metadata?.access_minutes || 60)}m]`
+        : '';
       await History.create({
         user_id: transaction.user_cand_id,
         content_type: 'payment',
-        content_title: transaction.description,
+        content_title: `${transaction.description}${materialScope}`,
         action: transaction.purpose_code,
       });
     } catch (_) {}

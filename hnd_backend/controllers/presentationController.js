@@ -204,6 +204,8 @@ exports.getAll = async (req, res) => {
       upload_date: p.createdAt,
       program: String(p.program || 'HND').toUpperCase(),
       audience: String(p.audience || 'GENERAL').toUpperCase(),
+      material_price: p.material_price ?? null,
+      project_github_url: p.project_github_url || null,
       report_id: p.report_id?._id,
       report_title: p.report_id?.title || null,
       report_pages: p.report_id?.pages || null,
@@ -236,7 +238,7 @@ exports.downloadFile = async (req, res) => {
 
   const program = String(req.user?.program || 'HND').toUpperCase();
   const presentation = await Presentation.findOne({ file_path: requested, program })
-    .select('audience departments title subscription_access')
+    .select('audience departments title subscription_access material_price')
     .lean();
   if (!presentation) return res.status(404).json({ success: false, message: 'File not found' });
 
@@ -312,7 +314,7 @@ exports.previewFile = async (req, res) => {
 
   const program = String(req.user?.program || 'HND').toUpperCase();
   const presentation = await Presentation.findOne({ file_path: requested, program })
-    .select('audience departments title subscription_access')
+    .select('audience departments title subscription_access material_price')
     .lean();
   if (!presentation) return res.status(404).json({ success: false, message: 'File not found' });
 

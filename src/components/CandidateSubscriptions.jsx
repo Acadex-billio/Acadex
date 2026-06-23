@@ -137,11 +137,11 @@ const CandidateSubscriptions = () => {
         <h2>PAYGO charging details</h2>
         <div className={styles.chargeGrid}>
           <div className={styles.chargeItem}><strong>Upfront PAYGO access:</strong> 200 XAF for 3 months.</div>
-          <div className={styles.chargeItem}><strong>Presentation full preview:</strong> 50 XAF for 1 hour.</div>
-          <div className={styles.chargeItem}><strong>Presentation download:</strong> 100 XAF for 1 hour.</div>
-          <div className={styles.chargeItem}><strong>Question paper full preview:</strong> 50 XAF for 1 hour.</div>
-          <div className={styles.chargeItem}><strong>Question paper download:</strong> 100 XAF for 1 hour.</div>
-          <div className={styles.chargeItem}><strong>Report full preview:</strong> 100 XAF for 1 hour.</div>
+          <div className={styles.chargeItem}><strong>Presentation full preview:</strong> 100 XAF for 1 hour.</div>
+          <div className={styles.chargeItem}><strong>Presentation download:</strong> 150 XAF for 1 hour.</div>
+          <div className={styles.chargeItem}><strong>Question paper full preview:</strong> 100 XAF for 1 hour.</div>
+          <div className={styles.chargeItem}><strong>Question paper download:</strong> 150 XAF for 1 hour.</div>
+          <div className={styles.chargeItem}><strong>Report full preview:</strong> 150 XAF for 1 hour.</div>
           <div className={styles.chargeItem}><strong>Report download:</strong> 200 XAF for 1 hour.</div>
           <div className={styles.chargeItem}><strong>Create or join center:</strong> 200 XAF per center.</div>
         </div>

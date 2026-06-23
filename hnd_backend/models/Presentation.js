@@ -7,7 +7,7 @@ const subscriptionAccessSchema = new mongoose.Schema(
   {
     basic_preview_pages: { type: Number, default: 1, min: 1 },
     paygo_preview_pages: { type: Number, default: 3, min: 1 },
-    paygo_full_preview_price: { type: Number, default: 50, min: 0 },
+    paygo_full_preview_price: { type: Number, default: 100, min: 0 },
     paygo_download_price: { type: Number, default: 150, min: 0 },
     paygo_access_minutes: { type: Number, default: 60, min: 1 },
   },
@@ -24,6 +24,8 @@ const presentationSchema = new mongoose.Schema(
     audience: { type: String, enum: ['GENERAL', 'SINGLE', 'MULTIPLE'], default: 'GENERAL' },
     departments: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Department', index: true }],
     report_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Report', default: null },
+    material_price: { type: Number, default: null, min: 0 },
+    project_github_url: { type: String, trim: true, default: null },
     subscription_access: { type: subscriptionAccessSchema, default: () => ({}) },
   },
   { timestamps: true }

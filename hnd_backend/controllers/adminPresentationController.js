@@ -24,6 +24,19 @@ const safeUnlink = async (filePath) => {
   }
 };
 
+const parseOptionalPrice = (value) => {
+  const raw = String(value ?? '').trim();
+  if (!raw) return null;
+  const parsed = Number(raw);
+  if (!Number.isFinite(parsed) || parsed < 0) return Number.NaN;
+  return parsed;
+};
+
+const parseGitHubUrl = (value) => {
+  const raw = String(value ?? '').trim();
+  return raw || null;
+};
+
 exports.getReports = async (req, res) => {
   try {
     const program = String(req.query?.program || '').trim().toUpperCase();
@@ -53,7 +66,7 @@ exports.getReports = async (req, res) => {
 
 exports.uploadPresentation = async (req, res) => {
   try {
-    const { report_id, title, presenter_name, presenter_email, notify, program, audience, dpt_id, dpt_ids } = req.body;
+    const { report_id, title, presenter_name, presenter_email, material_price, project_github_url, notify, program, audience, dpt_id, dpt_ids } = req.body;
     const normalizedProgram = String(program || 'HND').trim().toUpperCase();
     if (!['HND', 'BTS'].includes(normalizedProgram)) {
       return res.status(400).json({ success: false, message: 'Program must be HND or BTS.' });
@@ -67,6 +80,13 @@ exports.uploadPresentation = async (req, res) => {
     if (!title || !presenter_name || !presenter_email || !req.file) {
       return res.status(400).json({ success: false, message: 'Missing required fields or file.' });
     }
+
+    const parsedMaterialPrice = parseOptionalPrice(material_price);
+    if (Number.isNaN(parsedMaterialPrice)) {
+      return res.status(400).json({ success: false, message: 'Material price must be a number greater than or equal to 0.' });
+    }
+
+    const parsedProjectGitHubUrl = parseGitHubUrl(project_github_url);
 
     let departmentIds = [];
     if (normalizedAudience === 'SINGLE' && dpt_id) {
@@ -128,6 +148,8 @@ exports.uploadPresentation = async (req, res) => {
       audience: normalizedAudience,
       departments: departmentIds,
       file_path: file_path,
+      material_price: parsedMaterialPrice,
+      project_github_url: parsedProjectGitHubUrl,
     });
 
     if (notify === 'true') {
@@ -193,6 +215,8 @@ exports.listPresentations = async (req, res) => {
       file_path: p.file_path,
       program: String(p.program || 'HND').toUpperCase(),
       audience: p.audience || 'GENERAL',
+      material_price: p.material_price ?? null,
+      project_github_url: p.project_github_url || null,
       departments: (Array.isArray(p.departments) ? p.departments.map(d => ({ dpt_id: d._id, dpt_name: d.department_name })) : []),
       report_id: p.report_id?._id || null,
       report_title: p.report_id?.title || null,
@@ -209,7 +233,7 @@ exports.listPresentations = async (req, res) => {
 exports.updatePresentation = async (req, res) => {
   try {
     const { id } = req.params;
-    const { report_id, title, presenter_name, presenter_email, program, audience, dpt_id, dpt_ids } = req.body;
+    const { report_id, title, presenter_name, presenter_email, material_price, project_github_url, program, audience, dpt_id, dpt_ids } = req.body;
     const normalizedProgram = String(program || 'HND').trim().toUpperCase();
     if (!['HND', 'BTS'].includes(normalizedProgram)) {
       return res.status(400).json({ success: false, message: 'Program must be HND or BTS.' });
@@ -223,6 +247,13 @@ exports.updatePresentation = async (req, res) => {
     if (!title || !presenter_name || !presenter_email) {
       return res.status(400).json({ success: false, message: 'Missing required fields.' });
     }
+
+    const parsedMaterialPrice = parseOptionalPrice(material_price);
+    if (Number.isNaN(parsedMaterialPrice)) {
+      return res.status(400).json({ success: false, message: 'Material price must be a number greater than or equal to 0.' });
+    }
+
+    const parsedProjectGitHubUrl = parseGitHubUrl(project_github_url);
 
     let departmentIds = [];
     if (normalizedAudience === 'SINGLE' && dpt_id) {
@@ -256,6 +287,8 @@ exports.updatePresentation = async (req, res) => {
     pres.audience = normalizedAudience;
     pres.departments = departmentIds;
     pres.report_id = report_id ? report_id : null;
+    pres.material_price = parsedMaterialPrice;
+    pres.project_github_url = parsedProjectGitHubUrl;
     await pres.save();
 
     return res.json({ success: true, message: 'Presentation updated successfully' });

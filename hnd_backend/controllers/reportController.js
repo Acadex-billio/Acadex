@@ -223,7 +223,7 @@ exports.getAll = async (req, res) => {
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limit)
-        .select('title writer_names writer_email upload_date keywords description location pages file_path program subscription_access departments')
+        .select('title writer_names writer_email upload_date keywords description location pages file_path program subscription_access departments material_price project_github_url')
         .populate('departments', 'department_name')
         .lean(),
       Report.countDocuments(accessQuery),
@@ -236,6 +236,8 @@ exports.getAll = async (req, res) => {
         report_id: r._id,
         upload_date: r.createdAt,
         subscription_access: r.subscription_access || null,
+        material_price: r.material_price ?? null,
+        project_github_url: r.project_github_url || null,
         departments: (Array.isArray(r.departments)
           ? r.departments.map((d) => ({
               dpt_id: d._id?.toString?.() || String(d),
@@ -260,7 +262,7 @@ exports.downloadFile = async (req, res) => {
     if (!requested) return res.status(400).json({ success: false, message: 'Invalid filename' });
 
     const program = String(req.user?.program || 'HND').toUpperCase();
-    const report = await Report.findOne({ file_path: requested, program }).select('audience departments title subscription_access').lean();
+    const report = await Report.findOne({ file_path: requested, program }).select('audience departments title subscription_access material_price').lean();
     if (!report) return res.status(404).json({ success: false, message: 'File not found' });
 
     const deptId = req.user?.dpt_id || null;
@@ -328,7 +330,7 @@ exports.previewFile = (req, res) => {
     console.log('[ViewReport] Preview request received:', { requested });
 
     const program = String(req.user?.program || 'HND').toUpperCase();
-    const report = await Report.findOne({ file_path: requested, program }).select('audience departments title subscription_access').lean();
+    const report = await Report.findOne({ file_path: requested, program }).select('audience departments title subscription_access material_price').lean();
     if (!report) return res.status(404).json({ success: false, message: 'File not found' });
 
     const deptId = req.user?.dpt_id || null;

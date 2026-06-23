@@ -46,22 +46,22 @@ const MATERIAL_DEFAULTS = {
   report: {
     basic_preview_pages: 1,
     paygo_preview_pages: 3,
-    paygo_full_preview_price: 100,
+    paygo_full_preview_price: 150,
     paygo_download_price: 200,
     paygo_access_minutes: 60,
   },
   presentation: {
     basic_preview_pages: 1,
     paygo_preview_pages: 3,
-    paygo_full_preview_price: 50,
-    paygo_download_price: 100,
+    paygo_full_preview_price: 100,
+    paygo_download_price: 150,
     paygo_access_minutes: 60,
   },
   question_paper: {
     basic_preview_pages: 1,
     paygo_preview_pages: 3,
-    paygo_full_preview_price: 50,
-    paygo_download_price: 100,
+    paygo_full_preview_price: 100,
+    paygo_download_price: 150,
     paygo_access_minutes: 60,
   },
 };
