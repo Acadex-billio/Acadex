@@ -6,27 +6,94 @@
   background: var(--bg);
 }
 
+.heroPanel {
+  max-width: 1180px;
+  margin: 0 auto 22px;
+  padding: 26px 24px 24px;
+  border-radius: 20px;
+  border: 1px solid #d8e7dc;
+  background: radial-gradient(circle at 10% 20%, #f5fbf6 0%, #ecf6ee 45%, #e8f3ea 100%);
+}
+
 .heading {
   text-align: center;
-  font-size: 28px;
-  margin-bottom: 10px;
+  font-size: clamp(38px, 5vw, 68px);
+  margin-bottom: 8px;
   color: #2e7d32;
   font-weight: 800;
+  line-height: 1.05;
+  font-family: Georgia, 'Times New Roman', serif;
+}
+
+.heroSubtitle {
+  text-align: center;
+  color: #485766;
+  font-size: clamp(17px, 2vw, 24px);
+  margin: 0;
+}
+
+.activityPill {
+  margin: 18px auto 0;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 22px;
+  width: fit-content;
+  max-width: 100%;
+  border-radius: 999px;
+  border: 1px solid #d4e6d8;
+  background: rgba(240, 248, 242, 0.95);
+  color: #4b5c58;
+  font-size: 16px;
+}
+
+.activityIcon {
+  color: #2e7d32;
+  font-size: 20px;
+}
+
+.activityPill strong {
+  color: #24804a;
+}
+
+.activityDivider {
+  color: #8aa494;
 }
 
 .filterBox {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(300px, 560px);
   justify-content: center;
   margin: 18px 0 20px;
 }
 
+.filterField {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: #ffffff;
+  border: 1px solid #d6e2da;
+  border-radius: 14px;
+  padding: 0 14px;
+  box-shadow: 0 8px 16px rgba(15, 23, 42, 0.06);
+}
+
+.filterIcon {
+  color: #2e7d32;
+  font-size: 18px;
+  flex-shrink: 0;
+}
+
 .input {
-  padding: 12px 14px;
-  width: min(100%, 460px);
-  border: 1px solid #b9d9be;
-  border-radius: 12px;
-  font-size: 15px;
-  background: #fff;
+  padding: 16px 2px;
+  width: 100%;
+  border: none;
+  border-radius: 0;
+  font-size: 17px;
+  background: transparent;
+  outline: none;
 }
 
 .presentationList {
@@ -584,6 +651,22 @@ iframe {
 @media (max-width: 700px) {
   .container {
     padding: 16px 12px;
+  }
+
+  .heroPanel {
+    padding: 20px 14px 16px;
+    border-radius: 16px;
+  }
+
+  .activityPill {
+    border-radius: 16px;
+    width: 100%;
+    justify-content: center;
+    padding: 12px 14px;
+  }
+
+  .filterBox {
+    grid-template-columns: 1fr;
   }
 
   .presentationList {

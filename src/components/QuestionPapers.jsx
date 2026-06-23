@@ -7,7 +7,7 @@ import SecurePdfPreview from "./SecurePdfPreview";
 import { showToast } from "../utility/ToastNotification";
 import PaymentActionModal from "./PaymentActionModal";
 import { useNavigate } from "react-router-dom";
-import { FaFilePdf, FaCalendarAlt, FaBuilding, FaClock, FaRegFileAlt } from "react-icons/fa";
+import { FaFilePdf, FaCalendarAlt, FaBuilding, FaClock, FaRegFileAlt, FaSearch, FaRegChartBar } from "react-icons/fa";
 
 const QuestionPapers = () => {
   const navigate = useNavigate();
@@ -193,6 +193,20 @@ const QuestionPapers = () => {
     },
   });
 
+  const handlePaymentRequired = (paper, action, requirement) => {
+    const amount = Number(requirement?.amount || (action === 'download' ? 100 : 50));
+    const currency = requirement?.currency || 'XAF';
+    const actionText = action === 'download' ? 'download' : 'preview';
+
+    showToast(`Payment is required to ${actionText} this question paper. Redirecting to payment (${amount} ${currency}).`, 'warning');
+    openPaymentModal(createMaterialPaymentRequest(paper, action, {
+      ...(requirement || {}),
+      amount,
+      currency,
+      message: requirement?.message || `Payment is required before you can ${actionText} this question paper.`,
+    }));
+  };
+
   const extractFileName = (file) => String(file || '').replace(/\\/g, '/').split('/').pop();
 
   const formatTimeAgo = (timestamp) => {
@@ -297,7 +311,11 @@ const QuestionPapers = () => {
     } catch (err) {
       const errorData = await parseErrorPayload(err);
       if (!options.skipPaymentHandling && err?.response?.status === 402 && errorData?.payment_requirement) {
-        openPaymentModal(createMaterialPaymentRequest(paper, 'preview', errorData.payment_requirement));
+        handlePaymentRequired(paper, 'preview', errorData.payment_requirement);
+        return;
+      }
+      if (!options.skipPaymentHandling && err?.response?.status === 403 && /pay|payment|required|access/i.test(String(errorData?.message || ''))) {
+        handlePaymentRequired(paper, 'preview', errorData?.payment_requirement);
         return;
       }
       if (err?.response?.status === 403 && errorData?.code === 'PLAN_UPGRADE_REQUIRED') {
@@ -343,7 +361,11 @@ const QuestionPapers = () => {
     } catch (err) {
       const errorData = await parseErrorPayload(err);
       if (!options.skipPaymentHandling && err?.response?.status === 402 && errorData?.payment_requirement) {
-        openPaymentModal(createMaterialPaymentRequest(paper, 'download', errorData.payment_requirement));
+        handlePaymentRequired(paper, 'download', errorData.payment_requirement);
+        return;
+      }
+      if (!options.skipPaymentHandling && err?.response?.status === 403 && /pay|payment|required|access/i.test(String(errorData?.message || ''))) {
+        handlePaymentRequired(paper, 'download', errorData?.payment_requirement);
         return;
       }
       if (err?.response?.status === 403 && errorData?.code === 'PLAN_UPGRADE_REQUIRED') {
@@ -365,47 +387,62 @@ const QuestionPapers = () => {
     <>
       {actionLoading ? <GraduationCapLoader fullscreen label={actionLabel} /> : null}
       <div className={styles.container}>
-      <h2 className={styles.heading}>Question Papers</h2>
-      <p className={styles.noResults}>
-        Your activity (last 7 days): Downloads {myCounts.downloads} • Previews {myCounts.previews}
-      </p>
+      <section className={styles.heroPanel}>
+        <h2 className={styles.heading}>Question Papers</h2>
+        <p className={styles.heroSubtitle}>Access past papers to practice smarter and excel in your exams.</p>
+        <div className={styles.activityPill}>
+          <FaRegChartBar className={styles.activityIcon} />
+          <span>Your activity (last 7 days):</span>
+          <strong>Downloads {myCounts.downloads}</strong>
+          <span className={styles.activityDivider}>|</span>
+          <span>Previews {myCounts.previews}</span>
+        </div>
 
-      {/* Filters */}
-      <div className={styles.filterBox}>
-        <input
-          type="text"
-          value={search}
-          placeholder="Search by title..."
-          onChange={(e) => setSearch(e.target.value)}
-          className={styles.input}
-        />
+        <div className={styles.filterBox}>
+          <div className={styles.filterField}>
+            <FaSearch className={styles.filterIcon} />
+            <input
+              type="text"
+              value={search}
+              placeholder="Search by title..."
+              onChange={(e) => setSearch(e.target.value)}
+              className={styles.input}
+            />
+          </div>
 
-        <select
-          value={selectedDept}
-          onChange={(e) => setSelectedDept(e.target.value)}
-          className={styles.select}
-        >
-          <option value="">All Departments</option>
-          {departments.map((d) => (
-            <option key={d.dpt_id} value={d.dpt_id}>
-              {d.department_name}
-            </option>
-          ))}
-        </select>
+          <div className={styles.filterField}>
+            <FaBuilding className={styles.filterIcon} />
+            <select
+              value={selectedDept}
+              onChange={(e) => setSelectedDept(e.target.value)}
+              className={styles.select}
+            >
+              <option value="">All Departments</option>
+              {departments.map((d) => (
+                <option key={d.dpt_id} value={d.dpt_id}>
+                  {d.department_name}
+                </option>
+              ))}
+            </select>
+          </div>
 
-        <select
-          value={selectedYear}
-          onChange={(e) => setSelectedYear(e.target.value)}
-          className={styles.select}
-        >
-          <option value="">All Years</option>
-          {[2025, 2024, 2023, 2022, 2021, 2020].map((y) => (
-            <option key={y} value={y}>
-              {y}
-            </option>
-          ))}
-        </select>
-      </div>
+          <div className={styles.filterField}>
+            <FaCalendarAlt className={styles.filterIcon} />
+            <select
+              value={selectedYear}
+              onChange={(e) => setSelectedYear(e.target.value)}
+              className={styles.select}
+            >
+              <option value="">All Years</option>
+              {[2025, 2024, 2023, 2022, 2021, 2020].map((y) => (
+                <option key={y} value={y}>
+                  {y}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+      </section>
 
       {/* Paper Cards */}
       <div className={styles.paperList}>

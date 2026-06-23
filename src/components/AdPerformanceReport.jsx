@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { FaArrowLeft, FaChartLine, FaEye, FaUser, FaPercent } from 'react-icons/fa';
 import styles from '../Astyles/AdPerformanceReport.module.css';
@@ -20,8 +20,8 @@ const AdPerformanceReport = () => {
     averageViewTimeSeconds: 0,
   });
   const [reportPeriod] = useState({ start: '01 Jun 2026', end: '07 Jun 2026' });
-  const ad = data?.ad || {};
-  const performance = data?.performance || {};
+  const ad = useMemo(() => data?.ad ?? {}, [data]);
+  const performance = useMemo(() => data?.performance ?? {}, [data]);
   const onGenerateReport = useCallback(() => setShowReportModal(true), []);
 
   const handlePrintReport = useCallback(() => {

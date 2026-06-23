@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useMemo, useCallback } from "react";
 import styles from "../Astyles/viewReport.module.css";
 import { getErrorMessage } from "../utility/getErrorMessage";
-import { FaFileWord, FaFilePdf, FaCalendarAlt, FaBuilding, FaClock, FaRegFileAlt } from "react-icons/fa";
+import { FaFileWord, FaFilePdf, FaCalendarAlt, FaBuilding, FaClock, FaRegFileAlt, FaSearch, FaRegChartBar } from "react-icons/fa";
 import api from "../services/api";
 import GraduationCapLoader from "./GraduationCapLoader";
 import { useLocation, useNavigate } from "react-router-dom";
@@ -236,7 +236,7 @@ const ViewReport = () => {
     description: requirement?.message || (action === 'download'
       ? 'PAYGO requires a separate payment before you can download this report.'
       : 'PAYGO requires a separate payment before you can preview every page of this report.'),
-    amount: requirement?.amount || 100,
+    amount: requirement?.amount || (action === 'download' ? 200 : 100),
     currency: requirement?.currency || 'XAF',
     onStartPayment: async ({ phoneNumber, paymentMethod = 'momo', promoCode = '' }) => {
       const { data } = await api.post('/candidate/payments/materials/checkout', {
@@ -255,6 +255,20 @@ const ViewReport = () => {
       else await handlePreview(report, { skipPaymentHandling: true });
     },
   });
+
+  const handlePaymentRequired = (report, action, requirement) => {
+    const amount = Number(requirement?.amount || (action === 'download' ? 200 : 100));
+    const currency = requirement?.currency || 'XAF';
+    const actionText = action === 'download' ? 'download' : 'preview';
+
+    showToast(`Payment is required to ${actionText} this report. Redirecting to payment (${amount} ${currency}).`, 'warning');
+    openPaymentModal(createMaterialPaymentRequest(report, action, {
+      ...(requirement || {}),
+      amount,
+      currency,
+      message: requirement?.message || `Payment is required before you can ${actionText} this report.`,
+    }));
+  };
 
   const handlePreview = async (report, options = {}) => {
     const requested = String(report?.file_path || '').trim();
@@ -285,7 +299,11 @@ const ViewReport = () => {
     } catch (err) {
       const errorData = await parseErrorPayload(err);
       if (!options.skipPaymentHandling && err?.response?.status === 402 && errorData?.payment_requirement) {
-        openPaymentModal(createMaterialPaymentRequest(report, 'preview', errorData.payment_requirement));
+        handlePaymentRequired(report, 'preview', errorData.payment_requirement);
+        return;
+      }
+      if (!options.skipPaymentHandling && err?.response?.status === 403 && /pay|payment|required|access/i.test(String(errorData?.message || ''))) {
+        handlePaymentRequired(report, 'preview', errorData?.payment_requirement);
         return;
       }
       if (err?.response?.status === 403 && errorData?.code === 'PLAN_UPGRADE_REQUIRED') {
@@ -327,7 +345,11 @@ const ViewReport = () => {
     } catch (err) {
       const errorData = await parseErrorPayload(err);
       if (!options.skipPaymentHandling && err?.response?.status === 402 && errorData?.payment_requirement) {
-        openPaymentModal(createMaterialPaymentRequest(report, 'download', errorData.payment_requirement));
+        handlePaymentRequired(report, 'download', errorData.payment_requirement);
+        return;
+      }
+      if (!options.skipPaymentHandling && err?.response?.status === 403 && /pay|payment|required|access/i.test(String(errorData?.message || ''))) {
+        handlePaymentRequired(report, 'download', errorData?.payment_requirement);
         return;
       }
       if (err?.response?.status === 403 && errorData?.code === 'PLAN_UPGRADE_REQUIRED') {
@@ -366,20 +388,30 @@ const ViewReport = () => {
     <>
       {actionLoading ? <GraduationCapLoader fullscreen label={actionLabel} /> : null}
       <div className={styles.container}>
-      <h2 className={styles.heading}>Reports</h2>
-      <p className={styles.noResults}>
-        Your activity (last 7 days): Downloads {myCounts.downloads} • Previews {myCounts.previews}
-      </p>
+      <section className={styles.heroPanel}>
+        <h2 className={styles.heading}>Reports</h2>
+        <p className={styles.heroSubtitle}>Explore academic reports prepared for your department and study level.</p>
+        <div className={styles.activityPill}>
+          <FaRegChartBar className={styles.activityIcon} />
+          <span>Your activity (last 7 days):</span>
+          <strong>Downloads {myCounts.downloads}</strong>
+          <span className={styles.activityDivider}>|</span>
+          <span>Previews {myCounts.previews}</span>
+        </div>
 
-      <div className={styles.filterBox}>
-        <input
-          type="text"
-          placeholder="Search report..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className={styles.input}
-        />
-      </div>
+        <div className={styles.filterBox}>
+          <div className={styles.filterField}>
+            <FaSearch className={styles.filterIcon} />
+            <input
+              type="text"
+              placeholder="Search by title..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className={styles.input}
+            />
+          </div>
+        </div>
+      </section>
 
       <div className={styles.reportList}>
         {filteredReports.length === 0 ? (

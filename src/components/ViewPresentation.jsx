@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useMemo } from "react";
 import styles from "../Astyles/viewpresentations.module.css";
-import { FaFilePowerpoint, FaCalendarAlt, FaBuilding, FaClock, FaRegFileAlt } from "react-icons/fa";
+import { FaFilePowerpoint, FaCalendarAlt, FaBuilding, FaClock, FaRegFileAlt, FaSearch, FaRegChartBar } from "react-icons/fa";
 import api from "../services/api";
 import { getErrorMessage } from "../utility/getErrorMessage";
 import GraduationCapLoader from "./GraduationCapLoader";
@@ -383,20 +383,30 @@ const ViewPresentation = () => {
     <>
       {actionLoading ? <GraduationCapLoader fullscreen label={actionLabel} /> : null}
       <div className={styles.container}>
-      <h2 className={styles.heading}>PowerPoint Presentations</h2>
-      <p className={styles.noResults}>
-        Your activity (last 7 days): Downloads {myCounts.downloads} ΓÇó Previews {myCounts.previews}
-      </p>
+      <section className={styles.heroPanel}>
+        <h2 className={styles.heading}>PowerPoint Presentations</h2>
+        <p className={styles.heroSubtitle}>Review presentation slides and resources prepared by your academic community.</p>
+        <div className={styles.activityPill}>
+          <FaRegChartBar className={styles.activityIcon} />
+          <span>Your activity (last 7 days):</span>
+          <strong>Downloads {myCounts.downloads}</strong>
+          <span className={styles.activityDivider}>|</span>
+          <span>Previews {myCounts.previews}</span>
+        </div>
 
-      <div className={styles.filterBox}>
-        <input
-          type="text"
-          placeholder="Search presentation..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className={styles.input}
-        />
-      </div>
+        <div className={styles.filterBox}>
+          <div className={styles.filterField}>
+            <FaSearch className={styles.filterIcon} />
+            <input
+              type="text"
+              placeholder="Search by title..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className={styles.input}
+            />
+          </div>
+        </div>
+      </section>
 
       <div className={styles.presentationList}>
         {loadingPresentations ? (
