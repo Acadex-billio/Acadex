@@ -33,6 +33,7 @@ const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
+const mongoSanitize = require('express-mongo-sanitize');
 const session = require('express-session');
 const MongoStore = require('connect-mongo');
 const mongoose = require('mongoose');
@@ -70,6 +71,7 @@ const developerRoutes = require('./Routes/developerRoutes');
 const publicRoutes = require('./Routes/publicRoutes');
 const { getLibreOfficeQueueStats } = require('./services/libreOfficeQueue');
 const { startKeepalive } = require('./services/keepaliveNotifier');
+const { mountVersionCompatibleRoute } = require('./utils/versionRouter');
 
 const app = express();
 const port = process.env.PORT || 5000;
@@ -253,8 +255,31 @@ app.use(express.urlencoded({ extended: true, verify: (req, _res, buf) => {
   if (buf && buf.length) req.rawBody = buf.toString('utf8');
 }}));
 
+app.use(mongoSanitize({
+  replaceWith: '_',
+  onSanitize: ({ req, key }) => {
+    logger.warn('request.sanitized.mongo_payload', {
+      key,
+      path: req?.originalUrl,
+      method: req?.method,
+      ip: req?.ip,
+      requestId: req?.requestId,
+    });
+  },
+}));
+
 // Sanitize all incoming queries to prevent injection
 app.use(sanitizeQuery);
+
+app.use((req, res, next) => {
+  if (req.path.startsWith('/api/v1')) {
+    res.setHeader('X-API-Version', 'v1');
+    res.setHeader('X-API-Compatibility', 'legacy-compatible');
+  } else if (req.path.startsWith('/api')) {
+    res.setHeader('X-API-Version', 'legacy');
+  }
+  next();
+});
 const sessionSecret = process.env.SESSION_SECRET;
 const jwtSecret = process.env.JWT_SECRET;
 
@@ -350,26 +375,26 @@ sessionStore.on('disconnected', () => {
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Public routes (webhooks and other endpoints that don't require auth)
-app.use('/api/payment', publicRoutes);
-app.use('/api', publicRoutes); // Also mount publicRoutes at /api root for webhooks path (/api/webhooks/campay)
+mountVersionCompatibleRoute(app, '/api/payment', publicRoutes);
+mountVersionCompatibleRoute(app, '/api', publicRoutes); // Also mounts /api/v1 for webhook compatibility
 
-app.use('/api/auth', authRoutes);
-app.use('/api/candidate', candidateRoutes);
-app.use('/api/admin', adminRoutes);
-app.use('/api/chat', chatRoutes);
-app.use('/api/ai-tools', aiToolsRoutes);
-app.use('/api/announcements', announcementRoutes);
-app.use('/api/web-search', webSearchRoutes);
-app.use('/api/rag', ragRoutes);
-app.use('/api/ai', aiChatRoutes);
-app.use('/api/lecturers', lecturerRoutes);
-app.use('/api/ads', adRoutes);
-app.use('/api/material-access', materialAccessRoutes);
-app.use('/api/developer', developerRoutes);
+mountVersionCompatibleRoute(app, '/api/auth', authRoutes);
+mountVersionCompatibleRoute(app, '/api/candidate', candidateRoutes);
+mountVersionCompatibleRoute(app, '/api/admin', adminRoutes);
+mountVersionCompatibleRoute(app, '/api/chat', chatRoutes);
+mountVersionCompatibleRoute(app, '/api/ai-tools', aiToolsRoutes);
+mountVersionCompatibleRoute(app, '/api/announcements', announcementRoutes);
+mountVersionCompatibleRoute(app, '/api/web-search', webSearchRoutes);
+mountVersionCompatibleRoute(app, '/api/rag', ragRoutes);
+mountVersionCompatibleRoute(app, '/api/ai', aiChatRoutes);
+mountVersionCompatibleRoute(app, '/api/lecturers', lecturerRoutes);
+mountVersionCompatibleRoute(app, '/api/ads', adRoutes);
+mountVersionCompatibleRoute(app, '/api/material-access', materialAccessRoutes);
+mountVersionCompatibleRoute(app, '/api/developer', developerRoutes);
 
 // Dev-only routes (enabled locally or when DEBUG_ROUTES_ENABLED=true)
 if (allowDebugRoutes) {
-  app.use('/api/storage', s3TestRoutes);
+  mountVersionCompatibleRoute(app, '/api/storage', s3TestRoutes);
   logger.info('S3 test routes available (development/non-hosted environment)');
 }
 
@@ -380,7 +405,7 @@ app.get('/', (req, res) => {
 });
 
 // Health check endpoint - with database validation
-app.get('/api/health', async (req, res) => {
+const healthHandler = async (req, res) => {
   try {
     const readiness = getServiceReadiness();
     const queueStats = getLibreOfficeQueueStats();
@@ -470,7 +495,10 @@ app.get('/api/health', async (req, res) => {
       message: 'Health check failed'
     });
   }
-});
+};
+
+app.get('/api/health', healthHandler);
+app.get('/api/v1/health', healthHandler);
 
 app.use(globalErrorHandler);
 

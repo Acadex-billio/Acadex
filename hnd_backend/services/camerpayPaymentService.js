@@ -1,5 +1,7 @@
 const crypto = require('crypto');
 const logger = require('../utils/logger');
+const { PAYMENT_CURRENCY } = require('../constants/paymentConstants');
+const { validatePaymentAmountAndCurrency, validateTransactionReference } = require('./paymentValidationService');
 
 const CAMERPAY_TOKEN = String(process.env.CAMERPAY_TOKEN || '').trim();
 let CAMERPAY_API_BASE_URL = String(process.env.CAMERPAY_API_BASE_URL || 'https://api.campay.net').replace(/\/$/, '');
@@ -14,7 +16,7 @@ try {
 } catch (e) {
   // swallow logging errors
 }
-const CAMERPAY_CURRENCY = String(process.env.CAMERPAY_CURRENCY || 'XAF').trim().toUpperCase();
+const CAMERPAY_CURRENCY = String(process.env.CAMERPAY_CURRENCY || PAYMENT_CURRENCY.XAF).trim().toUpperCase();
 const CAMERPAY_FETCH_TIMEOUT_MS = Math.max(5000, Number(process.env.CAMERPAY_FETCH_TIMEOUT_MS || 15000));
 const CAMERPAY_CALLBACK_URL = String(process.env.CAMERPAY_CALLBACK_URL || '').trim();
 const CAMERPAY_RETURN_URL = String(process.env.CAMERPAY_RETURN_URL || '').trim();
@@ -130,11 +132,7 @@ async function initiateCollectionPayment({
     throw err;
   }
 
-  if (!Number.isFinite(Number(amount)) || Number(amount) <= 0) {
-    const err = new Error('A valid payment amount is required.');
-    err.statusCode = 400;
-    throw err;
-  }
+  validatePaymentAmountAndCurrency({ amount, currency: paymentCurrency });
 
   if (!isConfigured()) {
     const err = new Error('CamerPay payment provider is not properly configured.');
@@ -144,7 +142,7 @@ async function initiateCollectionPayment({
 
   let payload = null;
   try {
-    const reference = externalReference || externalId || crypto.randomUUID();
+    const reference = validateTransactionReference(externalReference || externalId || crypto.randomUUID());
     payload = {
       payment_method: providerMethod,
       amount: String(amount),

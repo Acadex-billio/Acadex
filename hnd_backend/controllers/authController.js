@@ -11,29 +11,42 @@ const VerificationCode = require('../models/VerificationCode');
 const { sendEmail } = require('../services/emailService');
 const { generateAccessToken, generateRefreshToken, jwtAuthMiddleware } = require('../utils/jwtUtils');
 const { buildSubscriptionResponse } = require('../utils/subscriptionUtils');
+const logger = require('../utils/logger');
+const { isEnabled } = require('../services/featureFlagService');
+const {
+  AUTH_COOKIE_NAMES,
+  ACCESS_TOKEN_COOKIE_MAX_AGE,
+  REFRESH_TOKEN_REMEMBER_ME_MAX_AGE,
+  REFRESH_TOKEN_DEFAULT_MAX_AGE,
+  AUTH_COOKIE_PATH,
+} = require('../constants/authConstants');
 
 const isProduction = process.env.NODE_ENV === 'production';
-const ACCESS_TOKEN_COOKIE_MAX_AGE = 15 * 60 * 1000; // 15 minutes
-const REFRESH_TOKEN_REMEMBER_ME_MAX_AGE = 30 * 24 * 60 * 60 * 1000; // 30 days
-const REFRESH_TOKEN_DEFAULT_MAX_AGE = 24 * 60 * 60 * 1000; // 1 day
+const strictCookiesEnabled = isEnabled('FEATURE_STRICT_AUTH_COOKIES', false);
+
+const resolveSameSite = () => {
+  if (!isProduction) return 'lax';
+  if (strictCookiesEnabled) return 'strict';
+  return 'none';
+};
 
 const getCookieOptions = (maxAge) => ({
   httpOnly: true,
   secure: isProduction,
-  sameSite: isProduction ? 'none' : 'lax',
+  sameSite: resolveSameSite(),
   maxAge,
-  path: '/',
+  path: AUTH_COOKIE_PATH,
 });
 
 const clearAuthCookies = (res) => {
   const options = {
     httpOnly: true,
     secure: isProduction,
-    sameSite: isProduction ? 'none' : 'lax',
-    path: '/',
+    sameSite: resolveSameSite(),
+    path: AUTH_COOKIE_PATH,
   };
-  res.clearCookie('access_token', options);
-  res.clearCookie('refresh_token', options);
+  res.clearCookie(AUTH_COOKIE_NAMES.ACCESS_TOKEN, options);
+  res.clearCookie(AUTH_COOKIE_NAMES.REFRESH_TOKEN, options);
 };
 
 const generateCandId = async () => {
@@ -162,7 +175,7 @@ exports.register = async (req, res) => {
       },
     });
   } catch (err) {
-    console.error('[Auth] Register error:', err);
+    logger.error('auth.register.error', { error: err?.message || err, stack: err?.stack });
     res.status(500).json({ message: 'Server error during registration.' });
   }
 };
@@ -172,11 +185,11 @@ exports.login = async (req, res) => {
     const { email, password } = req.body;
     const invalidCredentialsMessage = 'Invalid email or password.';
     
-    console.log('[Auth Controller] Login attempt:', { email: email?.substring(0, 5) + '***' });
+    logger.info('auth.login.attempt', { email_prefix: email?.substring(0, 5) + '***' });
 
     // Input validation
     if (!email || !password) {
-      console.log('[Auth Controller] ❌ Missing credentials');
+      logger.warn('auth.login.missing_credentials');
       return res.status(400).json({ 
         success: false,
         message: 'Email and password are required.' 
@@ -185,7 +198,7 @@ exports.login = async (req, res) => {
 
     // Find user by email
     const user = await User.findOne({ email: email.toLowerCase() }).select('+password');
-    console.log('[Auth Controller] User lookup:', { 
+    logger.debug('auth.login.user_lookup', {
       found: !!user, 
       email: user?.email?.substring(0, 5) + '***',
       role: user?.role,
@@ -194,7 +207,7 @@ exports.login = async (req, res) => {
     });
 
     if (!user) {
-      console.log('[Auth Controller] ❌ User not found:', { email });
+      logger.warn('auth.login.user_not_found', { email_prefix: email?.substring(0, 5) + '***' });
       return res.status(401).json({ 
         success: false,
         message: invalidCredentialsMessage
@@ -203,13 +216,13 @@ exports.login = async (req, res) => {
 
     // Check password
     const isMatch = await bcrypt.compare(password, user.password);
-    console.log('[Auth Controller] Password verification:', { 
+    logger.debug('auth.login.password_verification', {
       match: isMatch, 
       cand_id: user.cand_id 
     });
 
     if (!isMatch) {
-      console.log('[Auth Controller] ❌ Invalid password:', { cand_id: user.cand_id });
+      logger.warn('auth.login.invalid_password', { cand_id: user.cand_id });
       return res.status(401).json({ 
         success: false,
         message: invalidCredentialsMessage
@@ -219,7 +232,7 @@ exports.login = async (req, res) => {
     // Check account status
     const accountStatus = String(user.account_status || 'active').toLowerCase();
     if (accountStatus !== 'active') {
-      console.log('[Auth Controller] ⚠ Account not active, issuing restricted session:', {
+      logger.warn('auth.login.account_not_active', {
         cand_id: user.cand_id,
         status: accountStatus 
       });
@@ -241,7 +254,7 @@ exports.login = async (req, res) => {
 
     const isAdmin = role === 'admin' || role === 'developer' || role === 'superadmin';
 
-    console.log('[Auth Controller] Role determination:', {
+    logger.debug('auth.login.role_determination', {
       databaseRole: user.role,
       finalRole: role,
       isAdmin: isAdmin,
@@ -261,7 +274,7 @@ exports.login = async (req, res) => {
     if (!user.first_login_at) user.first_login_at = user.last_login_at;
     await user.save();
     if (role !== previousRole) {
-      console.log('[Auth Controller] ✅ User role updated to', role);
+      logger.info('auth.login.role_updated', { role, cand_id: user.cand_id });
     }
 
     const rememberMe = String(req.body.rememberMe || '').toLowerCase() === 'true' || req.body.rememberMe === true;
@@ -269,10 +282,10 @@ exports.login = async (req, res) => {
     const refreshToken = generateRefreshToken(user);
     const refreshCookieAge = rememberMe ? REFRESH_TOKEN_REMEMBER_ME_MAX_AGE : REFRESH_TOKEN_DEFAULT_MAX_AGE;
 
-    res.cookie('access_token', accessToken, getCookieOptions(ACCESS_TOKEN_COOKIE_MAX_AGE));
-    res.cookie('refresh_token', refreshToken, getCookieOptions(refreshCookieAge));
+    res.cookie(AUTH_COOKIE_NAMES.ACCESS_TOKEN, accessToken, getCookieOptions(ACCESS_TOKEN_COOKIE_MAX_AGE));
+    res.cookie(AUTH_COOKIE_NAMES.REFRESH_TOKEN, refreshToken, getCookieOptions(refreshCookieAge));
 
-    console.log('[Auth Controller] ✅ JWT cookies set for login:', { cand_id: user.cand_id, rememberMe });
+    logger.info('auth.login.cookies_set', { cand_id: user.cand_id, rememberMe, strictCookiesEnabled });
 
     const userData = {
       cand_id: user.cand_id,
@@ -287,7 +300,7 @@ exports.login = async (req, res) => {
       subscription: buildSubscriptionResponse(user.subscription),
     };
 
-    console.log('[Auth Controller] ✅ Login successful:', {
+    logger.info('auth.login.success', {
       cand_id: user.cand_id,
       role: role,
       is_admin: isAdmin,
@@ -314,7 +327,7 @@ exports.login = async (req, res) => {
       user: userData
     });
   } catch (err) {
-    console.error('[Auth Controller] ❌ Login error:', {
+    logger.error('auth.login.error', {
       message: err.message,
       stack: err.stack?.split('\n')[0]
     });
@@ -369,7 +382,7 @@ exports.logout = async (req, res) => {
       // Blacklist the token
       const { blacklistToken } = require('../utils/jwtUtils');
       blacklistToken(token);
-      console.log('[JWT Auth] Token blacklisted on logout');
+      logger.info('auth.logout.token_blacklisted');
     }
 
     if (tokenUser?.cand_id) {
@@ -386,10 +399,10 @@ exports.logout = async (req, res) => {
       }
     }
 
-    console.log('[JWT Auth] Logout successful');
+    logger.info('auth.logout.success');
     res.status(200).json({ success: true, message: 'Logout successful' });
   } catch (error) {
-    console.error('[JWT Auth] Logout error:', error);
+    logger.error('auth.logout.error', { error: error?.message || error });
     res.status(500).json({ success: false, message: 'Logout failed' });
   }
 };
@@ -426,7 +439,7 @@ exports.resetPasswordRequest = async (req, res) => {
 
     res.json({ message: 'Verification code sent to your email' });
   } catch (err) {
-    console.error('[Auth] Reset request error:', err);
+    logger.error('auth.reset_password_request.error', { error: err?.message || err, stack: err?.stack });
     res.status(500).json({ message: 'Error sending verification code' });
   }
 };
@@ -460,7 +473,7 @@ exports.updatePassword = async (req, res) => {
 
     res.json({ message: 'Password updated successfully' });
   } catch (err) {
-    console.error('[Auth] Update password error:', err);
+    logger.error('auth.update_password.error', { error: err?.message || err, stack: err?.stack });
     res.status(500).json({ message: 'Database error during password update' });
   }
 };

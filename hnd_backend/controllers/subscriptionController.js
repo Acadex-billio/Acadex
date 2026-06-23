@@ -23,6 +23,12 @@ const {
   createCouponTransaction,
   ensureCouponBackedSubscriptionStillActive,
 } = require('../services/couponService');
+const logger = require('../utils/logger');
+const {
+  validatePaymentAmountAndCurrency,
+  validateTransactionReference,
+  validateAccessMinutes,
+} = require('../services/paymentValidationService');
 
 const PLAN_DURATION_MS = 90 * 24 * 60 * 60 * 1000;
 const MANUAL_PAYMENT_RECIPIENT_NUMBER = '678507737';
@@ -90,30 +96,60 @@ async function loadCandidate(candId) {
 }
 
 async function grantMaterialAccess(transaction) {
-  const expiresAt = new Date(Date.now() + (Number(transaction.metadata?.access_minutes || 60) * 60 * 1000));
+  const accessMinutes = validateAccessMinutes(transaction.metadata?.access_minutes || 60);
+  const expiresAt = new Date(Date.now() + (accessMinutes * 60 * 1000));
   const grantCode = String(transaction.purpose_code || '').trim();
-  await PaymentAccessGrant.create({
-    user_cand_id: transaction.user_cand_id,
-    grant_code: grantCode,
-    resource_type: transaction.resource_type,
-    resource_id: String(transaction.resource_id),
-    transaction_id: transaction._id,
-    amount: transaction.amount,
-    currency: transaction.currency,
-    status: 'active',
-    granted_at: new Date(),
-    expires_at: expiresAt,
-    metadata: {
-      description: transaction.description,
+  await PaymentAccessGrant.findOneAndUpdate(
+    {
+      user_cand_id: transaction.user_cand_id,
+      transaction_id: transaction._id,
+      grant_code: grantCode,
+      resource_id: String(transaction.resource_id),
     },
-  });
+    {
+      $setOnInsert: {
+        user_cand_id: transaction.user_cand_id,
+        grant_code: grantCode,
+        resource_type: transaction.resource_type,
+        resource_id: String(transaction.resource_id),
+        transaction_id: transaction._id,
+        amount: transaction.amount,
+        currency: transaction.currency,
+        status: 'active',
+        granted_at: new Date(),
+        expires_at: expiresAt,
+        metadata: {
+          description: transaction.description,
+        },
+      },
+    },
+    { upsert: true, new: true }
+  );
 }
 
 async function applySuccessfulPayment(transaction) {
   if (transaction.status === 'successful' && transaction.completed_at) return transaction;
 
+  const finalizedTransaction = await PaymentTransaction.findOneAndUpdate(
+    {
+      _id: transaction._id,
+      status: { $ne: 'successful' },
+    },
+    {
+      $set: {
+        status: 'successful',
+        completed_at: new Date(),
+      },
+    },
+    { new: true }
+  );
+
+  if (!finalizedTransaction) {
+    return transaction;
+  }
+
   transaction.status = 'successful';
-  transaction.completed_at = new Date();
+  transaction.completed_at = finalizedTransaction.completed_at;
 
   if (transaction.purpose_type === 'subscription') {
     const nextPlan = transaction.purpose_code === 'plan_pro' ? 'pro' : 'paygo';
@@ -146,7 +182,7 @@ async function applySuccessfulPayment(transaction) {
       await grantMaterialAccess(transaction);
     }
 
-    console.info('[Subscription] Material payment successful', {
+    logger.info('subscription.material_payment.success', {
       transaction_id: String(transaction._id),
       user_cand_id: String(transaction.user_cand_id),
       resource_type: String(transaction.resource_type || ''),
@@ -154,8 +190,6 @@ async function applySuccessfulPayment(transaction) {
       access_minutes: Number(transaction.metadata?.access_minutes || 60),
     });
   }
-
-  await transaction.save();
 
   try {
     const materialScope = transaction.purpose_type === 'material_access'
@@ -173,6 +207,24 @@ async function applySuccessfulPayment(transaction) {
 }
 
 async function createTransaction({ candId, phoneNumber, purposeType, purposeCode, resourceType, resourceId, amount, currency, description, metadata, paymentMethod }) {
+  validatePaymentAmountAndCurrency({ amount, currency });
+
+  const idempotencyKey = String(metadata?.idempotency_key || '').trim();
+  if (idempotencyKey) {
+    const existing = await PaymentTransaction.findOne({
+      user_cand_id: candId,
+      idempotency_key: idempotencyKey,
+    });
+    if (existing) {
+      logger.info('payment.idempotency.hit', {
+        user_cand_id: candId,
+        idempotency_key: idempotencyKey,
+        transaction_id: String(existing._id),
+      });
+      return existing;
+    }
+  }
+
   const isCouponPayment = Number(amount || 0) <= 0 && sanitizePromoCodeInput(metadata?.promo_code);
   if (isCouponPayment) {
     const coupon = { code: metadata?.promo_code, expires_at: metadata?.coupon_expires_at || null, _id: metadata?.coupon_id || null };
@@ -202,11 +254,12 @@ async function createTransaction({ candId, phoneNumber, purposeType, purposeCode
       amount,
       currency,
       description,
-      external_reference: buildTransactionReference(),
+      external_reference: validateTransactionReference(buildTransactionReference()),
       external_id: `cand-${candId}`,
       status: 'pending',
       metadata: metadata || null,
       expires_at: new Date(Date.now() + (30 * 60 * 1000)),
+      idempotency_key: idempotencyKey || null,
     },
     phoneNumber,
     payerMessage: description.slice(0, 60),
@@ -267,6 +320,7 @@ exports.startPlanCheckout = async (req, res) => {
     const requestedPaymentMethod = String(req.body?.paymentMethod || 'momo').trim().toLowerCase();
     const paymentMethod = ['momo', 'mtn_momo', 'orange_money'].includes(requestedPaymentMethod) ? requestedPaymentMethod : 'momo';
     const redirectUrl = String(req.body?.redirectUrl || req.body?.returnUrl || '').trim();
+    const idempotencyKey = String(req.headers['x-idempotency-key'] || req.body?.idempotencyKey || '').trim();
     const promoCode = sanitizePromoCodeInput(req.body?.promoCode || req.body?.referralCode);
     const plan = getPlanDefinition(planCode);
 
@@ -300,6 +354,7 @@ exports.startPlanCheckout = async (req, res) => {
         promo_code: pricing.promoCode,
         coupon_id: pricing.coupon?._id ? String(pricing.coupon._id) : null,
         coupon_expires_at: pricing.coupon?.expires_at || null,
+        idempotency_key: idempotencyKey || null,
       },
       paymentMethod,
     });
@@ -361,6 +416,7 @@ exports.startMaterialCheckout = async (req, res) => {
     const resourceType = String(req.body?.resourceType || '').trim().toLowerCase();
     const resourceId = String(req.body?.resourceId || '').trim();
     const action = String(req.body?.action || '').trim().toLowerCase();
+    const idempotencyKey = String(req.headers['x-idempotency-key'] || req.body?.idempotencyKey || '').trim();
     const promoCode = sanitizePromoCodeInput(req.body?.promoCode || req.body?.referralCode);
     const phoneNumber = String(req.body?.phoneNumber || user.phone || '').trim();
     const material = await findMaterial(resourceType, resourceId, String(user.program || 'HND').toUpperCase(), user.dpt_id);
@@ -398,6 +454,7 @@ exports.startMaterialCheckout = async (req, res) => {
         promo_code: pricing.promoCode,
         coupon_id: pricing.coupon?._id ? String(pricing.coupon._id) : null,
         coupon_expires_at: pricing.coupon?.expires_at || null,
+        idempotency_key: idempotencyKey || null,
       },
     });
 
@@ -425,6 +482,7 @@ exports.startCenterCheckout = async (req, res) => {
 
     const action = String(req.body?.action || '').trim().toLowerCase();
     const promoCode = sanitizePromoCodeInput(req.body?.promoCode || req.body?.referralCode);
+    const idempotencyKey = String(req.headers['x-idempotency-key'] || req.body?.idempotencyKey || '').trim();
     const roomId = String(req.body?.roomId || '').trim();
     const phoneNumber = String(req.body?.phoneNumber || user.phone || '').trim();
     const centerPricing = getCenterPricing(action);
@@ -460,6 +518,7 @@ exports.startCenterCheckout = async (req, res) => {
         promo_code: pricing.promoCode,
         coupon_id: pricing.coupon?._id ? String(pricing.coupon._id) : null,
         coupon_expires_at: pricing.coupon?.expires_at || null,
+        idempotency_key: idempotencyKey || null,
       },
     });
 
@@ -539,6 +598,7 @@ exports.startManualPlanCheckout = async (req, res) => {
     const user = await loadCandidate(candId);
     const planCode = String(req.body?.planCode || '').trim().toLowerCase();
     const promoCode = sanitizePromoCodeInput(req.body?.promoCode || req.body?.referralCode);
+    const idempotencyKey = String(req.headers['x-idempotency-key'] || req.body?.idempotencyKey || '').trim();
     const paymentProof = String(req.body?.paymentProof || '').trim();
     const plan = getPlanDefinition(planCode);
 
@@ -571,6 +631,7 @@ exports.startManualPlanCheckout = async (req, res) => {
       description: `${plan.name} subscription payment (manual verification)`,
       external_reference: buildTransactionReference(),
       external_id: `cand-${candId}`,
+      idempotency_key: idempotencyKey || null,
       status: 'pending',
       expires_at: new Date(Date.now() + (30 * 60 * 1000)),
       metadata: {

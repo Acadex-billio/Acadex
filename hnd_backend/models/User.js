@@ -3,13 +3,26 @@
  */
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
+const {
+  USER_ROLES,
+  ACCOUNT_STATUSES,
+  SUBSCRIPTION_PLANS,
+  SUBSCRIPTION_STATUSES,
+  COMPLAINT_STATUSES,
+  USER_PROGRAMS,
+} = require('../constants/userConstants');
 
-const SUBSCRIPTION_PLANS = ['basic', 'pro', 'paygo'];
+const SUBSCRIPTION_PLAN_VALUES = Object.values(SUBSCRIPTION_PLANS);
+const SUBSCRIPTION_STATUS_VALUES = Object.values(SUBSCRIPTION_STATUSES);
+const USER_ROLE_VALUES = Object.values(USER_ROLES);
+const ACCOUNT_STATUS_VALUES = Object.values(ACCOUNT_STATUSES);
+const COMPLAINT_STATUS_VALUES = Object.values(COMPLAINT_STATUSES);
+const USER_PROGRAM_VALUES = Object.values(USER_PROGRAMS);
 
 const subscriptionSchema = new mongoose.Schema(
   {
-    plan: { type: String, enum: SUBSCRIPTION_PLANS, default: 'basic' },
-    status: { type: String, enum: ['active', 'expired'], default: 'active' },
+    plan: { type: String, enum: SUBSCRIPTION_PLAN_VALUES, default: SUBSCRIPTION_PLANS.BASIC },
+    status: { type: String, enum: SUBSCRIPTION_STATUS_VALUES, default: SUBSCRIPTION_STATUSES.ACTIVE },
     activated_at: { type: Date, default: Date.now },
     expires_at: { type: Date, default: null },
     last_payment_at: { type: Date, default: null },
@@ -29,8 +42,8 @@ const userSchema = new mongoose.Schema(
     address: { type: String, trim: true },
     profile_picture: { type: String, default: null },
     dpt_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Department', required: false, default: null },
-    role: { type: String, enum: ['candidate', 'lecturer', 'admin', 'developer', 'superadmin'], default: 'candidate', index: true },
-    program: { type: String, enum: ['HND', 'BTS', 'LECTURER'], default: 'HND', index: true },
+    role: { type: String, enum: USER_ROLE_VALUES, default: USER_ROLES.CANDIDATE, index: true },
+    program: { type: String, enum: USER_PROGRAM_VALUES, default: USER_PROGRAMS.HND, index: true },
     preferred_language: { type: String, enum: ['en', 'fr'], default: 'en' },
     academic_year: { type: String, default: null, trim: true },
     allow_emails: { type: Boolean, default: true },
@@ -47,8 +60,8 @@ const userSchema = new mongoose.Schema(
     subscription: {
       type: subscriptionSchema,
       default: () => ({
-        plan: 'basic',
-        status: 'active',
+        plan: SUBSCRIPTION_PLANS.BASIC,
+        status: SUBSCRIPTION_STATUSES.ACTIVE,
         activated_at: new Date(),
         expires_at: null,
         last_payment_at: null,
@@ -57,7 +70,7 @@ const userSchema = new mongoose.Schema(
       }),
     },
 
-    account_status: { type: String, enum: ['active', 'pending_approval', 'suspended', 'blocked'], default: 'active', index: true },
+    account_status: { type: String, enum: ACCOUNT_STATUS_VALUES, default: ACCOUNT_STATUSES.ACTIVE, index: true },
     suspension: {
       start_at: { type: Date, default: null },
       end_at: { type: Date, default: null },
@@ -73,7 +86,7 @@ const userSchema = new mongoose.Schema(
     complaints: [
       {
         text: { type: String, required: true, trim: true },
-        status: { type: String, enum: ['pending', 'reviewed'], default: 'pending' },
+        status: { type: String, enum: COMPLAINT_STATUS_VALUES, default: COMPLAINT_STATUSES.PENDING },
         createdAt: { type: Date, default: Date.now },
         reviewedAt: { type: Date, default: null },
         reviewedBy: { type: String, default: null, trim: true },

@@ -5,6 +5,7 @@
 
 const mongoose = require('mongoose');
 const { ValidationError } = require('../utils/errorHandler');
+const logger = require('../utils/logger');
 
 // Sanitize MongoDB queries to prevent NoSQL injection
 const sanitizeMongoQuery = (query) => {
@@ -182,7 +183,7 @@ const createRateLimit = (windowMs, max, message) => {
     standardHeaders: true,
     legacyHeaders: false,
     handler: (req, res) => {
-      console.warn('[Rate Limit] Exceeded:', {
+      logger.warn('rate_limit.exceeded', {
         ip: req.ip,
         url: req.url,
         userAgent: req.get('User-Agent')

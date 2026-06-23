@@ -19,6 +19,10 @@ const { validateProfileImage, ALLOWED_EXTENSIONS } = require('../middlewares/upl
 const { requireAuth, requireSelfOrAdmin } = require('../middlewares/jwtAuth');
 const { validate, schemas } = require('../middlewares/validateRequest');
 const { requireAnyRole } = require('../middlewares/authorize');
+const {
+  userPaymentInitiationRateLimit,
+  userPaymentStatusRateLimit,
+} = require('../middlewares/userRateLimit');
 
 const profileStorage = multer.memoryStorage();
 const profileImageFilter = (_req, file, cb) => {
@@ -83,8 +87,8 @@ router.get('/analytics/chat/stats', candidateAnalyticsController.getMyChatStats)
 
 router.get('/subscription/catalog', subscriptionController.getCatalog);
 router.get('/subscription/me', subscriptionController.getMySubscription);
-router.post('/subscription/checkout', validate({ body: schemas.candidate.subscriptionCheckout }), subscriptionController.startPlanCheckout);
-router.post('/subscription/manual-checkout', validate({ body: schemas.candidate.manualSubscriptionCheckout }), subscriptionController.startManualPlanCheckout);
+router.post('/subscription/checkout', userPaymentInitiationRateLimit, validate({ body: schemas.candidate.subscriptionCheckout }), subscriptionController.startPlanCheckout);
+router.post('/subscription/manual-checkout', userPaymentInitiationRateLimit, validate({ body: schemas.candidate.manualSubscriptionCheckout }), subscriptionController.startManualPlanCheckout);
 
 router.get('/internship-topics', internshipTopicController.listCandidateTopics);
 router.get('/internship-topics/:topicId', validate({ params: schemas.ids.topicIdParam }), internshipTopicController.getCandidateTopicDetail);
@@ -92,9 +96,9 @@ router.post('/internship-topics/:topicId/rating', validate({ params: schemas.ids
 router.post('/internship-topics/:topicId/recommend', validate({ params: schemas.ids.topicIdParam }), internshipTopicController.toggleRecommendation);
 router.post('/internship-topics/:topicId/reaction', validate({ params: schemas.ids.topicIdParam }), internshipTopicController.setReaction);
 
-router.post('/payments/materials/checkout', validate({ body: schemas.candidate.materialCheckout }), subscriptionController.startMaterialCheckout);
-router.post('/payments/centers/checkout', validate({ body: schemas.candidate.centerCheckout }), subscriptionController.startCenterCheckout);
-router.get('/payments/:transactionId/status', validate({ params: schemas.ids.transactionIdParam }), subscriptionController.getPaymentStatus);
+router.post('/payments/materials/checkout', userPaymentInitiationRateLimit, validate({ body: schemas.candidate.materialCheckout }), subscriptionController.startMaterialCheckout);
+router.post('/payments/centers/checkout', userPaymentInitiationRateLimit, validate({ body: schemas.candidate.centerCheckout }), subscriptionController.startCenterCheckout);
+router.get('/payments/:transactionId/status', userPaymentStatusRateLimit, validate({ params: schemas.ids.transactionIdParam }), subscriptionController.getPaymentStatus);
 
 router.post('/history/add', historyController.add);
 router.get('/history/:user_id', requireSelfOrAdmin('user_id'), historyController.getByUser);

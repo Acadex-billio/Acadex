@@ -5,6 +5,7 @@
 
 const rateLimit = require('express-rate-limit');
 const helmet = require('helmet');
+const logger = require('./logger');
 
 const parsePositiveInt = (value, fallback) => {
   const parsed = Number.parseInt(String(value || ''), 10);
@@ -140,7 +141,7 @@ const securityAuditLogger = (req, res, next) => {
   );
 
   if (isSuspicious) {
-    console.warn('[Security Alert] Suspicious request detected:', {
+    logger.warn('security.alert.suspicious_request', {
       ip: req.ip,
       url: req.url,
       method: req.method,
@@ -170,7 +171,7 @@ const blockAttackPatterns = (req, res, next) => {
   const { url, body, query } = req;
   
   if (checkString(url) || checkString(JSON.stringify(body)) || checkString(JSON.stringify(query))) {
-    console.warn('[Security] Request blocked - suspicious pattern detected:', {
+    logger.warn('security.request.blocked_suspicious_pattern', {
       ip: req.ip,
       url: req.url,
       userAgent: req.get('User-Agent')

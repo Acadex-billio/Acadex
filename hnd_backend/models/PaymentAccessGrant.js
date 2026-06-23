@@ -18,5 +18,9 @@ const paymentAccessGrantSchema = new mongoose.Schema(
 );
 
 paymentAccessGrantSchema.index({ user_cand_id: 1, grant_code: 1, resource_id: 1, status: 1 });
+paymentAccessGrantSchema.index(
+  { user_cand_id: 1, transaction_id: 1, grant_code: 1, resource_id: 1 },
+  { unique: true }
+);
 
 module.exports = mongoose.model('PaymentAccessGrant', paymentAccessGrantSchema);

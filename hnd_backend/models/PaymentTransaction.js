@@ -13,6 +13,7 @@ const paymentTransactionSchema = new mongoose.Schema(
     currency: { type: String, default: 'XAF', trim: true },
     phone_number: { type: String, required: true, trim: true },
     description: { type: String, required: true, trim: true },
+    idempotency_key: { type: String, default: null, trim: true, index: true },
     external_reference: { type: String, required: true, unique: true, trim: true },
     provider_reference: { type: String, default: null, trim: true, index: true },
     external_id: { type: String, default: null, trim: true },
@@ -31,5 +32,6 @@ paymentTransactionSchema.index({ user_cand_id: 1, status: 1, createdAt: -1 });
 paymentTransactionSchema.index({ purpose_code: 1, resource_id: 1, status: 1 });
 paymentTransactionSchema.index({ provider_reference: 1, status: 1 });
 paymentTransactionSchema.index({ resource_type: 1, resource_id: 1, createdAt: -1 });
+paymentTransactionSchema.index({ user_cand_id: 1, idempotency_key: 1 }, { unique: true, sparse: true });
 
 module.exports = mongoose.model('PaymentTransaction', paymentTransactionSchema);

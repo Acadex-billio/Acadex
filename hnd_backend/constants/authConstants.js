@@ -1,0 +1,18 @@
+const AUTH_COOKIE_NAMES = Object.freeze({
+  ACCESS_TOKEN: 'access_token',
+  REFRESH_TOKEN: 'refresh_token',
+});
+
+const ACCESS_TOKEN_COOKIE_MAX_AGE = 15 * 60 * 1000; // 15 minutes
+const REFRESH_TOKEN_REMEMBER_ME_MAX_AGE = 30 * 24 * 60 * 60 * 1000; // 30 days
+const REFRESH_TOKEN_DEFAULT_MAX_AGE = 24 * 60 * 60 * 1000; // 1 day
+
+const AUTH_COOKIE_PATH = '/';
+
+module.exports = {
+  AUTH_COOKIE_NAMES,
+  ACCESS_TOKEN_COOKIE_MAX_AGE,
+  REFRESH_TOKEN_REMEMBER_ME_MAX_AGE,
+  REFRESH_TOKEN_DEFAULT_MAX_AGE,
+  AUTH_COOKIE_PATH,
+};

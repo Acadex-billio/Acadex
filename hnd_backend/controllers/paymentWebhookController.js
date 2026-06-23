@@ -8,6 +8,12 @@ const {
   buildSubscriptionResponse,
 } = require('../utils/subscriptionUtils');
 const User = require('../models/User');
+const PaymentAccessGrant = require('../models/PaymentAccessGrant');
+const {
+  normalizeWebhookPaymentStatus,
+  validateTransactionReference,
+  validateAccessMinutes,
+} = require('../services/paymentValidationService');
 
 const PLAN_DURATION_MS = 90 * 24 * 60 * 60 * 1000;
 
@@ -45,6 +51,11 @@ exports.handleCamerpayCallback = async (req, res) => {
       return;
     }
 
+    validateTransactionReference(
+      payload?.payment_id || payload?.transaction_uuid || payload?.merchant_invoice_id || payload?.reference,
+      'provider transaction reference'
+    );
+
     // Find transaction by provider_reference (payment_id from CamerPay)
     const transaction = await PaymentTransaction.findOne({
       $or: [
@@ -71,9 +82,9 @@ exports.handleCamerpayCallback = async (req, res) => {
       return;
     }
 
-    const paymentStatus = String(payload?.status || '').toLowerCase();
-    const isSuccessful = paymentStatus === 'successful' || paymentStatus === 'success' || paymentStatus === 'completed';
-    const isFailed = paymentStatus === 'failed' || paymentStatus === 'cancelled';
+    const paymentStatus = normalizeWebhookPaymentStatus(payload?.status || '');
+    const isSuccessful = paymentStatus === 'successful';
+    const isFailed = paymentStatus === 'failed';
 
     if (!isSuccessful && !isFailed) {
       logger.info('CamerPay webhook: Payment still pending or unknown status', {
@@ -121,19 +132,53 @@ exports.handleCamerpayCallback = async (req, res) => {
       access_minutes: Number(transaction.metadata?.access_minutes || 0) || null,
     });
 
+    const alreadyFinalized = transaction.status === 'successful' && transaction.completed_at;
+    if (alreadyFinalized) {
+      if (respond) {
+        return res.json({
+          success: true,
+          message: 'Webhook already processed',
+          transaction_id: transaction._id,
+        });
+      }
+      return;
+    }
+
     const receiptUser = transaction.user_cand_id
       ? await User.findOne({ cand_id: transaction.user_cand_id }).select('email name allow_emails').lean()
       : null;
 
-    transaction.status = 'successful';
-    transaction.completed_at = new Date();
-    transaction.provider_response = payload;
+    const finalizedTransaction = await PaymentTransaction.findOneAndUpdate(
+      {
+        _id: transaction._id,
+        status: { $ne: 'successful' },
+      },
+      {
+        $set: {
+          status: 'successful',
+          completed_at: new Date(),
+          provider_response: payload,
+        },
+      },
+      { new: true }
+    );
+
+    if (!finalizedTransaction) {
+      if (respond) {
+        return res.json({
+          success: true,
+          message: 'Webhook already processed',
+          transaction_id: transaction._id,
+        });
+      }
+      return;
+    }
 
     // Apply subscription/access based on transaction type
-    if (transaction.purpose_type === 'subscription') {
-      const nextPlan = transaction.purpose_code === 'plan_pro' ? 'pro' : 'paygo';
+    if (finalizedTransaction.purpose_type === 'subscription') {
+      const nextPlan = finalizedTransaction.purpose_code === 'plan_pro' ? 'pro' : 'paygo';
       await User.updateOne(
-        { cand_id: transaction.user_cand_id },
+        { cand_id: finalizedTransaction.user_cand_id },
         {
           $set: {
             subscription: {
@@ -142,82 +187,94 @@ exports.handleCamerpayCallback = async (req, res) => {
               activated_at: new Date(),
               expires_at: new Date(Date.now() + PLAN_DURATION_MS),
               last_payment_at: new Date(),
-              phone_number: transaction.phone_number,
-              source_transaction_id: transaction._id,
+              phone_number: finalizedTransaction.phone_number,
+              source_transaction_id: finalizedTransaction._id,
             },
           },
         }
       );
 
       logger.info('Subscription activated via webhook', {
-        transaction_id: transaction._id,
-        user_cand_id: transaction.user_cand_id,
+        transaction_id: finalizedTransaction._id,
+        user_cand_id: finalizedTransaction.user_cand_id,
         plan: nextPlan,
       });
     }
 
     // For material access, grant temporary access
-    if (transaction.purpose_type === 'material_access') {
-      const PaymentAccessGrant = require('../models/PaymentAccessGrant');
-      const expiresAt = new Date(Date.now() + (Number(transaction.metadata?.access_minutes || 60) * 60 * 1000));
-      const grantCode = String(transaction.purpose_code || '').trim();
-      await PaymentAccessGrant.create({
-        user_cand_id: transaction.user_cand_id,
-        grant_code: grantCode,
-        resource_type: transaction.resource_type,
-        resource_id: String(transaction.resource_id),
-        transaction_id: transaction._id,
-        amount: transaction.amount,
-        currency: transaction.currency,
-        status: 'active',
-        granted_at: new Date(),
-        expires_at: expiresAt,
-        metadata: {
-          description: transaction.description,
+    if (finalizedTransaction.purpose_type === 'material_access') {
+      const accessMinutes = validateAccessMinutes(finalizedTransaction.metadata?.access_minutes || 60);
+      const expiresAt = new Date(Date.now() + (accessMinutes * 60 * 1000));
+      const grantCode = String(finalizedTransaction.purpose_code || '').trim();
+      await PaymentAccessGrant.findOneAndUpdate(
+        {
+          user_cand_id: finalizedTransaction.user_cand_id,
+          transaction_id: finalizedTransaction._id,
+          grant_code: grantCode,
+          resource_id: String(finalizedTransaction.resource_id),
         },
-      });
+        {
+          $setOnInsert: {
+            user_cand_id: finalizedTransaction.user_cand_id,
+            grant_code: grantCode,
+            resource_type: finalizedTransaction.resource_type,
+            resource_id: String(finalizedTransaction.resource_id),
+            transaction_id: finalizedTransaction._id,
+            amount: finalizedTransaction.amount,
+            currency: finalizedTransaction.currency,
+            status: 'active',
+            granted_at: new Date(),
+            expires_at: expiresAt,
+            metadata: {
+              description: finalizedTransaction.description,
+            },
+          },
+        },
+        { upsert: true, new: true }
+      );
 
       logger.info('Material access granted via webhook', {
-        transaction_id: transaction._id,
-        user_cand_id: transaction.user_cand_id,
+        transaction_id: finalizedTransaction._id,
+        user_cand_id: finalizedTransaction.user_cand_id,
         grant_code: grantCode,
-        resource_type: transaction.resource_type,
-        resource_id: transaction.resource_id,
-        access_minutes: Number(transaction.metadata?.access_minutes || 60),
+        resource_type: finalizedTransaction.resource_type,
+        resource_id: finalizedTransaction.resource_id,
+        access_minutes: accessMinutes,
       });
     }
 
     // Record payment history
     try {
       const History = require('../models/History');
-      const materialScope = transaction.purpose_type === 'material_access'
-        ? ` [resource:${transaction.resource_type}:${transaction.resource_id} duration:${Number(transaction.metadata?.access_minutes || 60)}m]`
+      const historyAccessMinutes = finalizedTransaction.purpose_type === 'material_access'
+        ? validateAccessMinutes(finalizedTransaction.metadata?.access_minutes || 60)
+        : null;
+      const materialScope = finalizedTransaction.purpose_type === 'material_access'
+        ? ` [resource:${finalizedTransaction.resource_type}:${finalizedTransaction.resource_id} duration:${historyAccessMinutes}m]`
         : '';
       await History.create({
-        user_id: transaction.user_cand_id,
+        user_id: finalizedTransaction.user_cand_id,
         content_type: 'payment',
-        content_title: `${transaction.description}${materialScope}`,
-        action: transaction.purpose_code,
+        content_title: `${finalizedTransaction.description}${materialScope}`,
+        action: finalizedTransaction.purpose_code,
       });
     } catch (_) {}
 
-    await transaction.save();
-
     if (receiptUser?.email && receiptUser.allow_emails !== false) {
-      const planLabel = transaction.purpose_type === 'subscription'
-        ? (transaction.purpose_code === 'plan_pro' ? 'Pro subscription' : 'PAYGO subscription')
-        : transaction.purpose_type.replace(/_/g, ' ');
-      const emailSubject = `Acadex payment receipt — ${transaction.description}`;
+      const planLabel = finalizedTransaction.purpose_type === 'subscription'
+        ? (finalizedTransaction.purpose_code === 'plan_pro' ? 'Pro subscription' : 'PAYGO subscription')
+        : finalizedTransaction.purpose_type.replace(/_/g, ' ');
+      const emailSubject = `Acadex payment receipt — ${finalizedTransaction.description}`;
       const emailText = [
         `Hello ${receiptUser.name || 'Acadex learner'},`,
         '',
         'Your payment was successful.',
-        `Transaction: ${transaction._id}`,
-        `Description: ${transaction.description}`,
+        `Transaction: ${finalizedTransaction._id}`,
+        `Description: ${finalizedTransaction.description}`,
         `Type: ${planLabel}`,
-        `Amount: ${transaction.amount} ${transaction.currency}`,
+        `Amount: ${finalizedTransaction.amount} ${finalizedTransaction.currency}`,
         `Status: Successful`,
-        `Date: ${new Date(transaction.completed_at).toLocaleString()}`,
+        `Date: ${new Date(finalizedTransaction.completed_at).toLocaleString()}`,
         '',
         'Thank you for choosing Acadex. Your access has been updated and is available immediately.',
       ].join('\n');
@@ -232,7 +289,7 @@ exports.handleCamerpayCallback = async (req, res) => {
         logger.error('Failed to send payment receipt email', {
           error: emailErr?.message || emailErr,
           email: receiptUser.email,
-          transaction_id: transaction._id,
+          transaction_id: finalizedTransaction._id,
         });
       }
     }
@@ -241,7 +298,7 @@ exports.handleCamerpayCallback = async (req, res) => {
       return res.json({
         success: true,
         message: 'Webhook processed: payment successful',
-        transaction_id: transaction._id,
+        transaction_id: finalizedTransaction._id,
       });
     }
     return;

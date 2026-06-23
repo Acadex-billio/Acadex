@@ -11,9 +11,14 @@ const {
   authRateLimit,
   passwordResetRateLimit
 } = require('../middlewares/inputValidation');
+const {
+  userAuthRateLimit,
+  userPasswordResetRateLimit,
+} = require('../middlewares/userRateLimit');
 
 router.post('/register', 
   authRateLimit,
+  userAuthRateLimit,
   validate({ body: schemas.auth.register }),
   validateRequiredFields(['name', 'email', 'phone', 'password']),
   validateEmailInput,
@@ -23,6 +28,7 @@ router.post('/register',
 
 router.post('/login', 
   authRateLimit,
+  userAuthRateLimit,
   validate({ body: schemas.auth.login }),
   validateRequiredFields(['email', 'password']),
   validateEmailInput,
@@ -35,6 +41,7 @@ router.post('/logout', authController.logout);
 
 router.post('/reset-password', 
   passwordResetRateLimit,
+  userPasswordResetRateLimit,
   validateRequiredFields(['email']),
   validateEmailInput,
   authController.resetPasswordRequest
@@ -42,6 +49,7 @@ router.post('/reset-password',
 
 router.post('/update-password', 
   passwordResetRateLimit,
+  userPasswordResetRateLimit,
   validateRequiredFields(['email', 'code', 'newPassword']),
   validateEmailInput,
   validatePasswordInput,
