@@ -57,12 +57,6 @@
   opacity: 0.94;
 }
 
-.bottomPrintSection {
-  display: flex;
-  justify-content: flex-end;
-  margin-bottom: 24px;
-}
-
 .titleSection {
   text-align: center;
 }
@@ -889,129 +883,206 @@
   }
 
   @media print {
-    html,
     body {
-      margin: 0;
-      padding: 0;
-      background: #ffffff !important;
-      print-color-adjust: exact;
-      -webkit-print-color-adjust: exact;
+      margin: 0 !important;
+      padding: 0 !important;
+      background: white !important;
+      print-color-adjust: exact !important;
+      -webkit-print-color-adjust: exact !important;
     }
 
-    /* Hide everything by default for print, then explicitly show just the
-       report modal preview. Ensuring the container stays visible prevents the
-       modal from being hidden because its ancestor is display:none. */
-    body * {
+    /* Hide all page shell elements */
+    .header,
+    .section,
+    .footer,
+    .copyright,
+    .reportPeriod,
+    .printBtn,
+    .backBtn,
+    .headerActions {
       display: none !important;
     }
 
-    .container {
-      display: block !important;
-    }
-
-    .container > * {
-      display: none !important;
-    }
-
-    .modalBackdrop,
-    .modalBackdrop *,
-    .reportModal,
-    .reportModal * {
-      display: block !important;
-      visibility: visible !important;
-    }
-
+    /* Hide modal decorations but keep modal visible */
     .modalBackdrop {
       position: static !important;
-      background: transparent !important;
-      box-shadow: none !important;
-      min-height: auto !important;
       top: auto !important;
       left: auto !important;
       right: auto !important;
       bottom: auto !important;
+      background: white !important;
       padding: 0 !important;
-      display: block !important;
-    }
-
-    /* Make modal content use printable page width and flow naturally */
-    .reportModal {
-      width: 100% !important;
-      max-width: 100% !important;
-      max-height: none !important;
-      overflow: visible !important;
-      box-shadow: none !important;
-      border-radius: 0 !important;
-      padding: 0 !important;
-      margin: 0 auto !important;
-      background: transparent !important;
-      -webkit-print-color-adjust: exact !important;
-      print-color-adjust: exact !important;
-    }
-
-    .reportPage {
-      border: none !important;
-      border-radius: 0 !important;
-      background: #ffffff !important;
-      padding: 12mm 8mm !important;
       margin: 0 !important;
-      box-sizing: border-box !important;
-      width: calc(210mm - 24mm) !important; /* A4 page width minus margins */
+      width: 100% !important;
+      height: auto !important;
+      z-index: auto !important;
+      display: block !important;
     }
 
     .modalHeader,
-    .modalFooter,
-    .closeBtn,
-    .printReportBtn,
-    .secondaryBtn,
-    .backBtn,
-    .headerActions,
-    .printBtn,
-    .footer,
-    .section,
-    .reportPeriod,
-    .metricsGrid,
-    .audienceGrid,
-    .engagementGrid,
-    .linkAnalyticsTable,
-    .peakHoursChart,
-    .recommendationBox,
-    .bottomPrintSection {
+    .modalFooter {
       display: none !important;
     }
 
-    /* Ensure the visible report modal content is not accidentally hidden by
-       a more generic selector. */
-    .modalBackdrop,
-    .reportModal,
-    .reportPage,
-    .reportHero,
-    .reportAdvertiserGrid,
-    .reportSummary,
-    .reportInfoGrid,
-    .reportInfoCard,
-    .supportFooter,
-    .recommendationBox {
+    .reportModal {
       display: block !important;
+      position: relative !important;
+      width: 100% !important;
+      max-width: 100% !important;
+      margin: 0 !important;
+      padding: 0 !important;
+      border: none !important;
+      border-radius: 0 !important;
+      box-shadow: none !important;
+      background: white !important;
+      flex-direction: column !important;
+      gap: 0 !important;
+      max-height: none !important;
+      overflow: visible !important;
     }
 
-    .reportHero,
-    .reportAdvertiserGrid,
-    .reportSummary,
-    .reportInfoGrid,
-    .supportFooter {
+    .reportPage {
+      display: block !important;
+      position: relative !important;
+      width: 100% !important;
+      max-width: 100% !important;
+      margin: 0 !important;
+      padding: 0.3in !important;
+      background: white !important;
+      border: none !important;
+      border-radius: 0 !important;
+      box-sizing: border-box !important;
+      overflow: visible !important;
       page-break-inside: avoid !important;
     }
 
-    /* Ensure the reportPage itself starts on a fresh page and avoids trailing
-       blank page by preventing page-break-after on the container. */
-    .reportPage {
-      page-break-after: auto !important;
-      page-break-before: auto !important;
+    /* Compact report sections for single page */
+    .reportHero {
+      display: block !important;
+      margin-bottom: 8px !important;
+      gap: 4px !important;
+    }
+
+    .reportHeroLogo {
+      width: 60px !important;
+      height: 60px !important;
+      margin-bottom: 4px !important;
+    }
+
+    .reportHero h2 {
+      margin: 2px 0 !important;
+      font-size: 18px !important;
+    }
+
+    .reportHeroSubtext {
+      margin: 0 !important;
+      font-size: 12px !important;
+    }
+
+    .reportAdvertiserGrid {
+      display: grid !important;
+      grid-template-columns: repeat(4, 1fr) !important;
+      gap: 8px !important;
+      margin-bottom: 8px !important;
+    }
+
+    .reportAdvertiserGrid div {
+      padding: 6px !important;
+    }
+
+    .reportLabel {
+      font-size: 10px !important;
+      margin-bottom: 2px !important;
+    }
+
+    .reportAdvertiserGrid strong {
+      font-size: 13px !important;
+    }
+
+    .reportSummary {
+      display: grid !important;
+      grid-template-columns: repeat(3, 1fr) !important;
+      gap: 8px !important;
+      margin-bottom: 8px !important;
+    }
+
+    .reportStatCard {
+      padding: 6px !important;
+    }
+
+    .reportStatCard span {
+      font-size: 11px !important;
+      margin-bottom: 2px !important;
+    }
+
+    .reportStatCard strong {
+      font-size: 18px !important;
+    }
+
+    .reportSection {
+      display: block !important;
+      margin-bottom: 8px !important;
+    }
+
+    .reportSection h4 {
+      margin: 4px 0 !important;
+      font-size: 13px !important;
+    }
+
+    .reportInfoGrid {
+      display: grid !important;
+      grid-template-columns: repeat(3, 1fr) !important;
+      gap: 8px !important;
+    }
+
+    .reportInfoCard {
+      padding: 6px !important;
+    }
+
+    .reportInfoCard span {
+      font-size: 10px !important;
+      margin-bottom: 2px !important;
+    }
+
+    .reportInfoCard strong {
+      font-size: 14px !important;
+    }
+
+    .recommendationBox {
+      display: block !important;
+      margin-bottom: 8px !important;
+      padding: 8px !important;
+    }
+
+    .recommendationBox p {
+      margin: 0 !important;
+      font-size: 11px !important;
+      line-height: 1.3 !important;
+    }
+
+    .supportFooter {
+      display: block !important;
+      margin-top: 8px !important;
+      padding: 8px !important;
+    }
+
+    .supportFooter h4 {
+      margin: 0 0 4px 0 !important;
+      font-size: 12px !important;
+    }
+
+    .supportFooter ul {
+      margin: 0 !important;
+      padding: 0 !important;
+      gap: 2px !important;
+    }
+
+    .supportFooter li {
+      font-size: 10px !important;
     }
 
     @page {
-      margin: 12mm;
+      margin: 0.3in;
       size: auto;
     }
   }

@@ -20,7 +20,160 @@ const AdPerformanceReport = () => {
     averageViewTimeSeconds: 0,
   });
   const [reportPeriod] = useState({ start: '01 Jun 2026', end: '07 Jun 2026' });
+  const ad = data?.ad || {};
+  const performance = data?.performance || {};
   const onGenerateReport = useCallback(() => setShowReportModal(true), []);
+
+  const handlePrintReport = useCallback(() => {
+    try {
+      const ctr = overrideMetrics.impressions > 0 ? ((overrideMetrics.clicks / overrideMetrics.impressions) * 100) : 0;
+      const printLogo = ad.logoUrl || `${process.env.PUBLIC_URL || ''}/hnd-mark.svg`;
+
+      const printHtml = `
+        <!doctype html>
+        <html>
+          <head>
+            <meta charset="utf-8" />
+            <title>Acadex Ad Report</title>
+            <style>
+              * { box-sizing: border-box; }
+              body {
+                margin: 0;
+                padding: 12mm;
+                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                color: #0f172a;
+                background: #ffffff;
+              }
+              .report {
+                border: 1px solid #e2e8f0;
+                border-radius: 12px;
+                padding: 14px;
+                max-width: 820px;
+                margin: 0 auto;
+              }
+              .hero { text-align: center; margin-bottom: 10px; }
+              .hero img { width: 60px; height: 60px; object-fit: contain; margin-bottom: 6px; }
+              .hero h1 { margin: 0; font-size: 22px; letter-spacing: 0.02em; }
+              .hero p { margin: 3px 0 0 0; color: #475569; font-size: 12px; }
+              .grid4, .grid3 {
+                display: grid;
+                gap: 8px;
+                margin-bottom: 10px;
+              }
+              .grid4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+              .grid3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+              .card {
+                border: 1px solid #e2e8f0;
+                border-radius: 10px;
+                padding: 8px;
+                background: #ffffff;
+              }
+              .label { font-size: 10px; color: #64748b; text-transform: uppercase; margin-bottom: 3px; }
+              .value { font-size: 13px; font-weight: 700; color: #0f172a; }
+              .metricLabel { font-size: 11px; color: #475569; margin-bottom: 2px; }
+              .metricValue { font-size: 20px; font-weight: 800; }
+              .sectionTitle { font-size: 13px; margin: 8px 0 6px 0; color: #0f172a; }
+              .recommendation {
+                border-left: 3px solid #f59e0b;
+                background: #fffbeb;
+                border-radius: 8px;
+                padding: 8px;
+                font-size: 11px;
+                line-height: 1.35;
+                margin-bottom: 8px;
+              }
+              .support {
+                border: 1px solid #e2e8f0;
+                border-radius: 10px;
+                padding: 8px;
+                font-size: 10px;
+                color: #334155;
+              }
+              .support h2 { margin: 0 0 5px 0; font-size: 12px; }
+              .support p { margin: 2px 0; }
+              @media print {
+                @page { margin: 10mm; size: auto; }
+              }
+            </style>
+          </head>
+          <body>
+            <div class="report">
+              <div class="hero">
+                <img src="${printLogo}" alt="Acadex logo" />
+                <h1>ACADEX AD REPORT</h1>
+                <p>Campaign performance summary</p>
+              </div>
+
+              <div class="grid4">
+                <div class="card"><div class="label">Client / Advertiser</div><div class="value">${ad.advertiserName || 'Acadex Platform'}</div></div>
+                <div class="card"><div class="label">Campaign Name</div><div class="value">${ad.title || 'N/A'}</div></div>
+                <div class="card"><div class="label">Ad ID</div><div class="value">ADX-${(ad._id || '').toString().substring(0, 8).toUpperCase()}</div></div>
+                <div class="card"><div class="label">Amount Paid</div><div class="value">${(overrideMetrics.amountPaid || 0).toLocaleString()} XAF</div></div>
+              </div>
+
+              <div class="grid3">
+                <div class="card"><div class="metricLabel">Impressions</div><div class="metricValue">${(overrideMetrics.impressions || 0).toLocaleString()}</div></div>
+                <div class="card"><div class="metricLabel">Clicks</div><div class="metricValue">${(overrideMetrics.clicks || 0).toLocaleString()}</div></div>
+                <div class="card"><div class="metricLabel">CTR</div><div class="metricValue">${ctr.toFixed(2)}%</div></div>
+              </div>
+
+              <div class="sectionTitle">Engagement Snapshot</div>
+              <div class="grid3">
+                <div class="card"><div class="metricLabel">Unique Viewers</div><div class="metricValue">${(overrideMetrics.uniqueViewers || 0).toLocaleString()}</div></div>
+                <div class="card"><div class="metricLabel">Modal Opens</div><div class="metricValue">${(overrideMetrics.modalOpens || 0).toLocaleString()}</div></div>
+                <div class="card"><div class="metricLabel">Average View Time</div><div class="metricValue">${overrideMetrics.averageViewTimeSeconds || 0} sec</div></div>
+              </div>
+
+              <div class="recommendation">${performance.recommendation || 'Campaign is running. Monitor metrics for ongoing optimization.'}</div>
+
+              <div class="support">
+                <h2>ACADEX SUPPORT</h2>
+                <p>acadex@gmail.com</p>
+                <p>678507737</p>
+                <p>www.acadexe.com</p>
+                <p>brightstackinnovations@gmail.com</p>
+              </div>
+            </div>
+          </body>
+        </html>
+      `;
+
+      const iframe = document.createElement('iframe');
+      iframe.style.position = 'fixed';
+      iframe.style.right = '0';
+      iframe.style.bottom = '0';
+      iframe.style.width = '0';
+      iframe.style.height = '0';
+      iframe.style.border = '0';
+      document.body.appendChild(iframe);
+
+      const iframeDoc = iframe.contentWindow?.document;
+      if (!iframeDoc || !iframe.contentWindow) {
+        document.body.removeChild(iframe);
+        showToast('Unable to prepare print preview.', 'error');
+        return;
+      }
+
+      iframeDoc.open();
+      iframeDoc.write(printHtml);
+      iframeDoc.close();
+
+      setTimeout(() => {
+        try {
+          iframe.contentWindow.focus();
+          iframe.contentWindow.print();
+        } finally {
+          setTimeout(() => {
+            if (document.body.contains(iframe)) {
+              document.body.removeChild(iframe);
+            }
+          }, 600);
+        }
+      }, 200);
+    } catch (err) {
+      showToast('Failed to open print dialog.', 'error');
+    }
+  }, [ad, overrideMetrics, performance]);
 
   useEffect(() => {
     const fetchPerformance = async () => {
@@ -68,7 +221,6 @@ const AdPerformanceReport = () => {
     );
   }
 
-  const { ad, performance } = data;
   const startDate = ad.startDate ? new Date(ad.startDate).toLocaleDateString('en-GB', { year: 'numeric', month: '2-digit', day: '2-digit' }) : 'N/A';
   const endDate = ad.endDate ? new Date(ad.endDate).toLocaleDateString('en-GB', { year: 'numeric', month: '2-digit', day: '2-digit' }) : 'N/A';
   const createdDate = new Date(ad.createdAt).toLocaleDateString('en-GB', { year: 'numeric', month: 'short', day: '2-digit' });
@@ -355,12 +507,6 @@ const AdPerformanceReport = () => {
         </div>
       </section>
 
-      <section className={styles.bottomPrintSection}>
-        <button type="button" className={styles.printBtn} onClick={onGenerateReport}>
-          GENERATE AD REPORT
-        </button>
-      </section>
-
       {showReportModal && (
         <div className={styles.modalBackdrop}>
           <div className={styles.reportModal}>
@@ -449,7 +595,7 @@ const AdPerformanceReport = () => {
               </div>
             </div>
             <div className={styles.modalFooter}>
-              <button type="button" className={styles.printReportBtn} onClick={() => window.print()}>
+              <button type="button" className={styles.printReportBtn} onClick={handlePrintReport}>
                 Print Report
               </button>
               <button type="button" className={styles.secondaryBtn} onClick={() => setShowReportModal(false)}>
