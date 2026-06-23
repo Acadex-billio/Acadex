@@ -14,6 +14,13 @@ const subscriptionCheckoutSchema = Joi.object({
   idempotencyKey: idempotencyKeySchema.optional(),
 });
 
+const manualSubscriptionCheckoutSchema = Joi.object({
+  planCode: Joi.string().trim().valid('pro', 'paygo').required(),
+  paymentProof: Joi.string().trim().min(6).max(500).required(),
+  promoCode: promoCodeSchema.allow('', null).optional(),
+  referralCode: promoCodeSchema.allow('', null).optional(),
+});
+
 const materialCheckoutSchema = Joi.object({
   resourceType: Joi.string().trim().valid('report', 'presentation', 'question_paper').required(),
   resourceId: objectIdSchema.required(),
@@ -36,6 +43,7 @@ const centerCheckoutSchema = Joi.object({
 module.exports = {
   idempotencyKeySchema,
   subscriptionCheckoutSchema,
+  manualSubscriptionCheckoutSchema,
   materialCheckoutSchema,
   centerCheckoutSchema,
 };

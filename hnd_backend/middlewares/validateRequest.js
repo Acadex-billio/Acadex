@@ -1,4 +1,16 @@
 const Joi = require('joi');
+const {
+  loginSchema,
+  registerSchema,
+  resetPasswordRequestSchema,
+  updatePasswordSchema,
+} = require('../validators/auth/authSchemas');
+const {
+  subscriptionCheckoutSchema,
+  manualSubscriptionCheckoutSchema,
+  materialCheckoutSchema,
+  centerCheckoutSchema,
+} = require('../validators/payment/paymentSchemas');
 
 const objectIdSchema = Joi.string().hex().length(24);
 const candIdSchema = Joi.string().trim().min(3).max(50);
@@ -45,54 +57,16 @@ const schemas = {
     otherCandIdParam: Joi.object({ otherCandId: candIdSchema.required() }),
   },
   auth: {
-    login: Joi.object({ email: Joi.string().email().required(), password: Joi.string().min(8).required() }),
-    register: Joi.object({
-      name: Joi.string().trim().min(2).max(100).required(),
-      program: Joi.string().trim().uppercase().valid('HND', 'BTS', 'LECTURER').default('HND'),
-      dpt_id: Joi.when('program', {
-        is: 'LECTURER',
-        then: Joi.string().allow('', null).optional(),
-        otherwise: objectIdSchema.required(),
-      }),
-      preferred_language: Joi.when('program', {
-        is: 'LECTURER',
-        then: Joi.string().trim().lowercase().valid('en', 'fr').optional(),
-        otherwise: Joi.forbidden(),
-      }),
-      email: Joi.string().email().required(),
-      phone: phoneSchema.required(),
-      password: Joi.string().min(8).required(),
-    }),
+    login: loginSchema,
+    register: registerSchema,
+    resetPasswordRequest: resetPasswordRequestSchema,
+    updatePassword: updatePasswordSchema,
   },
   candidate: {
-    subscriptionCheckout: Joi.object({
-      planCode: Joi.string().trim().valid('pro', 'paygo').required(),
-      phoneNumber: phoneSchema.required(),
-      paymentMethod: Joi.string().trim().valid('momo', 'mtn_momo', 'orange_money').default('momo'),
-      promoCode: promoCodeSchema.allow('', null).optional(),
-      referralCode: promoCodeSchema.allow('', null).optional(),
-    }),
-    manualSubscriptionCheckout: Joi.object({
-      planCode: Joi.string().trim().valid('pro', 'paygo').required(),
-      paymentProof: Joi.string().trim().min(6).max(500).required(),
-      promoCode: promoCodeSchema.allow('', null).optional(),
-      referralCode: promoCodeSchema.allow('', null).optional(),
-    }),
-    materialCheckout: Joi.object({
-      resourceType: Joi.string().trim().valid('report', 'presentation', 'question_paper').required(),
-      resourceId: objectIdSchema.required(),
-      action: Joi.string().trim().valid('preview', 'download').required(),
-      phoneNumber: phoneSchema.required(),
-      promoCode: promoCodeSchema.allow('', null).optional(),
-      referralCode: promoCodeSchema.allow('', null).optional(),
-    }),
-    centerCheckout: Joi.object({
-      action: Joi.string().trim().valid('create', 'join').required(),
-      roomId: objectIdSchema.when('action', { is: 'join', then: Joi.required(), otherwise: Joi.optional().allow('', null) }),
-      phoneNumber: phoneSchema.required(),
-      promoCode: promoCodeSchema.allow('', null).optional(),
-      referralCode: promoCodeSchema.allow('', null).optional(),
-    }),
+    subscriptionCheckout: subscriptionCheckoutSchema,
+    manualSubscriptionCheckout: manualSubscriptionCheckoutSchema,
+    materialCheckout: materialCheckoutSchema,
+    centerCheckout: centerCheckoutSchema,
   },
   lecturer: {
     createBooking: Joi.object({

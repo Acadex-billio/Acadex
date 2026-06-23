@@ -6,16 +6,25 @@ const phoneSchema = Joi.string().trim().pattern(/^[0-9+()\-\s]{7,20}$/);
 const loginSchema = Joi.object({
   email: Joi.string().email().required(),
   password: Joi.string().required(),
+  rememberMe: Joi.alternatives().try(Joi.boolean(), Joi.string().valid('true', 'false')).optional(),
 });
 
 const registerSchema = Joi.object({
   name: Joi.string().trim().min(2).max(100).required(),
+  program: Joi.string().trim().uppercase().valid('HND', 'BTS', 'LECTURER').default('HND'),
+  dpt_id: Joi.when('program', {
+    is: 'LECTURER',
+    then: Joi.string().allow('', null).optional(),
+    otherwise: Joi.string().hex().length(24).required(),
+  }),
+  preferred_language: Joi.when('program', {
+    is: 'LECTURER',
+    then: Joi.string().trim().lowercase().valid('en', 'fr').optional(),
+    otherwise: Joi.forbidden(),
+  }),
   email: Joi.string().email().required(),
   phone: phoneSchema.required(),
   password: passwordSchema.required(),
-  program: Joi.string().trim().uppercase().valid('HND', 'BTS', 'LECTURER').optional(),
-  dpt_id: Joi.string().trim().optional(),
-  preferred_language: Joi.string().trim().lowercase().valid('en', 'fr').optional(),
 });
 
 const resetPasswordRequestSchema = Joi.object({
