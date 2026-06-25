@@ -106,6 +106,7 @@ const schemas = {
   admin: {
     manualPaymentApprove: Joi.object({ note: Joi.string().trim().max(500).allow('', null).optional() }),
     manualPaymentReject: Joi.object({ reason: Joi.string().trim().min(3).max(500).required() }),
+    repairTransaction: Joi.object({ provider_transaction_id: Joi.string().trim().min(6).required() }),
   },
   developer: {
     userSearch: Joi.object({ q: Joi.string().trim().allow('', null), page: Joi.number().integer().min(1).default(1), limit: Joi.number().integer().min(1).max(100).default(25) }),

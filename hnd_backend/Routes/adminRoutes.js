@@ -118,14 +118,16 @@ router.put('/users/:candId/suspend', requireSuperAdmin, validate({ params: schem
 router.put('/users/:candId/block', requireSuperAdmin, validate({ params: schemas.ids.candIdParam }), adminCandidateController.blockUser);
 router.put('/users/:candId/reactivate', requireSuperAdmin, validate({ params: schemas.ids.candIdParam }), adminCandidateController.reactivateUser);
 
-// Billing / subscription management (developer+)
+// Billing / subscription management (developer only)
 router.get('/billing/subscriptions', requireDeveloper, adminCandidateController.listSubscriptions);
 router.put('/billing/subscriptions/:candId', requireDeveloper, validate({ params: schemas.ids.candIdParam }), adminCandidateController.updateSubscription);
 router.delete('/billing/subscriptions/:candId', requireDeveloper, validate({ params: schemas.ids.candIdParam }), adminCandidateController.cancelSubscription);
 router.get('/billing/manual-payments', requireDeveloper, adminCandidateController.listManualPaymentVerifications);
 router.post('/billing/manual-payments/:transactionId/approve', requireDeveloper, validate({ params: schemas.ids.transactionIdParam, body: schemas.admin.manualPaymentApprove }), adminCandidateController.approveManualPaymentVerification);
 router.post('/billing/manual-payments/:transactionId/reject', requireDeveloper, validate({ params: schemas.ids.transactionIdParam, body: schemas.admin.manualPaymentReject }), adminCandidateController.rejectManualPaymentVerification);
-router.post('/billing/transactions/:transactionId/repair', requireDeveloper, adminBillingController.repairTransaction);
+router.post('/billing/transactions/:transactionId/repair', requireDeveloper, validate({ params: schemas.ids.transactionIdParam, body: schemas.admin.repairTransaction }), adminBillingController.repairTransaction);
+router.get('/billing/reconciliation/status', requireDeveloper, adminBillingController.getReconciliationStatus);
+router.post('/billing/reconciliation/run', requireDeveloper, adminBillingController.runReconciliationNow);
 router.get('/billing/coupons', requireDeveloper, couponController.listCoupons);
 router.post('/billing/coupons', requireDeveloper, couponController.createCoupon);
 router.put('/billing/coupons/:code', requireDeveloper, validate({ params: schemas.ids.codeParam }), couponController.updateCoupon);

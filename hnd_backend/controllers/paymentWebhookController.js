@@ -9,6 +9,7 @@ const {
 } = require('../utils/subscriptionUtils');
 const User = require('../models/User');
 const PaymentAccessGrant = require('../models/PaymentAccessGrant');
+const History = require('../models/History');
 const {
   normalizeWebhookPaymentStatus,
   validateTransactionReference,
@@ -104,6 +105,40 @@ exports.handleCamerpayCallback = async (req, res) => {
     }
 
     if (isFailed) {
+      if (transaction.status === 'successful') {
+        logger.warn('CamerPay webhook: Ignoring failure notification after successful transaction', {
+          transaction_id: transaction._id,
+          payment_id: payload?.payment_id,
+          current_status: transaction.status,
+          webhook_status: paymentStatus,
+        });
+        if (respond) {
+          return res.json({
+            success: true,
+            message: 'Webhook ignored: transaction already successful',
+          });
+        }
+        return;
+      }
+
+      if (transaction.status !== 'pending') {
+        logger.info('CamerPay webhook: Failure notification received for non-pending transaction', {
+          transaction_id: transaction._id,
+          payment_id: payload?.payment_id,
+          current_status: transaction.status,
+          webhook_status: paymentStatus,
+        });
+        transaction.provider_response = payload;
+        await transaction.save();
+        if (respond) {
+          return res.json({
+            success: true,
+            message: 'Webhook received; transaction is already settled',
+          });
+        }
+        return;
+      }
+
       logger.info('CamerPay webhook: Payment failed', {
         transaction_id: transaction._id,
         payment_id: payload?.payment_id,
@@ -132,13 +167,35 @@ exports.handleCamerpayCallback = async (req, res) => {
       access_minutes: Number(transaction.metadata?.access_minutes || 0) || null,
     });
 
-    const alreadyFinalized = transaction.status === 'successful' && transaction.completed_at;
-    if (alreadyFinalized) {
+    if (transaction.status === 'successful') {
+      if (!transaction.completed_at) {
+        transaction.completed_at = new Date();
+      }
+      transaction.provider_response = payload;
+      await transaction.save();
       if (respond) {
         return res.json({
           success: true,
           message: 'Webhook already processed',
           transaction_id: transaction._id,
+        });
+      }
+      return;
+    }
+
+    if (['failed', 'cancelled', 'expired'].includes(String(transaction.status || '').toLowerCase())) {
+      logger.warn('CamerPay webhook: Successful notification received for a terminal non-successful transaction', {
+        transaction_id: transaction._id,
+        payment_id: payload?.payment_id,
+        current_status: transaction.status,
+        webhook_status: paymentStatus,
+      });
+      transaction.provider_response = payload;
+      await transaction.save();
+      if (respond) {
+        return res.json({
+          success: true,
+          message: 'Webhook received; transaction has already reached a terminal state',
         });
       }
       return;
