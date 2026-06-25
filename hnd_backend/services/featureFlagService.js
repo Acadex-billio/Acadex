@@ -12,6 +12,7 @@ const getAllFlags = () => ({
   featureApiV1Enabled: isEnabled('FEATURE_API_V1_ENABLED', true),
   featureUserRateLimitEnabled: isEnabled('FEATURE_USER_RATE_LIMIT_ENABLED', false),
   featureStrictAuthCookies: isEnabled('FEATURE_STRICT_AUTH_COOKIES', false),
+  featurePaymentReconciliationEnabled: isEnabled('FEATURE_PAYMENT_RECONCILIATION_ENABLED', false),
   featureSwaggerEnabled: isEnabled('FEATURE_SWAGGER_ENABLED', false),
   featureRedisCacheEnabled: isEnabled('FEATURE_REDIS_CACHE_ENABLED', false),
 });

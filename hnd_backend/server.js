@@ -71,6 +71,7 @@ const developerRoutes = require('./Routes/developerRoutes');
 const publicRoutes = require('./Routes/publicRoutes');
 const { getLibreOfficeQueueStats } = require('./services/libreOfficeQueue');
 const { startKeepalive } = require('./services/keepaliveNotifier');
+const { startPaymentReconciliationScheduler } = require('./services/paymentReconciliationScheduler');
 const { mountVersionCompatibleRoute } = require('./utils/versionRouter');
 
 const app = express();
@@ -509,5 +510,11 @@ app.listen(port, () => {
     startKeepalive();
   } catch (err) {
     logger.warn('Failed to start keepalive notifier', { error: err.message });
+  }
+
+  try {
+    startPaymentReconciliationScheduler();
+  } catch (err) {
+    logger.warn('Failed to start payment reconciliation scheduler', { error: err.message });
   }
 });

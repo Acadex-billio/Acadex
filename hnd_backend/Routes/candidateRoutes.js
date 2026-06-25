@@ -23,6 +23,7 @@ const {
   userPaymentInitiationRateLimit,
   userPaymentStatusRateLimit,
 } = require('../middlewares/userRateLimit');
+const { createAuditTrail } = require('../middlewares/auditTrail');
 
 const profileStorage = multer.memoryStorage();
 const profileImageFilter = (_req, file, cb) => {
@@ -87,8 +88,8 @@ router.get('/analytics/chat/stats', candidateAnalyticsController.getMyChatStats)
 
 router.get('/subscription/catalog', subscriptionController.getCatalog);
 router.get('/subscription/me', subscriptionController.getMySubscription);
-router.post('/subscription/checkout', userPaymentInitiationRateLimit, validate({ body: schemas.candidate.subscriptionCheckout }), subscriptionController.startPlanCheckout);
-router.post('/subscription/manual-checkout', userPaymentInitiationRateLimit, validate({ body: schemas.candidate.manualSubscriptionCheckout }), subscriptionController.startManualPlanCheckout);
+router.post('/subscription/checkout', userPaymentInitiationRateLimit, createAuditTrail('payment.subscription.checkout', { bodyFields: ['planCode', 'phoneNumber', 'paymentMethod', 'promoCode', 'referralCode', 'idempotencyKey'] }), validate({ body: schemas.candidate.subscriptionCheckout }), subscriptionController.startPlanCheckout);
+router.post('/subscription/manual-checkout', userPaymentInitiationRateLimit, createAuditTrail('payment.subscription.manual_checkout', { bodyFields: ['planCode', 'promoCode', 'referralCode', 'idempotencyKey'] }), validate({ body: schemas.candidate.manualSubscriptionCheckout }), subscriptionController.startManualPlanCheckout);
 
 router.get('/internship-topics', internshipTopicController.listCandidateTopics);
 router.get('/internship-topics/:topicId', validate({ params: schemas.ids.topicIdParam }), internshipTopicController.getCandidateTopicDetail);
@@ -96,9 +97,9 @@ router.post('/internship-topics/:topicId/rating', validate({ params: schemas.ids
 router.post('/internship-topics/:topicId/recommend', validate({ params: schemas.ids.topicIdParam }), internshipTopicController.toggleRecommendation);
 router.post('/internship-topics/:topicId/reaction', validate({ params: schemas.ids.topicIdParam }), internshipTopicController.setReaction);
 
-router.post('/payments/materials/checkout', userPaymentInitiationRateLimit, validate({ body: schemas.candidate.materialCheckout }), subscriptionController.startMaterialCheckout);
-router.post('/payments/centers/checkout', userPaymentInitiationRateLimit, validate({ body: schemas.candidate.centerCheckout }), subscriptionController.startCenterCheckout);
-router.get('/payments/:transactionId/status', userPaymentStatusRateLimit, validate({ params: schemas.ids.transactionIdParam }), subscriptionController.getPaymentStatus);
+router.post('/payments/materials/checkout', userPaymentInitiationRateLimit, createAuditTrail('payment.material.checkout', { bodyFields: ['resourceType', 'resourceId', 'action', 'phoneNumber', 'promoCode', 'referralCode', 'idempotencyKey'] }), validate({ body: schemas.candidate.materialCheckout }), subscriptionController.startMaterialCheckout);
+router.post('/payments/centers/checkout', userPaymentInitiationRateLimit, createAuditTrail('payment.center.checkout', { bodyFields: ['action', 'roomId', 'phoneNumber', 'promoCode', 'referralCode', 'idempotencyKey'] }), validate({ body: schemas.candidate.centerCheckout }), subscriptionController.startCenterCheckout);
+router.get('/payments/:transactionId/status', userPaymentStatusRateLimit, createAuditTrail('payment.status.read', { paramFields: ['transactionId'] }), validate({ params: schemas.ids.transactionIdParam }), subscriptionController.getPaymentStatus);
 
 router.post('/history/add', historyController.add);
 router.get('/history/:user_id', requireSelfOrAdmin('user_id'), historyController.getByUser);

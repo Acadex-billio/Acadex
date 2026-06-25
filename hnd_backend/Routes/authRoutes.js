@@ -15,10 +15,12 @@ const {
   userAuthRateLimit,
   userPasswordResetRateLimit,
 } = require('../middlewares/userRateLimit');
+const { createAuditTrail } = require('../middlewares/auditTrail');
 
 router.post('/register', 
   authRateLimit,
   userAuthRateLimit,
+  createAuditTrail('auth.register', { bodyFields: ['email', 'phone', 'program'] }),
   validate({ body: schemas.auth.register }),
   validateRequiredFields(['name', 'email', 'phone', 'password']),
   validateEmailInput,
@@ -29,6 +31,7 @@ router.post('/register',
 router.post('/login', 
   authRateLimit,
   userAuthRateLimit,
+  createAuditTrail('auth.login', { bodyFields: ['email', 'rememberMe'] }),
   validate({ body: schemas.auth.login }),
   validateRequiredFields(['email', 'password']),
   validateEmailInput,
@@ -37,11 +40,12 @@ router.post('/login',
 
 router.get('/departments', departmentController.getAllFormatted);
 router.get('/me', requireAuth, authController.me);
-router.post('/logout', authController.logout);
+router.post('/logout', createAuditTrail('auth.logout'), authController.logout);
 
 router.post('/reset-password', 
   passwordResetRateLimit,
   userPasswordResetRateLimit,
+  createAuditTrail('auth.reset_password', { bodyFields: ['email'] }),
   validate({ body: schemas.auth.resetPasswordRequest }),
   validateRequiredFields(['email']),
   validateEmailInput,
@@ -51,6 +55,7 @@ router.post('/reset-password',
 router.post('/update-password', 
   passwordResetRateLimit,
   userPasswordResetRateLimit,
+  createAuditTrail('auth.update_password', { bodyFields: ['email'] }),
   validate({ body: schemas.auth.updatePassword }),
   validateRequiredFields(['email', 'code', 'newPassword']),
   validateEmailInput,

@@ -28,6 +28,15 @@ const AdPerformanceReport = () => {
     try {
       const ctr = overrideMetrics.impressions > 0 ? ((overrideMetrics.clicks / overrideMetrics.impressions) * 100) : 0;
       const printLogo = ad.logoUrl || `${process.env.PUBLIC_URL || ''}/hnd-mark.svg`;
+      const reportTitle = 'ACADEX AD REPORT';
+      const reportSubtitle = 'Campaign performance summary';
+      const campaignId = `ADX-${(ad._id || '').toString().substring(0, 8).toUpperCase()}`;
+      const campaignStatus = (performance.status || 'ACTIVE').toString().toUpperCase();
+      const campaignType = ad.campaignType || 'Modal Advertisement';
+      const campaignName = ad.title || 'N/A';
+      const advertiser = ad.advertiserName || 'Acadex Platform';
+      const reportRange = `${reportPeriod.start} - ${reportPeriod.end}`;
+      const generatedDate = new Date().toLocaleDateString('en-GB', { year: 'numeric', month: 'short', day: '2-digit' });
 
       const printHtml = `
         <!doctype html>
@@ -39,89 +48,283 @@ const AdPerformanceReport = () => {
               * { box-sizing: border-box; }
               body {
                 margin: 0;
-                padding: 12mm;
+                padding: 0;
                 font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
                 color: #0f172a;
-                background: #ffffff;
+                background: #f8fafc;
               }
-              .report {
-                border: 1px solid #e2e8f0;
-                border-radius: 12px;
-                padding: 14px;
-                max-width: 820px;
+              .page {
+                width: 100%;
+                max-width: 900px;
                 margin: 0 auto;
-              }
-              .hero { text-align: center; margin-bottom: 10px; }
-              .hero img { width: 60px; height: 60px; object-fit: contain; margin-bottom: 6px; }
-              .hero h1 { margin: 0; font-size: 22px; letter-spacing: 0.02em; }
-              .hero p { margin: 3px 0 0 0; color: #475569; font-size: 12px; }
-              .grid4, .grid3 {
-                display: grid;
-                gap: 8px;
-                margin-bottom: 10px;
-              }
-              .grid4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-              .grid3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-              .card {
-                border: 1px solid #e2e8f0;
-                border-radius: 10px;
-                padding: 8px;
+                padding: 20px;
                 background: #ffffff;
               }
-              .label { font-size: 10px; color: #64748b; text-transform: uppercase; margin-bottom: 3px; }
-              .value { font-size: 13px; font-weight: 700; color: #0f172a; }
-              .metricLabel { font-size: 11px; color: #475569; margin-bottom: 2px; }
-              .metricValue { font-size: 20px; font-weight: 800; }
-              .sectionTitle { font-size: 13px; margin: 8px 0 6px 0; color: #0f172a; }
-              .recommendation {
-                border-left: 3px solid #f59e0b;
-                background: #fffbeb;
-                border-radius: 8px;
-                padding: 8px;
+              .page-header {
+                border-bottom: 1px solid #e2e8f0;
+                padding-bottom: 18px;
+                margin-bottom: 22px;
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                gap: 16px;
+              }
+              .brand {
+                display: flex;
+                align-items: center;
+                gap: 14px;
+              }
+              .brand img {
+                width: 72px;
+                height: 72px;
+                object-fit: contain;
+                border-radius: 18px;
+                background: #f8fafc;
+                padding: 10px;
+              }
+              .brand-title {
+                text-transform: uppercase;
+                letter-spacing: 0.12em;
+                color: #111827;
+                margin: 0;
+                font-size: 18px;
+              }
+              .brand-subtitle {
+                margin: 6px 0 0;
+                color: #475569;
+                font-size: 12px;
+              }
+              .report-meta {
+                text-align: right;
+                min-width: 180px;
+              }
+              .report-meta span {
+                display: block;
+                color: #475569;
+                font-size: 12px;
+              }
+              .report-meta strong {
+                display: block;
+                margin-top: 4px;
+                color: #0f172a;
+                font-size: 14px;
+              }
+              .section-title {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                margin: 0 0 14px;
+                font-size: 13px;
+                letter-spacing: 0.08em;
+                text-transform: uppercase;
+                color: #475569;
+              }
+              .tag {
+                display: inline-flex;
+                align-items: center;
+                gap: 6px;
+                padding: 8px 12px;
+                background: #eef7f4;
+                color: #047857;
                 font-size: 11px;
-                line-height: 1.35;
+                font-weight: 700;
+                border-radius: 999px;
+              }
+              .overview-grid,
+              .stats-grid,
+              .snapshot-grid,
+              .meta-grid {
+                display: grid;
+                gap: 14px;
+              }
+              .meta-grid {
+                grid-template-columns: repeat(4, minmax(160px, 1fr));
+                margin-bottom: 20px;
+              }
+              .key-card,
+              .stat-card,
+              .snapshot-card,
+              .footer-card {
+                background: #f8fafc;
+                border: 1px solid #e2e8f0;
+                border-radius: 16px;
+                padding: 16px;
+              }
+              .key-card .label,
+              .snapshot-card .label {
+                display: block;
                 margin-bottom: 8px;
+                color: #64748b;
+                font-size: 11px;
+                letter-spacing: 0.08em;
+                text-transform: uppercase;
+              }
+              .key-card .value,
+              .snapshot-card .value {
+                color: #0f172a;
+                font-size: 16px;
+                font-weight: 700;
+              }
+              .stats-grid {
+                grid-template-columns: repeat(3, minmax(180px, 1fr));
+                margin-bottom: 20px;
+              }
+              .stat-card {
+                padding: 18px;
+                background: #ffffff;
+                border-radius: 18px;
+              }
+              .stat-card span {
+                display: block;
+                color: #475569;
+                margin-bottom: 10px;
+                font-size: 12px;
+              }
+              .stat-card strong {
+                color: #0f172a;
+                font-size: 26px;
+                line-height: 1;
+              }
+              .snapshot-grid {
+                grid-template-columns: repeat(3, minmax(180px, 1fr));
+                margin-bottom: 20px;
+              }
+              .snapshot-card {
+                padding: 18px;
+                background: #ffffff;
+                border-radius: 18px;
+              }
+              .snapshot-card strong {
+                display: block;
+                margin-top: 10px;
+                font-size: 22px;
+                color: #111827;
+              }
+              .recommendation {
+                padding: 18px;
+                border-radius: 18px;
+                background: linear-gradient(135deg, #fef3c7 0%, #fefce8 100%);
+                border: 1px solid #fde68a;
+                margin-bottom: 20px;
+                color: #92400e;
+                font-size: 13px;
+                line-height: 1.7;
               }
               .support {
                 border: 1px solid #e2e8f0;
-                border-radius: 10px;
-                padding: 8px;
-                font-size: 10px;
-                color: #334155;
+                border-radius: 18px;
+                padding: 18px;
+                background: #ffffff;
               }
-              .support h2 { margin: 0 0 5px 0; font-size: 12px; }
-              .support p { margin: 2px 0; }
+              .support h2 {
+                margin: 0 0 10px;
+                font-size: 14px;
+                color: #0f172a;
+              }
+              .support p {
+                margin: 4px 0;
+                color: #475569;
+                font-size: 13px;
+              }
               @media print {
-                @page { margin: 10mm; size: auto; }
+                body {
+                  margin: 0;
+                  padding: 0;
+                  background: #ffffff;
+                  -webkit-print-color-adjust: exact;
+                  print-color-adjust: exact;
+                }
+                .page {
+                  box-shadow: none;
+                  margin: 0;
+                  padding: 16px;
+                }
+                .page-header,
+                .meta-grid,
+                .stats-grid,
+                .snapshot-grid,
+                .support,
+                .recommendation {
+                  page-break-inside: avoid;
+                }
+                @page {
+                  margin: 12mm;
+                  size: auto;
+                }
               }
             </style>
           </head>
           <body>
-            <div class="report">
-              <div class="hero">
-                <img src="${printLogo}" alt="Acadex logo" />
-                <h1>ACADEX AD REPORT</h1>
-                <p>Campaign performance summary</p>
+            <div class="page">
+              <div class="page-header">
+                <div class="brand">
+                  <img src="${printLogo}" alt="Acadex logo" />
+                  <div>
+                    <p class="brand-title">${reportTitle}</p>
+                    <p class="brand-subtitle">${reportSubtitle}</p>
+                  </div>
+                </div>
+                <div class="report-meta">
+                  <span>Report period</span>
+                  <strong>${reportRange}</strong>
+                  <span class="mt-2">Generated</span>
+                  <strong>${generatedDate}</strong>
+                </div>
               </div>
 
-              <div class="grid4">
-                <div class="card"><div class="label">Client / Advertiser</div><div class="value">${ad.advertiserName || 'Acadex Platform'}</div></div>
-                <div class="card"><div class="label">Campaign Name</div><div class="value">${ad.title || 'N/A'}</div></div>
-                <div class="card"><div class="label">Ad ID</div><div class="value">ADX-${(ad._id || '').toString().substring(0, 8).toUpperCase()}</div></div>
-                <div class="card"><div class="label">Amount Paid</div><div class="value">${(overrideMetrics.amountPaid || 0).toLocaleString()} XAF</div></div>
+              <div class="meta-grid">
+                <div class="key-card">
+                  <span class="label">Client / Advertiser</span>
+                  <span class="value">${advertiser}</span>
+                </div>
+                <div class="key-card">
+                  <span class="label">Campaign</span>
+                  <span class="value">${campaignName}</span>
+                </div>
+                <div class="key-card">
+                  <span class="label">Ad ID</span>
+                  <span class="value">${campaignId}</span>
+                </div>
+                <div class="key-card">
+                  <span class="label">Status</span>
+                  <span class="value">${campaignStatus}</span>
+                </div>
               </div>
 
-              <div class="grid3">
-                <div class="card"><div class="metricLabel">Impressions</div><div class="metricValue">${(overrideMetrics.impressions || 0).toLocaleString()}</div></div>
-                <div class="card"><div class="metricLabel">Clicks</div><div class="metricValue">${(overrideMetrics.clicks || 0).toLocaleString()}</div></div>
-                <div class="card"><div class="metricLabel">CTR</div><div class="metricValue">${ctr.toFixed(2)}%</div></div>
+              <div class="section-title">
+                <span>Campaign Summary</span>
+                <span class="tag">${campaignType}</span>
               </div>
 
-              <div class="sectionTitle">Engagement Snapshot</div>
-              <div class="grid3">
-                <div class="card"><div class="metricLabel">Unique Viewers</div><div class="metricValue">${(overrideMetrics.uniqueViewers || 0).toLocaleString()}</div></div>
-                <div class="card"><div class="metricLabel">Modal Opens</div><div class="metricValue">${(overrideMetrics.modalOpens || 0).toLocaleString()}</div></div>
-                <div class="card"><div class="metricLabel">Average View Time</div><div class="metricValue">${overrideMetrics.averageViewTimeSeconds || 0} sec</div></div>
+              <div class="stats-grid">
+                <div class="stat-card">
+                  <span>Impressions</span>
+                  <strong>${(overrideMetrics.impressions || 0).toLocaleString()}</strong>
+                </div>
+                <div class="stat-card">
+                  <span>Clicks</span>
+                  <strong>${(overrideMetrics.clicks || 0).toLocaleString()}</strong>
+                </div>
+                <div class="stat-card">
+                  <span>CTR</span>
+                  <strong>${ctr.toFixed(2)}%</strong>
+                </div>
+              </div>
+
+              <div class="section-title">Engagement Snapshot</div>
+              <div class="snapshot-grid">
+                <div class="snapshot-card">
+                  <span class="label">Unique Viewers</span>
+                  <strong>${(overrideMetrics.uniqueViewers || 0).toLocaleString()}</strong>
+                </div>
+                <div class="snapshot-card">
+                  <span class="label">Modal Opens</span>
+                  <strong>${(overrideMetrics.modalOpens || 0).toLocaleString()}</strong>
+                </div>
+                <div class="snapshot-card">
+                  <span class="label">Average View Time</span>
+                  <strong>${overrideMetrics.averageViewTimeSeconds || 0} sec</strong>
+                </div>
               </div>
 
               <div class="recommendation">${performance.recommendation || 'Campaign is running. Monitor metrics for ongoing optimization.'}</div>
@@ -173,7 +376,7 @@ const AdPerformanceReport = () => {
     } catch (err) {
       showToast('Failed to open print dialog.', 'error');
     }
-  }, [ad, overrideMetrics, performance]);
+  }, [ad, overrideMetrics, performance, reportPeriod]);
 
   useEffect(() => {
     const fetchPerformance = async () => {
@@ -224,6 +427,7 @@ const AdPerformanceReport = () => {
   const startDate = ad.startDate ? new Date(ad.startDate).toLocaleDateString('en-GB', { year: 'numeric', month: '2-digit', day: '2-digit' }) : 'N/A';
   const endDate = ad.endDate ? new Date(ad.endDate).toLocaleDateString('en-GB', { year: 'numeric', month: '2-digit', day: '2-digit' }) : 'N/A';
   const createdDate = new Date(ad.createdAt).toLocaleDateString('en-GB', { year: 'numeric', month: 'short', day: '2-digit' });
+  const reportDate = new Date().toLocaleDateString('en-GB', { year: 'numeric', month: 'short', day: '2-digit' });
   const reportLogo = ad.logoUrl || `${process.env.PUBLIC_URL || ''}/hnd-mark.svg`;
   const computedCtr = overrideMetrics.impressions > 0 ? ((overrideMetrics.clicks / overrideMetrics.impressions) * 100) : 0;
 
@@ -520,27 +724,39 @@ const AdPerformanceReport = () => {
               </button>
             </div>
             <div className={styles.reportPage}>
-              <div className={styles.reportHero}>
-                <img src={reportLogo} alt="Acadex logo" className={styles.reportHeroLogo} />
-                <h2>ACADEX AD REPORT</h2>
-                <p className={styles.reportHeroSubtext}>Campaign performance summary</p>
+              <div className={styles.reportHeaderTop}>
+                <div className={styles.reportThemeBadge}>ACADEX AD REPORT</div>
+                <div className={styles.reportMetaInfo}>
+                  <span>Report period</span>
+                  <strong>{reportPeriod.start} - {reportPeriod.end}</strong>
+                  <span>Generated</span>
+                  <strong>{reportDate}</strong>
+                </div>
               </div>
 
-              <div className={styles.reportAdvertiserGrid}>
+              <div className={styles.reportHero}>
+                <img src={reportLogo} alt="Acadex logo" className={styles.reportHeroLogo} />
                 <div>
-                  <span className={styles.reportLabel}>Client / Advertiser</span>
+                  <h2>ACADEX AD REPORT</h2>
+                  <p className={styles.reportHeroSubtext}>Campaign performance summary</p>
+                </div>
+              </div>
+
+              <div className={styles.reportMetaGrid}>
+                <div className={styles.reportMetaCard}>
+                  <span>Client / Advertiser</span>
                   <strong>{ad.advertiserName || 'Acadex Platform'}</strong>
                 </div>
-                <div>
-                  <span className={styles.reportLabel}>Campaign Name</span>
+                <div className={styles.reportMetaCard}>
+                  <span>Campaign Name</span>
                   <strong>{ad.title}</strong>
                 </div>
-                <div>
-                  <span className={styles.reportLabel}>Ad ID</span>
-                  <strong>ADX-{ad._id.substring(0, 8).toUpperCase()}</strong>
+                <div className={styles.reportMetaCard}>
+                  <span>Ad ID</span>
+                  <strong>ADX-{(ad._id || '').substring(0, 8).toUpperCase()}</strong>
                 </div>
-                <div>
-                  <span className={styles.reportLabel}>Amount Paid</span>
+                <div className={styles.reportMetaCard}>
+                  <span>Amount Paid</span>
                   <strong>{overrideMetrics.amountPaid.toLocaleString()} XAF</strong>
                 </div>
               </div>
