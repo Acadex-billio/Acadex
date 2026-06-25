@@ -43,6 +43,37 @@ const normalizeApiBaseUrl = (rawUrl) => {
     : `${normalizedHost.replace(/\/$/, '')}/api`;
 };
 
+const isTimeoutError = (error) => {
+  const message = String(error?.message || '').toLowerCase();
+  return (
+    error?.code === 'ECONNABORTED' ||
+    message.includes('timeout') ||
+    error?.response?.status === 408 ||
+    error?.response?.status === 504
+  );
+};
+
+const getLoginRedirectPath = () => {
+  if (window.location.pathname.startsWith('/admin')) {
+    return '/login?from=admin';
+  }
+  if (window.location.pathname.startsWith('/candidate')) {
+    return '/login?from=candidate';
+  }
+  return '/login';
+};
+
+const logoutAndRedirect = (message) => {
+  authService.removeToken();
+  if (window.authDispatch) {
+    window.authDispatch({ type: 'LOGOUT' });
+  }
+  if (typeof window.showToast === 'function') {
+    window.showToast(message || 'Your session has expired. Please log in again.', 'error');
+  }
+  window.location.replace(getLoginRedirectPath());
+};
+
 // Base API configuration - prioritize localhost in development
 const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
 const API_BASE_URL = isLocalhost 
@@ -137,11 +168,7 @@ api.interceptors.response.use(
       try {
         if (url.includes('/auth/me')) {
           // Avoid recursion and immediate re-check for /auth/me failures
-          authService.removeToken();
-          if (window.authDispatch) window.authDispatch({ type: 'LOGOUT' });
-          if (typeof window.showToast === 'function') {
-            window.showToast('Your session has expired. Please log in again.', 'error');
-          }
+          logoutAndRedirect('Your session has expired. Please log in again.');
           return Promise.reject(error);
         }
 
@@ -158,29 +185,15 @@ api.interceptors.response.use(
       } catch (meError) {
         if (meError.response?.status === 401) {
           logDebug('[API] /auth/me returned 401, clearing auth state');
-          authService.removeToken();
-
-          // dispatch logout via global variable for backwards compatibility
-          if (window.authDispatch) {
-            window.authDispatch({ type: 'LOGOUT' });
-          }
-
-          if (typeof window.showToast === 'function') {
-            window.showToast('Your session has expired. Please log in again.', 'error');
-          }
-
-          if (window.location.pathname.startsWith('/admin')) {
-            window.location.replace('/login?from=admin');
-          } else if (window.location.pathname.startsWith('/candidate')) {
-            window.location.replace('/login?from=candidate');
-          } else {
-            window.location.replace('/login');
-          }
+          logoutAndRedirect('Your session has expired. Please log in again.');
         } else if (meError.response?.status === 429) {
           logDebug('[API] /auth/me rate limited; leaving token intact');
           if (typeof window.showToast === 'function') {
             window.showToast('Too many auth checks too quickly; please wait a few seconds.', 'warning');
           }
+        } else if (isTimeoutError(meError)) {
+          logDebug('[API] /auth/me timed out, forcing login');
+          logoutAndRedirect('Session validation timed out. Please log in again.');
         } else {
           logDebug('[API] /auth/me check failed without 401; leaving token intact');
         }
@@ -190,8 +203,15 @@ api.interceptors.response.use(
       return Promise.reject(error);
     }
 
+    if (isTimeoutError(error)) {
+      logDebug('[API] Request timed out, forcing login redirect');
+      logoutAndRedirect('Request timed out. Please log in again.');
+      return Promise.reject(error);
+    }
+
     return Promise.reject(error);
   }
 );
 
 export default api;
+

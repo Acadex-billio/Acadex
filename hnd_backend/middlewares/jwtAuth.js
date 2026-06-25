@@ -73,7 +73,7 @@ const requireAuth = async (req, res, next) => {
       logger.warn('JWT authentication failed', { requestId: req.requestId, error: err.message, path: req.originalUrl });
       return res.status(401).json({
         success: false,
-        message: 'Authentication failed'
+        message: err.message || 'Authentication failed'
       });
     }
   } catch (err) {

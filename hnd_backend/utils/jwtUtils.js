@@ -100,16 +100,25 @@ const verifyToken = async (token, expectedType = null) => {
     // Check if token is blacklisted
     const blacklisted = await TokenBlacklist.findOne({ token });
     if (blacklisted) {
-      throw new Error('Token has been revoked');
+      const err = new Error('Token has been revoked');
+      err.name = 'TokenRevokedError';
+      throw err;
     }
 
     const decoded = jwt.verify(token, JWT_SECRET);
     if (expectedType && decoded.token_type !== expectedType) {
-      throw new Error('Invalid token type');
+      const err = new Error('Invalid token type');
+      err.name = 'JsonWebTokenError';
+      throw err;
     }
     return decoded;
   } catch (error) {
-    throw new Error('Invalid or expired token');
+    if (error.name === 'TokenExpiredError' || error.name === 'JsonWebTokenError' || error.name === 'TokenRevokedError') {
+      throw error;
+    }
+    const err = new Error('Invalid or expired token');
+    err.name = 'JsonWebTokenError';
+    throw err;
   }
 };
 
