@@ -77,18 +77,18 @@ const PaymentConfirmation = () => {
   const renderStatusPanel = () => {
     if (error) {
       return (
-        <div style={{ padding: 24, background: '#fff3f3', borderRadius: 20, border: '1px solid #f1c2c2' }}>
+        <div style={{ padding: 24, background: '#fff7f7', borderRadius: 20, border: '1px solid #f1c2c2' }}>
           <h1 style={{ margin: 0, color: '#b72b2b' }}>Payment status unavailable</h1>
-          <p style={{ marginTop: 12, color: '#603030' }}>{error}</p>
+          <p style={{ marginTop: 12, color: '#6b3d3d' }}>{error}</p>
         </div>
       );
     }
 
     if (!payment) {
       return (
-        <div style={{ padding: 24, background: '#f3f7ff', borderRadius: 20, border: '1px solid #d8e2fb' }}>
-          <h1 style={{ margin: 0, color: '#1f476e' }}>No payment details found</h1>
-          <p style={{ marginTop: 12, color: '#405d7e' }}>Try again later or contact support if you believe you were charged.</p>
+        <div style={{ padding: 24, background: '#f7fbfe', borderRadius: 20, border: '1px solid #d7e2ef' }}>
+          <h1 style={{ margin: 0, color: '#10273b' }}>No payment details found</h1>
+          <p style={{ marginTop: 12, color: '#587084' }}>Try again later or contact support if you believe you were charged.</p>
         </div>
       );
     }
@@ -105,7 +105,7 @@ const PaymentConfirmation = () => {
         style={{
           padding: 28,
           borderRadius: 24,
-          background: isSuccess ? '#e6f5ec' : isPending ? '#f3f7ff' : '#fff2f2',
+          background: isSuccess ? '#eaf7ef' : isPending ? '#f7fbfe' : '#fff7f7',
           border: `1px solid ${isSuccess ? '#8dc69a' : isPending ? '#b7cffb' : '#f1c2c2'}`,
         }}
       >
@@ -117,7 +117,7 @@ const PaymentConfirmation = () => {
               borderRadius: 32,
               display: 'grid',
               placeItems: 'center',
-              background: isSuccess ? '#2f7d4b' : isPending ? '#2f69b4' : '#b73b3b',
+              background: isSuccess ? '#1f7d4b' : isPending ? '#0e5f84' : '#b73b3b',
               color: '#fff',
               fontSize: 30,
             }}
@@ -125,24 +125,24 @@ const PaymentConfirmation = () => {
             {isSuccess ? '✓' : isPending ? '…' : '✕'}
           </div>
           <div>
-            <h1 style={{ margin: 0, fontSize: 28, color: isSuccess ? '#1f4d31' : isPending ? '#1c3e70' : '#70252a' }}>{title}</h1>
-            <p style={{ margin: '8px 0 0', color: '#3b4b5f', maxWidth: 680 }}>{description}</p>
+            <h1 style={{ margin: 0, fontSize: 28, color: isSuccess ? '#1f4d31' : isPending ? '#10273b' : '#70252a' }}>{title}</h1>
+            <p style={{ margin: '8px 0 0', color: '#587084', maxWidth: 680 }}>{description}</p>
           </div>
         </div>
 
         <div style={{ marginTop: 24, display: 'grid', gap: 12 }}>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 20 }}>
             <div>
-              <div style={{ fontSize: 13, color: '#5a6480', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 }}>Transaction</div>
-              <div style={{ fontWeight: 700, color: '#10243f' }}>{payment.transaction_id || 'N/A'}</div>
+              <div style={{ fontSize: 13, color: '#587084', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 }}>Transaction</div>
+              <div style={{ fontWeight: 700, color: '#10273b' }}>{payment.transaction_id || 'N/A'}</div>
             </div>
             <div>
-              <div style={{ fontSize: 13, color: '#5a6480', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 }}>Amount</div>
-              <div style={{ fontWeight: 700, color: '#10243f' }}>{payment.amount} {payment.currency}</div>
+              <div style={{ fontSize: 13, color: '#587084', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 }}>Amount</div>
+              <div style={{ fontWeight: 700, color: '#10273b' }}>{payment.amount} {payment.currency}</div>
             </div>
             <div>
-              <div style={{ fontSize: 13, color: '#5a6480', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 }}>Status</div>
-              <div style={{ fontWeight: 700, color: '#10243f' }}>{payment.status || 'Unknown'}</div>
+              <div style={{ fontSize: 13, color: '#587084', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 }}>Status</div>
+              <div style={{ fontWeight: 700, color: '#10273b' }}>{payment.status || 'Unknown'}</div>
             </div>
           </div>
 
@@ -153,8 +153,8 @@ const PaymentConfirmation = () => {
             <div style={{ color: '#34405a' }}>{payment.createdAt ? new Date(payment.createdAt).toLocaleString() : 'N/A'}</div>
             {payment.completed_at && (
               <>
-                <div style={{ color: '#394b6f' }}><strong>Completed</strong></div>
-                <div style={{ color: '#34405a' }}>{new Date(payment.completed_at).toLocaleString()}</div>
+                <div style={{ color: '#35536a' }}><strong>Completed</strong></div>
+                <div style={{ color: '#587084' }}>{new Date(payment.completed_at).toLocaleString()}</div>
               </>
             )}
           </div>
@@ -166,9 +166,9 @@ const PaymentConfirmation = () => {
   if (loading) {
     return (
       <div style={{ padding: 24, maxWidth: 980, margin: '0 auto' }}>
-        <div style={{ padding: 28, borderRadius: 24, background: '#f3f7ff', border: '1px solid #d8e2fb', textAlign: 'center' }}>
-          <h2 style={{ margin: 0, color: '#1c3e70' }}>Checking payment status...</h2>
-          <p style={{ marginTop: 12, color: '#405d7e' }}>Please wait while we confirm your transaction.</p>
+        <div style={{ padding: 28, borderRadius: 24, background: '#f7fbfe', border: '1px solid #d7e2ef', textAlign: 'center' }}>
+          <h2 style={{ margin: 0, color: '#10273b' }}>Checking payment status...</h2>
+          <p style={{ marginTop: 12, color: '#587084' }}>Please wait while we confirm your transaction.</p>
         </div>
       </div>
     );
@@ -178,9 +178,9 @@ const PaymentConfirmation = () => {
     <div style={{ padding: 24, maxWidth: 980, margin: '0 auto' }}>
       <div style={{ marginBottom: 28, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
         <div>
-          <div style={{ fontSize: 14, color: '#0f3a5f', fontWeight: 700, letterSpacing: '0.16em', textTransform: 'uppercase' }}>Acadex payment result</div>
-          <h2 style={{ margin: '10px 0 0', fontSize: 34, color: '#0c253c' }}>Your payment confirmation</h2>
-          <p style={{ marginTop: 12, color: '#4b5d7b', maxWidth: 680 }}>This page shows the final CamerPay transaction status and your Acadex access state.</p>
+          <div style={{ fontSize: 14, color: '#0e5f84', fontWeight: 700, letterSpacing: '0.16em', textTransform: 'uppercase' }}>Acadex payment result</div>
+          <h2 style={{ margin: '10px 0 0', fontSize: 34, color: '#10273b' }}>Your payment confirmation</h2>
+          <p style={{ marginTop: 12, color: '#587084', maxWidth: 680 }}>This page shows the final CamerPay transaction status and your Acadex access state.</p>
         </div>
         <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
           <button
@@ -221,7 +221,7 @@ const PaymentConfirmation = () => {
               justifyContent: 'center',
               borderRadius: 999,
               padding: '12px 18px',
-              background: '#0e5f84',
+              background: 'linear-gradient(135deg, #0e5f84 0%, #0b4561 100%)',
               color: '#fff',
               textDecoration: 'none',
               fontWeight: 700,
@@ -235,12 +235,12 @@ const PaymentConfirmation = () => {
       {renderStatusPanel()}
 
       {subscription && (
-        <div style={{ marginTop: 24, padding: 24, borderRadius: 20, background: '#f8fbff', border: '1px solid #d7e2ef' }}>
-          <h3 style={{ margin: 0, color: '#0f3a5f' }}>Current Acadex subscription</h3>
+        <div style={{ marginTop: 24, padding: 24, borderRadius: 20, background: '#f7fbfe', border: '1px solid #d7e2ef' }}>
+          <h3 style={{ margin: 0, color: '#10273b' }}>Current Acadex subscription</h3>
           <div style={{ display: 'grid', gap: 10, marginTop: 16 }}>
-            <div style={{ color: '#2d4266' }}><strong>Plan</strong>: {subscription.plan || 'Basic'}</div>
-            <div style={{ color: '#2d4266' }}><strong>Status</strong>: {subscription.status || 'Active'}</div>
-            <div style={{ color: '#2d4266' }}><strong>Expires</strong>: {subscription.expires_at ? new Date(subscription.expires_at).toLocaleString() : 'Never'}</div>
+            <div style={{ color: '#35536a' }}><strong>Plan</strong>: {subscription.plan || 'Basic'}</div>
+            <div style={{ color: '#35536a' }}><strong>Status</strong>: {subscription.status || 'Active'}</div>
+            <div style={{ color: '#35536a' }}><strong>Expires</strong>: {subscription.expires_at ? new Date(subscription.expires_at).toLocaleString() : 'Never'}</div>
           </div>
         </div>
       )}
@@ -269,7 +269,7 @@ const PaymentConfirmation = () => {
             border: 'none',
             borderRadius: 999,
             padding: '14px 22px',
-            background: '#0e5f84',
+            background: 'linear-gradient(135deg, #0e5f84 0%, #0b4561 100%)',
             color: '#fff',
             cursor: 'pointer',
             fontWeight: 700,

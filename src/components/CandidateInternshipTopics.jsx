@@ -139,13 +139,13 @@ const CandidateInternshipTopics = () => {
               <span>Reactions: 👍 {topic.metrics.reaction_up_count} / 👎 {topic.metrics.reaction_down_count}</span>
             </div>
 
-            <div style={{ display: 'flex', gap: 8 }}>
-              <Link to={`/candidate/internship-topics/${topic.topic_id}`} className={styles.viewBtn}>
+            <div className={styles.actionRow}>
+              <Link to={`/candidate/internship-topics/${topic.topic_id}`} className={styles.actionBtn}>
                 View full topic
               </Link>
               <button
                 type="button"
-                className={styles.viewBtn}
+                className={styles.actionBtn}
                 onClick={async () => {
                   try {
                     const payload = { content_type: 'internship_topic', content_title: topic.title || 'Topic', action: 'save' };

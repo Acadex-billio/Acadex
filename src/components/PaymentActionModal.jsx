@@ -169,29 +169,30 @@ const PaymentActionModal = ({
           margin: 'max(2vh, 12px) auto',
           maxHeight: 'calc(100vh - 48px)',
           overflowY: 'auto',
-          background: '#fff',
+          background: '#ffffff',
+          border: '1px solid #dce5ec',
           borderRadius: 22,
           padding: 24,
-          boxShadow: '0 28px 80px rgba(5, 33, 61, 0.24)',
+          boxShadow: '0 28px 80px rgba(16, 39, 59, 0.18)',
           boxSizing: 'border-box',
         }}
       >
         <div style={{ display: 'flex', justifyContent: 'space-between', gap: 16, alignItems: 'start' }}>
           <div>
-            <h3 style={{ margin: 0, fontSize: 28, color: '#0b3d5c' }}>{title}</h3>
-            <p style={{ margin: '8px 0 0', color: '#51606f', lineHeight: 1.5 }}>{description}</p>
+            <h3 style={{ margin: 0, fontSize: 28, color: '#10273b' }}>{title}</h3>
+            <p style={{ margin: '8px 0 0', color: '#587084', lineHeight: 1.5 }}>{description}</p>
           </div>
           <button
             type="button"
             onClick={() => !submitting && onClose?.()}
-            style={{ border: 'none', background: 'transparent', fontSize: 28, cursor: 'pointer', color: '#6c7b88' }}
+            style={{ border: 'none', background: 'transparent', fontSize: 28, cursor: 'pointer', color: '#587084' }}
           >
             ×
           </button>
         </div>
 
-        <div style={{ marginTop: 18, padding: 16, borderRadius: 16, background: '#f4f8fb' }}>
-          <div style={{ color: '#6c7b88', fontSize: 13, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Amount</div>
+        <div style={{ marginTop: 18, padding: 16, borderRadius: 16, background: '#f7fbfe', border: '1px solid #e3ebf1' }}>
+          <div style={{ color: '#587084', fontSize: 13, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Amount</div>
           <div style={{ fontSize: 30, fontWeight: 700, color: '#0e5f84', marginTop: 4 }}>{amount} {currency}</div>
         </div>
 
@@ -217,10 +218,10 @@ const PaymentActionModal = ({
             <div
               style={{
                 marginTop: 14,
-                border: '1px solid #dce6ee',
+                border: '1px solid #dce5ec',
                 borderRadius: 14,
                 padding: '10px 12px',
-                background: '#f9fcff',
+                background: '#f7fbfe',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
@@ -229,7 +230,7 @@ const PaymentActionModal = ({
               }}
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span style={{ color: '#143c56', fontWeight: 600 }}>Payment method</span>
+                <span style={{ color: '#35536a', fontWeight: 600 }}>Payment method</span>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <span
@@ -239,8 +240,8 @@ const PaymentActionModal = ({
                     gap: 6,
                     fontSize: 13,
                     fontWeight: 700,
-                    color: '#1a2f3f',
-                    background: '#ffd100',
+                    color: '#10273b',
+                    background: '#f7c948',
                     borderRadius: 999,
                     padding: '5px 10px',
                   }}
@@ -252,12 +253,12 @@ const PaymentActionModal = ({
                   onChange={(e) => setPaymentMethod(e.target.value)}
                   disabled={submitting}
                   style={{
-                    border: '1px solid #cdd8e2',
+                    border: '1px solid #cddbe5',
                     borderRadius: 10,
                     padding: '8px 10px',
                     fontSize: 14,
-                    color: '#17354b',
-                    background: '#fff',
+                    color: '#10273b',
+                    background: '#ffffff',
                   }}
                 >
                   <option value="momo">MTN Mobile Money (default)</option>
@@ -266,16 +267,16 @@ const PaymentActionModal = ({
               </div>
             </div>
 
-            <label style={{ display: 'block', marginTop: 18, color: '#16364f', fontWeight: 600 }}>Phone number for payment</label>
+            <label style={{ display: 'block', marginTop: 18, color: '#35536a', fontWeight: 600 }}>Phone number for payment</label>
             <div
               style={{
                 marginTop: 8,
-                border: '1px solid #d4dde5',
+                border: '1px solid #dce5ec',
                 borderRadius: 12,
                 display: 'flex',
                 alignItems: 'center',
                 overflow: 'hidden',
-                background: '#fff',
+                background: '#ffffff',
               }}
             >
               <div
@@ -285,8 +286,8 @@ const PaymentActionModal = ({
                   gap: 8,
                   padding: '0 12px',
                   height: 50,
-                  borderRight: '1px solid #e2e8ef',
-                  color: '#16364f',
+                  borderRight: '1px solid #e3ebf1',
+                  color: '#35536a',
                   fontWeight: 700,
                   minWidth: 80,
                 }}
@@ -311,11 +312,11 @@ const PaymentActionModal = ({
                 }}
               />
             </div>
-            <div style={{ marginTop: 6, color: '#6b7a88', fontSize: 12 }}>
+            <div style={{ marginTop: 6, color: '#587084', fontSize: 12 }}>
               Enter only the 9-digit number after +237.
             </div>
 
-        <label style={{ display: 'block', marginTop: 16, color: '#16364f', fontWeight: 600 }}>Promo/Referral code (optional)</label>
+        <label style={{ display: 'block', marginTop: 16, color: '#35536a', fontWeight: 600 }}>Promo/Referral code (optional)</label>
         <input
           type="text"
           value={promoCode}
@@ -325,7 +326,7 @@ const PaymentActionModal = ({
           style={{
             width: '100%',
             marginTop: 8,
-            border: '1px solid #d4dde5',
+            border: '1px solid #dce5ec',
             borderRadius: 12,
             padding: '12px 14px',
             fontSize: 15,
@@ -341,9 +342,9 @@ const PaymentActionModal = ({
             type="button"
             onClick={() => !submitting && onClose?.()}
             style={{
-              border: '1px solid #d4dde5',
-              background: '#fff',
-              color: '#29475d',
+              border: '1px solid #dce5ec',
+              background: '#ffffff',
+              color: '#35536a',
               borderRadius: 999,
               padding: '12px 18px',
               fontWeight: 600,
@@ -358,7 +359,7 @@ const PaymentActionModal = ({
             disabled={submitting}
             style={{
               border: 'none',
-              background: '#0e5f84',
+              background: 'linear-gradient(135deg, #0e5f84 0%, #0b4561 100%)',
               color: '#fff',
               borderRadius: 999,
               padding: '12px 18px',

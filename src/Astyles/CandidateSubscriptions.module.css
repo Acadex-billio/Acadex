@@ -2,6 +2,7 @@
   padding: 24px;
   display: grid;
   gap: 24px;
+  background: #f7fafc;
 }
 
 .hero {
@@ -28,7 +29,7 @@
 
 .subtitle {
   margin: 0;
-  color: #586a79;
+  color: #587084;
   max-width: 760px;
   line-height: 1.7;
 }
@@ -38,15 +39,15 @@
 .historyCard,
 .planCard {
   background: #ffffff;
-  border: 1px solid #dde6ee;
+  border: 1px solid #dce5ec;
   border-radius: 24px;
-  box-shadow: 0 16px 40px rgba(15, 50, 78, 0.08);
+  box-shadow: 0 16px 40px rgba(16, 39, 59, 0.08);
 }
 
 .currentCard {
   padding: 24px;
   background: linear-gradient(145deg, #0e5f84, #0b4561);
-  color: #fff;
+  color: #ffffff;
 }
 
 .currentLabel {
@@ -77,11 +78,16 @@
   padding: 24px;
   display: grid;
   gap: 18px;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.planCard:hover {
+  transform: translateY(-2px);
 }
 
 .planCardActive {
   border-color: #0e5f84;
-  box-shadow: 0 18px 44px rgba(14, 95, 132, 0.18);
+  box-shadow: 0 18px 44px rgba(14, 95, 132, 0.16);
 }
 
 .planHeader {
@@ -99,7 +105,7 @@
 
 .planDescription {
   margin-top: 8px;
-  color: #5e6f7d;
+  color: #587084;
   line-height: 1.6;
 }
 
@@ -118,7 +124,7 @@
 .ruleList {
   margin: 0;
   padding-left: 18px;
-  color: #273f53;
+  color: #35536a;
   display: grid;
   gap: 10px;
 }
@@ -133,18 +139,26 @@
   padding: 12px 18px;
   font-weight: 700;
   cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.primaryBtn:hover,
+.secondaryBtn:hover {
+  transform: translateY(-1px);
 }
 
 .primaryBtn {
   border: none;
-  background: #0e5f84;
-  color: #fff;
+  background: linear-gradient(135deg, #0e5f84 0%, #0b4561 100%);
+  color: #ffffff;
+  box-shadow: 0 10px 18px rgba(14, 95, 132, 0.16);
 }
 
 .secondaryBtn {
-  border: 1px solid #cad7e1;
-  background: #f8fbfd;
-  color: #587084;
+  border: 1px solid #cddbe5;
+  background: #f7fbfe;
+  color: #35536a;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.7);
 }
 
 .explainerCard,
@@ -160,9 +174,10 @@
 
 .chargeItem {
   padding: 14px 16px;
-  background: #f6fafc;
+  background: #f7fbfe;
+  border: 1px solid #e3ebf1;
   border-radius: 16px;
-  color: #214158;
+  color: #35536a;
 }
 
 .transactionList {
@@ -181,12 +196,12 @@
 }
 
 .transactionTitle {
-  color: #142f43;
+  color: #10273b;
   font-weight: 700;
 }
 
 .transactionMeta {
-  color: #5f7383;
+  color: #587084;
   font-size: 14px;
 }
 
@@ -210,7 +225,7 @@
 }
 
 .emptyState {
-  color: #5f7383;
+  color: #587084;
 }
 
 @media (max-width: 1080px) {
