@@ -4,12 +4,31 @@
 const Report = require('../models/Report');
 const User = require('../models/User');
 const Department = require('../models/Department');
+const mongoose = require('mongoose');
 const path = require('path');
 const fs = require('fs');
 const { uploadFile } = require('../utils/s3Uploader');
 const { sendBulkBcc } = require('../services/emailService');
 const { sanitizeFilename } = require('../middlewares/requestValidation');
 const { sendBulkPushNotification, isWebPushConfigured } = require('../utils/webPush');
+const { USER_PROGRAMS } = require('../constants/userConstants');
+const CandidateProjectSubmission = require('../models/CandidateProjectSubmission');
+
+const ALLOWED_PROGRAMS = [
+  USER_PROGRAMS.HND,
+  USER_PROGRAMS.BTS,
+  USER_PROGRAMS.LICENCE,
+  USER_PROGRAMS.BACHELOR,
+  USER_PROGRAMS.MASTERS,
+  USER_PROGRAMS.MASTER,
+];
+
+const mapProgramToDepartmentTrack = (program) => {
+  const normalized = String(program || '').trim().toUpperCase();
+  if (['HND', 'BACHELOR', 'MASTERS'].includes(normalized)) return 'HND';
+  if (['BTS', 'LICENCE', 'MASTER'].includes(normalized)) return 'BTS';
+  return null;
+};
 
 const REPORT_DIR = path.join(__dirname, '../uploads/reports');
 const REPORT_PDF_DIR = path.join(REPORT_DIR, 'pdfs');
@@ -63,24 +82,30 @@ exports.uploadReport = async (req, res) => {
       pages,
       material_price,
       project_github_url,
+      from_submission_id,
       notify,
       program,
     } = req.body;
     const normalizedProgram = String(program || 'HND').trim().toUpperCase();
-    if (!['HND', 'BTS'].includes(normalizedProgram)) {
-      return res.status(400).json({ success: false, message: 'Program must be HND or BTS.' });
+    if (!ALLOWED_PROGRAMS.includes(normalizedProgram)) {
+      return res.status(400).json({ success: false, message: 'Invalid program selected.' });
     }
 
 
+    const normalizedFromSubmissionId = String(from_submission_id || '').trim();
+    const importFromSubmission = Boolean(normalizedFromSubmissionId);
+    const normalizedLocation = String(location || '').trim();
+    const normalizedPages = String(pages || '').trim();
+
     if (
-      !req.file ||
+      (!req.file && !importFromSubmission) ||
       !title ||
       !writer_names ||
       !writer_email ||
       !description ||
-      !location ||
+      !normalizedLocation ||
       !keywords ||
-      !pages ||
+      !normalizedPages ||
       !audience
     ) {
       return res.status(400).json({ success: false, message: 'Missing required fields or file.' });
@@ -108,40 +133,69 @@ exports.uploadReport = async (req, res) => {
     }
 
     if (targetDeptIds.length) {
-      const matchedDepartments = await Department.countDocuments({ _id: { $in: targetDeptIds }, program: normalizedProgram });
+      const departmentTrack = mapProgramToDepartmentTrack(normalizedProgram);
+      const matchedDepartments = await Department.countDocuments({ _id: { $in: targetDeptIds }, program: departmentTrack || normalizedProgram });
       if (matchedDepartments !== targetDeptIds.length) {
         return res.status(400).json({ success: false, message: 'Selected departments must belong to the chosen program.' });
       }
     }
 
-    let filePath = req.file.filename;
-    try {
-      console.log('[AdminReport] Attempting S3 upload:', {
-        fileName: req.file.originalname,
-        mimeType: req.file.mimetype,
-        fileSize: req.file.size || req.file.buffer.length,
-        title: title,
-        writer: writer_names,
-      });
+    let filePath = '';
+    let linkedSubmission = null;
 
-      const upload = await uploadFile(req.file.buffer, req.file.originalname, req.file.mimetype, 'reports');
-      filePath = upload.url;
+    if (importFromSubmission) {
+      if (!mongoose.Types.ObjectId.isValid(normalizedFromSubmissionId)) {
+        return res.status(400).json({ success: false, message: 'Invalid project submission id.' });
+      }
 
-      console.log('[AdminReport] S3 upload successful:', {
-        fileName: req.file.originalname,
-        s3Key: upload.key,
-        s3Url: filePath,
-        title: title,
-      });
-    } catch (uploadErr) {
-      console.error('[AdminReport] S3 upload failed:', {
-        error: uploadErr.message,
-        fileName: req.file.originalname,
-        title: title,
-        stack: uploadErr.stack,
-      });
-      return res.status(500).json({ success: false, message: 'Failed to upload report to S3' });
+      linkedSubmission = await CandidateProjectSubmission.findById(normalizedFromSubmissionId);
+      if (!linkedSubmission) {
+        return res.status(404).json({ success: false, message: 'Project submission not found.' });
+      }
+      if (linkedSubmission.status !== 'approved') {
+        return res.status(400).json({ success: false, message: 'Only approved project submissions can be converted.' });
+      }
+      if (linkedSubmission.submission_type !== 'report') {
+        return res.status(400).json({ success: false, message: 'Selected project submission is not a report.' });
+      }
+
+      filePath = String(linkedSubmission.file_path || '').trim();
+      if (!filePath) {
+        return res.status(400).json({ success: false, message: 'Project submission has no file to publish.' });
+      }
+    } else {
+      filePath = req.file.filename;
+      try {
+        console.log('[AdminReport] Attempting S3 upload:', {
+          fileName: req.file.originalname,
+          mimeType: req.file.mimetype,
+          fileSize: req.file.size || req.file.buffer.length,
+          title: title,
+          writer: writer_names,
+        });
+
+        const upload = await uploadFile(req.file.buffer, req.file.originalname, req.file.mimetype, 'reports');
+        filePath = upload.url;
+
+        console.log('[AdminReport] S3 upload successful:', {
+          fileName: req.file.originalname,
+          s3Key: upload.key,
+          s3Url: filePath,
+          title: title,
+        });
+      } catch (uploadErr) {
+        console.error('[AdminReport] S3 upload failed:', {
+          error: uploadErr.message,
+          fileName: req.file.originalname,
+          title: title,
+          stack: uploadErr.stack,
+        });
+        return res.status(500).json({ success: false, message: 'Failed to upload report to S3' });
+      }
     }
+
+    const finalLocation = normalizedLocation || String(linkedSubmission?.location || '').trim();
+    const finalPages = normalizedPages || String(linkedSubmission?.pages || '').trim();
 
     const report = await Report.create({
       title: title.trim(),
@@ -149,8 +203,8 @@ exports.uploadReport = async (req, res) => {
       writer_email: writer_email.trim(),
       keywords: keywords.trim(),
       description: description.trim(),
-      location: location.trim(),
-      pages: String(pages).trim(),
+      location: finalLocation.trim(),
+      pages: String(finalPages).trim(),
       file_path: filePath,
       program: normalizedProgram,
       audience,
@@ -159,6 +213,10 @@ exports.uploadReport = async (req, res) => {
       material_price: parsedMaterialPrice,
       project_github_url: parsedProjectGitHubUrl,
     });
+
+    if (linkedSubmission) {
+      await CandidateProjectSubmission.deleteOne({ _id: linkedSubmission._id });
+    }
 
     if (notify === 'true') {
       let users = [];
@@ -203,7 +261,7 @@ exports.uploadReport = async (req, res) => {
 exports.listReports = async (req, res) => {
   try {
     const program = String(req.query?.program || '').trim().toUpperCase();
-    const query = ['HND', 'BTS'].includes(program) ? { program } : {};
+    const query = ALLOWED_PROGRAMS.includes(program) ? { program } : {};
     const rows = await Report.find(query)
       .sort({ createdAt: -1 })
       .populate('departments', 'department_name abbreviation')
@@ -258,8 +316,8 @@ exports.updateReport = async (req, res) => {
       program,
     } = req.body;
     const normalizedProgram = String(program || 'HND').trim().toUpperCase();
-    if (!['HND', 'BTS'].includes(normalizedProgram)) {
-      return res.status(400).json({ success: false, message: 'Program must be HND or BTS.' });
+    if (!ALLOWED_PROGRAMS.includes(normalizedProgram)) {
+      return res.status(400).json({ success: false, message: 'Invalid program selected.' });
     }
 
 
@@ -289,7 +347,8 @@ exports.updateReport = async (req, res) => {
     }
 
     if (targetDeptIds.length) {
-      const matchedDepartments = await Department.countDocuments({ _id: { $in: targetDeptIds }, program: normalizedProgram });
+      const departmentTrack = mapProgramToDepartmentTrack(normalizedProgram);
+      const matchedDepartments = await Department.countDocuments({ _id: { $in: targetDeptIds }, program: departmentTrack || normalizedProgram });
       if (matchedDepartments !== targetDeptIds.length) {
         return res.status(400).json({ success: false, message: 'Selected departments must belong to the chosen program.' });
       }

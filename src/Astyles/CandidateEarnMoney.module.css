@@ -1,0 +1,222 @@
+.page {
+  max-width: 980px;
+  margin: 0 auto;
+  padding: 18px 16px 28px;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  color: #143323;
+}
+
+.hero {
+  border: 1px solid #dbeee0;
+  border-radius: 18px;
+  padding: 18px;
+  background:
+    radial-gradient(circle at 92% 8%, rgba(39, 174, 96, 0.15), transparent 30%),
+    linear-gradient(165deg, #f8fffb 0%, #eff9f2 100%);
+}
+
+.heroTitle {
+  margin: 0;
+  font-size: 2.05rem;
+  color: #1a4330;
+  line-height: 1.15;
+}
+
+.heroTitle strong {
+  color: #2d9b56;
+}
+
+.heroText {
+  margin: 10px 0 0;
+  line-height: 1.6;
+  color: #446555;
+}
+
+.statsCard {
+  margin-top: 14px;
+  border: 1px solid #dbeae0;
+  border-radius: 14px;
+  background: #ffffff;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+}
+
+.statBlock {
+  padding: 14px;
+  display: grid;
+  gap: 4px;
+}
+
+.statBlock + .statBlock {
+  border-left: 1px solid #e7efe9;
+}
+
+.statLabel {
+  font-size: 0.86rem;
+  color: #5d7b6b;
+}
+
+.statValue {
+  font-size: 1.35rem;
+  font-weight: 800;
+  color: #20824a;
+}
+
+.switchRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin: 14px 0;
+}
+
+.switchBtn {
+  border: 1px solid #d6e4da;
+  border-radius: 11px;
+  padding: 12px;
+  font-weight: 700;
+  color: #3b5b4b;
+  background: #ffffff;
+  cursor: pointer;
+}
+
+.switchBtnActive {
+  border-color: #58b77e;
+  background: #effaf3;
+  color: #218048;
+  box-shadow: 0 8px 18px rgba(33, 128, 72, 0.18);
+}
+
+.warningCard {
+  border: 1px solid #ffd6b5;
+  background: #fff9f4;
+  border-radius: 12px;
+  padding: 14px;
+  margin: 10px 0 16px;
+}
+
+.warningTitle {
+  margin: 0;
+  color: #c45b00;
+}
+
+.warningText {
+  margin: 8px 0 0;
+  color: #9b4c03;
+}
+
+.permissionInput {
+  width: 100%;
+  min-height: 90px;
+  margin-top: 10px;
+  border: 1px solid #f2bf93;
+  border-radius: 10px;
+  padding: 10px;
+  font-size: 14px;
+  resize: vertical;
+}
+
+.permissionBtn {
+  margin-top: 10px;
+  border: none;
+  border-radius: 9px;
+  background: linear-gradient(135deg, #ff9212, #e67600);
+  color: #fff;
+  font-weight: 700;
+  padding: 10px 14px;
+  cursor: pointer;
+}
+
+.formCard {
+  border: 1px solid #d8ebe0;
+  border-radius: 14px;
+  background: #ffffff;
+  padding: 16px;
+}
+
+.field {
+  display: grid;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.fieldLabel {
+  font-weight: 700;
+  color: #1f4735;
+}
+
+.fieldInput,
+.fieldTextarea,
+.fileInput {
+  width: 100%;
+  border: 1px solid #d4e5db;
+  border-radius: 10px;
+  padding: 11px;
+  font-size: 15px;
+  background: #f9fcfa;
+}
+
+.fieldTextarea {
+  min-height: 110px;
+  resize: vertical;
+}
+
+.submitBtn {
+  width: 100%;
+  border: none;
+  border-radius: 10px;
+  padding: 12px;
+  background: linear-gradient(135deg, #239b4e, #1d7f40);
+  color: #fff;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.submitBtn:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+.submissionsCard {
+  margin-top: 14px;
+  border: 1px solid #d8ebe0;
+  border-radius: 14px;
+  background: #ffffff;
+  padding: 14px;
+}
+
+.submissionsTitle {
+  margin: 0 0 10px;
+  color: #244736;
+}
+
+.submissionsList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.submissionsItem {
+  border: 1px solid #e3f1e8;
+  border-radius: 10px;
+  padding: 10px;
+  color: #355444;
+  background: #fcfffd;
+}
+
+@media (max-width: 760px) {
+  .heroTitle {
+    font-size: 1.55rem;
+  }
+
+  .statsCard,
+  .switchRow {
+    grid-template-columns: 1fr;
+  }
+
+  .statBlock + .statBlock {
+    border-left: none;
+    border-top: 1px solid #e7efe9;
+  }
+}

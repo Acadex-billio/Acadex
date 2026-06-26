@@ -18,6 +18,8 @@ const AUDIENCE = {
   MULTIPLE: 'MULTIPLE',
 };
 
+const PROGRAM_OPTIONS = ['HND', 'BTS', 'LICENCE', 'BACHELOR', 'MASTERS', 'MASTER'];
+
 const PAGE_SIZE = 7;
 
 const QuestionUpload = () => {
@@ -350,8 +352,9 @@ const QuestionUpload = () => {
                 {t('uploads.reportProgramLabel')} <span>*</span>
               </label>
               <select value={program} onChange={(e) => setProgram(e.target.value)}>
-                <option value="HND">{t('common.hnd')}</option>
-                <option value="BTS">{t('common.bts')}</option>
+                {PROGRAM_OPTIONS.map((option) => (
+                  <option key={option} value={option}>{option}</option>
+                ))}
               </select>
             </div>
 
@@ -564,7 +567,7 @@ const QuestionUpload = () => {
                       <div>
                         <div className={crudStyles.itemTitle}>{p.paper_title}</div>
                         <div className={crudStyles.itemMeta}>
-                          Year: {p.hnd_year} • Audience: {p.audience}
+                          Program: {String(p.program || 'HND').toUpperCase()} • Year: {p.hnd_year} • Audience: {p.audience}
                           <br />
                           Depts: {deptLabel}
                         </div>

@@ -1,0 +1,78 @@
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(7, 18, 34, 0.56);
+  z-index: 1200;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+}
+
+.card {
+  width: min(720px, 100%);
+  border-radius: 18px;
+  border: 1px solid #dce7f5;
+  background: linear-gradient(180deg, #ffffff 0%, #f7fbff 100%);
+  box-shadow: 0 24px 60px rgba(9, 29, 54, 0.24);
+  padding: 20px;
+}
+
+.title {
+  margin: 0;
+  color: #0f2a4b;
+}
+
+.message {
+  margin: 12px 0;
+  color: #2f4a66;
+  line-height: 1.65;
+}
+
+.track {
+  margin: 0;
+  color: #0f2a4b;
+  font-weight: 700;
+}
+
+.track span {
+  display: inline-block;
+  border-radius: 999px;
+  border: 1px solid #cde0f6;
+  background: #edf6ff;
+  padding: 4px 10px;
+  margin-right: 6px;
+}
+
+.actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  margin-top: 16px;
+  flex-wrap: wrap;
+}
+
+.rejectBtn,
+.acceptBtn {
+  border-radius: 10px;
+  padding: 10px 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.rejectBtn {
+  border: 1px solid #e97b7b;
+  color: #9b1c1c;
+  background: #fff;
+}
+
+.acceptBtn {
+  border: none;
+  color: #fff;
+  background: linear-gradient(135deg, #0f4a7f, #0c6f65);
+}
+
+.rejectBtn:disabled,
+.acceptBtn:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}

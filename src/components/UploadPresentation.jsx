@@ -9,13 +9,17 @@ import { useAuth } from '../context/AuthContext';
 import GraduationCapLoader from './GraduationCapLoader';
 import { useTranslation } from 'react-i18next';
 import SecurePdfPreview from './SecurePdfPreview';
+import { useLocation, useNavigate } from 'react-router-dom';
 
 const PAGE_SIZE = 7;
+const PROGRAM_OPTIONS = ['HND', 'BTS', 'LICENCE', 'BACHELOR', 'MASTERS', 'MASTER'];
 
 const UploadPresentation = () => {
   const { loading, startLoading, stopLoading } = useLoading();
   const { user } = useAuth();
   const { t } = useTranslation();
+  const routeLocation = useLocation();
+  const navigate = useNavigate();
 
   const [reports, setReports] = useState([]);
   const [program, setProgram] = useState(String(user?.program || 'HND').toUpperCase());
@@ -23,6 +27,8 @@ const UploadPresentation = () => {
   const [title, setTitle] = useState('');
   const [presenterName, setPresenterName] = useState('');
   const [presenterEmail, setPresenterEmail] = useState('');
+  const [location, setLocation] = useState('');
+  const [pages, setPages] = useState('');
   const [materialPrice, setMaterialPrice] = useState('');
   const [projectGithubUrl, setProjectGithubUrl] = useState('');
   const [presentationFile, setPresentationFile] = useState(null);
@@ -42,6 +48,7 @@ const UploadPresentation = () => {
   const [previewFile, setPreviewFile] = useState(null);
   const [previewUrl, setPreviewUrl] = useState(null);
   const [previewLoading, setPreviewLoading] = useState(false);
+  const [fromSubmissionId, setFromSubmissionId] = useState('');
 
   const clearForm = () => {
     setActiveId(null);
@@ -49,23 +56,26 @@ const UploadPresentation = () => {
     setTitle('');
     setPresenterName('');
     setPresenterEmail('');
+    setLocation('');
+    setPages('');
     setMaterialPrice('');
     setProjectGithubUrl('');
     setPresentationFile(null);
     setAudience('GENERAL');
     setDptId('');
     setDptIds([]);
+    setFromSubmissionId('');
   };
 
   const isValid = useMemo(() => {
-    if (!title.trim() || !presenterName.trim() || !presenterEmail.trim() || !materialPrice) return false;
-    if (!activeId && !presentationFile) return false;
+    if (!title.trim() || !presenterName.trim() || !presenterEmail.trim() || !location.trim() || !pages || !materialPrice) return false;
+    if (!activeId && !fromSubmissionId && !presentationFile) return false;
     if (audience === 'SINGLE' && !dptId) return false;
     if (audience === 'MULTIPLE' && dptIds.length === 0) return false;
     const parsedPrice = Number(materialPrice);
     if (!Number.isFinite(parsedPrice) || parsedPrice < 0) return false;
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(presenterEmail);
-  }, [title, presenterName, presenterEmail, materialPrice, activeId, presentationFile, audience, dptId, dptIds]);
+  }, [title, presenterName, presenterEmail, location, pages, materialPrice, activeId, presentationFile, audience, dptId, dptIds, fromSubmissionId]);
 
   useEffect(() => {
     if (audience === 'GENERAL') {
@@ -135,6 +145,86 @@ const UploadPresentation = () => {
     fetchPresentations();
   }, [fetchPresentations]);
 
+  useEffect(() => {
+    const params = new URLSearchParams(routeLocation.search);
+    const submissionId = String(params.get('projectSubmissionId') || '').trim();
+    if (!submissionId) return;
+
+    const applyDraft = (draft) => {
+      setFromSubmissionId(submissionId);
+      setActiveId(null);
+      setProgram(String(draft.target_program || draft.uploader_program || 'HND').toUpperCase());
+      setAudience('GENERAL');
+      setDptId('');
+      setDptIds([]);
+      setReportId(null);
+      setTitle(String(draft.title || ''));
+      setPresenterName(String(draft.uploader_name || ''));
+      setPresenterEmail(String(draft.uploader_email || ''));
+      setLocation(String(draft.location || '').trim());
+      setPages(String(draft.pages || '').trim());
+      setMaterialPrice(draft.upload_fee != null ? String(draft.upload_fee) : '');
+      setProjectGithubUrl('');
+      setPresentationFile(null);
+      showToast('Presentation draft loaded. Complete details and upload to finalize.', 'success');
+    };
+
+    let ignore = false;
+    (async () => {
+      try {
+        startLoading();
+        const routeDraft = routeLocation.state?.projectSubmissionDraft || null;
+        if (routeDraft && String(routeDraft._id) === submissionId) {
+          if (String(routeDraft.submission_type || '').toLowerCase() !== 'presentation') {
+            showToast('This submission is not a presentation draft.', 'warning');
+            navigate('/admin/project-submissions', { replace: true });
+            return;
+          }
+          if (!ignore) applyDraft(routeDraft);
+          return;
+        }
+
+        let draft = null;
+        try {
+          const res = await api.get(`/admin/project-submissions/${submissionId}/draft`);
+          if (res.data?.success) draft = res.data?.draft || null;
+        } catch (draftErr) {
+          if (draftErr?.response?.status === 404) {
+            const listRes = await api.get('/admin/project-submissions');
+            if (listRes.data?.success) {
+              draft = (listRes.data?.submissions || []).find((entry) => String(entry?._id) === submissionId) || null;
+            }
+          } else {
+            throw draftErr;
+          }
+        }
+
+        if (!draft) {
+          throw new Error('Submission draft not found.');
+        }
+        if (draft.submission_type !== 'presentation') {
+          showToast('This submission is not a presentation draft.', 'warning');
+          navigate('/admin/project-submissions', { replace: true });
+          return;
+        }
+
+        if (ignore) return;
+        applyDraft(draft);
+      } catch (err) {
+        if (!ignore) {
+          showToast(getErrorMessage(err, 'Unable to load project submission draft.'), 'error');
+          navigate('/admin/project-submissions', { replace: true });
+        }
+      } finally {
+        stopLoading();
+      }
+    })();
+
+    return () => {
+      ignore = true;
+    };
+  }, [routeLocation.search, routeLocation.state, navigate, startLoading, stopLoading]);
+
   // close modal on outside click
   useEffect(() => {
     const onDown = (e) => {
@@ -182,6 +272,8 @@ const UploadPresentation = () => {
     setTitle(p.title || '');
     setPresenterName(p.presenter_name || '');
     setPresenterEmail(p.presenter_email || '');
+    setLocation(p.location || '');
+    setPages(p.pages != null ? String(p.pages) : '');
     setMaterialPrice(p.material_price != null ? String(p.material_price) : '');
     setProjectGithubUrl(p.project_github_url || '');
     setPresentationFile(null);
@@ -235,6 +327,8 @@ const UploadPresentation = () => {
         title: title.trim(),
         presenter_name: presenterName.trim(),
         presenter_email: presenterEmail.trim(),
+        location: location.trim(),
+        pages: String(pages).trim(),
         material_price: String(materialPrice).trim(),
         project_github_url: String(projectGithubUrl || '').trim(),
         program,
@@ -290,13 +384,16 @@ const UploadPresentation = () => {
       fd.append('title', title.trim());
       fd.append('presenter_name', presenterName.trim());
       fd.append('presenter_email', presenterEmail.trim());
+      fd.append('location', location.trim());
+      fd.append('pages', String(pages).trim());
       fd.append('material_price', String(materialPrice).trim());
       fd.append('project_github_url', String(projectGithubUrl || '').trim());
       fd.append('program', program);
       fd.append('audience', audience);
       if (audience === 'SINGLE') fd.append('dpt_id', dptId);
       if (audience === 'MULTIPLE') fd.append('dpt_ids', JSON.stringify(dptIds));
-      fd.append('presentationFile', presentationFile);
+      if (fromSubmissionId) fd.append('from_submission_id', fromSubmissionId);
+      if (presentationFile) fd.append('presentationFile', presentationFile);
       fd.append('notify', notify ? 'true' : 'false');
 
       const res = await api.post('/admin/upload-presentation', fd, {
@@ -309,6 +406,10 @@ const UploadPresentation = () => {
         showToast('Presentation uploaded successfully!', 'success');
         clearForm();
         await fetchPresentations();
+        if (fromSubmissionId) {
+          navigate('/admin/project-submissions');
+          return;
+        }
       } else {
         showToast(res.data.message || 'Upload failed', 'error');
       }
@@ -384,7 +485,7 @@ const UploadPresentation = () => {
     <div className={crudStyles.page}>
       {loading && <GraduationCapLoader fullscreen label="Processing presentation… Please wait" />}
 
-      <div className={crudStyles.grid}>
+      <div className={`${crudStyles.grid} ${styles.layoutGrid}`}>
         <section className={crudStyles.card}>
           <div className={crudStyles.cardHeader}>
             <h2 className={crudStyles.cardTitle}>{activeId ? 'Update Presentation' : 'Upload Presentation'}</h2>
@@ -395,12 +496,19 @@ const UploadPresentation = () => {
             )}
           </div>
 
+          {fromSubmissionId ? (
+            <div style={{ marginBottom: 12, padding: '10px 12px', borderRadius: 10, background: '#ebf6ff', border: '1px solid #c8e2f6', color: '#0f4b78' }}>
+              Approved project submission loaded. Finalize metadata and upload to publish as a standard presentation.
+            </div>
+          ) : null}
+
           <form className={styles.form} onSubmit={openConfirm}>
             <div className={styles.field}>
               <label className={styles.label}>{t('uploads.reportProgramLabel')} <span>*</span></label>
               <select value={program} onChange={(e) => setProgram(e.target.value)}>
-                <option value="HND">{t('common.hnd')}</option>
-                <option value="BTS">{t('common.bts')}</option>
+                {PROGRAM_OPTIONS.map((option) => (
+                  <option key={option} value={option}>{option}</option>
+                ))}
               </select>
             </div>
 
@@ -497,6 +605,26 @@ const UploadPresentation = () => {
 
             <div className={styles.row}>
               <div className={styles.fieldFlex}>
+                <label className={styles.label}>Location / Geo Focus</label>
+                <input
+                  type="text"
+                  value={location}
+                  onChange={(e) => setLocation(e.target.value)}
+                />
+              </div>
+              <div className={styles.fieldFlex}>
+                <label className={styles.label}>Number of Pages</label>
+                <input
+                  type="number"
+                  min="1"
+                  value={pages}
+                  onChange={(e) => setPages(e.target.value)}
+                />
+              </div>
+            </div>
+
+            <div className={styles.row}>
+              <div className={styles.fieldFlex}>
                 <label className={styles.label}>Download Price (XAF) <span>*</span></label>
                 <input
                   type="number"
@@ -524,12 +652,17 @@ const UploadPresentation = () => {
                 type="file"
                 accept=".ppt,.pptx"
                 onChange={handlePresentationFilePick}
-                required={!activeId}
-                disabled={Boolean(activeId)}
+                required={!activeId && !fromSubmissionId}
+                disabled={Boolean(activeId || fromSubmissionId)}
               />
               {activeId && (
                 <div className={styles.helper}>
                   File replacement is not available during update. Cancel edit to upload a new presentation.
+                </div>
+              )}
+              {fromSubmissionId && (
+                <div className={styles.helper}>
+                  The approved candidate file is being reused. No file upload required.
                 </div>
               )}
             </div>
@@ -604,7 +737,7 @@ const UploadPresentation = () => {
                         <div className={crudStyles.itemMeta}>
                           {p.presenter_name} • {p.presenter_email}
                           <br />
-                          Audience: {p.audience || 'General'} • Linked report: {p.report_title || 'Standalone'}
+                          Program: {String(p.program || 'HND').toUpperCase()} • Audience: {p.audience || 'General'} • Linked report: {p.report_title || 'Standalone'}
                         </div>
                       </div>
 

@@ -11,6 +11,23 @@ const { uploadFile } = require('../utils/s3Uploader');
 const { sendBulkBcc } = require('../services/emailService');
 const { sanitizeFilename } = require('../middlewares/requestValidation');
 const { sendBulkPushNotification, isWebPushConfigured } = require('../utils/webPush');
+const { USER_PROGRAMS } = require('../constants/userConstants');
+
+const ALLOWED_PROGRAMS = [
+  USER_PROGRAMS.HND,
+  USER_PROGRAMS.BTS,
+  USER_PROGRAMS.LICENCE,
+  USER_PROGRAMS.BACHELOR,
+  USER_PROGRAMS.MASTERS,
+  USER_PROGRAMS.MASTER,
+];
+
+const mapProgramToDepartmentTrack = (program) => {
+  const normalized = String(program || '').trim().toUpperCase();
+  if (['HND', 'BACHELOR', 'MASTERS'].includes(normalized)) return 'HND';
+  if (['BTS', 'LICENCE', 'MASTER'].includes(normalized)) return 'BTS';
+  return null;
+};
 
 const AUDIENCE = new Set(['GENERAL', 'SINGLE', 'MULTIPLE']);
 
@@ -43,7 +60,7 @@ const parseDptIds = (val) => {
 exports.getDepartments = async (req, res) => {
   try {
     const program = String(req.query?.program || '').trim().toUpperCase();
-    const query = ['HND', 'BTS'].includes(program) ? { program } : {};
+    const query = ALLOWED_PROGRAMS.includes(program) ? { program } : {};
     const rows = await Department.find(query)
       .sort({ department_name: 1 })
       .select('_id department_name program')
@@ -60,8 +77,8 @@ exports.uploadPaper = async (req, res) => {
     const { audience, dpt_id, dpt_ids, paperTitle, hndYear, uploaded_by, notify, program } = req.body;
     const file = req.file;
     const normalizedProgram = String(program || 'HND').trim().toUpperCase();
-    if (!['HND', 'BTS'].includes(normalizedProgram)) {
-      return res.status(400).json({ success: false, message: 'Program must be HND or BTS.' });
+    if (!ALLOWED_PROGRAMS.includes(normalizedProgram)) {
+      return res.status(400).json({ success: false, message: 'Invalid program selected.' });
     }
 
 
@@ -89,7 +106,8 @@ exports.uploadPaper = async (req, res) => {
     }
 
     if (targetDeptIds.length) {
-      const matchedDepartments = await Department.countDocuments({ _id: { $in: targetDeptIds }, program: normalizedProgram });
+      const departmentTrack = mapProgramToDepartmentTrack(normalizedProgram);
+      const matchedDepartments = await Department.countDocuments({ _id: { $in: targetDeptIds }, program: departmentTrack || normalizedProgram });
       if (matchedDepartments !== targetDeptIds.length) {
         return res.status(400).json({ success: false, message: 'Selected departments must belong to the chosen program.' });
       }
@@ -192,7 +210,7 @@ exports.uploadPaper = async (req, res) => {
 exports.getQuestionPapers = async (req, res) => {
   try {
     const program = String(req.query?.program || '').trim().toUpperCase();
-    const query = ['HND', 'BTS'].includes(program) ? { program } : {};
+    const query = ALLOWED_PROGRAMS.includes(program) ? { program } : {};
     const papers = await QuestionPaper.find(query)
       .sort({ createdAt: -1 })
       .populate('departments', 'dpt_id department_name')

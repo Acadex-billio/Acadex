@@ -4,12 +4,32 @@
 const Report = require('../models/Report');
 const Presentation = require('../models/Presentation');
 const User = require('../models/User');
+const Department = require('../models/Department');
+const mongoose = require('mongoose');
 const path = require('path');
 const fs = require('fs');
 const { sendBulkBcc } = require('../services/emailService');
 const { sanitizeFilename } = require('../middlewares/requestValidation');
 const { uploadFile } = require('../utils/s3Uploader');
 const { sendBulkPushNotification, isWebPushConfigured } = require('../utils/webPush');
+const { USER_PROGRAMS } = require('../constants/userConstants');
+const CandidateProjectSubmission = require('../models/CandidateProjectSubmission');
+
+const ALLOWED_PROGRAMS = [
+  USER_PROGRAMS.HND,
+  USER_PROGRAMS.BTS,
+  USER_PROGRAMS.LICENCE,
+  USER_PROGRAMS.BACHELOR,
+  USER_PROGRAMS.MASTERS,
+  USER_PROGRAMS.MASTER,
+];
+
+const mapProgramToDepartmentTrack = (program) => {
+  const normalized = String(program || '').trim().toUpperCase();
+  if (['HND', 'BACHELOR', 'MASTERS'].includes(normalized)) return 'HND';
+  if (['BTS', 'LICENCE', 'MASTER'].includes(normalized)) return 'BTS';
+  return null;
+};
 
 const PRESENTATION_DIR = path.join(__dirname, '../uploads/presentations');
 const PRESENTATION_PDF_DIR = path.join(PRESENTATION_DIR, 'pdfs');
@@ -40,7 +60,7 @@ const parseGitHubUrl = (value) => {
 exports.getReports = async (req, res) => {
   try {
     const program = String(req.query?.program || '').trim().toUpperCase();
-    const query = ['HND', 'BTS'].includes(program) ? { program } : {};
+    const query = ALLOWED_PROGRAMS.includes(program) ? { program } : {};
     const reports = await Report.find(query)
       .sort({ createdAt: -1 })
       .populate('departments', 'department_name')
@@ -66,10 +86,10 @@ exports.getReports = async (req, res) => {
 
 exports.uploadPresentation = async (req, res) => {
   try {
-    const { report_id, title, presenter_name, presenter_email, material_price, project_github_url, notify, program, audience, dpt_id, dpt_ids } = req.body;
+    const { report_id, title, presenter_name, presenter_email, material_price, project_github_url, from_submission_id, notify, program, audience, dpt_id, dpt_ids, location, pages } = req.body;
     const normalizedProgram = String(program || 'HND').trim().toUpperCase();
-    if (!['HND', 'BTS'].includes(normalizedProgram)) {
-      return res.status(400).json({ success: false, message: 'Program must be HND or BTS.' });
+    if (!ALLOWED_PROGRAMS.includes(normalizedProgram)) {
+      return res.status(400).json({ success: false, message: 'Invalid program selected.' });
     }
 
     const normalizedAudience = String(audience || 'GENERAL').trim().toUpperCase();
@@ -77,7 +97,10 @@ exports.uploadPresentation = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Audience must be GENERAL, SINGLE, or MULTIPLE.' });
     }
 
-    if (!title || !presenter_name || !presenter_email || !req.file) {
+    const normalizedFromSubmissionId = String(from_submission_id || '').trim();
+    const importFromSubmission = Boolean(normalizedFromSubmissionId);
+
+    if (!title || !presenter_name || !presenter_email || (!req.file && !importFromSubmission)) {
       return res.status(400).json({ success: false, message: 'Missing required fields or file.' });
     }
 
@@ -103,6 +126,14 @@ exports.uploadPresentation = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Audience requires at least one department.' });
     }
 
+    if (departmentIds.length) {
+      const departmentTrack = mapProgramToDepartmentTrack(normalizedProgram);
+      const matchedDepartments = await Department.countDocuments({ _id: { $in: departmentIds }, program: departmentTrack || normalizedProgram });
+      if (matchedDepartments !== departmentIds.length) {
+        return res.status(400).json({ success: false, message: 'Selected departments must belong to the chosen program track.' });
+      }
+    }
+
     if (report_id) {
       const linkedReport = await Report.findOne({ _id: report_id, program: normalizedProgram }).select('_id').lean();
       if (!linkedReport) {
@@ -110,33 +141,62 @@ exports.uploadPresentation = async (req, res) => {
       }
     }
 
-    console.log('[Presentation] Attempting S3 upload:', {
-      fileName: req.file.originalname,
-      mimeType: req.file.mimetype,
-      fileSize: req.file.size || req.file.buffer.length,
-      title: title,
-      presenter: presenter_name,
-    });
+    let linkedSubmission = null;
+    let file_path = '';
+    let finalLocation = String(location || '').trim();
+    let finalPages = String(pages || '').trim();
 
-    let file_path = req.file.filename;
-    try {
-      const upload = await uploadFile(req.file.buffer, req.file.originalname, req.file.mimetype, 'presentations');
-      file_path = upload.url;
+    if (importFromSubmission) {
+      if (!mongoose.Types.ObjectId.isValid(normalizedFromSubmissionId)) {
+        return res.status(400).json({ success: false, message: 'Invalid project submission id.' });
+      }
 
-      console.log('[Presentation] S3 upload successful:', {
+      linkedSubmission = await CandidateProjectSubmission.findById(normalizedFromSubmissionId);
+      if (!linkedSubmission) {
+        return res.status(404).json({ success: false, message: 'Project submission not found.' });
+      }
+      if (linkedSubmission.status !== 'approved') {
+        return res.status(400).json({ success: false, message: 'Only approved project submissions can be converted.' });
+      }
+      if (linkedSubmission.submission_type !== 'presentation') {
+        return res.status(400).json({ success: false, message: 'Selected project submission is not a presentation.' });
+      }
+
+      file_path = String(linkedSubmission.file_path || '').trim();
+      finalLocation = finalLocation || String(linkedSubmission.location || '').trim();
+      finalPages = finalPages || String(linkedSubmission.pages || '').trim();
+      if (!file_path) {
+        return res.status(400).json({ success: false, message: 'Project submission has no file to publish.' });
+      }
+    } else {
+      console.log('[Presentation] Attempting S3 upload:', {
         fileName: req.file.originalname,
-        s3Key: upload.key,
-        s3Url: file_path,
+        mimeType: req.file.mimetype,
+        fileSize: req.file.size || req.file.buffer.length,
         title: title,
+        presenter: presenter_name,
       });
-    } catch (uploadErr) {
-      console.error('[Presentation] S3 upload failed:', {
-        error: uploadErr.message,
-        fileName: req.file.originalname,
-        title: title,
-        stack: uploadErr.stack,
-      });
-      return res.status(500).json({ success: false, message: 'Failed to upload presentation to S3' });
+
+      file_path = req.file.filename;
+      try {
+        const upload = await uploadFile(req.file.buffer, req.file.originalname, req.file.mimetype, 'presentations');
+        file_path = upload.url;
+
+        console.log('[Presentation] S3 upload successful:', {
+          fileName: req.file.originalname,
+          s3Key: upload.key,
+          s3Url: file_path,
+          title: title,
+        });
+      } catch (uploadErr) {
+        console.error('[Presentation] S3 upload failed:', {
+          error: uploadErr.message,
+          fileName: req.file.originalname,
+          title: title,
+          stack: uploadErr.stack,
+        });
+        return res.status(500).json({ success: false, message: 'Failed to upload presentation to S3' });
+      }
     }
 
     const presentation = await Presentation.create({
@@ -148,9 +208,15 @@ exports.uploadPresentation = async (req, res) => {
       audience: normalizedAudience,
       departments: departmentIds,
       file_path: file_path,
+      location: finalLocation || null,
+      pages: finalPages || null,
       material_price: parsedMaterialPrice,
       project_github_url: parsedProjectGitHubUrl,
     });
+
+    if (linkedSubmission) {
+      await CandidateProjectSubmission.deleteOne({ _id: linkedSubmission._id });
+    }
 
     if (notify === 'true') {
       const users = await User.find({ program: normalizedProgram, email: { $exists: true, $ne: '' } })
@@ -200,7 +266,7 @@ exports.uploadPresentation = async (req, res) => {
 exports.listPresentations = async (req, res) => {
   try {
     const program = String(req.query?.program || '').trim().toUpperCase();
-    const query = ['HND', 'BTS'].includes(program) ? { program } : {};
+    const query = ALLOWED_PROGRAMS.includes(program) ? { program } : {};
     const rows = await Presentation.find(query)
       .sort({ createdAt: -1 })
       .populate('report_id', 'title')
@@ -217,6 +283,8 @@ exports.listPresentations = async (req, res) => {
       audience: p.audience || 'GENERAL',
       material_price: p.material_price ?? null,
       project_github_url: p.project_github_url || null,
+      location: p.location || null,
+      pages: p.pages || null,
       departments: (Array.isArray(p.departments) ? p.departments.map(d => ({ dpt_id: d._id, dpt_name: d.department_name })) : []),
       report_id: p.report_id?._id || null,
       report_title: p.report_id?.title || null,
@@ -233,10 +301,10 @@ exports.listPresentations = async (req, res) => {
 exports.updatePresentation = async (req, res) => {
   try {
     const { id } = req.params;
-    const { report_id, title, presenter_name, presenter_email, material_price, project_github_url, program, audience, dpt_id, dpt_ids } = req.body;
+    const { report_id, title, presenter_name, presenter_email, material_price, project_github_url, program, audience, dpt_id, dpt_ids, location, pages } = req.body;
     const normalizedProgram = String(program || 'HND').trim().toUpperCase();
-    if (!['HND', 'BTS'].includes(normalizedProgram)) {
-      return res.status(400).json({ success: false, message: 'Program must be HND or BTS.' });
+    if (!ALLOWED_PROGRAMS.includes(normalizedProgram)) {
+      return res.status(400).json({ success: false, message: 'Invalid program selected.' });
     }
 
     const normalizedAudience = String(audience || 'GENERAL').trim().toUpperCase();
@@ -270,6 +338,14 @@ exports.updatePresentation = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Audience requires at least one department.' });
     }
 
+    if (departmentIds.length) {
+      const departmentTrack = mapProgramToDepartmentTrack(normalizedProgram);
+      const matchedDepartments = await Department.countDocuments({ _id: { $in: departmentIds }, program: departmentTrack || normalizedProgram });
+      if (matchedDepartments !== departmentIds.length) {
+        return res.status(400).json({ success: false, message: 'Selected departments must belong to the chosen program track.' });
+      }
+    }
+
     if (report_id) {
       const linkedReport = await Report.findOne({ _id: report_id, program: normalizedProgram }).select('_id').lean();
       if (!linkedReport) {
@@ -289,6 +365,8 @@ exports.updatePresentation = async (req, res) => {
     pres.report_id = report_id ? report_id : null;
     pres.material_price = parsedMaterialPrice;
     pres.project_github_url = parsedProjectGitHubUrl;
+    pres.location = String(location || '').trim() || null;
+    pres.pages = String(pages || '').trim() || null;
     await pres.save();
 
     return res.json({ success: true, message: 'Presentation updated successfully' });

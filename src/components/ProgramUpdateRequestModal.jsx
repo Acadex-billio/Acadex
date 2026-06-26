@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import api from '../services/api';
 import { showToast } from '../utility/ToastNotification';
 import { getErrorMessage } from '../utility/getErrorMessage';
+import styles from '../Astyles/ProgramUpdateRequestModal.module.css';
 
 const ProgramUpdateRequestModal = () => {
   const [loading, setLoading] = useState(true);
@@ -40,22 +41,22 @@ const ProgramUpdateRequestModal = () => {
   if (loading || !pendingRequest) return null;
 
   return (
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.45)', zIndex: 1200, display: 'grid', placeItems: 'center', padding: 16 }}>
-      <div style={{ width: 'min(680px, 100%)', background: '#fff', borderRadius: 14, border: '1px solid #dbe7f4', padding: 18 }}>
-        <h3 style={{ marginTop: 0 }}>Program Upgrade Confirmation</h3>
-        <p style={{ color: '#334155', lineHeight: 1.6 }}>
+    <div className={styles.overlay}>
+      <div className={styles.card}>
+        <h3 className={styles.title}>Program Upgrade Confirmation</h3>
+        <p className={styles.message}>
           {pendingRequest.message || `You are currently in ${pendingRequest.source_program}. Have you successfully validated your previous program and are you now qualified to move to ${pendingRequest.target_program}?`}
         </p>
-        <p style={{ color: '#475569' }}>
-          From: <strong>{pendingRequest.source_program}</strong> to <strong>{pendingRequest.target_program}</strong>
+        <p className={styles.track}>
+          From <span>{pendingRequest.source_program}</span> to <span>{pendingRequest.target_program}</span>
         </p>
 
-        <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 14 }}>
+        <div className={styles.actions}>
           <button
             type="button"
             disabled={submitting}
             onClick={() => submitResponse('reject')}
-            style={{ border: '1px solid #ef4444', color: '#b91c1c', background: '#fff', borderRadius: 10, padding: '10px 14px' }}
+            className={styles.rejectBtn}
           >
             Reject
           </button>
@@ -63,7 +64,7 @@ const ProgramUpdateRequestModal = () => {
             type="button"
             disabled={submitting}
             onClick={() => submitResponse('accept')}
-            style={{ border: 'none', color: '#fff', background: '#0f766e', borderRadius: 10, padding: '10px 14px' }}
+            className={styles.acceptBtn}
           >
             Accept and Update Program
           </button>

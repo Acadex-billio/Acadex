@@ -20,7 +20,7 @@ const questionPaperSchema = new mongoose.Schema(
     hnd_year: { type: String, required: true, trim: true },
     paper_file: { type: String, required: true },
     uploaded_by: { type: String, required: true, trim: true },
-    program: { type: String, enum: ['HND', 'BTS'], default: 'HND', index: true },
+    program: { type: String, enum: ['HND', 'BTS', 'BACHELOR', 'MASTERS', 'LICENCE', 'MASTER'], default: 'HND', index: true },
     audience: { type: String, enum: ['GENERAL', 'SINGLE', 'MULTIPLE'], default: 'GENERAL' },
     more_info: { type: String, default: '' },
     departments: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Department' }],

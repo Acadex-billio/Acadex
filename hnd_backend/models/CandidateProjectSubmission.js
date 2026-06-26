@@ -2,7 +2,7 @@ const mongoose = require('mongoose');
 const { USER_PROGRAMS } = require('../constants/userConstants');
 
 const programValues = Object.values(USER_PROGRAMS);
-const targetProgramValues = ['BACHELOR', 'MASTERS', 'LICENCE', 'MASTER', 'BTS'];
+const targetProgramValues = ['HND', 'BTS', 'BACHELOR', 'MASTERS', 'LICENCE', 'MASTER'];
 
 const candidateProjectSubmissionSchema = new mongoose.Schema(
   {
@@ -14,6 +14,8 @@ const candidateProjectSubmissionSchema = new mongoose.Schema(
     submission_type: { type: String, enum: ['report', 'presentation'], required: true, index: true },
     title: { type: String, required: true, trim: true },
     description: { type: String, trim: true, default: '' },
+    location: { type: String, trim: true, default: '' },
+    pages: { type: String, trim: true, default: '' },
     file_path: { type: String, required: true, trim: true },
     file_name: { type: String, required: true, trim: true },
     file_type: { type: String, required: true, trim: true },

@@ -9,12 +9,14 @@ import { useLoading } from '../context/LoadingContext';
 import { useAuth } from '../context/AuthContext';
 import GraduationCapLoader from './GraduationCapLoader';
 import { useTranslation } from 'react-i18next';
+import { useLocation, useNavigate } from 'react-router-dom';
 
 const AUDIENCE = {
   SINGLE: 'SINGLE',
   MULTIPLE: 'MULTIPLE',
   GENERAL: 'GENERAL',
 };
+const PROGRAM_OPTIONS = ['HND', 'BTS', 'LICENCE', 'BACHELOR', 'MASTERS', 'MASTER'];
 
 const PAGE_SIZE = 7;
 
@@ -22,6 +24,8 @@ const ReportUpload = () => {
   const { loading, startLoading, stopLoading } = useLoading();
   const { user } = useAuth();
   const { t } = useTranslation();
+  const routeLocation = useLocation();
+  const navigate = useNavigate();
 
   const [departments, setDepartments] = useState([]);
   const [program, setProgram] = useState(String(user?.program || 'HND').toUpperCase());
@@ -49,6 +53,7 @@ const ReportUpload = () => {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const confirmRef = useRef(null);
+  const [fromSubmissionId, setFromSubmissionId] = useState('');
 
   const fetchReports = useCallback(async () => {
     try {
@@ -88,6 +93,87 @@ const ReportUpload = () => {
     fetchReports();
   }, [fetchReports]);
 
+  useEffect(() => {
+    const params = new URLSearchParams(routeLocation.search);
+    const submissionId = String(params.get('projectSubmissionId') || '').trim();
+    if (!submissionId) return;
+
+    const applyDraft = (draft) => {
+      setFromSubmissionId(submissionId);
+      setActiveId(null);
+      setAudience(AUDIENCE.GENERAL);
+      setDptId('');
+      setDptIds([]);
+      setProgram(String(draft.target_program || draft.uploader_program || 'HND').toUpperCase());
+      setTitle(String(draft.title || ''));
+      setWriterNames(String(draft.uploader_name || ''));
+      setWriterEmail(String(draft.uploader_email || ''));
+      setDescription(String(draft.description || ''));
+      setLocation(String(draft.location || '').trim() || 'Candidate Project Upload');
+      setKeywords('candidate-project');
+      setPages(String(draft.pages || '').trim() || '1');
+      setMaterialPrice(draft.upload_fee != null ? String(draft.upload_fee) : '');
+      setProjectGithubUrl('');
+      setReportDoc(null);
+      showToast('Report draft loaded. Complete details and upload to finalize.', 'success');
+    };
+
+    let ignore = false;
+    (async () => {
+      try {
+        startLoading();
+        const routeDraft = routeLocation.state?.projectSubmissionDraft || null;
+        if (routeDraft && String(routeDraft._id) === submissionId) {
+          if (String(routeDraft.submission_type || '').toLowerCase() !== 'report') {
+            showToast('This submission is not a report draft.', 'warning');
+            navigate('/admin/project-submissions', { replace: true });
+            return;
+          }
+          if (!ignore) applyDraft(routeDraft);
+          return;
+        }
+
+        let draft = null;
+        try {
+          const res = await api.get(`/admin/project-submissions/${submissionId}/draft`);
+          if (res.data?.success) draft = res.data?.draft || null;
+        } catch (draftErr) {
+          if (draftErr?.response?.status === 404) {
+            const listRes = await api.get('/admin/project-submissions');
+            if (listRes.data?.success) {
+              draft = (listRes.data?.submissions || []).find((entry) => String(entry?._id) === submissionId) || null;
+            }
+          } else {
+            throw draftErr;
+          }
+        }
+
+        if (!draft) {
+          throw new Error('Submission draft not found.');
+        }
+        if (draft.submission_type !== 'report') {
+          showToast('This submission is not a report draft.', 'warning');
+          navigate('/admin/project-submissions', { replace: true });
+          return;
+        }
+
+        if (ignore) return;
+        applyDraft(draft);
+      } catch (err) {
+        if (!ignore) {
+          showToast(getErrorMessage(err, 'Unable to load project submission draft.'), 'error');
+          navigate('/admin/project-submissions', { replace: true });
+        }
+      } finally {
+        stopLoading();
+      }
+    })();
+
+    return () => {
+      ignore = true;
+    };
+  }, [routeLocation.search, routeLocation.state, navigate, startLoading, stopLoading]);
+
   // close modal on outside click
   useEffect(() => {
     const onDown = (e) => {
@@ -117,7 +203,7 @@ const ReportUpload = () => {
       !description.trim() || !location.trim() || !keywords.trim() ||
       !pages || !materialPrice) return false;
 
-    if (!activeId && !reportDoc) return false;
+    if (!activeId && !fromSubmissionId && !reportDoc) return false;
 
     const parsedPrice = Number(materialPrice);
     if (!Number.isFinite(parsedPrice) || parsedPrice < 0) return false;
@@ -129,7 +215,7 @@ const ReportUpload = () => {
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(writerEmail)) return false;
 
     return true;
-  }, [title, writerNames, writerEmail, description, location, keywords, pages, materialPrice, reportDoc, audience, dptId, dptIds, activeId]);
+  }, [title, writerNames, writerEmail, description, location, keywords, pages, materialPrice, reportDoc, audience, dptId, dptIds, activeId, fromSubmissionId]);
 
   const openConfirm = (e) => {
     e.preventDefault();
@@ -179,6 +265,7 @@ const ReportUpload = () => {
     setProjectGithubUrl('');
     setReportDoc(null);
     setUploadProgress(0);
+    setFromSubmissionId('');
   };
 
   const selectForEdit = (r) => {
@@ -328,7 +415,8 @@ const ReportUpload = () => {
       fd.append('material_price', String(materialPrice).trim());
       fd.append('project_github_url', String(projectGithubUrl || '').trim());
       fd.append('program', program);
-      fd.append('reportDoc', reportDoc);
+      if (fromSubmissionId) fd.append('from_submission_id', fromSubmissionId);
+      if (reportDoc) fd.append('reportDoc', reportDoc);
       fd.append('notify', notify ? 'true' : 'false');
 
       const res = await api.post('/admin/upload-report', fd, {
@@ -356,6 +444,12 @@ const ReportUpload = () => {
         setProjectGithubUrl('');
         setReportDoc(null);
         setUploadProgress(0);
+        setFromSubmissionId('');
+        await fetchReports();
+        if (fromSubmissionId) {
+          navigate('/admin/project-submissions');
+          return;
+        }
       } else {
         showToast(res.data?.message || 'Upload failed', 'error');
       }
@@ -382,11 +476,18 @@ const ReportUpload = () => {
             )}
           </div>
 
+          {fromSubmissionId ? (
+            <div style={{ marginBottom: 12, padding: '10px 12px', borderRadius: 10, background: '#ebf6ff', border: '1px solid #c8e2f6', color: '#0f4b78' }}>
+              Approved project submission loaded. Finalize metadata and upload to publish as a standard report.
+            </div>
+          ) : null}
+
           <div className={styles.field}>
             <label className={styles.label}>{t('uploads.reportProgramLabel')} <span>*</span></label>
             <select value={program} onChange={(e) => setProgram(e.target.value)}>
-              <option value="HND">{t('common.hnd')}</option>
-              <option value="BTS">{t('common.bts')}</option>
+              {PROGRAM_OPTIONS.map((option) => (
+                <option key={option} value={option}>{option}</option>
+              ))}
             </select>
           </div>
 
@@ -533,12 +634,17 @@ const ReportUpload = () => {
                 type="file"
                 accept=".pdf,.doc,.docx"
                 onChange={handleReportFilePick}
-                required={!activeId}
-                disabled={Boolean(activeId)}
+                required={!activeId && !fromSubmissionId}
+                disabled={Boolean(activeId || fromSubmissionId)}
               />
               {activeId && (
                 <div className={styles.helper}>
                   File replacement is not available during update. Cancel edit to upload a new report.
+                </div>
+              )}
+              {fromSubmissionId && (
+                <div className={styles.helper}>
+                  The approved candidate file is being reused. No file upload required.
                 </div>
               )}
               {reportDoc && <div className={styles.filename}>{reportDoc.name}</div>}
@@ -611,7 +717,7 @@ const ReportUpload = () => {
                         <div className={crudStyles.itemMeta}>
                           {r.writer_names} • {r.writer_email}
                           <br />
-                          Audience: {r.audience} • Depts: {deptLabel}
+                          Program: {String(r.program || 'HND').toUpperCase()} • Audience: {r.audience} • Depts: {deptLabel}
                         </div>
                       </div>
 

@@ -110,6 +110,8 @@ router.put('/candidates/:candId/complaints/reviewed', validate({ params: schemas
 
 router.get('/project-submissions', requireDeveloper, candidateProjectController.listForDeveloper);
 router.put('/project-submissions/:id', requireDeveloper, candidateProjectController.updateSubmission);
+router.get('/project-submissions/:id/draft', requireDeveloper, candidateProjectController.getSubmissionDraftForMaterialUpload);
+router.get('/project-submissions/:id/preview', requireDeveloper, candidateProjectController.previewSubmissionFile);
 router.get('/project-submissions/pricing', requireDeveloper, candidateProjectController.listPricingForDeveloper);
 router.put('/project-submissions/pricing', requireDeveloper, candidateProjectController.updatePricing);
 

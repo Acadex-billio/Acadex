@@ -1,0 +1,132 @@
+.page {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 26px 16px 44px;
+}
+
+.hero {
+  border: 1px solid var(--border, #dbe7f5);
+  border-radius: 20px;
+  padding: 20px;
+  background: radial-gradient(circle at 8% -12%, rgba(246, 140, 38, 0.18), transparent 46%),
+    linear-gradient(120deg, rgba(255, 255, 255, 0.98), rgba(244, 249, 255, 0.98));
+  box-shadow: 0 18px 35px rgba(15, 35, 63, 0.08);
+}
+
+.title {
+  margin: 0;
+  color: #10233f;
+  letter-spacing: 0.04em;
+}
+
+.subtitle {
+  margin: 8px 0 0;
+  color: #38506a;
+  line-height: 1.55;
+}
+
+.publishMeta {
+  margin: 8px 0 0;
+  color: #0f2945;
+  font-weight: 600;
+}
+
+.grid {
+  margin-top: 16px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(330px, 1fr));
+  gap: 14px;
+}
+
+.section {
+  border: 1px solid var(--border, #dbe7f5);
+  border-radius: 16px;
+  padding: 16px;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+}
+
+.sectionTitle {
+  margin: 0 0 12px;
+  color: #123053;
+  font-size: 1rem;
+}
+
+.subTitle {
+  margin: 10px 0 8px;
+  color: #21466f;
+  font-weight: 700;
+  font-size: 0.92rem;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: minmax(170px, 1fr) minmax(130px, 170px);
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.label {
+  color: #28435f;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.input {
+  width: 100%;
+  border: 1px solid #c9d6e8;
+  border-radius: 10px;
+  padding: 9px 10px;
+  font-size: 0.95rem;
+  background: #fff;
+}
+
+.input:focus {
+  outline: none;
+  border-color: var(--primary, #f68c26);
+  box-shadow: 0 0 0 3px rgba(246, 140, 38, 0.18);
+}
+
+.actions {
+  margin-top: 16px;
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.saveBtn,
+.publishBtn {
+  border-radius: 10px;
+  padding: 10px 15px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.saveBtn {
+  border: none;
+  background: linear-gradient(135deg, #0f4a7f, #0e6bb8);
+  color: #fff;
+}
+
+.publishBtn {
+  border: 1px solid #0f4a7f;
+  background: #fff;
+  color: #0f4a7f;
+}
+
+.saveBtn:disabled,
+.publishBtn:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+.loading {
+  padding: 24px;
+  color: #334155;
+}
+
+@media (max-width: 720px) {
+  .row {
+    grid-template-columns: 1fr;
+  }
+}

@@ -2,15 +2,38 @@ import React, { useEffect, useMemo, useState } from 'react';
 import api from '../services/api';
 import { showToast } from '../utility/ToastNotification';
 import { getErrorMessage } from '../utility/getErrorMessage';
+import styles from '../Astyles/CandidateEarnMoney.module.css';
 
 const formatMoney = (value) => Number(value || 0).toFixed(2);
+
+const getProgramLabel = (program) => {
+  const value = String(program || '').trim().toUpperCase();
+  const labels = {
+    HND: 'HND',
+    BTS: 'BTS',
+    BACHELOR: 'Bachelor',
+    MASTERS: 'Masters',
+    LICENCE: 'Licence',
+    MASTER: 'Master',
+  };
+  return labels[value] || null;
+};
+
+const getTargetFromUploaderProgram = (program) => {
+  const value = String(program || '').trim().toUpperCase();
+  if (value === 'BACHELOR' || value === 'BACHELORS') return 'HND';
+  if (value === 'MASTERS') return 'BACHELOR';
+  if (value === 'LICENCE') return 'BTS';
+  if (value === 'MASTER') return 'LICENCE';
+  return null;
+};
 
 const CandidateEarnMoney = () => {
   const [overview, setOverview] = useState(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [permissionMessage, setPermissionMessage] = useState('');
-  const [form, setForm] = useState({ submission_type: 'report', title: '', description: '' });
+  const [form, setForm] = useState({ submission_type: 'report', title: '', description: '', location: '', pages: '' });
   const [file, setFile] = useState(null);
 
   const loadOverview = async () => {
@@ -29,11 +52,18 @@ const CandidateEarnMoney = () => {
   useEffect(() => { loadOverview(); }, []);
 
   const canUpload = useMemo(() => Boolean(overview?.canUploadMore), [overview]);
+  const targetProgramLabel = useMemo(() => {
+    if (overview?.targetProgramLabel) return overview.targetProgramLabel;
+    const fromTargetCode = getProgramLabel(overview?.targetProgram);
+    if (fromTargetCode) return fromTargetCode;
+    const derivedTarget = getTargetFromUploaderProgram(overview?.uploaderProgram);
+    return getProgramLabel(derivedTarget);
+  }, [overview]);
 
   const handleSubmit = async (event) => {
     event.preventDefault();
-    if (!file || !form.title) {
-      showToast('Please select a file and provide a title.', 'warning');
+    if (!file || !form.title || !form.location || !form.pages) {
+      showToast('Please select a file, provide a title, location, and page count.', 'warning');
       return;
     }
 
@@ -44,11 +74,13 @@ const CandidateEarnMoney = () => {
       fd.append('submission_type', form.submission_type);
       fd.append('title', form.title);
       fd.append('description', form.description);
+      fd.append('location', form.location);
+      fd.append('pages', form.pages);
       const res = await api.post('/candidate/projects/submit', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
       if (!res.data?.success) throw new Error(res.data?.message || 'Submission failed');
       showToast('Your project has been submitted for developer review.', 'success');
       setFile(null);
-      setForm({ submission_type: 'report', title: '', description: '' });
+      setForm({ submission_type: 'report', title: '', description: '', location: '', pages: '' });
       await loadOverview();
     } catch (err) {
       showToast(getErrorMessage(err, 'Unable to submit your project.'), 'error');
@@ -73,77 +105,101 @@ const CandidateEarnMoney = () => {
     }
   };
 
-  if (loading) return <div style={{ padding: 24 }}>Loading earn money workspace…</div>;
+  if (loading) return <div className={styles.page}>Loading earn money workspace...</div>;
 
   return (
-    <div style={{ padding: 24, maxWidth: 980, margin: '0 auto' }}>
-      <h2>Earn Money with Your Project Work</h2>
-      <p style={{ lineHeight: 1.7, color: '#475569' }}>
-        Eligible candidates can submit one approved project report or presentation for review. The upload fee is set by the developer and is displayed below. After a submission is published, additional uploads require explicit developer permission.
-      </p>
+    <div className={styles.page}>
+      <section className={styles.hero}>
+        <h2 className={styles.heroTitle}>Earn Money with Your <strong>Project Work</strong></h2>
+        <p className={styles.heroText}>
+          Share your academic expertise and earn by helping others. Submit your project report and presentation for review. After both upload slots are used, request developer permission for additional uploads.
+        </p>
 
-      <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 16, padding: 20, margin: '20px 0' }}>
-        <strong>Upload fee:</strong> {formatMoney(overview?.uploadFee)} FCFA
-        <div style={{ marginTop: 8, color: '#334155' }}>
-          {overview?.targetProgramLabel ? `Target program: ${overview.targetProgramLabel}` : 'Target program: Bachelor'}
+        <div className={styles.statsCard}>
+          <div className={styles.statBlock}>
+            <span className={styles.statLabel}>Upload fee</span>
+            <strong className={styles.statValue}>{formatMoney(overview?.uploadFee)} FCFA</strong>
+          </div>
+          <div className={styles.statBlock}>
+            <span className={styles.statLabel}>Target program</span>
+            <strong className={styles.statValue}>{targetProgramLabel || 'Not available'}</strong>
+          </div>
         </div>
-      </div>
+      </section>
 
-      <div style={{ display: 'grid', gap: 16, marginBottom: 24 }}>
-        <button type="button" onClick={() => setForm((prev) => ({ ...prev, submission_type: 'report' }))} style={{ padding: 14, borderRadius: 12, border: form.submission_type === 'report' ? '2px solid #2563eb' : '1px solid #cbd5e1', background: form.submission_type === 'report' ? '#eff6ff' : '#fff' }}>
+      <div className={styles.switchRow}>
+        <button
+          type="button"
+          onClick={() => setForm((prev) => ({ ...prev, submission_type: 'report' }))}
+          className={`${styles.switchBtn} ${form.submission_type === 'report' ? styles.switchBtnActive : ''}`}
+        >
           Upload a report (Word only)
         </button>
-        <button type="button" onClick={() => setForm((prev) => ({ ...prev, submission_type: 'presentation' }))} style={{ padding: 14, borderRadius: 12, border: form.submission_type === 'presentation' ? '2px solid #2563eb' : '1px solid #cbd5e1', background: form.submission_type === 'presentation' ? '#eff6ff' : '#fff' }}>
+        <button
+          type="button"
+          onClick={() => setForm((prev) => ({ ...prev, submission_type: 'presentation' }))}
+          className={`${styles.switchBtn} ${form.submission_type === 'presentation' ? styles.switchBtnActive : ''}`}
+        >
           Upload a presentation (PowerPoint only)
         </button>
       </div>
 
       {!canUpload ? (
-        <div style={{ background: '#fff7ed', border: '1px solid #fdba74', borderRadius: 14, padding: 16, marginBottom: 20 }}>
-          <strong>You are currently not entitled to submit another project.</strong>
-          <p style={{ marginTop: 8, color: '#9a2c00' }}>{overview?.infoMessage}</p>
+        <div className={styles.warningCard}>
+          <h4 className={styles.warningTitle}>You are currently not entitled to submit another project.</h4>
+          <p className={styles.warningText}>{overview?.infoMessage}</p>
           <textarea
             value={permissionMessage}
             onChange={(e) => setPermissionMessage(e.target.value)}
             placeholder="Write a short request for developer permission to upload another material."
-            style={{ width: '100%', minHeight: 100, marginTop: 10, padding: 10, borderRadius: 10, border: '1px solid #fdba74' }}
+            className={styles.permissionInput}
           />
-          <button type="button" onClick={handlePermissionRequest} style={{ marginTop: 10, padding: '10px 14px', borderRadius: 10, background: '#ea580c', color: 'white', border: 'none' }}>
+          <button type="button" onClick={handlePermissionRequest} className={styles.permissionBtn}>
             Send permission request
           </button>
         </div>
       ) : null}
 
-      <form onSubmit={handleSubmit} style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 18, padding: 20 }}>
-        <label style={{ display: 'block', marginBottom: 10 }}>
-          <span style={{ display: 'block', marginBottom: 6 }}>Title</span>
-          <input type="text" value={form.title} onChange={(e) => setForm((prev) => ({ ...prev, title: e.target.value }))} style={{ width: '100%', padding: 10, borderRadius: 10, border: '1px solid #cbd5e1' }} required />
+      <form onSubmit={handleSubmit} className={styles.formCard}>
+        <label className={styles.field}>
+          <span className={styles.fieldLabel}>Title</span>
+          <input className={styles.fieldInput} type="text" value={form.title} onChange={(e) => setForm((prev) => ({ ...prev, title: e.target.value }))} required />
         </label>
-        <label style={{ display: 'block', marginBottom: 10 }}>
-          <span style={{ display: 'block', marginBottom: 6 }}>Description</span>
-          <textarea value={form.description} onChange={(e) => setForm((prev) => ({ ...prev, description: e.target.value }))} style={{ width: '100%', minHeight: 92, padding: 10, borderRadius: 10, border: '1px solid #cbd5e1' }} />
+        <label className={styles.field}>
+          <span className={styles.fieldLabel}>Description</span>
+          <textarea className={styles.fieldTextarea} value={form.description} onChange={(e) => setForm((prev) => ({ ...prev, description: e.target.value }))} />
         </label>
-        <label style={{ display: 'block', marginBottom: 10 }}>
-          <span style={{ display: 'block', marginBottom: 6 }}>Upload file</span>
-          <input type="file" onChange={(e) => setFile(e.target.files?.[0] || null)} required />
+        <div className={styles.switchRow} style={{ margin: '0 0 10px' }}>
+          <label className={styles.field}>
+            <span className={styles.fieldLabel}>Location / Geo Focus</span>
+            <input className={styles.fieldInput} type="text" value={form.location} onChange={(e) => setForm((prev) => ({ ...prev, location: e.target.value }))} required />
+          </label>
+          <label className={styles.field}>
+            <span className={styles.fieldLabel}>Number of pages</span>
+            <input className={styles.fieldInput} type="number" min="1" value={form.pages} onChange={(e) => setForm((prev) => ({ ...prev, pages: e.target.value }))} required />
+          </label>
+        </div>
+        <label className={styles.field}>
+          <span className={styles.fieldLabel}>Upload file</span>
+          <input className={styles.fileInput} type="file" onChange={(e) => setFile(e.target.files?.[0] || null)} required />
         </label>
-        <button type="submit" disabled={submitting || !canUpload} style={{ padding: '12px 16px', borderRadius: 10, border: 'none', background: '#2563eb', color: 'white', cursor: submitting || !canUpload ? 'not-allowed' : 'pointer' }}>
-          {submitting ? 'Submitting…' : `Submit ${form.submission_type === 'report' ? 'report' : 'presentation'}`}
+        <button type="submit" disabled={submitting || !canUpload} className={styles.submitBtn}>
+          {submitting ? 'Submitting...' : `Submit ${form.submission_type === 'report' ? 'report' : 'presentation'}`}
         </button>
       </form>
 
-      <div style={{ marginTop: 20 }}>
-        <h3>Your submissions</h3>
+      <section className={styles.submissionsCard}>
+        <h3 className={styles.submissionsTitle}>Your submissions</h3>
         {(overview?.submissions || []).length === 0 ? <p>No submissions yet.</p> : (
-          <ul>
+          <ul className={styles.submissionsList}>
             {(overview?.submissions || []).map((item) => (
-              <li key={item._id} style={{ marginBottom: 10 }}>
+              <li key={item._id} className={styles.submissionsItem}>
                 <strong>{item.title}</strong> — {item.submission_type} • {item.status} • {formatMoney(item.upload_fee)} FCFA
               </li>
             ))}
           </ul>
         )}
-      </div>
+      </section>
     </div>
   );
 };
