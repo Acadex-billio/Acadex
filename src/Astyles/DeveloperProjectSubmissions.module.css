@@ -1,0 +1,169 @@
+.page {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 28px 18px 48px;
+}
+
+.hero {
+  background: linear-gradient(135deg, #fff9f1 0%, #eef7ff 100%);
+  border: 1px solid #d8e6f8;
+  border-radius: 18px;
+  padding: 20px;
+}
+
+.heroTitle {
+  margin: 0 0 8px;
+  font-size: 1.6rem;
+  color: #10233f;
+}
+
+.heroText {
+  margin: 0;
+  color: #334155;
+  line-height: 1.6;
+}
+
+.section {
+  margin-top: 20px;
+  background: #ffffff;
+  border: 1px solid #e5ecf5;
+  border-radius: 16px;
+  padding: 16px;
+}
+
+.sectionTitle {
+  margin: 0 0 12px;
+  color: #0f2945;
+}
+
+.pricingGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+.priceCard {
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 12px;
+  background: #f8fbff;
+}
+
+.priceLabel {
+  display: block;
+  font-weight: 700;
+  margin-bottom: 8px;
+  color: #0f2945;
+}
+
+.priceInputRow {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.priceInput {
+  width: 100%;
+  border: 1px solid #cdd8e6;
+  border-radius: 8px;
+  padding: 8px 10px;
+}
+
+.emptyState {
+  color: #475569;
+  margin: 8px 0;
+}
+
+.queue {
+  display: grid;
+  gap: 14px;
+  margin-top: 8px;
+}
+
+.card {
+  border: 1px solid #d9e5f4;
+  border-radius: 16px;
+  padding: 14px;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+}
+
+.cardTop {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.cardTitle {
+  margin: 0;
+  font-size: 1.06rem;
+  color: #0f2945;
+}
+
+.meta {
+  margin-top: 6px;
+  color: #475569;
+  font-size: 0.92rem;
+}
+
+.badges {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+
+.badge {
+  background: #edf5ff;
+  border: 1px solid #cfe0f6;
+  border-radius: 999px;
+  padding: 4px 10px;
+  color: #18406a;
+  font-size: 0.8rem;
+}
+
+.status {
+  background: #fff4db;
+  border-color: #f8d28a;
+  color: #8a4b00;
+}
+
+.linkBtn {
+  align-self: flex-start;
+  text-decoration: none;
+  background: #163a62;
+  color: #fff;
+  border-radius: 9px;
+  padding: 8px 12px;
+  font-size: 0.86rem;
+}
+
+.controls {
+  margin-top: 12px;
+  display: grid;
+  gap: 10px;
+}
+
+.noteInput, .actionSelect {
+  border: 1px solid #cfd9e6;
+  border-radius: 8px;
+  padding: 9px 10px;
+  width: 100%;
+}
+
+.applyBtn {
+  width: fit-content;
+  border: none;
+  border-radius: 9px;
+  padding: 9px 14px;
+  background: #0458b0;
+  color: #fff;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+@media (max-width: 760px) {
+  .page {
+    padding: 16px 12px 36px;
+  }
+}

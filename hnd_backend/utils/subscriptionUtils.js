@@ -53,18 +53,18 @@ async function syncUserSubscriptionIfExpired(candId, subscription) {
   );
 }
 
-function buildSubscriptionResponse(raw) {
+async function buildSubscriptionResponse(raw) {
   const resolved = resolveSubscription(raw);
-  const definition = getPlanDefinition(resolved.plan);
+  const definition = await getPlanDefinition(resolved.plan);
   return {
     ...resolved,
     plan_definition: definition,
   };
 }
 
-function getMaterialAccessConfig(materialType, doc) {
+async function getMaterialAccessConfig(materialType, doc) {
   const config = {
-    ...getMaterialDefaults(materialType),
+    ...((await getMaterialDefaults(materialType)) || {}),
     ...(doc?.subscription_access || {}),
   };
 
@@ -122,7 +122,7 @@ async function getMaterialAccessSummary({ user, materialType, resourceId, doc })
   });
 
   const resolvedSubscription = resolveSubscription(user?.subscription);
-  const config = getMaterialAccessConfig(materialType, doc);
+  const config = await getMaterialAccessConfig(materialType, doc);
   const base = {
     plan: resolvedSubscription.plan,
     allow_copy: resolvedSubscription.plan === 'pro',

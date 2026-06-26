@@ -33,6 +33,10 @@ const USER_PROGRAMS = Object.freeze({
   HND: 'HND',
   BTS: 'BTS',
   LECTURER: 'LECTURER',
+  BACHELOR: 'BACHELOR',
+  MASTERS: 'MASTERS',
+  LICENCE: 'LICENCE',
+  MASTER: 'MASTER',
 });
 
 module.exports = {

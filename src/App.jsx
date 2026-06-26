@@ -30,6 +30,7 @@ const QuestionUpload = lazy(() => import('./components/QuestionUpload'));
 const Department = lazy(() => import('./components/Department'));
 const Profile = lazy(() => import('./components/Profile'));
 const CandidateSubscriptions = lazy(() => import('./components/CandidateSubscriptions'));
+const CandidateEarnMoney = lazy(() => import('./components/CandidateEarnMoney'));
 const AdminInternshipTopics = lazy(() => import('./components/AdminInternshipTopics'));
 const CandidateInternshipTopics = lazy(() => import('./components/CandidateInternshipTopics'));
 const InternshipTopicDetail = lazy(() => import('./components/InternshipTopicDetail'));
@@ -66,6 +67,8 @@ const DeveloperCustomAlert = lazy(() => import('./components/DeveloperCustomAler
 const LecturerChatGate = lazy(() => import('./components/LecturerChatGate'));
 const StudyModeMaterials = lazy(() => import('./components/StudyModeMaterials'));
 const PaymentConfirmation = lazy(() => import('./components/PaymentConfirmation'));
+const DeveloperProjectSubmissions = lazy(() => import('./components/DeveloperProjectSubmissions'));
+const DeveloperPricing = lazy(() => import('./components/DeveloperPricing'));
 
 const RouteLoadingListener = () => {
   const location = useLocation();
@@ -168,8 +171,11 @@ const App = () => (
                 </ProtectedRoute>
               }>
                 <Route index element={<AdminDashboard />} />
-                <Route path="manage-candidates" element={<ManageCandidates />} />
-                <Route path="manage-users" element={<ProtectedRoute><DeveloperRoute><ManageUsers /></DeveloperRoute></ProtectedRoute>} />
+                <Route path="manage-users" element={<ManageCandidates fixedRole="candidate" title="Candidate Management" />} />
+                <Route path="manage-users/candidates" element={<ManageCandidates fixedRole="candidate" title="Candidate Management" />} />
+                <Route path="manage-users/lecturers" element={<ManageCandidates fixedRole="lecturer" title="Lecturer Management" />} />
+                <Route path="manage-users/admins" element={<ProtectedRoute><DeveloperRoute><ManageUsers /></DeveloperRoute></ProtectedRoute>} />
+                <Route path="manage-candidates" element={<Navigate to="/admin/manage-users/candidates" replace />} />
                 <Route path="manage-billing" element={<ProtectedRoute><DeveloperRoute><ManageBilling /></DeveloperRoute></ProtectedRoute>} />
                 <Route path="manage-admins" element={<Navigate to="/admin/manage-users" replace />} />
                 <Route path="departments" element={<Department />} />
@@ -186,6 +192,8 @@ const App = () => (
                 <Route path="ads" element={<ProtectedRoute><DeveloperRoute><AdsManager /></DeveloperRoute></ProtectedRoute>} />
                 <Route path="ads/:adId/performance" element={<ProtectedRoute><DeveloperRoute><AdPerformanceReport /></DeveloperRoute></ProtectedRoute>} />
                 <Route path="study-mode-materials" element={<ProtectedRoute><DeveloperRoute><StudyModeMaterials /></DeveloperRoute></ProtectedRoute>} />
+                <Route path="project-submissions" element={<ProtectedRoute><DeveloperRoute><DeveloperProjectSubmissions /></DeveloperRoute></ProtectedRoute>} />
+                <Route path="pricing" element={<ProtectedRoute><DeveloperRoute><DeveloperPricing /></DeveloperRoute></ProtectedRoute>} />
                 <Route path="ai-assistant" element={<AIAssistant />} />
                 <Route path="profile" element={<Profile />} />
                 <Route path="settings" element={<Settings />} />
@@ -215,6 +223,7 @@ const App = () => (
                 <Route path="ai-assistant" element={<AIAssistant />} />
                 <Route path="profile" element={<Profile />} />
                 <Route path="subscription" element={<CandidateSubscriptions />} />
+                <Route path="earn-money" element={<CandidateEarnMoney />} />
                 <Route path="lecturers" element={<CandidateLecturers />} />
                 <Route path="tutorship-bookings" element={<CandidateTutorshipBookings />} />
                 <Route path="settings" element={<Settings />} />

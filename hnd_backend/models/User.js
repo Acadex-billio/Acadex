@@ -92,6 +92,15 @@ const userSchema = new mongoose.Schema(
         reviewedBy: { type: String, default: null, trim: true },
       },
     ],
+    program_update_request: {
+      status: { type: String, enum: ['none', 'pending', 'accepted', 'rejected'], default: 'none', index: true },
+      source_program: { type: String, enum: USER_PROGRAM_VALUES, default: null },
+      target_program: { type: String, enum: USER_PROGRAM_VALUES, default: null },
+      message: { type: String, default: null, trim: true },
+      requested_by: { type: String, default: null, trim: true },
+      requested_at: { type: Date, default: null },
+      responded_at: { type: Date, default: null },
+    },
   },
   { timestamps: true }
 );

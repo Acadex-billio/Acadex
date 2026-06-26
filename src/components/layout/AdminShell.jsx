@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
-import { FaBars, FaTimes, FaHome, FaFolderOpen, FaFileAlt, FaClipboardList, FaUpload, FaCog, FaUserCircle, FaUsers, FaRobot, FaHistory, FaBullhorn, FaCommentDots, FaComments, FaChartLine, FaSignOutAlt, FaCreditCard, FaLightbulb, FaChalkboardTeacher, FaChevronDown, FaAd, FaBell } from 'react-icons/fa';
+import { FaBars, FaTimes, FaHome, FaFolderOpen, FaFileAlt, FaClipboardList, FaUpload, FaCog, FaUserCircle, FaUsers, FaRobot, FaHistory, FaBullhorn, FaCommentDots, FaComments, FaChartLine, FaSignOutAlt, FaCreditCard, FaLightbulb, FaChalkboardTeacher, FaChevronDown, FaAd, FaBell, FaDollarSign } from 'react-icons/fa';
 import AdDisplay from '../AdDisplay';
 import styles from '../../Astyles/DashboardShell.module.css';
 import { useAuth } from '../../context/AuthContext';
@@ -66,6 +66,7 @@ const AdminShell = () => {
   const [announcementCount, setAnnouncementCount] = useState(0);
   const [chatCount, setChatCount] = useState(0);
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
+  const [manageUsersOpen, setManageUsersOpen] = useState(false);
   const accountMenuRef = useRef(null);
 
   useEffect(() => {
@@ -137,9 +138,6 @@ const AdminShell = () => {
   const navItems = useMemo(() => {
     const initial = [
       { to: '/admin', label: t('nav.dashboard'), icon: FaHome },
-      ...(isDeveloper
-        ? [{ to: '/admin/manage-users', label: t('nav.manageUsers'), icon: FaUsers }]
-        : [{ to: '/admin/manage-candidates', label: t('nav.manageCandidates'), icon: FaUsers }]),
       { to: '/admin/departments', label: t('nav.departments'), icon: FaFolderOpen },
       { to: '/admin/reports', label: t('nav.reports'), icon: FaFileAlt },
       { to: '/admin/presentations', label: t('nav.presentations'), icon: FaClipboardList },
@@ -148,7 +146,9 @@ const AdminShell = () => {
       { to: '/admin/ai-assistant', label: t('nav.aiAssistant'), icon: FaRobot },
       ...(isDeveloper ? [{ to: '/admin/custom-alert', label: 'Custom Alerts', icon: FaBell }] : []),
       ...(isDeveloper ? [{ to: '/admin/manage-billing', label: t('nav.manageBilling', 'Manage Billing'), icon: FaCreditCard }] : []),
+      ...(isDeveloper ? [{ to: '/admin/pricing', label: 'PRICING', icon: FaDollarSign }] : []),
       ...(isDeveloper ? [{ to: '/admin/lecturers', label: 'Lecturer Approvals', icon: FaChalkboardTeacher }] : []),
+      ...(isDeveloper ? [{ to: '/admin/project-submissions', label: 'Project Submissions', icon: FaClipboardList }] : []),
       ...(isDeveloper ? [{ to: '/admin/study-mode-materials', label: 'Study Mode Materials', icon: FaClipboardList }] : []),
       ...(isDeveloper ? [{ to: '/admin/ads', label: 'Ads Manager', icon: FaAd }] : []),
     ];
@@ -308,6 +308,37 @@ const AdminShell = () => {
           </div>
 
           <nav className={styles.nav}>
+            <button
+              type="button"
+              className={styles.navLink}
+              onClick={() => setManageUsersOpen((prev) => !prev)}
+              aria-expanded={manageUsersOpen}
+            >
+              <FaUsers className={styles.navIcon} />
+              <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, width: '100%' }}>
+                <span>Manage Users</span>
+                <FaChevronDown className={`${styles.accountChevron} ${manageUsersOpen ? styles.accountChevronOpen : ''}`} />
+              </span>
+            </button>
+            {manageUsersOpen ? (
+              <div className={styles.navSubgroup}>
+                <NavLink to="/admin/manage-users/candidates" className={({ isActive }) => `${styles.navLink} ${isActive ? styles.active : ''}`} onClick={onNavClick}>
+                  <FaUsers className={styles.navIcon} />
+                  <span>Candidates</span>
+                </NavLink>
+                <NavLink to="/admin/manage-users/lecturers" className={({ isActive }) => `${styles.navLink} ${isActive ? styles.active : ''}`} onClick={onNavClick}>
+                  <FaChalkboardTeacher className={styles.navIcon} />
+                  <span>Lecturers</span>
+                </NavLink>
+                {isDeveloper ? (
+                  <NavLink to="/admin/manage-users/admins" className={({ isActive }) => `${styles.navLink} ${isActive ? styles.active : ''}`} onClick={onNavClick}>
+                    <FaUserCircle className={styles.navIcon} />
+                    <span>Admin Management</span>
+                  </NavLink>
+                ) : null}
+              </div>
+            ) : null}
+
             {navItems.map(({ to, label, icon: Icon, badge }) => (
               <NavLink
                 key={to}

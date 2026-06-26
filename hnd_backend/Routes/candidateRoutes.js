@@ -12,6 +12,7 @@ const candidateAnalyticsController = require('../controllers/candidateAnalyticsC
 const candidateQuestionPaperController = require('../controllers/candidateQuestionPaperController');
 const downloadsController = require('../controllers/downloadsController');
 const candidateAccountController = require('../controllers/candidateAccountController');
+const candidateProjectController = require('../controllers/candidateProjectController');
 const { checkMaterialAccess, getMaterialAccessInfo } = require('../middlewares/materialAccessMiddleware');
 const subscriptionController = require('../controllers/subscriptionController');
 const internshipTopicController = require('../controllers/internshipTopicController');
@@ -36,6 +37,12 @@ const uploadProfile = multer({
   storage: profileStorage,
   limits: { fileSize: 5 * 1024 * 1024 },
   fileFilter: profileImageFilter,
+});
+
+const projectUploadStorage = multer.memoryStorage();
+const projectUpload = multer({
+  storage: projectUploadStorage,
+  limits: { fileSize: 20 * 1024 * 1024 },
 });
 
 router.use(requireAuth);
@@ -112,5 +119,11 @@ router.get('/account/left-groups', candidateAccountController.listLeftGroups);
 router.post('/account/left-groups/:roomId/rejoin', validate({ params: schemas.ids.roomIdParam }), candidateAccountController.rejoinGroup);
 router.get('/account/blocked-users', candidateAccountController.listBlockedUsers);
 router.delete('/account/blocked-users/:otherCandId', validate({ params: schemas.ids.otherCandIdParam }), candidateAccountController.unblockUser);
+router.get('/account/program-update/pending', candidateAccountController.getPendingProgramUpdate);
+router.post('/account/program-update/respond', candidateAccountController.respondProgramUpdate);
+
+router.get('/projects/overview', candidateProjectController.getMySubmissionOverview);
+router.post('/projects/request-permission', candidateProjectController.requestPermission);
+router.post('/projects/submit', projectUpload.single('file'), candidateProjectController.submitProject);
 
 module.exports = router;

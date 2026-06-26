@@ -9,7 +9,7 @@ const PaymentAccessGrant = require('../models/PaymentAccessGrant');
 const materialAccessService = require('../services/materialAccessService');
 const paymentCallbackService = require('../services/paymentCallbackService');
 const History = require('../models/History');
-const { PLAN_DEFINITIONS, getPlanDefinition, getCenterPricing } = require('../utils/subscriptionCatalog');
+const { getPlanDefinitions, getPlanDefinition, getCenterPricing } = require('../utils/subscriptionCatalog');
 const {
   resolveSubscription,
   syncUserSubscriptionIfExpired,
@@ -276,17 +276,27 @@ async function refreshTransactionStatus(transaction) {
   return refreshCampayPaymentStatus(transaction, applySuccessfulPayment);
 }
 
-function buildPlanCards() {
-  return Object.values(PLAN_DEFINITIONS);
+async function buildPlanCards() {
+  const definitions = await getPlanDefinitions();
+  return Object.values(definitions || {});
 }
 
 exports.getCatalog = async (_req, res) => {
+  const plans = await buildPlanCards();
   return res.json({
     success: true,
-    plans: buildPlanCards(),
+    plans,
     center_pricing: {
-      create: getCenterPricing('create'),
-      join: getCenterPricing('join'),
+      create: {
+        basic: await getCenterPricing('create', 'basic'),
+        pro: await getCenterPricing('create', 'pro'),
+        paygo: await getCenterPricing('create', 'paygo'),
+      },
+      join: {
+        basic: await getCenterPricing('join', 'basic'),
+        pro: await getCenterPricing('join', 'pro'),
+        paygo: await getCenterPricing('join', 'paygo'),
+      },
     },
   });
 };
@@ -302,8 +312,8 @@ exports.getMySubscription = async (req, res) => {
 
     return res.json({
       success: true,
-      subscription: buildSubscriptionResponse(user.subscription),
-      plans: buildPlanCards(),
+      subscription: await buildSubscriptionResponse(user.subscription),
+      plans: await buildPlanCards(),
       recent_transactions: recentTransactions.map(buildPaymentSummary),
     });
   } catch (err) {
@@ -322,7 +332,7 @@ exports.startPlanCheckout = async (req, res) => {
     const redirectUrl = String(req.body?.redirectUrl || req.body?.returnUrl || '').trim();
     const idempotencyKey = String(req.headers['x-idempotency-key'] || req.body?.idempotencyKey || '').trim();
     const promoCode = sanitizePromoCodeInput(req.body?.promoCode || req.body?.referralCode);
-    const plan = getPlanDefinition(planCode);
+    const plan = await getPlanDefinition(planCode);
 
     if (!['pro', 'paygo'].includes(plan.code)) {
       return res.status(400).json({ success: false, message: 'Only Pro or PAYGO plans require payment.' });
@@ -362,7 +372,7 @@ exports.startPlanCheckout = async (req, res) => {
     return res.json({
       success: true,
       payment: buildPaymentSummary(transaction),
-      subscription: buildSubscriptionResponse((await loadCandidate(candId)).subscription),
+      subscription: await buildSubscriptionResponse((await loadCandidate(candId)).subscription),
     });
   } catch (err) {
     const normalized = normalizeCheckoutError(err, 'Failed to start subscription payment');
@@ -485,7 +495,7 @@ exports.startCenterCheckout = async (req, res) => {
     const idempotencyKey = String(req.headers['x-idempotency-key'] || req.body?.idempotencyKey || '').trim();
     const roomId = String(req.body?.roomId || '').trim();
     const phoneNumber = String(req.body?.phoneNumber || user.phone || '').trim();
-    const centerPricing = getCenterPricing(action);
+    const centerPricing = await getCenterPricing(action, resolvedSubscription.plan || 'paygo');
     if (!centerPricing) return res.status(400).json({ success: false, message: 'Invalid center action.' });
 
     if (action === 'join') {
@@ -546,7 +556,7 @@ exports.getPaymentStatus = async (req, res) => {
     return res.json({
       success: true,
       payment: buildPaymentSummary(transaction),
-      subscription: latestUser ? buildSubscriptionResponse(latestUser.subscription) : null,
+      subscription: latestUser ? await buildSubscriptionResponse(latestUser.subscription) : null,
     });
   } catch (err) {
     return res.status(err.statusCode || 500).json({ success: false, message: err.message || 'Failed to get payment status' });
@@ -600,7 +610,7 @@ exports.startManualPlanCheckout = async (req, res) => {
     const promoCode = sanitizePromoCodeInput(req.body?.promoCode || req.body?.referralCode);
     const idempotencyKey = String(req.headers['x-idempotency-key'] || req.body?.idempotencyKey || '').trim();
     const paymentProof = String(req.body?.paymentProof || '').trim();
-    const plan = getPlanDefinition(planCode);
+    const plan = await getPlanDefinition(planCode);
 
     if (!['pro', 'paygo'].includes(plan.code)) {
       return res.status(400).json({ success: false, message: 'Only Pro or PAYGO plans require payment.' });
@@ -663,7 +673,7 @@ exports.startManualPlanCheckout = async (req, res) => {
         max_wait_minutes: 10,
         message: 'Payment proof submitted. A developer will verify and activate your plan.',
       },
-      subscription: buildSubscriptionResponse((await loadCandidate(candId)).subscription),
+      subscription: await buildSubscriptionResponse((await loadCandidate(candId)).subscription),
     });
   } catch (err) {
     const normalized = normalizeCheckoutError(err, 'Failed to submit manual payment proof');

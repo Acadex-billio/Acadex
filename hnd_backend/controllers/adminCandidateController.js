@@ -4,6 +4,11 @@ const { sendEmail } = require('../services/emailService');
 const { sendWebPushNotification, isWebPushConfigured } = require('../utils/webPush');
 
 const normalizeCandId = (v) => String(v || '').trim();
+const getDefaultLanguageForProgram = (program) => {
+  const normalized = String(program || '').trim().toUpperCase();
+  return ['BTS', 'LICENCE', 'MASTER'].includes(normalized) ? 'fr' : 'en';
+};
+const PROGRAM_VALUES = ['HND', 'BTS', 'BACHELOR', 'MASTERS', 'LICENCE', 'MASTER'];
 
 exports.listCandidates = async (req, res) => {
   try {
@@ -246,7 +251,7 @@ exports.listAllUsers = async (req, res) => {
     const status = String(req.query.status || '').trim().toLowerCase();
 
     const query = {};
-    if (['HND', 'BTS', 'LECTURER'].includes(program)) query.program = program;
+    if (['HND', 'BTS', 'LECTURER', 'BACHELOR', 'MASTERS', 'LICENCE', 'MASTER'].includes(program)) query.program = program;
     if (['candidate', 'lecturer', 'admin', 'developer', 'superadmin'].includes(role)) query.role = role;
     if (['active', 'pending_approval', 'suspended', 'blocked'].includes(status)) query.account_status = status;
     if (q) {
@@ -277,7 +282,7 @@ exports.listAllUsers = async (req, res) => {
         email: u.email,
         role: u.role,
         program: String(u.program || 'HND').toUpperCase(),
-        preferred_language: String(u.preferred_language || (String(u.program || 'HND').toUpperCase() === 'BTS' ? 'fr' : 'en')).toLowerCase(),
+        preferred_language: String(u.preferred_language || getDefaultLanguageForProgram(u.program || 'HND')).toLowerCase(),
         department_name: u.dpt_id?.department_name || null,
         department_abbreviation: u.dpt_id?.abbreviation || null,
         account_status: u.account_status || 'active',
@@ -340,7 +345,7 @@ exports.updateUserRole = async (req, res) => {
     await user.save();
 
     if (previousRole !== role) {
-      const preferred = String(user.preferred_language || (String(user.program || 'HND').toUpperCase() === 'BTS' ? 'fr' : 'en')).toLowerCase();
+      const preferred = String(user.preferred_language || getDefaultLanguageForProgram(user.program || 'HND')).toLowerCase();
       const isPromoted = role === 'admin' && previousRole === 'candidate';
       const emailSubject = preferred === 'fr'
         ? (isPromoted ? 'Votre role a ete mis a jour: administrateur' : 'Votre role a ete mis a jour: candidat')
@@ -474,6 +479,84 @@ exports.reactivateUser = async (req, res) => {
     return res.json({ success: true, message: 'User reactivated successfully' });
   } catch (err) {
     return res.status(500).json({ success: false, message: err.message || 'Failed to reactivate user' });
+  }
+};
+
+exports.startProgramUpdateCampaign = async (req, res) => {
+  try {
+    const actor = normalizeCandId(req.user?.cand_id);
+    const currentProgram = String(req.body?.current_program || '').trim().toUpperCase();
+    const targetProgram = String(req.body?.target_program || '').trim().toUpperCase();
+    const customMessage = String(req.body?.message || '').trim();
+
+    if (!PROGRAM_VALUES.includes(currentProgram) || !PROGRAM_VALUES.includes(targetProgram)) {
+      return res.status(400).json({ success: false, message: 'Invalid source or destination program.' });
+    }
+    if (currentProgram === targetProgram) {
+      return res.status(400).json({ success: false, message: 'Current program and destination program cannot be the same.' });
+    }
+
+    const promptMessage = customMessage || `You are currently registered under ${currentProgram}. Have you successfully validated ${currentProgram} and are you now qualified to upgrade to ${targetProgram}?`;
+
+    const result = await User.updateMany(
+      { role: 'candidate', program: currentProgram },
+      {
+        $set: {
+          program_update_request: {
+            status: 'pending',
+            source_program: currentProgram,
+            target_program: targetProgram,
+            message: promptMessage,
+            requested_by: actor || 'admin',
+            requested_at: new Date(),
+            responded_at: null,
+          },
+        },
+      }
+    );
+
+    return res.json({
+      success: true,
+      targeted_count: Number(result.modifiedCount || 0),
+      message: `Program update campaign started for ${currentProgram} candidates.`,
+    });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: err.message || 'Failed to start program update campaign' });
+  }
+};
+
+exports.updateUserProgram = async (req, res) => {
+  try {
+    const candId = normalizeCandId(req.params?.candId);
+    const targetProgram = String(req.body?.program || '').trim().toUpperCase();
+
+    if (!candId) return res.status(400).json({ success: false, message: 'candId is required' });
+    if (!PROGRAM_VALUES.includes(targetProgram)) {
+      return res.status(400).json({ success: false, message: 'Invalid destination program.' });
+    }
+
+    const user = await User.findOne({ cand_id: candId });
+    if (!user) return res.status(404).json({ success: false, message: 'User not found' });
+    if (String(user.role || '').toLowerCase() !== 'candidate') {
+      return res.status(400).json({ success: false, message: 'Only candidates can be moved with this action.' });
+    }
+
+    user.program = targetProgram;
+    user.preferred_language = getDefaultLanguageForProgram(targetProgram);
+    user.program_update_request = {
+      status: 'none',
+      source_program: null,
+      target_program: null,
+      message: null,
+      requested_by: null,
+      requested_at: null,
+      responded_at: null,
+    };
+    await user.save();
+
+    return res.json({ success: true, message: `Candidate program updated to ${targetProgram}` });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: err.message || 'Failed to update candidate program' });
   }
 };
 

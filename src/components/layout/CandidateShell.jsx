@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { FaBars, FaTimes, FaHome, FaFileAlt, FaBook, FaClipboardList, FaCog, FaCommentDots, FaComments, FaChartLine, FaSignOutAlt, FaUserCircle, FaHistory, FaBullhorn, FaCreditCard, FaLightbulb, FaUsers, FaChevronDown, FaChalkboardTeacher } from 'react-icons/fa';
+import { FaBars, FaTimes, FaHome, FaFileAlt, FaBook, FaClipboardList, FaCog, FaCommentDots, FaComments, FaChartLine, FaSignOutAlt, FaUserCircle, FaHistory, FaBullhorn, FaCreditCard, FaLightbulb, FaUsers, FaChevronDown, FaChalkboardTeacher, FaDollarSign } from 'react-icons/fa';
 import styles from '../../Astyles/DashboardShell.module.css';
 import { useAuth } from '../../context/AuthContext';
 import { useLoading } from '../../context/LoadingContext';
@@ -184,6 +184,7 @@ const CandidateShell = () => {
       { to: '/candidate/reports', label: t('nav.reports'), icon: FaFileAlt },
       { to: '/candidate/presentations', label: t('nav.presentations'), icon: FaBook },
       { to: '/candidate/announcements', label: t('nav.announcements'), icon: FaBullhorn, badge: announcementCount },
+      { to: '/candidate/earn-money', label: 'Earn Money', icon: FaDollarSign },
       { to: '/candidate/internship-topics', label: t('nav.internshipTopics'), icon: FaLightbulb },
       { to: '/candidate/tutorship-bookings', label: 'Tutorship Bookings', icon: FaComments, badge: bookingAlertCount },
     ],

@@ -906,7 +906,7 @@ exports.createCenter = async (req, res) => {
 
     if (subscription.plan === 'paygo') {
       if (!paymentTransactionId) {
-        const pricing = getCenterPricing('create');
+        const pricing = await getCenterPricing('create', subscription.plan || 'paygo');
         return res.status(402).json({
           success: false,
           code: 'PAYMENT_REQUIRED',
@@ -1078,7 +1078,7 @@ exports.respondToInvite = async (req, res) => {
 
         if (subscription.plan === 'paygo') {
           if (!paymentTransactionId) {
-            const pricing = getCenterPricing('join');
+            const pricing = await getCenterPricing('join', subscription.plan || 'paygo');
             await ChatInvite.updateOne({ _id: inviteId }, { $set: { status: 'pending', responded_at: null } });
             return res.status(402).json({
               success: false,
@@ -1146,7 +1146,7 @@ exports.joinByInvite = async (req, res) => {
 
     if (subscription.plan === 'paygo') {
       if (!paymentTransactionId) {
-        const pricing = getCenterPricing('join');
+        const pricing = await getCenterPricing('join', subscription.plan || 'paygo');
         return res.status(402).json({
           success: false,
           code: 'PAYMENT_REQUIRED',

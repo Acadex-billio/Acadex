@@ -1,19 +1,18 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import api from '../services/api';
-import { useAuth } from '../context/AuthContext';
 import GraduationCapLoader from './GraduationCapLoader';
 import { showToast } from '../utility/ToastNotification';
 import { getErrorMessage } from '../utility/getErrorMessage';
 import styles from '../Astyles/Settings.module.css';
 import { maskCandidateId } from '../utility/maskCandidateId';
 
-const ManageCandidates = () => {
-  const { user } = useAuth();
-  const isDeveloper = String(user?.role || '').toLowerCase() === 'developer';
+const PROGRAM_OPTIONS = ['HND', 'BTS', 'BACHELOR', 'MASTERS', 'LICENCE', 'MASTER'];
+
+const ManageCandidates = ({ fixedRole = 'candidate', title = 'Manage Candidates' }) => {
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
-  const [candidates, setCandidates] = useState([]);
+  const [users, setUsers] = useState([]);
   const [page, setPage] = useState(1);
   const [limit] = useState(25);
   const [total, setTotal] = useState(0);
@@ -25,60 +24,48 @@ const ManageCandidates = () => {
   const [suspendEnd, setSuspendEnd] = useState('');
   const [actionReason, setActionReason] = useState('');
   const [saving, setSaving] = useState(false);
-  const [previewImageUrl, setPreviewImageUrl] = useState(null);
-  const [previewModalOpen, setPreviewModalOpen] = useState(false);
-  const backendOrigin = api.defaults.baseURL?.replace(/\/api$/, '')?.replace(/\/$/, '') || '';
-  const buildImageUrl = (url) => {
-    if (!url) return '';
-    if (url.startsWith('http')) return url;
-    if (url.startsWith('/')) return `${backendOrigin}${url}`;
-    return `${backendOrigin}/${url}`;
-  };
-  const loadCandidates = useCallback(async ({ q = '', targetPage = 1 } = {}) => {
+
+  const [individualProgram, setIndividualProgram] = useState('');
+  const [bulkCurrentProgram, setBulkCurrentProgram] = useState('HND');
+  const [bulkTargetProgram, setBulkTargetProgram] = useState('BACHELOR');
+  const [bulkMessage, setBulkMessage] = useState('');
+
+  const isCandidateView = String(fixedRole || '').toLowerCase() === 'candidate';
+
+  const loadUsers = useCallback(async ({ q = '', targetPage = 1 } = {}) => {
     try {
       setLoading(true);
-      const path = isDeveloper
-        ? `/admin/users?q=${encodeURIComponent(q)}&page=${targetPage}&limit=${limit}`
-        : `/admin/candidates?q=${encodeURIComponent(q)}&page=${targetPage}&limit=${limit}`;
-      const { data } = await api.get(path);
-      const raw = isDeveloper ? (Array.isArray(data?.users) ? data.users : []) : (Array.isArray(data?.candidates) ? data.candidates : []);
+      const params = new URLSearchParams();
+      params.set('q', q);
+      params.set('page', String(targetPage));
+      params.set('limit', String(limit));
+      if (fixedRole) params.set('role', fixedRole);
+
+      const { data } = await api.get(`/admin/users?${params.toString()}`);
+      const raw = Array.isArray(data?.users) ? data.users : [];
       const pagination = data?.pagination || null;
 
       setPage(Number(pagination?.page) > 0 ? Number(pagination.page) : targetPage);
       setTotal(Number(pagination?.total) >= 0 ? Number(pagination.total) : raw.length);
       setTotalPages(Number(pagination?.totalPages) > 0 ? Number(pagination.totalPages) : 1);
 
-      setCandidates(
+      setUsers(
         raw.map((u) => ({
           cand_id: u.cand_id,
           name: u.name,
           email: u.email,
-          role: u.role || (u.is_admin ? 'admin' : 'candidate'),
-          department_abbreviation: u.department_abbreviation || u.department?.abbreviation || '',
+          role: u.role || 'candidate',
+          program: String(u.program || 'HND').toUpperCase(),
+          department_abbreviation: u.department_abbreviation || '',
           account_status: u.account_status || 'active',
         }))
       );
     } catch (err) {
-      showToast(getErrorMessage(err, 'Failed to load candidates'), 'error');
+      showToast(getErrorMessage(err, 'Failed to load users'), 'error');
     } finally {
       setLoading(false);
     }
-  }, [isDeveloper, limit]);
-
-  const updateUserRole = async (candId, newRole) => {
-    if (!candId) return;
-    setSaving(true);
-    try {
-      await api.put(`/admin/users/${encodeURIComponent(candId)}/role`, { role: newRole });
-      showToast(`User role updated to ${newRole}`, 'success');
-      await onOpenCandidate(candId);
-      await loadCandidates({ q: query.trim(), targetPage: page });
-    } catch (err) {
-      showToast(getErrorMessage(err, 'Failed to update user role'), 'error');
-    } finally {
-      setSaving(false);
-    }
-  };
+  }, [fixedRole, limit]);
 
   useEffect(() => {
     const t = setTimeout(() => {
@@ -89,21 +76,22 @@ const ManageCandidates = () => {
   }, [query]);
 
   useEffect(() => {
-    loadCandidates({ q: debouncedQuery, targetPage: page });
-  }, [page, debouncedQuery, loadCandidates]);
+    loadUsers({ q: debouncedQuery, targetPage: page });
+  }, [page, debouncedQuery, loadUsers]);
 
-  const onOpenCandidate = async (candId) => {
+  const onOpenUser = async (candId) => {
     try {
       setSelected(candId);
       setDetails(null);
       const { data } = await api.get(`/admin/candidates/${encodeURIComponent(candId)}`);
-      const candidateData = data?.candidate || null;
-      setDetails(candidateData);
+      const nextDetails = data?.candidate || null;
+      setDetails(nextDetails);
       setSuspendStart('');
       setSuspendEnd('');
       setActionReason('');
+      setIndividualProgram(String(nextDetails?.program || 'HND').toUpperCase());
     } catch (err) {
-      showToast(getErrorMessage(err, 'Failed to load candidate'), 'error');
+      showToast(getErrorMessage(err, 'Failed to load user details'), 'error');
       setSelected(null);
       setDetails(null);
     }
@@ -129,14 +117,16 @@ const ManageCandidates = () => {
     }
     setSaving(true);
     try {
-      await api.put(`/admin/candidates/${encodeURIComponent(details.cand_id)}/suspend`,
-        { start_at: suspendStart, end_at: suspendEnd, reason: actionReason.trim() }
-      );
-      showToast('Candidate suspended', 'success');
-      await onOpenCandidate(details.cand_id);
-      await loadCandidates({ q: query.trim(), targetPage: page });
+      await api.put(`/admin/candidates/${encodeURIComponent(details.cand_id)}/suspend`, {
+        start_at: suspendStart,
+        end_at: suspendEnd,
+        reason: actionReason.trim(),
+      });
+      showToast('User suspended', 'success');
+      await onOpenUser(details.cand_id);
+      await loadUsers({ q: query.trim(), targetPage: page });
     } catch (err) {
-      showToast(getErrorMessage(err, 'Failed to suspend candidate'), 'error');
+      showToast(getErrorMessage(err, 'Failed to suspend user'), 'error');
     } finally {
       setSaving(false);
     }
@@ -150,14 +140,14 @@ const ManageCandidates = () => {
     }
     setSaving(true);
     try {
-      await api.put(`/admin/candidates/${encodeURIComponent(details.cand_id)}/block`,
-        { reason: actionReason.trim() }
-      );
-      showToast('Candidate blocked', 'success');
-      await onOpenCandidate(details.cand_id);
-      await loadCandidates({ q: query.trim(), targetPage: page });
+      await api.put(`/admin/candidates/${encodeURIComponent(details.cand_id)}/block`, {
+        reason: actionReason.trim(),
+      });
+      showToast('User blocked', 'success');
+      await onOpenUser(details.cand_id);
+      await loadUsers({ q: query.trim(), targetPage: page });
     } catch (err) {
-      showToast(getErrorMessage(err, 'Failed to block candidate'), 'error');
+      showToast(getErrorMessage(err, 'Failed to block user'), 'error');
     } finally {
       setSaving(false);
     }
@@ -168,30 +158,117 @@ const ManageCandidates = () => {
     setSaving(true);
     try {
       await api.put(`/admin/candidates/${encodeURIComponent(details.cand_id)}/reactivate`, {});
-      showToast('Candidate reactivated', 'success');
-      await onOpenCandidate(details.cand_id);
-      await loadCandidates({ q: query.trim(), targetPage: page });
+      showToast('User reactivated', 'success');
+      await onOpenUser(details.cand_id);
+      await loadUsers({ q: query.trim(), targetPage: page });
     } catch (err) {
-      showToast(getErrorMessage(err, 'Failed to reactivate candidate'), 'error');
+      showToast(getErrorMessage(err, 'Failed to reactivate user'), 'error');
     } finally {
       setSaving(false);
     }
   };
 
-  if (loading) return <GraduationCapLoader fullscreen label="Loading candidates..." />;
+  const onUpdateIndividualProgram = async () => {
+    if (!details?.cand_id || !individualProgram) return;
+    setSaving(true);
+    try {
+      try {
+        await api.put(`/admin/users/${encodeURIComponent(details.cand_id)}/program`, { program: individualProgram });
+      } catch (primaryErr) {
+        if (Number(primaryErr?.response?.status) !== 404) throw primaryErr;
+        await api.put(`/admin/candidates/${encodeURIComponent(details.cand_id)}/program`, { program: individualProgram });
+      }
+      showToast('Candidate program updated', 'success');
+      await onOpenUser(details.cand_id);
+      await loadUsers({ q: query.trim(), targetPage: page });
+    } catch (err) {
+      showToast(getErrorMessage(err, 'Failed to update candidate program'), 'error');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const onRunBulkProgramUpdateScript = async () => {
+    if (!bulkCurrentProgram || !bulkTargetProgram) {
+      showToast('Select source and destination programs', 'warning');
+      return;
+    }
+    if (bulkCurrentProgram === bulkTargetProgram) {
+      showToast('Source and destination programs must be different', 'warning');
+      return;
+    }
+
+    setSaving(true);
+    try {
+      let data;
+      try {
+        const response = await api.post('/admin/users/program-update-campaign', {
+          current_program: bulkCurrentProgram,
+          target_program: bulkTargetProgram,
+          message: bulkMessage,
+        });
+        data = response.data;
+      } catch (primaryErr) {
+        if (Number(primaryErr?.response?.status) !== 404) throw primaryErr;
+        const response = await api.post('/admin/candidates/program-update-campaign', {
+          current_program: bulkCurrentProgram,
+          target_program: bulkTargetProgram,
+          message: bulkMessage,
+        });
+        data = response.data;
+      }
+      showToast(`Program update prompt sent to ${Number(data?.targeted_count || 0)} candidates.`, 'success');
+      setBulkMessage('');
+    } catch (err) {
+      showToast(getErrorMessage(err, 'Failed to start program update script'), 'error');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (loading) return <GraduationCapLoader fullscreen label="Loading users..." />;
 
   return (
     <div className={styles.page}>
       <div className={styles.headerRow}>
         <div>
-          <div className={styles.title}>Manage Candidate</div>
-          <div className={styles.subtitle}>{isDeveloper ? 'View and manage users and admin roles' : 'View and manage candidate accounts'}</div>
+          <div className={styles.title}>{title}</div>
+          <div className={styles.subtitle}>Manage account status, profile context, and moderation actions.</div>
         </div>
       </div>
 
+      {isCandidateView && (
+        <section className={styles.card} style={{ marginBottom: 14 }}>
+          <div className={styles.cardTitle}>Candidate Program Update Script</div>
+          <div className={styles.rowSubtitle}>
+            Select a source program and destination program. Candidates in the source program will receive a popup asking them to accept or reject migration after validation.
+          </div>
+          <div style={{ height: 8 }} />
+          <div className={styles.row}>
+            <select value={bulkCurrentProgram} onChange={(e) => setBulkCurrentProgram(e.target.value)} style={{ flex: 1, height: 42, borderRadius: 10, border: '1px solid var(--border)', padding: '0 10px' }}>
+              {PROGRAM_OPTIONS.map((p) => <option key={`source-${p}`} value={p}>{p}</option>)}
+            </select>
+            <select value={bulkTargetProgram} onChange={(e) => setBulkTargetProgram(e.target.value)} style={{ flex: 1, height: 42, borderRadius: 10, border: '1px solid var(--border)', padding: '0 10px' }}>
+              {PROGRAM_OPTIONS.map((p) => <option key={`target-${p}`} value={p}>{p}</option>)}
+            </select>
+          </div>
+          <div style={{ height: 8 }} />
+          <textarea
+            value={bulkMessage}
+            onChange={(e) => setBulkMessage(e.target.value)}
+            placeholder="Optional custom popup message"
+            style={{ width: '100%', minHeight: 70, borderRadius: 10, border: '1px solid var(--border)', padding: 10 }}
+          />
+          <div style={{ height: 8 }} />
+          <button type="button" className={styles.actionBtn} onClick={onRunBulkProgramUpdateScript} disabled={saving}>
+            Run Program Update Script
+          </button>
+        </section>
+      )}
+
       <div className={styles.grid}>
         <section className={styles.card}>
-          <div className={styles.cardTitle}>{isDeveloper ? 'Users' : 'Candidates'}</div>
+          <div className={styles.cardTitle}>{title}</div>
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
@@ -200,21 +277,21 @@ const ManageCandidates = () => {
           />
           <div style={{ height: 10 }} />
           <div className={styles.accordionBody}>
-            {candidates.map((c) => (
+            {users.map((u) => (
               <button
-                key={c.cand_id}
+                key={u.cand_id}
                 type="button"
                 className={styles.accordionBtn}
-                onClick={() => onOpenCandidate(c.cand_id)}
+                onClick={() => onOpenUser(u.cand_id)}
                 title="View details"
               >
                 <span>
-                  {c.name} {c.department_abbreviation ? `• ${c.department_abbreviation}` : ''}
+                  {u.name} {u.department_abbreviation ? `• ${u.department_abbreviation}` : ''} • {u.program}
                 </span>
-                <span className={styles.chip}>{String(c.account_status || 'active')}</span>
+                <span className={styles.chip}>{String(u.account_status || 'active')}</span>
               </button>
             ))}
-            {!candidates.length && <div className={styles.rowSubtitle}>No candidates found for this filter.</div>}
+            {!users.length && <div className={styles.rowSubtitle}>No users found for this filter.</div>}
           </div>
           <div style={{ height: 10 }} />
           <div className={styles.row}>
@@ -237,21 +314,14 @@ const ManageCandidates = () => {
             </button>
           </div>
         </section>
-
-        <section className={styles.card}>
-          <div className={styles.cardTitle}>Instructions</div>
-          <div className={styles.rowSubtitle}>
-            Click a candidate to view full details, suspend for a duration, block permanently, or reactivate.
-          </div>
-        </section>
       </div>
 
       {selected && (
         <>
           <div className={styles.modalOverlay} onClick={closeModal} />
           <div className={`${styles.card} ${styles.modalCard}`} onClick={(e) => e.stopPropagation()}>
-            <div className={styles.cardTitle}>Candidate details</div>
-            {!details && <div className={styles.rowSubtitle}>Loading…</div>}
+            <div className={styles.cardTitle}>User details</div>
+            {!details && <div className={styles.rowSubtitle}>Loading...</div>}
             {details && (
               <>
                 <div className={styles.row}>
@@ -263,57 +333,26 @@ const ManageCandidates = () => {
                 </div>
 
                 <div style={{ height: 10 }} />
-
-                {details.profile_picture && (
-                  <div style={{ marginBottom: 10 }}>
-                    <img
-                      src={buildImageUrl(details.profile_picture, details.cand_id)}
-                      alt="profile"
-                      onClick={() => {
-                        const url = buildImageUrl(details.profile_picture, details.cand_id);
-                        setPreviewImageUrl(url);
-                        setPreviewModalOpen(true);
-                      }}
-                      style={{ width: 80, height: 80, borderRadius: 16, objectFit: 'cover', border: '1px solid var(--border)', cursor: 'pointer' }}
-                    />
-                  </div>
-                )}
-
-                <div className={styles.rowSubtitle}>
-                  Role: {details.role || 'candidate'}
-                </div>
-                {isDeveloper && details.role && details.role !== 'superadmin' ? (
-                  <div className={styles.row} style={{ gap: 10, marginTop: 10 }}>
-                    {details.role === 'admin' ? (
-                      <button
-                        type="button"
-                        className={styles.dangerBtn}
-                        onClick={() => updateUserRole(details.cand_id, 'candidate')}
-                        disabled={saving}
-                      >
-                        Demote to Candidate
-                      </button>
-                    ) : (
-                      <button
-                        type="button"
-                        className={styles.actionBtn}
-                        onClick={() => updateUserRole(details.cand_id, 'admin')}
-                        disabled={saving}
-                      >
-                        Promote to Admin
-                      </button>
-                    )}
-                  </div>
-                ) : null}
-
-                <div className={styles.rowSubtitle}>
-                  {details.department?.department_name ? `Department: ${details.department.department_name}` : ''}
-                </div>
+                <div className={styles.rowSubtitle}>Role: {details.role || 'candidate'}</div>
+                <div className={styles.rowSubtitle}>Program: {String(details.program || 'HND').toUpperCase()}</div>
+                <div className={styles.rowSubtitle}>{details.department?.department_name ? `Department: ${details.department.department_name}` : ''}</div>
                 <div className={styles.rowSubtitle}>{details.email ? `Email: ${details.email}` : ''}</div>
                 <div className={styles.rowSubtitle}>{details.phone ? `Phone: ${details.phone}` : ''}</div>
 
-                <div style={{ height: 12 }} />
+                {isCandidateView && (
+                  <>
+                    <div style={{ height: 12 }} />
+                    <div className={styles.cardTitle}>Individual Program Update</div>
+                    <div className={styles.row}>
+                      <select value={individualProgram} onChange={(e) => setIndividualProgram(e.target.value)} style={{ flex: 1, height: 42, borderRadius: 10, border: '1px solid var(--border)', padding: '0 10px' }}>
+                        {PROGRAM_OPTIONS.map((p) => <option key={`individual-${p}`} value={p}>{p}</option>)}
+                      </select>
+                      <button type="button" className={styles.actionBtn} onClick={onUpdateIndividualProgram} disabled={saving}>Update Program</button>
+                    </div>
+                  </>
+                )}
 
+                <div style={{ height: 12 }} />
                 <div className={styles.cardTitle}>Suspend account</div>
                 <div className={styles.rowSubtitle}>Select start and end date and provide a reason.</div>
                 <div style={{ height: 8 }} />
@@ -342,92 +381,13 @@ const ManageCandidates = () => {
 
                 <div style={{ height: 10 }} />
                 <div className={styles.row}>
-                  <button type="button" className={styles.actionBtn} onClick={onSuspend} disabled={saving}>
-                    Suspend
-                  </button>
-                  <button type="button" className={styles.dangerBtn} onClick={onBlock} disabled={saving}>
-                    Block
-                  </button>
-                  <button type="button" className={styles.actionBtn} onClick={onReactivate} disabled={saving}>
-                    Reactivate
-                  </button>
+                  <button type="button" className={styles.actionBtn} onClick={onSuspend} disabled={saving}>Suspend</button>
+                  <button type="button" className={styles.dangerBtn} onClick={onBlock} disabled={saving}>Block</button>
+                  <button type="button" className={styles.actionBtn} onClick={onReactivate} disabled={saving}>Reactivate</button>
                 </div>
-
-                <div style={{ height: 12 }} />
-
-                <div className={styles.cardTitle}>Complaints</div>
-                {Array.isArray(details.complaints) && details.complaints.length === 0 && (
-                  <div className={styles.rowSubtitle}>No complaints submitted.</div>
-                )}
-                {Array.isArray(details.complaints) && details.complaints.length > 0 && (
-                  <div className={styles.accordionBody}>
-                    {details.complaints.slice(0, 8).map((c, idx) => (
-                      <div key={String(idx)} className={styles.listRow}>
-                        <div>
-                          <div className={styles.listTitle}>{c.status || 'pending'}</div>
-                          <div className={styles.listMeta}>{c.createdAt ? new Date(c.createdAt).toLocaleString() : ''}</div>
-                          <div className={styles.rowSubtitle} style={{ marginTop: 6 }}>
-                            {c.text}
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
               </>
             )}
           </div>
-
-          {previewModalOpen && previewImageUrl && (
-            <>
-              <div className={styles.modalOverlay} onClick={() => {
-                setPreviewModalOpen(false);
-                setPreviewImageUrl(null);
-              }} />
-              <div
-                className={styles.modalCard}
-                style={{
-                  maxWidth: 'min(520px, calc(100vw - 32px))',
-                  padding: 0,
-                  overflow: 'hidden',
-                }}
-              >
-                <button
-                  type="button"
-                  onClick={() => setPreviewModalOpen(false)}
-                  style={{
-                    position: 'absolute',
-                    top: 14,
-                    right: 14,
-                    zIndex: 1,
-                    background: 'rgba(255,255,255,0.95)',
-                    border: 'none',
-                    borderRadius: '50%',
-                    width: 34,
-                    height: 34,
-                    cursor: 'pointer',
-                    fontSize: 18,
-                    lineHeight: '34px',
-                  }}
-                  aria-label="Close preview"
-                >
-                  ×
-                </button>
-                <img
-                  src={previewImageUrl}
-                  alt="Candidate profile preview"
-                  style={{
-                    width: '100%',
-                    height: 'auto',
-                    display: 'block',
-                    maxHeight: '80vh',
-                    objectFit: 'contain',
-                    background: '#000',
-                  }}
-                />
-              </div>
-            </>
-          )}
         </>
       )}
     </div>

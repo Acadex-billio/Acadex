@@ -10,6 +10,7 @@ import {
 import styles from "../Astyles/CanDashboard.module.css";
 import { showToast } from "../utility/ToastNotification";
 import { getErrorMessage } from "../utility/getErrorMessage";
+import ProgramUpdateRequestModal from './ProgramUpdateRequestModal';
 
 const getBackendOrigin = () => api.defaults.baseURL?.replace(/\/api$/, '')?.replace(/\/$/, '') || '';
 const buildImageUrl = (url) => {
@@ -88,6 +89,7 @@ const CandidateDashboard = () => {
 
   return (
     <div className={styles.layout}>
+      <ProgramUpdateRequestModal />
       {/* SIDEBAR */}
       {/* MAIN */}
       <main className={styles.main}>
@@ -191,6 +193,16 @@ const CandidateDashboard = () => {
               ))}
             </div>
           </div>
+
+          <button
+            type="button"
+            className={`${styles.updateCard} ${styles.updateCardBtn}`}
+            onClick={() => navigate('/candidate/earn-money')}
+            aria-label="Open earn-money workspace"
+          >
+            <h3>Earn Money</h3>
+            <div className={styles.calendarMock}>Submit one approved report or presentation and await developer review.</div>
+          </button>
 
           <button
             type="button"

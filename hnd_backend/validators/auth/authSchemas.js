@@ -11,7 +11,7 @@ const loginSchema = Joi.object({
 
 const registerSchema = Joi.object({
   name: Joi.string().trim().min(2).max(100).required(),
-  program: Joi.string().trim().uppercase().valid('HND', 'BTS', 'LECTURER').default('HND'),
+  program: Joi.string().trim().uppercase().valid('HND', 'BTS', 'LECTURER', 'BACHELOR', 'MASTERS', 'LICENCE', 'MASTER').default('HND'),
   dpt_id: Joi.when('program', {
     is: 'LECTURER',
     then: Joi.string().allow('', null).optional(),

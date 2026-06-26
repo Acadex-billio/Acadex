@@ -4,7 +4,12 @@ import { initReactI18next } from 'react-i18next';
 export const LANGUAGE_STORAGE_KEY = 'app_language';
 export const PROGRAM_LANGUAGE_MAP = {
   HND: 'en',
+  BACHELOR: 'en',
+  MASTERS: 'en',
   BTS: 'fr',
+  LICENCE: 'fr',
+  MASTER: 'fr',
+  LECTURER: 'en',
 };
 
 export const resolveLanguageForUser = (user) => {

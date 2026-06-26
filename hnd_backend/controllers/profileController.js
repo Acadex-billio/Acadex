@@ -8,6 +8,11 @@ const { URL } = require('url');
 const { uploadFile, getS3ObjectStream } = require('../utils/s3Uploader');
 const { buildSubscriptionResponse, resolveSubscription, syncUserSubscriptionIfExpired } = require('../utils/subscriptionUtils');
 
+const getDefaultLanguageForProgram = (program) => {
+  const normalized = String(program || '').trim().toUpperCase();
+  return ['BTS', 'LICENCE', 'MASTER'].includes(normalized) ? 'fr' : 'en';
+};
+
 const parseBooleanLike = (value) => {
   if (typeof value === 'boolean') return value;
   if (typeof value === 'number') {
@@ -62,13 +67,13 @@ exports.getProfile = async (req, res) => {
       profile_picture: user.profile_picture,
       role: user.role,
       program: String(user.program || 'HND').toUpperCase(),
-      preferred_language: String(user.preferred_language || (String(user.program || 'HND').toUpperCase() === 'BTS' ? 'fr' : 'en')).toLowerCase(),
+      preferred_language: String(user.preferred_language || getDefaultLanguageForProgram(user.program || 'HND')).toLowerCase(),
       academic_year: user.academic_year,
       allow_emails: user.allow_emails,
       allow_push_notifications: Boolean(user.allow_push_notifications),
       allow_toast_sound: user.allow_toast_sound !== false,
       createdAt: user.createdAt,
-      subscription: buildSubscriptionResponse(user.subscription),
+      subscription: await buildSubscriptionResponse(user.subscription),
       department: user.dpt_id
         ? {
             dpt_id: user.dpt_id._id,

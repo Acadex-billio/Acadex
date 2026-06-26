@@ -44,7 +44,7 @@ exports.getAccountStatus = async (req, res) => {
         email: user.email,
         allow_push_notifications: Boolean(user.allow_push_notifications),
       },
-      subscription: buildSubscriptionResponse(user.subscription),
+      subscription: await buildSubscriptionResponse(user.subscription),
     });
   } catch (err) {
     const code = err.statusCode || 500;
@@ -204,5 +204,75 @@ exports.deleteMyAccount = async (req, res) => {
   } catch (err) {
     const code = err.statusCode || 500;
     return res.status(code).json({ success: false, message: err.message || 'Failed to delete account' });
+  }
+};
+
+exports.getPendingProgramUpdate = async (req, res) => {
+  try {
+    const u = requireJWTUser(req);
+    const candId = normalizeCandId(u.cand_id);
+    const user = await User.findOne({ cand_id: candId }).select('program_update_request program').lean();
+    if (!user) return res.status(404).json({ success: false, message: 'User not found' });
+
+    const request = user.program_update_request || null;
+    const isPending = String(request?.status || 'none') === 'pending';
+
+    return res.json({
+      success: true,
+      pending: isPending,
+      request: isPending
+        ? {
+            source_program: request.source_program,
+            target_program: request.target_program,
+            message: request.message,
+            requested_at: request.requested_at || null,
+          }
+        : null,
+    });
+  } catch (err) {
+    const code = err.statusCode || 500;
+    return res.status(code).json({ success: false, message: err.message || 'Failed to load pending program update request' });
+  }
+};
+
+exports.respondProgramUpdate = async (req, res) => {
+  try {
+    const u = requireJWTUser(req);
+    const candId = normalizeCandId(u.cand_id);
+    const response = String(req.body?.response || '').trim().toLowerCase();
+    if (!['accept', 'reject'].includes(response)) {
+      return res.status(400).json({ success: false, message: 'response must be accept or reject' });
+    }
+
+    const user = await User.findOne({ cand_id: candId });
+    if (!user) return res.status(404).json({ success: false, message: 'User not found' });
+
+    const request = user.program_update_request || null;
+    if (String(request?.status || 'none') !== 'pending') {
+      return res.status(400).json({ success: false, message: 'No pending program update request found.' });
+    }
+
+    if (response === 'accept') {
+      user.program = String(request.target_program || user.program).toUpperCase();
+      user.preferred_language = ['BTS', 'LICENCE', 'MASTER'].includes(user.program) ? 'fr' : 'en';
+      user.program_update_request = {
+        ...request,
+        status: 'accepted',
+        responded_at: new Date(),
+      };
+      await user.save();
+      return res.json({ success: true, message: `Your program has been updated to ${user.program}.` });
+    }
+
+    user.program_update_request = {
+      ...request,
+      status: 'rejected',
+      responded_at: new Date(),
+    };
+    await user.save();
+    return res.json({ success: true, message: 'Program update request declined.' });
+  } catch (err) {
+    const code = err.statusCode || 500;
+    return res.status(code).json({ success: false, message: err.message || 'Failed to submit program update response' });
   }
 };

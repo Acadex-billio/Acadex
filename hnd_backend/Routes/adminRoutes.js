@@ -9,6 +9,8 @@ const questionPaperController = require('../controllers/questionPaperController'
 const adminReportController = require('../controllers/adminReportController');
 const adminPresentationController = require('../controllers/adminPresentationController');
 const adminCandidateController = require('../controllers/adminCandidateController');
+const candidateProjectController = require('../controllers/candidateProjectController');
+const platformPricingController = require('../controllers/platformPricingController');
 const internshipTopicController = require('../controllers/internshipTopicController');
 const couponController = require('../controllers/couponController');
 const adminBillingController = require('../controllers/adminBillingController');
@@ -106,14 +108,27 @@ router.put('/candidates/:candId/block', validate({ params: schemas.ids.candIdPar
 router.put('/candidates/:candId/reactivate', validate({ params: schemas.ids.candIdParam }), adminCandidateController.reactivateCandidate);
 router.put('/candidates/:candId/complaints/reviewed', validate({ params: schemas.ids.candIdParam }), adminCandidateController.markComplaintsReviewed);
 
+router.get('/project-submissions', requireDeveloper, candidateProjectController.listForDeveloper);
+router.put('/project-submissions/:id', requireDeveloper, candidateProjectController.updateSubmission);
+router.get('/project-submissions/pricing', requireDeveloper, candidateProjectController.listPricingForDeveloper);
+router.put('/project-submissions/pricing', requireDeveloper, candidateProjectController.updatePricing);
+
+router.get('/pricing', requireDeveloper, platformPricingController.getPricing);
+router.put('/pricing', requireDeveloper, platformPricingController.updatePricing);
+router.post('/pricing/publish', requireDeveloper, platformPricingController.publishPricing);
+
 router.get('/internship-topics', internshipTopicController.listAdminTopics);
 router.post('/internship-topics', internshipTopicController.createTopic);
 router.put('/internship-topics/:topicId', validate({ params: schemas.ids.topicIdParam }), internshipTopicController.updateTopic);
 router.delete('/internship-topics/:topicId', validate({ params: schemas.ids.topicIdParam }), internshipTopicController.deleteTopic);
 
 // Superadmin routes
-router.get('/users', requireDeveloper, adminCandidateController.listAllUsers);
+router.get('/users', adminCandidateController.listAllUsers);
 router.put('/users/:candId/role', requireDeveloper, validate({ params: schemas.ids.candIdParam }), adminCandidateController.updateUserRole);
+router.put('/users/:candId/program', validate({ params: schemas.ids.candIdParam }), adminCandidateController.updateUserProgram);
+router.post('/users/program-update-campaign', adminCandidateController.startProgramUpdateCampaign);
+router.put('/candidates/:candId/program', validate({ params: schemas.ids.candIdParam }), adminCandidateController.updateUserProgram);
+router.post('/candidates/program-update-campaign', adminCandidateController.startProgramUpdateCampaign);
 router.put('/users/:candId/suspend', requireSuperAdmin, validate({ params: schemas.ids.candIdParam }), adminCandidateController.suspendUser);
 router.put('/users/:candId/block', requireSuperAdmin, validate({ params: schemas.ids.candIdParam }), adminCandidateController.blockUser);
 router.put('/users/:candId/reactivate', requireSuperAdmin, validate({ params: schemas.ids.candIdParam }), adminCandidateController.reactivateUser);

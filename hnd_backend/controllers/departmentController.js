@@ -4,10 +4,18 @@
 const Department = require('../models/Department');
 const User = require('../models/User');
 
+const mapProgramToDepartmentTrack = (program) => {
+  const normalized = String(program || '').trim().toUpperCase();
+  if (['HND', 'BACHELOR', 'MASTERS'].includes(normalized)) return 'HND';
+  if (['BTS', 'LICENCE', 'MASTER'].includes(normalized)) return 'BTS';
+  return null;
+};
+
 exports.getAll = async (req, res) => {
   try {
     const program = String(req.query?.program || '').trim().toUpperCase();
-    const query = ['HND', 'BTS'].includes(program) ? { program } : {};
+    const mappedProgram = mapProgramToDepartmentTrack(program);
+    const query = mappedProgram ? { program: mappedProgram } : {};
     const depts = await Department.find(query).sort({ department_name: 1 }).lean();
     res.json(depts);
   } catch (err) {
@@ -19,7 +27,8 @@ exports.getAll = async (req, res) => {
 exports.getAllFormatted = async (req, res) => {
   try {
     const program = String(req.query?.program || '').trim().toUpperCase();
-    const query = ['HND', 'BTS'].includes(program) ? { program } : {};
+    const mappedProgram = mapProgramToDepartmentTrack(program);
+    const query = mappedProgram ? { program: mappedProgram } : {};
     const depts = await Department.find(query).sort({ department_name: 1 }).lean();
     res.json(depts.map((d) => ({
       dpt_id: d._id.toString(),

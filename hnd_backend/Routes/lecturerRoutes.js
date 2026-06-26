@@ -3,6 +3,7 @@ const router = express.Router();
 const multer = require('multer');
 const path = require('path');
 const lecturerController = require('../controllers/lecturerController');
+const candidateProjectController = require('../controllers/candidateProjectController');
 const { requireAuth } = require('../middlewares/jwtAuth');
 const { validateProfileImage, ALLOWED_EXTENSIONS } = require('../middlewares/uploadValidation');
 const { validate, schemas } = require('../middlewares/validateRequest');
@@ -21,6 +22,12 @@ const uploadProfile = multer({
 	fileFilter: profileImageFilter,
 });
 
+const projectUploadStorage = multer.memoryStorage();
+const projectUpload = multer({
+	storage: projectUploadStorage,
+	limits: { fileSize: 20 * 1024 * 1024 },
+});
+
 router.get('/public', lecturerController.listPublicLecturers);
 router.get('/public/:lecturerId', validate({ params: schemas.ids.lecturerIdParam }), lecturerController.getPublicLecturer);
 
@@ -30,6 +37,9 @@ router.get('/me/profile', requireAnyRole(['lecturer']), lecturerController.getMy
 router.put('/me/profile', requireAnyRole(['lecturer']), lecturerController.updateMyProfile);
 router.post('/me/profile-picture', requireAnyRole(['lecturer']), uploadProfile.single('profile_picture'), validateProfileImage, lecturerController.uploadMyProfilePicture);
 router.post('/me/upload-doc', requireAnyRole(['lecturer']), lecturerController.multerUpload.single('file'), lecturerController.uploadDocument);
+router.get('/me/projects/overview', requireAnyRole(['lecturer']), candidateProjectController.getMySubmissionOverview);
+router.post('/me/projects/request-permission', requireAnyRole(['lecturer']), candidateProjectController.requestPermission);
+router.post('/me/projects/submit', requireAnyRole(['lecturer']), projectUpload.single('file'), candidateProjectController.submitProject);
 router.get('/me/dashboard', requireAnyRole(['lecturer']), lecturerController.getMyDashboard);
 router.get('/me/bookings', requireAnyRole(['lecturer']), lecturerController.listMyBookings);
 router.put('/me/bookings/:bookingId/status', requireAnyRole(['lecturer']), validate({ params: schemas.ids.bookingIdParam, body: schemas.lecturer.updateBookingStatus }), lecturerController.updateMyBookingStatus);

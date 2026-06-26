@@ -43,7 +43,7 @@ const Registration = () => {
   };
   const [currentStep, setCurrentStep] = useState(1);
   const [name, setName] = useState('');
-  const [program, setProgram] = useState('HND');
+  const [program, setProgram] = useState('BACHELOR');
   const [departmentId, setDepartmentId] = useState('');
   const [departmentQuery, setDepartmentQuery] = useState('');
   const [isDepartmentMenuOpen, setIsDepartmentMenuOpen] = useState(false);
@@ -94,7 +94,7 @@ const Registration = () => {
   );
 
   useEffect(() => {
-    const defaultLanguage = program === 'BTS' ? 'fr' : 'en';
+    const defaultLanguage = ['BTS', 'LICENCE', 'MASTER'].includes(program) ? 'fr' : 'en';
     if (i18n.language !== defaultLanguage) {
       i18n.changeLanguage(defaultLanguage);
     }
@@ -379,8 +379,12 @@ const Registration = () => {
                 onChange={e => setProgram(e.target.value)}
                 required
               >
-                <option value="HND">{t('common.hnd')}</option>
-                <option value="BTS">{t('common.bts')}</option>
+                <option value="BACHELOR">BACHELOR</option>
+                <option value="MASTERS">MASTERS</option>
+                <option value="LICENCE">LICENCE</option>
+                <option value="MASTER">MASTER</option>
+                <option value="HND">HND</option>
+                <option value="BTS">BTS</option>
                 <option value="LECTURER">LECTURER</option>
               </select>
             </div>
@@ -456,8 +460,8 @@ const Registration = () => {
                   value={lecturerLanguage}
                   onChange={e => setLecturerLanguage(e.target.value)}
                 >
-                  <option value="en">�� {t('common.english')}</option>
-                  <option value="fr">🇫🇷 {t('common.french')}</option>
+                  <option value="en">EN - {t('common.english')}</option>
+                  <option value="fr">FR - {t('common.french')}</option>
                 </select>
               </div>
             )}

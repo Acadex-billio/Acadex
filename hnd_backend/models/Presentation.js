@@ -20,7 +20,7 @@ const presentationSchema = new mongoose.Schema(
     presenter_name: { type: String, required: true, trim: true },
     presenter_email: { type: String, required: true, trim: true },
     file_path: { type: String, required: true },
-    program: { type: String, enum: ['HND', 'BTS'], default: 'HND', index: true },
+    program: { type: String, enum: ['HND', 'BTS', 'BACHELOR', 'MASTERS', 'LICENCE', 'MASTER'], default: 'HND', index: true },
     audience: { type: String, enum: ['GENERAL', 'SINGLE', 'MULTIPLE'], default: 'GENERAL' },
     departments: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Department', index: true }],
     report_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Report', default: null },

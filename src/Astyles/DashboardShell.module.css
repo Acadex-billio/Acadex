@@ -73,6 +73,14 @@
 
 .nav{display:flex;flex-direction:column;gap:6px}
 
+.navSubgroup{
+  display:grid;
+  gap:6px;
+  margin-left:12px;
+  padding-left:8px;
+  border-left:2px solid var(--border);
+}
+
 .sidebarFooter{margin-top:auto;padding-top:14px;border-top:1px solid var(--border)}
 
 .logoutBtn{

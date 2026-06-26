@@ -49,6 +49,19 @@ const clearAuthCookies = (res) => {
   res.clearCookie(AUTH_COOKIE_NAMES.REFRESH_TOKEN, options);
 };
 
+const mapProgramToDepartmentTrack = (program) => {
+  const normalized = String(program || '').trim().toUpperCase();
+  if (['HND', 'BACHELOR', 'MASTERS'].includes(normalized)) return 'HND';
+  if (['BTS', 'LICENCE', 'MASTER'].includes(normalized)) return 'BTS';
+  return null;
+};
+
+const getDefaultLanguageForProgram = (program) => {
+  const normalized = String(program || '').trim().toUpperCase();
+  if (['BTS', 'LICENCE', 'MASTER'].includes(normalized)) return 'fr';
+  return 'en';
+};
+
 const generateCandId = async () => {
   // Randomized candidate ID avoids count-based race conditions under concurrent registrations.
   for (let i = 0; i < 10; i += 1) {
@@ -68,8 +81,8 @@ exports.register = async (req, res) => {
     }
 
     const normalizedProgram = String(program || 'HND').trim().toUpperCase();
-    if (!['HND', 'BTS', 'LECTURER'].includes(normalizedProgram)) {
-      return res.status(400).json({ message: 'Program must be HND, BTS, or LECTURER.' });
+    if (!['HND', 'BTS', 'LECTURER', 'BACHELOR', 'MASTERS', 'LICENCE', 'MASTER'].includes(normalizedProgram)) {
+      return res.status(400).json({ message: 'Program must be HND, BTS, LECTURER, BACHELOR, MASTERS, LICENCE, or MASTER.' });
     }
 
     const normalizedEmail = String(email).toLowerCase().trim();
@@ -91,8 +104,9 @@ exports.register = async (req, res) => {
 
       dept = await Department.findById(dpt_id);
       if (!dept) return res.status(404).json({ message: 'Invalid department selected.' });
-      if (String(dept.program || 'HND').toUpperCase() !== normalizedProgram) {
-        return res.status(400).json({ message: `Selected department does not belong to ${normalizedProgram}.` });
+      const expectedTrack = mapProgramToDepartmentTrack(normalizedProgram);
+      if (!expectedTrack || String(dept.program || 'HND').toUpperCase() !== expectedTrack) {
+        return res.status(400).json({ message: `Selected department does not belong to ${normalizedProgram} track.` });
       }
     }
 
@@ -122,7 +136,7 @@ exports.register = async (req, res) => {
           program: normalizedProgram,
           preferred_language: isLecturer
             ? (['en', 'fr'].includes(String(preferred_language).toLowerCase()) ? String(preferred_language).toLowerCase() : 'en')
-            : (normalizedProgram === 'BTS' ? 'fr' : 'en'),
+            : getDefaultLanguageForProgram(normalizedProgram),
           account_status: isLecturer ? 'pending_approval' : 'active',
           subscription: {
             plan: 'basic',
@@ -171,7 +185,7 @@ exports.register = async (req, res) => {
         program: user.program,
         role: user.role,
         account_status: user.account_status,
-        subscription: buildSubscriptionResponse(user.subscription),
+        subscription: await buildSubscriptionResponse(user.subscription),
       },
     });
   } catch (err) {
@@ -295,9 +309,9 @@ exports.login = async (req, res) => {
       role,
       is_admin: isAdmin,
       program: String(user.program || 'HND').toUpperCase(),
-      preferred_language: String(user.preferred_language || (String(user.program || 'HND').toUpperCase() === 'BTS' ? 'fr' : 'en')).toLowerCase(),
+      preferred_language: String(user.preferred_language || getDefaultLanguageForProgram(user.program || 'HND')).toLowerCase(),
       account_status: accountStatus,
-      subscription: buildSubscriptionResponse(user.subscription),
+      subscription: await buildSubscriptionResponse(user.subscription),
     };
 
     logger.info('auth.login.success', {
@@ -354,7 +368,7 @@ exports.me = async (req, res) => {
       if (u?.name) req.user.name = u.name;
       if (u?.role) req.user.role = u.role;
       if (u?.dpt_id) req.user.dpt_id = u.dpt_id;
-      if (u?.subscription) req.user.subscription = buildSubscriptionResponse(u.subscription);
+      if (u?.subscription) req.user.subscription = await buildSubscriptionResponse(u.subscription);
     }
   } catch (_) {
     // Ignore database errors, just return the token data
