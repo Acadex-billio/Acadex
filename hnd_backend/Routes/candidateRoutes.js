@@ -56,6 +56,7 @@ router.put('/profile/update-password/:cand_id', requireSelfOrAdmin('cand_id'), p
 router.put('/profile/settings/:cand_id', requireSelfOrAdmin('cand_id'), profileController.updateSettings);
 router.put('/profile/push-subscription/:cand_id', requireSelfOrAdmin('cand_id'), profileController.updatePushSubscription);
 router.delete('/profile/push-subscription/:cand_id', requireSelfOrAdmin('cand_id'), profileController.deletePushSubscription);
+router.post('/profile/push-failure/:cand_id', requireSelfOrAdmin('cand_id'), profileController.reportPushFailure);
 router.get('/profile-picture/:cand_id', requireSelfOrAdmin('cand_id'), profileController.serveProfilePicture);
 
 router.post(

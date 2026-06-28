@@ -10,6 +10,7 @@ import ProtectedRoute from './components/ProtectedRoute';
 import AdminRoute from './components/AdminRoute';
 import DeveloperRoute from './components/DeveloperRoute';
 import LecturerRoute from './components/LecturerRoute';
+import PushNotificationPromptModal from './components/PushNotificationPromptModal';
 import QuestionPapers from './components/QuestionPapers';
 import ViewReports from './components/ViewReports';
 import History from './components/History';
@@ -149,6 +150,7 @@ const App = () => (
           <ToastNotification />
           <KeepaliveToast />
           <LoaderOverlay />
+          <PushNotificationPromptModal />
           <RouteLoadingListener />
           <Suspense fallback={<GraduationCapLoader fullscreen size={160} label="Loading..." />}>
             <Routes>

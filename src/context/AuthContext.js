@@ -6,6 +6,7 @@
 import React, { createContext, useContext, useReducer, useEffect } from 'react';
 import authService from '../services/authService';
 import api from '../services/api';
+import { triggerPushPrompt } from '../services/pushNotifications';
 
 const ACTIVITY_STORAGE_KEY = 'acadex_last_activity_at';
 const INACTIVITY_WINDOW_MS = 24 * 60 * 60 * 1000;
@@ -187,6 +188,13 @@ export const AuthProvider = ({ children }) => {
         });
 
         localStorage.setItem(ACTIVITY_STORAGE_KEY, String(Date.now()));
+        setTimeout(() => {
+          try {
+            triggerPushPrompt();
+          } catch (_) {
+            // Ignore prompt trigger errors.
+          }
+        }, 800);
         
         // SECURITY: Do NOT persist PII in localStorage. Use JWT payload only.
         // localStorage.setItem('userId', user.cand_id);

@@ -7,6 +7,7 @@ const path = require('path');
 const { URL } = require('url');
 const { uploadFile, getS3ObjectStream } = require('../utils/s3Uploader');
 const { buildSubscriptionResponse, resolveSubscription, syncUserSubscriptionIfExpired } = require('../utils/subscriptionUtils');
+const nodemailer = require('nodemailer');
 
 const getDefaultLanguageForProgram = (program) => {
   const normalized = String(program || '').trim().toUpperCase();
@@ -344,5 +345,51 @@ exports.deletePushSubscription = async (req, res) => {
     return res.json({ message: 'Push subscription removed' });
   } catch (err) {
     return res.status(500).json({ message: 'Failed to remove push subscription' });
+  }
+};
+
+exports.reportPushFailure = async (req, res) => {
+  try {
+    const { cand_id } = req.params;
+    const { reason, stage, browser } = req.body || {};
+    const user = await User.findOne({ cand_id }).select('cand_id name email role').lean();
+
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    const transporter = nodemailer.createTransport({
+      host: process.env.SMTP_HOST || process.env.EMAIL_HOST || 'smtp.gmail.com',
+      port: parseInt(process.env.SMTP_PORT || process.env.EMAIL_PORT || '587', 10),
+      secure: String(process.env.SMTP_SECURE || process.env.EMAIL_SECURE || 'false').toLowerCase() === 'true',
+      auth: {
+        user: process.env.SMTP_USER || process.env.EMAIL_USER,
+        pass: process.env.SMTP_PASS || process.env.EMAIL_PASS,
+      },
+    });
+
+    const mailOptions = {
+      from: process.env.SMTP_FROM || process.env.EMAIL_USER || 'no-reply@acadex.local',
+      to: process.env.DEVELOPER_ALERT_EMAIL || process.env.EMAIL_USER || 'developer@acadex.local',
+      subject: 'Push Notification Failure Alert',
+      html: `
+        <div>
+          <h3>Push notification setup failed</h3>
+          <p><strong>User:</strong> ${user.name || user.cand_id}</p>
+          <p><strong>Username:</strong> ${user.email || user.cand_id}</p>
+          <p><strong>Role:</strong> ${user.role || 'candidate'}</p>
+          <p><strong>Browser:</strong> ${browser || 'unknown'}</p>
+          <p><strong>Stage:</strong> ${stage || 'unknown'}</p>
+          <p><strong>Reason:</strong> ${reason || 'unknown'}</p>
+          <p><strong>Time:</strong> ${new Date().toISOString()}</p>
+        </div>
+      `,
+    };
+
+    await transporter.sendMail(mailOptions);
+    return res.json({ message: 'Push failure report sent' });
+  } catch (err) {
+    console.error('[PushFailure] email failed', err?.message || err);
+    return res.status(500).json({ message: 'Failed to report push failure' });
   }
 };
