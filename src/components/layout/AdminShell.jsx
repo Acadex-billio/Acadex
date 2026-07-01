@@ -10,6 +10,9 @@ import api from '../../services/api';
 import { useTranslation } from 'react-i18next';
 import FloatingAIIcon from '../CandidateAI';
 
+const ICON_OPTIONS = ['👋', '🚀', '🎓', '😎'];
+const STATUS_LABELS = ['Success', 'Graduate'];
+
 const buildImageUrl = (url) => {
   if (!url) return null;
   if (url.startsWith('http')) return url;
@@ -189,6 +192,12 @@ const AdminShell = () => {
     closeSidebar();
   };
 
+  const navigateHome = () => {
+    startLoading();
+    navigate('/');
+    setTimeout(() => stopLoading(), 450);
+  };
+
   const onLogout = async () => {
     startLoading();
     try {
@@ -205,9 +214,30 @@ const AdminShell = () => {
   };
 
   const adminLabel = user?.name || user?.email || t('nav.admin');
+  const firstName = String(user?.name || user?.email || 'User').trim().split(/\s+/)[0];
+  const [headerLabel, setHeaderLabel] = useState(firstName);
+  const [headerIcon, setHeaderIcon] = useState(ICON_OPTIONS[Math.floor(Math.random() * ICON_OPTIONS.length)]);
+
+  useEffect(() => {
+    const updateHeaderMeta = () => {
+      const greetingOptions = [firstName, ...STATUS_LABELS];
+      setHeaderLabel(greetingOptions[Math.floor(Math.random() * greetingOptions.length)]);
+      setHeaderIcon(ICON_OPTIONS[Math.floor(Math.random() * ICON_OPTIONS.length)]);
+    };
+    updateHeaderMeta();
+    const intervalId = setInterval(updateHeaderMeta, 60000);
+    return () => clearInterval(intervalId);
+  }, [firstName]);
 
   return (
     <div className={styles.shell}>
+      <div className={styles.sidebarHeader}>
+        <button type="button" className={styles.sidebarHomeLink} onClick={navigateHome} aria-label="Go to Acadex homepage">
+          <img src={process.env.PUBLIC_URL + '/hnd-mark.svg'} alt="Acadex logo" className={styles.sidebarLogoImage} />
+          <span className={styles.sidebarHomeText}>Acadex</span>
+          <span className={styles.sidebarHomeMeta}>Yoo {headerLabel}, {headerIcon}</span>
+        </button>
+      </div>
       <header className={styles.header}>
         <button
           type="button"

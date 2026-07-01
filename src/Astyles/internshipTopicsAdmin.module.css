@@ -41,24 +41,362 @@
 .field textarea {
   border: 1px solid #cad7e2;
   border-radius: 10px;
-  padding: 10px 12px;
+  padding: 12px 14px;
   font-size: 14px;
+  background: #ffffff;
+  transition: border-color 120ms ease, box-shadow 120ms ease;
+}
+
+.field textarea {
+  min-height: 60px;
+}
+
+.field input:focus,
+.field select:focus,
+.field textarea:focus,
+.iconSearch:focus {
+  outline: none;
+  border-color: #2d78c2;
+  box-shadow: 0 0 0 3px rgba(45, 120, 194, 0.12);
+}
+
+.iconPicker {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.iconButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid #cad7e2;
+  border-radius: 14px;
+  padding: 10px 14px;
+  background: #f8fbff;
+  cursor: pointer;
+  transition: border-color 120ms ease, transform 120ms ease, background 120ms ease;
+}
+
+.iconButton:hover,
+.iconTile:hover,
+.deptChip:hover {
+  border-color: #7aa4cd;
+}
+
+.iconButton:focus {
+  box-shadow: 0 0 0 3px rgba(45, 120, 194, 0.18);
+}
+
+.programList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.programChip {
+  border: 1px solid #d8e2eb;
+  border-radius: 999px;
+  padding: 10px 14px;
+  background: #f7fbff;
+  color: #16415f;
+  cursor: pointer;
+  transition: background-color 120ms ease, border-color 120ms ease, transform 120ms ease;
+}
+
+.programChip:hover {
+  transform: translateY(-1px);
+}
+
+.programSelected,
+.deptChipSelected {
+  border-color: #4CAF50;
+  background: rgba(76, 175, 80, 0.12);
+  color: #2e7d32;
+}
+
+.programSelected:hover,
+.deptChipSelected:hover {
+  transform: none;
+}
+
+.iconButtonLabel {
+  display: grid;
+  gap: 4px;
+  text-align: left;
+}
+
+.iconSummary {
+  display: grid;
+  gap: 4px;
+  color: #1e425f;
+}
+
+.iconSummary strong {
+  display: block;
+  font-size: 14px;
+}
+
+.iconSummary span {
+  font-size: 13px;
+  color: #5f7b8f;
+}
+
+.iconModalBackdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(12, 23, 34, 0.75);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100000;
+  padding: 20px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  box-sizing: border-box;
+}
+
+.iconModal {
+  width: min(1080px, 100%);
+  max-height: calc(100vh - 48px);
+  overflow: hidden;
+  background: #ffffff;
+  border-radius: 24px;
+  box-shadow: 0 28px 80px rgba(15, 32, 56, 0.28);
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  position: relative;
+  box-sizing: border-box;
+}
+
+.iconModalHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 18px;
+}
+
+.iconModalBody {
+  display: grid;
+  gap: 18px;
+  overflow: auto;
+  padding-right: 4px;
+  max-height: calc(100vh - 190px);
+}
+
+.iconModalCount {
+  margin: 10px 0 0;
+  color: #4b5e74;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.iconModalHeader h3 {
+  margin: 0 0 4px;
+  font-size: 22px;
+  color: #102542;
+}
+
+.iconModalHeader p {
+  margin: 0;
+  color: #5b7185;
+  font-size: 14px;
+}
+
+.iconCloseButton {
+  border: none;
+  background: transparent;
+  color: #2d4e70;
+  font-size: 22px;
+  cursor: pointer;
+  line-height: 1;
+  padding: 6px;
+}
+
+.iconSearch {
+  width: 100%;
+  border: 1px solid #cad7e2;
+  border-radius: 12px;
+  padding: 10px 14px;
+  font-size: 14px;
+}
+
+.iconGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 12px;
+  overflow: auto;
+  padding-bottom: 4px;
+}
+
+.iconGridRecent {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+  gap: 10px;
+  overflow: auto;
+  padding-bottom: 4px;
+}
+
+.iconRecentSection {
+  display: grid;
+  gap: 10px;
+}
+
+.iconRecentTitle {
+  font-size: 14px;
+  color: #1f4d78;
+  font-weight: 700;
+}
+
+.iconTile {
+  display: grid;
+  gap: 10px;
+  align-items: center;
+  justify-items: center;
+  border: 1px solid #d8e2eb;
+  border-radius: 18px;
+  padding: 18px 14px;
+  background: #f8fbff;
+  color: #102542;
+  text-align: center;
+  cursor: pointer;
+  transition: transform 120ms ease, border-color 120ms ease, background-color 120ms ease, box-shadow 120ms ease;
+}
+
+.iconTile:hover {
+  transform: translateY(-1px);
+  background: #eef6ff;
+  box-shadow: 0 10px 30px rgba(15, 32, 56, 0.08);
+}
+
+.iconEmpty {
+  grid-column: 1 / -1;
+  padding: 28px 16px;
+  text-align: center;
+  color: #4a6479;
+  background: #f6f9fb;
+  border: 1px dashed #c6d4df;
+  border-radius: 16px;
+}
+
+.iconTileActive {
+  border-color: #1a71d0;
+  background: #e3f0ff;
+}
+
+.iconTilePreview {
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  border-radius: 14px;
+  background: #ffffff;
+}
+
+.iconTile span {
+  font-size: 12px;
+  color: #3d4e60;
+  line-height: 1.4;
+}
+
+.departmentGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 10px;
+}
+
+.deptChip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px 16px;
+  border: 1px solid #d8e2eb;
+  border-radius: 999px;
+  background: #f6fbff;
+  color: #16415f;
+  cursor: pointer;
+  transition: background-color 120ms ease, border-color 120ms ease, transform 120ms ease;
+}
+
+.deptChip:hover {
+  transform: translateY(-1px);
+}
+
+.deptChipSelected {
+  border-color: #1f6cc8;
+  background: #dbe9ff;
+  color: #0e3d76;
+}
+
+.departmentSearch {
+  width: 100%;
+  max-width: 420px;
+  border: 1px solid #cad7e2;
+  border-radius: 12px;
+  padding: 10px 14px;
+  margin-bottom: 10px;
+}
+
+.departmentCard {
+  background: #ffffff;
+  border: 1px solid #d8e2eb;
+  border-radius: 18px;
+  padding: 14px;
+  display: grid;
+  gap: 12px;
+  max-height: 330px;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+.departmentSearch {
+  width: 100%;
+  border: 1px solid #cad7e2;
+  border-radius: 12px;
+  padding: 10px 14px;
 }
 
 .departmentGrid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 8px;
+  gap: 10px;
+  overflow-y: auto;
+  padding-right: 4px;
+  max-height: 220px;
+  box-sizing: border-box;
+  overscroll-behavior: contain;
 }
 
 .deptChip {
   display: flex;
   align-items: center;
   gap: 8px;
-  border: 1px solid #d8e2eb;
+  border: 1px solid #d8eebf;
   border-radius: 999px;
-  padding: 8px 12px;
+  padding: 10px 14px;
   background: #f7fbff;
+  color: #16415f;
+  cursor: pointer;
+  transition: background-color 120ms ease, border-color 120ms ease, transform 120ms ease;
+  pointer-events: auto;
+}
+
+.deptChip:hover {
+  transform: translateY(-1px);
+}
+
+.deptChipSelected {
+  border-color: #4CAF50;
+  background: rgba(76, 175, 80, 0.12);
+  color: #2e7d32;
+}
+
+.departmentHint {
+  font-size: 13px;
+  color: #4b5e74;
 }
 
 .actions {

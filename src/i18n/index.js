@@ -147,7 +147,7 @@ const resources = {
       homePage: {
         brand: 'Acadex',
         title: 'Welcome to the Acadex',
-        description: 'Access verified HND and BTS past questions, reports, and internship topics in one place.',
+        description: 'Access verified HND, BTS, Bachelor, Licence, Masters, and researcher resources—including question papers, reports, presentations, and internship topics—in one platform.',
         accessButton: 'Login/Register to Access Materials',
         accessNote: 'Access is restricted to registered students.',
         learnMore: 'Learn More',

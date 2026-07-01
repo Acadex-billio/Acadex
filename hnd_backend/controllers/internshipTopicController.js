@@ -1,6 +1,8 @@
 const InternshipTopic = require('../models/InternshipTopic');
 const Department = require('../models/Department');
 
+const ALLOWED_PROGRAMS = ['HND', 'BTS', 'LICENCE', 'BACHELOR', 'MASTERS', 'MASTER'];
+
 function parseIntSafe(v, fallback) {
   const n = Number.parseInt(String(v), 10);
   return Number.isFinite(n) ? n : fallback;
@@ -28,7 +30,15 @@ function coerceStringArray(v) {
 }
 
 function normalizeProgram(v) {
-  return String(v || 'HND').trim().toUpperCase() === 'BTS' ? 'BTS' : 'HND';
+  const normalized = String(v || 'HND').trim().toUpperCase();
+  return ALLOWED_PROGRAMS.includes(normalized) ? normalized : 'HND';
+}
+
+function resolveDepartmentTrack(program) {
+  const normalized = String(program || '').trim().toUpperCase();
+  if (['HND', 'BACHELOR', 'MASTERS'].includes(normalized)) return 'HND';
+  if (['BTS', 'LICENCE', 'MASTER'].includes(normalized)) return 'BTS';
+  return null;
 }
 
 function normalizeReaction(v) {
@@ -80,9 +90,11 @@ function summarizeTopic(topic, currentCandId, departmentMap, includeKeywords = f
   const payload = {
     topic_id: topic._id,
     title: topic.title,
+    topic_icon: topic.topic_icon || '',
     description: topic.description,
     research_guide: topic.research_guide,
     program: topic.program,
+    programs: Array.isArray(topic.programs) && topic.programs.length ? topic.programs : [topic.program],
     departments,
     citations: Array.isArray(topic.citations) ? topic.citations.map((c) => ({ text: c.text })) : [],
     metrics: {
@@ -129,9 +141,14 @@ exports.createTopic = async (req, res) => {
     const title = String(req.body?.title || '').trim();
     const description = String(req.body?.description || '').trim();
     const researchGuide = String(req.body?.research_guide || '').trim();
-    const program = normalizeProgram(req.body?.program);
+    const programs = Array.from(new Set(coerceStringArray(req.body?.programs).map((p) => normalizeProgram(p)))).filter(Boolean);
+    const program = programs.length ? programs[0] : normalizeProgram(req.body?.program);
+    const topicIcon = String(req.body?.topic_icon || '').trim();
     const departmentIds = coerceStringArray(req.body?.department_ids);
     const keywords = parseKeywords(req.body?.keywords);
+    const problemStatement = String(req.body?.problem_statement || '').trim();
+    const toolsTechnology = String(req.body?.tools_technology || '').trim();
+    const systemSolutions = String(req.body?.system_solutions || '').trim();
     const citations = parseCitations(req.body?.citations);
 
     if (!title || !description || !researchGuide) {
@@ -142,16 +159,22 @@ exports.createTopic = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Select at least one applicable department.' });
     }
 
-    const departments = await Department.find({ _id: { $in: departmentIds }, program }).select('_id').lean();
+    const allowedPrograms = Array.from(new Set(programs.map(resolveDepartmentTrack).filter(Boolean)));
+    const departments = await Department.find({ _id: { $in: departmentIds }, program: allowedPrograms.length ? { $in: allowedPrograms } : program }).select('_id').lean();
     if (!departments.length) {
-      return res.status(400).json({ success: false, message: 'No valid departments found for the selected program.' });
+      return res.status(400).json({ success: false, message: 'No valid departments found for the selected programs.' });
     }
 
     const doc = await InternshipTopic.create({
       title,
+      topic_icon: topicIcon,
       description,
       research_guide: researchGuide,
+      problem_statement: problemStatement,
+      tools_technology: toolsTechnology,
+      system_solutions: systemSolutions,
       program,
+      programs,
       department_ids: departments.map((d) => d._id),
       keywords,
       citations,
@@ -174,7 +197,9 @@ exports.listAdminTopics = async (req, res) => {
     const query = {};
 
     const program = String(req.query?.program || '').trim().toUpperCase();
-    if (program === 'HND' || program === 'BTS') query.program = program;
+    if (ALLOWED_PROGRAMS.includes(program)) {
+      query.$or = [{ program }, { programs: program }];
+    }
 
     const search = String(req.query?.q || '').trim();
     if (search) {
@@ -208,9 +233,14 @@ exports.updateTopic = async (req, res) => {
     const title = String(req.body?.title || topic.title).trim();
     const description = String(req.body?.description || topic.description).trim();
     const researchGuide = String(req.body?.research_guide || topic.research_guide).trim();
-    const program = normalizeProgram(req.body?.program || topic.program);
+    const programs = Array.from(new Set(coerceStringArray(req.body?.programs).map((p) => normalizeProgram(p))));
+    const program = programs.length ? programs[0] : normalizeProgram(req.body?.program || topic.program);
+    const topicIcon = String(req.body?.topic_icon || topic.topic_icon || '').trim();
     const departmentIds = coerceStringArray(req.body?.department_ids || topic.department_ids);
     const keywords = parseKeywords(req.body?.keywords || topic.keywords);
+    const problemStatement = String(req.body?.problem_statement || topic.problem_statement || '').trim();
+    const toolsTechnology = String(req.body?.tools_technology || topic.tools_technology || '').trim();
+    const systemSolutions = String(req.body?.system_solutions || topic.system_solutions || '').trim();
     const citations = parseCitations(req.body?.citations || topic.citations.map((c) => c.text));
 
     if (!title || !description || !researchGuide) {
@@ -221,15 +251,21 @@ exports.updateTopic = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Select at least one applicable department.' });
     }
 
-    const departments = await Department.find({ _id: { $in: departmentIds }, program }).select('_id').lean();
+    const allowedPrograms = Array.from(new Set(programs.map(resolveDepartmentTrack).filter(Boolean)));
+    const departments = await Department.find({ _id: { $in: departmentIds }, program: allowedPrograms.length ? { $in: allowedPrograms } : program }).select('_id').lean();
     if (!departments.length) {
-      return res.status(400).json({ success: false, message: 'No valid departments found for the selected program.' });
+      return res.status(400).json({ success: false, message: 'No valid departments found for the selected programs.' });
     }
 
     topic.title = title;
+    topic.topic_icon = topicIcon;
     topic.description = description;
     topic.research_guide = researchGuide;
+    topic.problem_statement = problemStatement;
+    topic.tools_technology = toolsTechnology;
+    topic.system_solutions = systemSolutions;
     topic.program = program;
+    topic.programs = programs.length ? programs : [program];
     topic.department_ids = departments.map((d) => d._id);
     topic.keywords = keywords;
     topic.citations = citations;
@@ -264,18 +300,30 @@ exports.listCandidateTopics = async (req, res) => {
     const minRating = Math.max(0, Math.min(5, Number(req.query?.min_rating || 0)));
     const sortBy = String(req.query?.sort || 'newest').trim().toLowerCase();
 
-    const query = { program };
+    const programQuery = ALLOWED_PROGRAMS.includes(program) ? { $or: [{ programs: program }, { program }] } : {};
+    let query = { ...programQuery };
+
     if (search) {
-      query.$or = [
-        { title: { $regex: search, $options: 'i' } },
-        { description: { $regex: search, $options: 'i' } },
-        { research_guide: { $regex: search, $options: 'i' } },
-        { keywords: { $in: [new RegExp(search, 'i')] } },
-      ];
+      const searchCriteria = {
+        $or: [
+          { title: { $regex: search, $options: 'i' } },
+          { description: { $regex: search, $options: 'i' } },
+          { research_guide: { $regex: search, $options: 'i' } },
+          { keywords: { $in: [new RegExp(search, 'i')] } },
+        ],
+      };
+      query = Object.keys(programQuery).length ? { $and: [programQuery, searchCriteria] } : searchCriteria;
     }
 
     if (departmentFilter) {
-      query.department_ids = departmentFilter;
+      const deptCriteria = { department_ids: departmentFilter };
+      if (query.$and) {
+        query.$and.push(deptCriteria);
+      } else if (Object.keys(query).length) {
+        query = { $and: [query, deptCriteria] };
+      } else {
+        query = deptCriteria;
+      }
     }
 
     const rows = await InternshipTopic.find(query).lean();
@@ -311,7 +359,7 @@ exports.getCandidateTopicDetail = async (req, res) => {
     const program = normalizeProgram(req.user?.program || 'HND');
     const topicId = String(req.params?.topicId || '').trim();
 
-    const topic = await InternshipTopic.findOne({ _id: topicId, program }).lean();
+    const topic = await InternshipTopic.findOne({ _id: topicId, $or: [{ programs: program }, { program }] }).lean();
     if (!topic) return res.status(404).json({ success: false, message: 'Topic not found' });
 
     const departments = await getDepartmentsForTopics([topic]);
@@ -334,7 +382,7 @@ exports.rateTopic = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Rating must be between 1 and 5 stars.' });
     }
 
-    const topic = await InternshipTopic.findOne({ _id: topicId, program });
+    const topic = await InternshipTopic.findOne({ _id: topicId, $or: [{ programs: program }, { program }] });
     if (!topic) return res.status(404).json({ success: false, message: 'Topic not found' });
 
     const existing = topic.ratings.find((item) => String(item.cand_id) === candId);
@@ -361,7 +409,7 @@ exports.toggleRecommendation = async (req, res) => {
     const program = normalizeProgram(req.user?.program || 'HND');
     const topicId = String(req.params?.topicId || '').trim();
 
-    const topic = await InternshipTopic.findOne({ _id: topicId, program });
+    const topic = await InternshipTopic.findOne({ _id: topicId, $or: [{ programs: program }, { program }] });
     if (!topic) return res.status(404).json({ success: false, message: 'Topic not found' });
 
     const idx = topic.recommendations.findIndex((id) => String(id) === candId);
@@ -392,7 +440,7 @@ exports.setReaction = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Reaction type must be up or down.' });
     }
 
-    const topic = await InternshipTopic.findOne({ _id: topicId, program });
+    const topic = await InternshipTopic.findOne({ _id: topicId, $or: [{ programs: program }, { program }] });
     if (!topic) return res.status(404).json({ success: false, message: 'Topic not found' });
 
     const existing = topic.reactions.find((item) => String(item.cand_id) === candId);

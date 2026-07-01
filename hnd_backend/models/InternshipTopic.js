@@ -28,9 +28,14 @@ const citationSchema = new mongoose.Schema(
 const internshipTopicSchema = new mongoose.Schema(
   {
     title: { type: String, required: true, trim: true },
+    topic_icon: { type: String, trim: true, default: '' },
     description: { type: String, required: true, trim: true },
     research_guide: { type: String, required: true, trim: true },
-    program: { type: String, enum: ['HND', 'BTS'], required: true, index: true },
+    problem_statement: { type: String, trim: true, default: '' },
+    tools_technology: { type: String, trim: true, default: '' },
+    system_solutions: { type: String, trim: true, default: '' },
+    program: { type: String, enum: ['HND', 'BTS', 'LICENCE', 'BACHELOR', 'MASTERS', 'MASTER'], required: true, index: true },
+    programs: [{ type: String, enum: ['HND', 'BTS', 'LICENCE', 'BACHELOR', 'MASTERS', 'MASTER'], trim: true, uppercase: true }],
     department_ids: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Department', index: true }],
     keywords: [{ type: String, trim: true }],
     citations: [citationSchema],
@@ -44,6 +49,7 @@ const internshipTopicSchema = new mongoose.Schema(
 );
 
 internshipTopicSchema.index({ program: 1, createdAt: -1 });
+internshipTopicSchema.index({ programs: 1 });
 internshipTopicSchema.index({ title: 'text', description: 'text', research_guide: 'text', keywords: 'text' });
 
 module.exports = mongoose.model('InternshipTopic', internshipTopicSchema);

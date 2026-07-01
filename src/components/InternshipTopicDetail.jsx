@@ -5,6 +5,7 @@ import styles from '../Astyles/internshipTopicsCandidate.module.css';
 import { getErrorMessage } from '../utility/getErrorMessage';
 import { showToast } from '../utility/ToastNotification';
 import GraduationCapLoader from './GraduationCapLoader';
+import * as PhosphorIcons from 'phosphor-react';
 
 const InternshipTopicDetail = () => {
   const { topicId } = useParams();
@@ -67,6 +68,106 @@ const InternshipTopicDetail = () => {
 
   const starButtons = useMemo(() => [1, 2, 3, 4, 5], []);
 
+  const renderCitation = (citation, idx) => {
+    const text = String(citation?.text || '').trim();
+    if (!text) return null;
+    const urlMatch = text.match(/https?:\/\/[\S]+/i);
+    if (urlMatch) {
+      const url = urlMatch[0];
+      const label = text.replace(url, '').trim() || url;
+      return (
+        <li key={`${url}-${idx}`}>
+          <a href={url} target="_blank" rel="noopener noreferrer" className={styles.citationLink}>
+            {label || url}
+          </a>
+        </li>
+      );
+    }
+    return <li key={`${text}-${idx}`}>{text}</li>;
+  };
+
+  const renderIcon = (iconName) => {
+    const Icon = iconName ? PhosphorIcons[String(iconName)] : null;
+    if (Icon && typeof Icon === 'object' && Icon.$$typeof === Symbol.for('react.forward_ref')) {
+      return <Icon size={32} weight="duotone" />;
+    }
+    return <span>{iconName || '💡'}</span>;
+  };
+
+  const renderKeywords = () => {
+    const keywords = Array.isArray(topic.keywords)
+      ? topic.keywords
+      : typeof topic.keywords_text === 'string'
+        ? topic.keywords_text.split(',').map((value) => value.trim()).filter(Boolean)
+        : [];
+
+    if (!keywords.length) return null;
+    return (
+      <div className={styles.keywordList}>
+        {keywords.map((keyword) => (
+          <span key={keyword} className={styles.keywordTag}>{keyword}</span>
+        ))}
+      </div>
+    );
+  };
+
+  const handleShare = async (platform) => {
+    const pageUrl = window.location.href;
+    const title = topic.title || 'Internship research topic';
+    const departments = Array.isArray(topic.departments)
+      ? topic.departments.map((dept) => dept.department_name || dept.abbreviation).filter(Boolean)
+      : [];
+    const departmentList = departments.length ? departments.join(', ') : 'General';
+    const problemText = topic.problem_statement || topic.description || 'No problem statement available.';
+
+    const rawText = `Yoo Friend, I found this interesting Internship Topics on Acadex applicable for the departments below, QUICKLY REGISTER NOW ON ACADEX TO ACCESS THIS TOPIC AND THOUSAND MORE\n\n*Departments*\n${departmentList}\n\n*Topic*\n${title}\n\n*Problem statement*\n${problemText}\n\n*URL*\n${pageUrl}`;
+    const encodedText = encodeURIComponent(rawText);
+
+    if (platform === 'link') {
+      try {
+        await navigator.clipboard.writeText(rawText);
+        showToast('Topic share text copied to clipboard.', 'success');
+      } catch {
+        try {
+          await navigator.clipboard.writeText(pageUrl);
+          showToast('Topic URL copied to clipboard.', 'success');
+        } catch {
+          showToast('Unable to copy link automatically. Please copy it manually.', 'warning');
+        }
+      }
+      return;
+    }
+
+    const sharePayload = {
+      title: 'Interesting Acadex internship topic',
+      text: rawText,
+      url: pageUrl,
+    };
+
+    if (navigator.share && platform !== 'facebook') {
+      try {
+        await navigator.share(sharePayload);
+        return;
+      } catch {
+        // fall back to URL-based sharing if the native share dialog fails
+      }
+    }
+
+    let shareUrl = '';
+    if (platform === 'whatsapp') {
+      shareUrl = `https://wa.me/?text=${encodedText}`;
+    } else if (platform === 'facebook') {
+      shareUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(pageUrl)}`;
+    } else if (platform === 'twitter') {
+      shareUrl = `https://twitter.com/intent/tweet?text=${encodedText}`;
+    }
+
+    if (shareUrl) {
+      window.open(shareUrl, '_blank', 'noopener,noreferrer');
+      showToast(`Preparing ${platform} share...`, 'success');
+    }
+  };
+
   if (loading) return <GraduationCapLoader fullscreen label="Loading topic..." />;
   if (!topic) return <div className={styles.page}><p>Topic not found.</p><Link to="/candidate/internship-topics">Back to topics</Link></div>;
 
@@ -74,93 +175,165 @@ const InternshipTopicDetail = () => {
     <div className={styles.page}>
       <Link className={styles.backLink} to="/candidate/internship-topics">← Back to topics</Link>
 
-      <article className={styles.detailCard}>
-        <div className={styles.cardTop}>
-          <h1>{topic.title}</h1>
-          <span className={styles.programBadge}>{topic.program}</span>
-        </div>
-
-        <div className={styles.metrics}>
-          <span>Rating: {topic.metrics.rating_average} ({topic.metrics.rating_count})</span>
-          <span>Recommended: {topic.metrics.recommendation_count}</span>
-          <span>👍 {topic.metrics.reaction_up_count} | 👎 {topic.metrics.reaction_down_count}</span>
-        </div>
-
-        <section>
-          <h3>Description</h3>
-          <p className={styles.detailText}>{topic.description}</p>
-        </section>
-
-        <section>
-          <h3>Guide to carry out the research</h3>
-          <p className={styles.detailText}>{topic.research_guide}</p>
-        </section>
-
-        <section>
-          <h3>Applicable departments</h3>
-          <div className={styles.departments}>
-            {(topic.departments || []).map((dept) => (
-              <span key={dept.department_id} className={styles.deptChip}>{dept.department_name} ({dept.abbreviation})</span>
-            ))}
-          </div>
-        </section>
-
-        {topic.citations?.length ? (
-          <section>
-            <h3>Optional citations</h3>
-            <ul className={styles.citationList}>
-              {topic.citations.map((citation, idx) => (
-                <li key={`${citation.text}-${idx}`}>{citation.text}</li>
-              ))}
-            </ul>
-          </section>
-        ) : null}
-
-        <section className={styles.feedbackSection}>
-          <h3>Your feedback</h3>
-
-          <div className={styles.feedbackRow}>
-            <span>Rate this topic:</span>
-            <div className={styles.stars}>
-              {starButtons.map((star) => (
-                <button
-                  key={star}
-                  type="button"
-                  className={`${styles.starBtn} ${Number(topic.my_feedback?.stars || 0) >= star ? styles.starActive : ''}`}
-                  disabled={busyAction === 'rating'}
-                  onClick={() => submitRating(star)}
-                >
-                  ★
-                </button>
-              ))}
+      <div className={styles.detailLayout}>
+        <article className={styles.detailCard}>
+          <div className={styles.cardTop}>
+            <div className={styles.topicIconWrap}>
+              <div className={styles.topicIcon}>{renderIcon(topic.topic_icon)}</div>
+            </div>
+            <div>
+              <h1>{topic.title}</h1>
+              <div className={styles.programChips}>
+                {(Array.isArray(topic.programs) ? topic.programs : [topic.program]).map((program) => (
+                  <span key={program} className={styles.programBadge}>{program}</span>
+                ))}
+              </div>
             </div>
           </div>
 
-          <div className={styles.feedbackRow}>
-            <button type="button" className={styles.actionBtn} disabled={busyAction === 'recommend'} onClick={toggleRecommend}>
-              {topic.my_feedback?.recommended ? 'Recommended' : 'Recommend'}
-            </button>
-
-            <button
-              type="button"
-              className={`${styles.actionBtn} ${topic.my_feedback?.reaction === 'up' ? styles.selected : ''}`}
-              disabled={busyAction === 'up'}
-              onClick={() => setReaction('up')}
-            >
-              👍 Positive
-            </button>
-
-            <button
-              type="button"
-              className={`${styles.actionBtn} ${topic.my_feedback?.reaction === 'down' ? styles.selected : ''}`}
-              disabled={busyAction === 'down'}
-              onClick={() => setReaction('down')}
-            >
-              👎 Negative
-            </button>
+          <div className={styles.metrics}>
+            <span>Rating: {topic.metrics.rating_average} ({topic.metrics.rating_count})</span>
+            <span>Recommended: {topic.metrics.recommendation_count}</span>
+            <span>Reactions: 👍 {topic.metrics.reaction_up_count} / 👎 {topic.metrics.reaction_down_count}</span>
           </div>
-        </section>
-      </article>
+
+          <section>
+            <div className={styles.sectionHeading}>
+              <span className={styles.sectionIcon}><PhosphorIcons.WarningCircle size={18} weight="fill" /></span>
+              <span>Problem Statement</span>
+            </div>
+            <p className={styles.detailText}>{topic.problem_statement || 'No problem statement provided.'}</p>
+          </section>
+
+          <section>
+            <div className={styles.sectionHeading}>
+              <span className={styles.sectionIcon}><PhosphorIcons.TextAlignLeft size={18} weight="fill" /></span>
+              <span>Full Description</span>
+            </div>
+            <p className={styles.detailText}>{topic.description || 'No description provided.'}</p>
+          </section>
+
+          {topic.tools_technology ? (
+            <section>
+              <div className={styles.sectionHeading}>
+                <span className={styles.sectionIcon}><PhosphorIcons.Wrench size={18} weight="fill" /></span>
+                <span>Tools / Technology</span>
+              </div>
+              <p className={styles.detailText}>{topic.tools_technology}</p>
+            </section>
+          ) : null}
+
+          {topic.system_solutions ? (
+            <section>
+              <div className={styles.sectionHeading}>
+                <span className={styles.sectionIcon}><PhosphorIcons.CheckCircle size={18} weight="fill" /></span>
+                <span>System Solutions</span>
+              </div>
+              <p className={styles.detailText}>{topic.system_solutions}</p>
+            </section>
+          ) : null}
+
+          <section>
+            <div className={styles.sectionHeading}>
+              <span className={styles.sectionIcon}><PhosphorIcons.BookOpen size={18} weight="fill" /></span>
+              <span>Research Guide</span>
+            </div>
+            <p className={styles.detailText}>{topic.research_guide || 'No research guide available.'}</p>
+          </section>
+
+          {renderKeywords()}
+
+          <section>
+            <div className={styles.sectionHeading}>
+              <span className={styles.sectionIcon}><PhosphorIcons.Buildings size={18} weight="fill" /></span>
+              <span>Applicable Departments</span>
+            </div>
+            <div className={styles.departments}>
+              {(topic.departments || []).map((dept) => (
+                <span key={dept.department_id} className={styles.deptChip}>{dept.department_name || dept.abbreviation}</span>
+              ))}
+            </div>
+          </section>
+
+          {topic.citations?.length ? (
+            <section>
+              <div className={styles.sectionHeading}>
+                <span className={styles.sectionIcon}><PhosphorIcons.LinkSimple size={18} weight="fill" /></span>
+                <span>Optional Citations</span>
+              </div>
+              <ul className={styles.citationList}>
+                {topic.citations.map((citation, idx) => renderCitation(citation, idx))}
+              </ul>
+            </section>
+          ) : null}
+        </article>
+
+        <aside className={styles.sidebar}>
+          <div className={styles.sidebarCard}>
+            <div className={styles.sidebarHeading}>Your feedback</div>
+            <div className={styles.feedbackRow}>
+              <span>Rate this topic</span>
+              <div className={styles.stars}>
+                {starButtons.map((star) => (
+                  <button
+                    key={star}
+                    type="button"
+                    className={`${styles.starBtn} ${Number(topic.my_feedback?.stars || 0) >= star ? styles.starActive : ''}`}
+                    disabled={busyAction === 'rating'}
+                    onClick={() => submitRating(star)}
+                  >
+                    ★
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className={styles.feedbackRow}>
+              <button type="button" className={styles.actionBtn} disabled={busyAction === 'recommend'} onClick={toggleRecommend}>
+                {topic.my_feedback?.recommended ? 'Recommended' : 'Recommend'}
+              </button>
+            </div>
+
+            <div className={styles.feedbackRow}>
+              <button
+                type="button"
+                className={`${styles.actionBtn} ${topic.my_feedback?.reaction === 'up' ? styles.selected : ''}`}
+                disabled={busyAction === 'up'}
+                onClick={() => setReaction('up')}
+              >
+                👍 Positive
+              </button>
+              <button
+                type="button"
+                className={`${styles.actionBtn} ${topic.my_feedback?.reaction === 'down' ? styles.selected : ''}`}
+                disabled={busyAction === 'down'}
+                onClick={() => setReaction('down')}
+              >
+                👎 Negative
+              </button>
+            </div>
+          </div>
+
+          <div className={styles.sidebarCard}>
+            <div className={styles.sidebarHeading}>Share this topic</div>
+            <p className={styles.shareDescription}>Help other students discover this research direction.</p>
+            <div className={styles.shareButtons}>
+              <button type="button" title="Copy share text to clipboard" className={styles.shareIconButton} onClick={() => handleShare('link')} aria-label="Copy topic link">
+                <PhosphorIcons.LinkSimple size={18} />
+              </button>
+              <button type="button" title="Share via WhatsApp" className={styles.shareIconButton} onClick={() => handleShare('whatsapp')} aria-label="Share topic on WhatsApp">
+                <PhosphorIcons.WhatsappLogo size={18} />
+              </button>
+              <button type="button" title="Share on Facebook" className={styles.shareIconButton} onClick={() => handleShare('facebook')} aria-label="Share topic on Facebook">
+                <PhosphorIcons.FacebookLogo size={18} />
+              </button>
+              <button type="button" title="Share on Twitter" className={styles.shareIconButton} onClick={() => handleShare('twitter')} aria-label="Share topic on Twitter">
+                <PhosphorIcons.TwitterLogo size={18} />
+              </button>
+            </div>
+          </div>
+        </aside>
+      </div>
     </div>
   );
 };

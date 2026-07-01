@@ -1,16 +1,39 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Helmet } from 'react-helmet';
 import api from '../services/api';
 import { showToast } from '../utility/ToastNotification';
+import * as PhosphorIcons from 'phosphor-react';
 import { getErrorMessage } from '../utility/getErrorMessage';
 import styles from '../Astyles/internshipTopicsAdmin.module.css';
 import crudStyles from '../Astyles/AdminCrudTwoCol.module.css';
 
+const PROGRAM_OPTIONS = ['HND', 'BTS', 'LICENCE', 'BACHELOR', 'MASTERS', 'MASTER'];
+const RECENT_ICON_STORAGE_KEY = 'acadex-recent-topic-icons';
+
+const FORWARD_REF_ICON_TYPE = Symbol.for('react.forward_ref');
+
+const isPhosphorIconComponent = (value) =>
+  value && typeof value === 'object' && value.$$typeof === FORWARD_REF_ICON_TYPE;
+
+const PHOSPHOR_ICON_OPTIONS = Object.entries(PhosphorIcons)
+  .filter(([, icon]) => isPhosphorIconComponent(icon))
+  .map(([value]) => value)
+  .sort()
+  .map((value) => ({
+    value,
+    label: value.replace(/([a-z0-9])([A-Z])/g, '$1-$2').toLowerCase(),
+  }));
+
 const EMPTY_FORM = {
   title: '',
+  topic_icon: 'Lightbulb',
   description: '',
   research_guide: '',
-  program: 'HND',
+  problem_statement: '',
+  tools_technology: '',
+  system_solutions: '',
+  programs: ['HND'],
   department_ids: [],
   keywords_text: '',
   citations_text: '',
@@ -26,12 +49,23 @@ const AdminInternshipTopics = () => {
   const [submitting, setSubmitting] = useState(false);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [departmentSearch, setDepartmentSearch] = useState('');
+  const [iconQuery, setIconQuery] = useState('');
+  const [recentIcons, setRecentIcons] = useState([]);
+  const [isIconModalOpen, setIsIconModalOpen] = useState(false);
   const [pageIndex, setPageIndex] = useState(0);
 
-  const filteredDepartments = useMemo(
-    () => departments.filter((d) => String(d.program || 'HND').toUpperCase() === String(form.program || 'HND').toUpperCase()),
-    [departments, form.program]
-  );
+  const filteredDepartments = useMemo(() => {
+    if (!form.programs.length) return departments;
+    const programFiltered = departments.filter((d) => form.programs.includes(String(d.program || 'HND').toUpperCase()));
+    if (!departmentSearch.trim()) return programFiltered;
+    const query = departmentSearch.trim().toLowerCase();
+    return programFiltered.filter((d) =>
+      `${String(d.department_name || '').toLowerCase()} ${String(d.abbreviation || '').toLowerCase()}`.includes(query)
+    );
+  }, [departments, form.programs, departmentSearch]);
+
+  const visibleDepartments = useMemo(() => filteredDepartments.slice(0, 6), [filteredDepartments]);
 
   const loadDepartments = useCallback(async () => {
     const { data } = await api.get('/admin/departments');
@@ -61,14 +95,27 @@ const AdminInternshipTopics = () => {
   const onChange = (e) => {
     const { name, value } = e.target;
     setForm((prev) => ({ ...prev, [name]: value }));
+  };
 
-    if (name === 'program') {
-      setForm((prev) => ({
+  const toggleProgram = (program) => {
+    setForm((prev) => {
+      const normalized = String(program || '').toUpperCase();
+      const selected = prev.programs.includes(normalized)
+        ? prev.programs.filter((item) => item !== normalized)
+        : [...prev.programs, normalized];
+
+      const validDeptIds = new Set(
+        departments
+          .filter((d) => selected.includes(String(d.program || 'HND').toUpperCase()))
+          .map((d) => String(d.dpt_id || d._id))
+      );
+
+      return {
         ...prev,
-        program: value,
-        department_ids: [],
-      }));
-    }
+        programs: selected,
+        department_ids: prev.department_ids.filter((deptId) => validDeptIds.has(String(deptId))),
+      };
+    });
   };
 
   const onDepartmentToggle = (id) => {
@@ -97,6 +144,56 @@ const AdminInternshipTopics = () => {
     [form.citations_text]
   );
 
+  const filteredIconOptions = useMemo(() => {
+    const query = (iconQuery || '').trim().toLowerCase();
+    if (!query) return PHOSPHOR_ICON_OPTIONS;
+    return PHOSPHOR_ICON_OPTIONS.filter((option) =>
+      option.label.toLowerCase().includes(query) || option.value.toLowerCase().includes(query)
+    );
+  }, [iconQuery]);
+
+  const renderIconPreview = (iconName) => {
+    const Icon = iconName ? PhosphorIcons[String(iconName)] : null;
+    if (isPhosphorIconComponent(Icon)) {
+      return <Icon size={26} weight="duotone" />;
+    }
+    return <span>{iconName || '💡'}</span>;
+  };
+
+  useEffect(() => {
+    try {
+      const stored = window.localStorage.getItem(RECENT_ICON_STORAGE_KEY);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed)) {
+          setRecentIcons(parsed.filter((item) => typeof item === 'string'));
+        }
+      }
+    } catch (err) {
+      // ignore localStorage errors
+    }
+  }, []);
+
+  const openIconModal = () => setIsIconModalOpen(true);
+  const closeIconModal = () => {
+    setIsIconModalOpen(false);
+    setIconQuery('');
+  };
+
+  const chooseIcon = (value) => {
+    setForm((prev) => ({ ...prev, topic_icon: value }));
+    setRecentIcons((prev) => {
+      const next = [value, ...prev.filter((item) => item !== value)].slice(0, 10);
+      try {
+        window.localStorage.setItem(RECENT_ICON_STORAGE_KEY, JSON.stringify(next));
+      } catch (err) {
+        // ignore storage errors
+      }
+      return next;
+    });
+    closeIconModal();
+  };
+
   const filteredTopics = useMemo(() => {
     const q = search.trim().toLowerCase();
     if (!q) return topics;
@@ -105,10 +202,13 @@ const AdminInternshipTopics = () => {
       const deptText = Array.isArray(topic.departments)
         ? topic.departments.map((d) => `${d.department_name || ''} ${d.abbreviation || ''}`.trim()).join(' ')
         : '';
+      const programText = Array.isArray(topic.programs)
+        ? topic.programs.join(' ')
+        : topic.program || '';
       const hay = [
         topic.title,
         topic.description,
-        topic.program,
+        programText,
         deptText,
         Array.isArray(topic.keywords) ? topic.keywords.join(' ') : '',
       ]
@@ -132,7 +232,7 @@ const AdminInternshipTopics = () => {
 
   useEffect(() => {
     setPageIndex(0);
-  }, [search, form.program]);
+  }, [search, form.programs]);
 
   useEffect(() => {
     setPageIndex((prev) => Math.min(prev, totalPages - 1));
@@ -146,6 +246,11 @@ const AdminInternshipTopics = () => {
       return;
     }
 
+    if (!form.programs.length) {
+      showToast('Select at least one program.', 'warning');
+      return;
+    }
+
     if (form.department_ids.length === 0) {
       showToast('Select at least one department.', 'warning');
       return;
@@ -155,12 +260,16 @@ const AdminInternshipTopics = () => {
     try {
       const payload = {
         title: form.title.trim(),
+        topic_icon: String(form.topic_icon || '').trim(),
         description: form.description.trim(),
         research_guide: form.research_guide.trim(),
-        program: form.program,
+        problem_statement: String(form.problem_statement || '').trim(),
+        tools_technology: String(form.tools_technology || '').trim(),
+        system_solutions: String(form.system_solutions || '').trim(),
+        programs: form.programs,
         department_ids: form.department_ids,
-        keywords,
-        citations,
+        keywords: keywords,
+        citations: citations,
       };
 
       if (editingId) {
@@ -182,12 +291,22 @@ const AdminInternshipTopics = () => {
   };
 
   const startEdit = (topic) => {
+    const programs = Array.isArray(topic.programs) && topic.programs.length
+      ? topic.programs
+      : topic.program
+        ? [topic.program]
+        : ['HND'];
+
     setEditingId(topic.topic_id);
     setForm({
       title: topic.title || '',
+      topic_icon: topic.topic_icon || 'Lightbulb',
       description: topic.description || '',
       research_guide: topic.research_guide || '',
-      program: topic.program || 'HND',
+      problem_statement: topic.problem_statement || '',
+      tools_technology: topic.tools_technology || '',
+      system_solutions: topic.system_solutions || '',
+      programs,
       department_ids: Array.isArray(topic.departments) ? topic.departments.map((d) => String(d.department_id)) : [],
       keywords_text: Array.isArray(topic.keywords) ? topic.keywords.join(', ') : '',
       citations_text: Array.isArray(topic.citations) ? topic.citations.map((c) => c.text).join('\n') : '',
@@ -244,16 +363,147 @@ const AdminInternshipTopics = () => {
             <div className={styles.row}>
               <label className={styles.field}>
                 <span>Title</span>
-                <input name="title" value={form.title} onChange={onChange} placeholder="Enter a topic title" />
-              </label>
-              <label className={styles.field}>
-                <span>Program</span>
-                <select name="program" value={form.program} onChange={onChange}>
-                  <option value="HND">HND</option>
-                  <option value="BTS">BTS</option>
-                </select>
+                <textarea
+                  name="title"
+                  value={form.title}
+                  onChange={onChange}
+                  rows={2}
+                  placeholder="Enter a topic title"
+                />
               </label>
             </div>
+
+            <div className={styles.field}>
+              <span>Topic icon</span>
+              <div className={styles.iconPicker}>
+                <button type="button" className={styles.iconButton} onClick={openIconModal}>
+                  <div className={styles.iconPreview}>{renderIconPreview(form.topic_icon)}</div>
+                  <div className={styles.iconButtonLabel}>Choose icon</div>
+                </button>
+                <div className={styles.iconSummary}>
+                  <strong>{PHOSPHOR_ICON_OPTIONS.find((icon) => icon.value === form.topic_icon)?.label || form.topic_icon}</strong>
+                  <span>Current topic preview icon</span>
+                </div>
+              </div>
+              <div className={styles.helpText}>Search and choose a Phosphor icon for the topic preview.</div>
+            </div>
+
+            {isIconModalOpen ? createPortal(
+              <div className={styles.iconModalBackdrop} onClick={closeIconModal}>
+                <div className={styles.iconModal} role="dialog" aria-modal="true" aria-label="Select topic icon" onClick={(event) => event.stopPropagation()}>
+                  <div className={styles.iconModalHeader}>
+                    <div>
+                      <h3>Select topic icon</h3>
+                      <p>Search the icon library and click one to use for the topic preview.</p>
+                      <p className={styles.iconModalCount}>
+                        {filteredIconOptions.length === PHOSPHOR_ICON_OPTIONS.length
+                          ? `${PHOSPHOR_ICON_OPTIONS.length.toLocaleString()} icons available`
+                          : `${filteredIconOptions.length.toLocaleString()} of ${PHOSPHOR_ICON_OPTIONS.length.toLocaleString()} icons shown`}
+                      </p>
+                    </div>
+                    <button type="button" className={styles.iconCloseButton} onClick={closeIconModal} aria-label="Close icon picker">
+                      ✕
+                    </button>
+                  </div>
+                  <div className={styles.iconModalBody}>
+                  {recentIcons.length > 0 && (
+                    <div className={styles.iconRecentSection}>
+                      <div className={styles.iconRecentTitle}>Recently used</div>
+                      <div className={styles.iconGridRecent}>
+                        {recentIcons.map((icon) => (
+                          <button
+                            key={icon}
+                            type="button"
+                            className={`${styles.iconTile} ${form.topic_icon === icon ? styles.iconTileActive : ''}`}
+                            onClick={() => chooseIcon(icon)}
+                          >
+                            <div className={styles.iconTilePreview}>{renderIconPreview(icon)}</div>
+                            <span>{icon}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  <input
+                    type="search"
+                    className={styles.iconSearch}
+                    placeholder="Search icons"
+                    value={iconQuery}
+                    onChange={(e) => setIconQuery(e.target.value)}
+                  />
+                  <div className={styles.iconGrid}>
+                    {filteredIconOptions.length === 0 ? (
+                      <div className={styles.iconEmpty}>No icons found. Try a different search term.</div>
+                    ) : (
+                      filteredIconOptions.map((option) => (
+                        <button
+                          key={option.value}
+                          type="button"
+                          className={`${styles.iconTile} ${form.topic_icon === option.value ? styles.iconTileActive : ''}`}
+                          onClick={() => chooseIcon(option.value)}
+                          aria-label={`Choose icon ${option.label}`}
+                        >
+                          <div className={styles.iconTilePreview}>{renderIconPreview(option.value)}</div>
+                          <span>{option.label}</span>
+                        </button>
+                      ))
+                    )}
+                  </div>
+                  </div>
+                </div>
+              </div>,
+              document.body
+            ) : null}
+
+            <div className={styles.field}>
+              <span>Programs</span>
+              <div className={styles.programList}>
+                {PROGRAM_OPTIONS.map((program) => (
+                  <button
+                    key={program}
+                    type="button"
+                    className={`${styles.programChip} ${form.programs.includes(program) ? styles.programSelected : ''}`}
+                    onClick={() => toggleProgram(program)}
+                  >
+                    {program}
+                  </button>
+                ))}
+              </div>
+              <div className={styles.helpText}>Select one or more programs eligible for this topic.</div>
+            </div>
+
+            <label className={styles.field}>
+              <span>Problem statement</span>
+              <textarea
+                name="problem_statement"
+                value={form.problem_statement || ''}
+                onChange={onChange}
+                rows={3}
+                placeholder="Summarize the core problem this internship topic addresses."
+              />
+            </label>
+
+            <label className={styles.field}>
+              <span>Tools / technology</span>
+              <textarea
+                name="tools_technology"
+                value={form.tools_technology || ''}
+                onChange={onChange}
+                rows={3}
+                placeholder="Describe the tools, platforms, or technologies recommended for this study."
+              />
+            </label>
+
+            <label className={styles.field}>
+              <span>System solutions</span>
+              <textarea
+                name="system_solutions"
+                value={form.system_solutions || ''}
+                onChange={onChange}
+                rows={3}
+                placeholder="Explain how the candidate should structure the solution or system design."
+              />
+            </label>
 
             <label className={styles.field}>
               <span>Full description</span>
@@ -288,18 +538,41 @@ const AdminInternshipTopics = () => {
 
             <div className={styles.field}>
               <span>Applicable departments</span>
-              <div className={styles.departmentGrid}>
-                {filteredDepartments.map((dept) => {
-                  const id = String(dept.dpt_id || dept._id);
-                  const checked = form.department_ids.includes(id);
-                  return (
-                    <label key={id} className={styles.deptChip}>
-                      <input type="checkbox" checked={checked} onChange={() => onDepartmentToggle(id)} />
-                      <span>{dept.department_name} ({dept.abbreviation})</span>
-                    </label>
-                  );
-                })}
+              <div className={styles.departmentCard}>
+                <input
+                  className={styles.departmentSearch}
+                  type="search"
+                  placeholder="Search departments"
+                  value={departmentSearch}
+                  onChange={(e) => setDepartmentSearch(e.target.value)}
+                />
+                <div className={styles.departmentGrid}>
+                  {visibleDepartments.map((dept) => {
+                    const id = String(dept.dpt_id || dept._id);
+                    const selected = form.department_ids.includes(id);
+                    return (
+                      <button
+                        key={id}
+                        type="button"
+                        aria-pressed={selected}
+                        className={`${styles.deptChip} ${selected ? styles.deptChipSelected : ''}`}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          onDepartmentToggle(id);
+                        }}
+                      >
+                        <span>{dept.department_name} ({dept.abbreviation})</span>
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
+              {filteredDepartments.length > visibleDepartments.length ? (
+                <div className={styles.departmentHint}>
+                  Showing first {visibleDepartments.length} of {filteredDepartments.length} departments. Narrow the search to locate others.
+                </div>
+              ) : null}
+              <div className={styles.helpText}>Departments are filtered by selected program(s). Select multiple departments if the topic spans several streams.</div>
             </div>
 
             <div className={styles.actions}>
@@ -377,7 +650,8 @@ const AdminInternshipTopics = () => {
                     <div>
                       <div className={crudStyles.itemTitle}>{topic.title}</div>
                       <div className={crudStyles.itemMeta}>
-                        Program: {topic.program} • Depts: {deptLabel}
+                        Programs: {Array.isArray(topic.programs) ? topic.programs.join(', ') : topic.program}
+                        • Depts: {deptLabel}
                         <br />
                         Rating: {topic.metrics?.rating_average || 0} ({topic.metrics?.rating_count || 0})
                       </div>

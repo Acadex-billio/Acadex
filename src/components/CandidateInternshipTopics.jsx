@@ -5,6 +5,7 @@ import styles from '../Astyles/internshipTopicsCandidate.module.css';
 import { getErrorMessage } from '../utility/getErrorMessage';
 import { showToast } from '../utility/ToastNotification';
 import GraduationCapLoader from './GraduationCapLoader';
+import * as PhosphorIcons from 'phosphor-react';
 
 const CandidateInternshipTopics = () => {
   const [loading, setLoading] = useState(true);
@@ -75,6 +76,14 @@ const CandidateInternshipTopics = () => {
     return <GraduationCapLoader fullscreen label="Loading research topics..." />;
   }
 
+  const renderIcon = (iconName) => {
+    const Icon = iconName ? PhosphorIcons[String(iconName)] : null;
+    if (Icon && typeof Icon === 'object' && Icon.$$typeof === Symbol.for('react.forward_ref')) {
+      return <Icon size={28} weight="duotone" />;
+    }
+    return <span>{iconName || '💡'}</span>;
+  };
+
   return (
     <div className={styles.page}>
       <div className={styles.header}>
@@ -121,11 +130,24 @@ const CandidateInternshipTopics = () => {
         {topics.map((topic) => (
           <article key={topic.topic_id} className={styles.card}>
             <div className={styles.cardTop}>
-              <h2>{topic.title}</h2>
-              <span className={styles.programBadge}>{topic.program}</span>
+              <div className={styles.topicIconWrap}>
+                <div className={styles.topicIcon}>{renderIcon(topic.topic_icon)}</div>
+              </div>
+              <div className={styles.topicLead}>
+                <h2>{topic.title}</h2>
+                <div className={styles.programChips}>
+                  {(Array.isArray(topic.programs) ? topic.programs : [topic.program]).map((program) => (
+                    <span key={program} className={styles.programBadge}>{program}</span>
+                  ))}
+                </div>
+              </div>
             </div>
 
-            <p className={styles.description}>{topic.description}</p>
+            {topic.problem_statement ? (
+              <p className={styles.problemSnippet}><strong>Problem Statement</strong> {topic.problem_statement}</p>
+            ) : (
+              <p className={styles.description}>{topic.description}</p>
+            )}
 
             <div className={styles.departments}>
               {(topic.departments || []).map((dept) => (
