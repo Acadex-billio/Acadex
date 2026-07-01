@@ -118,9 +118,8 @@ const InternshipTopicDetail = () => {
       ? topic.departments.map((dept) => dept.department_name || dept.abbreviation).filter(Boolean)
       : [];
     const departmentList = departments.length ? departments.join(', ') : 'General';
-    const problemText = topic.problem_statement || topic.description || 'No problem statement available.';
 
-    const rawText = `Yoo Friend, I found this interesting Internship Topics on Acadex applicable for the departments below, QUICKLY REGISTER NOW ON ACADEX TO ACCESS THIS TOPIC AND THOUSAND MORE\n\n*Departments*\n${departmentList}\n\n*Topic*\n${title}\n\n*Problem statement*\n${problemText}\n\n*URL*\n${pageUrl}`;
+    const rawText = `Yoo Friend, I found this interesting internship topic on Acadex and I think you should check it out. Visit Acadex to view the full guide and access thousands more topics.\n\n*Departments*\n${departmentList}\n\n*Topic*\n${title}\n\n*URL*\n${pageUrl}`;
     const encodedText = encodeURIComponent(rawText);
 
     if (platform === 'link') {
