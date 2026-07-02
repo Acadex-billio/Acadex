@@ -45,6 +45,9 @@ const projectUpload = multer({
   limits: { fileSize: 20 * 1024 * 1024 },
 });
 
+router.get('/internship-topics', internshipTopicController.listCandidateTopics);
+router.get('/internship-topics/:topicId', validate({ params: schemas.ids.topicIdParam }), internshipTopicController.getCandidateTopicDetail);
+
 router.use(requireAuth);
 router.use(requireAnyRole(['candidate', 'admin', 'developer', 'superadmin']));
 
@@ -99,8 +102,6 @@ router.get('/subscription/me', subscriptionController.getMySubscription);
 router.post('/subscription/checkout', userPaymentInitiationRateLimit, createAuditTrail('payment.subscription.checkout', { bodyFields: ['planCode', 'phoneNumber', 'paymentMethod', 'promoCode', 'referralCode', 'idempotencyKey'] }), validate({ body: schemas.candidate.subscriptionCheckout }), subscriptionController.startPlanCheckout);
 router.post('/subscription/manual-checkout', userPaymentInitiationRateLimit, createAuditTrail('payment.subscription.manual_checkout', { bodyFields: ['planCode', 'promoCode', 'referralCode', 'idempotencyKey'] }), validate({ body: schemas.candidate.manualSubscriptionCheckout }), subscriptionController.startManualPlanCheckout);
 
-router.get('/internship-topics', internshipTopicController.listCandidateTopics);
-router.get('/internship-topics/:topicId', validate({ params: schemas.ids.topicIdParam }), internshipTopicController.getCandidateTopicDetail);
 router.post('/internship-topics/:topicId/rating', validate({ params: schemas.ids.topicIdParam }), internshipTopicController.rateTopic);
 router.post('/internship-topics/:topicId/recommend', validate({ params: schemas.ids.topicIdParam }), internshipTopicController.toggleRecommendation);
 router.post('/internship-topics/:topicId/reaction', validate({ params: schemas.ids.topicIdParam }), internshipTopicController.setReaction);

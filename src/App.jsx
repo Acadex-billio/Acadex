@@ -203,6 +203,9 @@ const App = () => (
               </Route>
 
               <Route path="/candidate/restricted" element={<ProtectedRoute><CandidateAccountStatus /></ProtectedRoute>} />
+              <Route path="/candidate/internship-topics" element={<CandidateInternshipTopics />} />
+              <Route path="/candidate/internship-topics/preview/:topicId" element={<InternshipTopicDetail previewMode />} />
+              <Route path="/candidate/internship-topics/:topicId" element={<InternshipTopicDetail />} />
               <Route path="/lecturer/pending" element={<ProtectedRoute><LecturerPendingApproval /></ProtectedRoute>} />
 
               {/* Candidate Shell - Protected */}

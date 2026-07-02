@@ -631,6 +631,7 @@ exports.getMessages = async (req, res) => {
           sender_cand_id: m.sender_cand_id,
           sender_name: senderNameByCandId.get(String(m.sender_cand_id)) || m.sender_cand_id,
           text: m.text,
+          mentions: Array.isArray(m.mentions) ? m.mentions : [],
           attachment_url: m.attachment_url || null,
           attachment_name: m.attachment_name || null,
           attachment_mime: m.attachment_mime || null,
@@ -709,6 +710,20 @@ exports.sendMessage = async (req, res) => {
     const text = String(req.body?.text || '').trim();
     const attachment = req.file || null;
     const replyToMessageId = String(req.body?.reply_to_message_id || '').trim();
+    let mentions = [];
+    try {
+      const rawMentions = req.body?.mentions;
+      if (Array.isArray(rawMentions)) {
+        mentions = rawMentions.filter(Boolean).map((item) => String(item).trim()).filter(Boolean);
+      } else if (typeof rawMentions === 'string' && rawMentions.trim()) {
+        const parsed = JSON.parse(rawMentions);
+        if (Array.isArray(parsed)) {
+          mentions = parsed.filter(Boolean).map((item) => String(item).trim()).filter(Boolean);
+        }
+      }
+    } catch (_) {
+      mentions = [];
+    }
 
     if (!text && !attachment) return res.status(400).json({ success: false, message: 'Message or attachment is required' });
 
@@ -773,6 +788,7 @@ exports.sendMessage = async (req, res) => {
       room_id: roomId,
       sender_cand_id: candId,
       text,
+      mentions: Array.from(new Set(mentions)),
       reply_to_message_id: replyTo?._id || null,
       ...(attachmentData || {}),
     });

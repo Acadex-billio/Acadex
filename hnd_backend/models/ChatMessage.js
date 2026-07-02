@@ -5,6 +5,7 @@ const chatMessageSchema = new mongoose.Schema(
     room_id: { type: mongoose.Schema.Types.ObjectId, ref: 'ChatRoom', required: true, index: true },
     sender_cand_id: { type: String, required: true, index: true },
     text: { type: String, default: '', trim: true, maxlength: 3000 },
+    mentions: [{ type: String, trim: true }],
     attachment_url: { type: String, default: null, trim: true },
     attachment_name: { type: String, default: null, trim: true },
     attachment_mime: { type: String, default: null, trim: true },

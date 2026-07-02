@@ -1,5 +1,6 @@
 import React, { useCallback, useMemo, useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
 import styles from '../Astyles/internshipTopicsCandidate.module.css';
 import { getErrorMessage } from '../utility/getErrorMessage';
@@ -14,6 +15,7 @@ const CandidateInternshipTopics = () => {
   const [departmentFilter, setDepartmentFilter] = useState('');
   const [minRating, setMinRating] = useState(0);
   const [sortBy, setSortBy] = useState('newest');
+  const { isAuthenticated } = useAuth();
 
   const loadTopics = useCallback(async (nextFilters = {}) => {
     setLoading(true);
@@ -62,6 +64,13 @@ const CandidateInternshipTopics = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [topics, location.search]);
 
+  const requireAuthForAction = useCallback((message = 'Please log in or create an account to save this topic.') => {
+    if (isAuthenticated) return true;
+    showToast(message, 'info');
+    navigate('/login', { state: { from: location.pathname + location.search } });
+    return false;
+  }, [isAuthenticated, location.pathname, location.search, navigate]);
+
   const allDepartments = useMemo(() => {
     const map = new Map();
     topics.forEach((topic) => {
@@ -88,7 +97,7 @@ const CandidateInternshipTopics = () => {
     <div className={styles.page}>
       <div className={styles.header}>
         <h1>Internship Research Topics</h1>
-        <p>Browse proposed research directions and open one to see full guidance and community feedback.</p>
+        <p>Browse proposed research directions and open one to see a preview. Sign in to save topics and join the feedback loop.</p>
       </div>
 
       <div className={styles.filters}>
@@ -169,6 +178,7 @@ const CandidateInternshipTopics = () => {
                 type="button"
                 className={styles.actionBtn}
                 onClick={async () => {
+                  if (!requireAuthForAction()) return;
                   try {
                     const payload = { content_type: 'internship_topic', content_title: topic.title || 'Topic', action: 'save' };
                     await api.post('/candidate/history/add', payload);

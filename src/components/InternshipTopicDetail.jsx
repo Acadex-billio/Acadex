@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useNavigate, useLocation, useParams } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
 import styles from '../Astyles/internshipTopicsCandidate.module.css';
 import { getErrorMessage } from '../utility/getErrorMessage';
@@ -7,8 +8,12 @@ import { showToast } from '../utility/ToastNotification';
 import GraduationCapLoader from './GraduationCapLoader';
 import * as PhosphorIcons from 'phosphor-react';
 
-const InternshipTopicDetail = () => {
+const InternshipTopicDetail = ({ previewMode = false }) => {
   const { topicId } = useParams();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { isAuthenticated } = useAuth();
+  const isPreviewRoute = previewMode || location.pathname.includes('/preview/');
   const [loading, setLoading] = useState(true);
   const [topic, setTopic] = useState(null);
   const [busyAction, setBusyAction] = useState('');
@@ -30,6 +35,19 @@ const InternshipTopicDetail = () => {
     loadTopic();
   }, [loadTopic]);
 
+  useEffect(() => {
+    if (!topicId) return;
+    if (isAuthenticated || isPreviewRoute) return;
+    navigate(`/candidate/internship-topics/preview/${encodeURIComponent(topicId)}`, { replace: true });
+  }, [isAuthenticated, isPreviewRoute, navigate, topicId]);
+
+  const requireAuthForAction = (message = 'Please log in or create an account to access the full topic experience.') => {
+    if (isAuthenticated) return true;
+    showToast(message, 'info');
+    navigate('/login', { state: { from: location.pathname + location.search } });
+    return false;
+  };
+
   const submitRating = async (stars) => {
     setBusyAction('rating');
     try {
@@ -43,6 +61,7 @@ const InternshipTopicDetail = () => {
   };
 
   const toggleRecommend = async () => {
+    if (!requireAuthForAction()) return;
     setBusyAction('recommend');
     try {
       const { data } = await api.post(`/candidate/internship-topics/${encodeURIComponent(topicId)}/recommend`);
@@ -55,6 +74,7 @@ const InternshipTopicDetail = () => {
   };
 
   const setReaction = async (type) => {
+    if (!requireAuthForAction()) return;
     setBusyAction(type);
     try {
       const { data } = await api.post(`/candidate/internship-topics/${encodeURIComponent(topicId)}/reaction`, { type });
@@ -112,7 +132,8 @@ const InternshipTopicDetail = () => {
   };
 
   const handleShare = async (platform) => {
-    const pageUrl = window.location.href;
+    const shareBaseUrl = `${window.location.origin}/candidate/internship-topics/preview/${encodeURIComponent(topicId || '')}`;
+    const pageUrl = isPreviewRoute ? `${window.location.origin}${location.pathname}` : shareBaseUrl;
     const title = topic.title || 'Internship research topic';
     const departments = Array.isArray(topic.departments)
       ? topic.departments.map((dept) => dept.department_name || dept.abbreviation).filter(Boolean)
@@ -173,6 +194,12 @@ const InternshipTopicDetail = () => {
   return (
     <div className={styles.page}>
       <Link className={styles.backLink} to="/candidate/internship-topics">← Back to topics</Link>
+
+      {!isAuthenticated && (
+        <div className={styles.authGateNotice}>
+          <strong>Preview mode:</strong> you can review this topic without an account. Sign in or create an account to save it, rate it, and join the feedback experience.
+        </div>
+      )}
 
       <div className={styles.detailLayout}>
         <article className={styles.detailCard}>
@@ -270,47 +297,55 @@ const InternshipTopicDetail = () => {
         <aside className={styles.sidebar}>
           <div className={styles.sidebarCard}>
             <div className={styles.sidebarHeading}>Your feedback</div>
-            <div className={styles.feedbackRow}>
-              <span>Rate this topic</span>
-              <div className={styles.stars}>
-                {starButtons.map((star) => (
-                  <button
-                    key={star}
-                    type="button"
-                    className={`${styles.starBtn} ${Number(topic.my_feedback?.stars || 0) >= star ? styles.starActive : ''}`}
-                    disabled={busyAction === 'rating'}
-                    onClick={() => submitRating(star)}
-                  >
-                    ★
-                  </button>
-                ))}
+            {!isAuthenticated ? (
+              <div className={styles.feedbackRow}>
+                <button type="button" className={styles.actionBtn} onClick={() => requireAuthForAction()}>Sign in to rate or react</button>
               </div>
-            </div>
+            ) : (
+              <>
+                <div className={styles.feedbackRow}>
+                  <span>Rate this topic</span>
+                  <div className={styles.stars}>
+                    {starButtons.map((star) => (
+                      <button
+                        key={star}
+                        type="button"
+                        className={`${styles.starBtn} ${Number(topic.my_feedback?.stars || 0) >= star ? styles.starActive : ''}`}
+                        disabled={busyAction === 'rating'}
+                        onClick={() => submitRating(star)}
+                      >
+                        ★
+                      </button>
+                    ))}
+                  </div>
+                </div>
 
-            <div className={styles.feedbackRow}>
-              <button type="button" className={styles.actionBtn} disabled={busyAction === 'recommend'} onClick={toggleRecommend}>
-                {topic.my_feedback?.recommended ? 'Recommended' : 'Recommend'}
-              </button>
-            </div>
+                <div className={styles.feedbackRow}>
+                  <button type="button" className={styles.actionBtn} disabled={busyAction === 'recommend'} onClick={toggleRecommend}>
+                    {topic.my_feedback?.recommended ? 'Recommended' : 'Recommend'}
+                  </button>
+                </div>
 
-            <div className={styles.feedbackRow}>
-              <button
-                type="button"
-                className={`${styles.actionBtn} ${topic.my_feedback?.reaction === 'up' ? styles.selected : ''}`}
-                disabled={busyAction === 'up'}
-                onClick={() => setReaction('up')}
-              >
-                👍 Positive
-              </button>
-              <button
-                type="button"
-                className={`${styles.actionBtn} ${topic.my_feedback?.reaction === 'down' ? styles.selected : ''}`}
-                disabled={busyAction === 'down'}
-                onClick={() => setReaction('down')}
-              >
-                👎 Negative
-              </button>
-            </div>
+                <div className={styles.feedbackRow}>
+                  <button
+                    type="button"
+                    className={`${styles.actionBtn} ${topic.my_feedback?.reaction === 'up' ? styles.selected : ''}`}
+                    disabled={busyAction === 'up'}
+                    onClick={() => setReaction('up')}
+                  >
+                    👍 Positive
+                  </button>
+                  <button
+                    type="button"
+                    className={`${styles.actionBtn} ${topic.my_feedback?.reaction === 'down' ? styles.selected : ''}`}
+                    disabled={busyAction === 'down'}
+                    onClick={() => setReaction('down')}
+                  >
+                    👎 Negative
+                  </button>
+                </div>
+              </>
+            )}
           </div>
 
           <div className={styles.sidebarCard}>

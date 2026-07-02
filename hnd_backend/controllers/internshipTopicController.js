@@ -295,19 +295,15 @@ exports.deleteTopic = async (req, res) => {
 exports.listCandidateTopics = async (req, res) => {
   try {
     const candId = String(req.user?.cand_id || '').trim();
-    if (!candId) return res.status(401).json({ success: false, message: 'Unauthorized' });
-
-    const program = normalizeProgram(req.user?.program || 'HND');
     const search = String(req.query?.q || '').trim();
     const departmentFilter = String(req.query?.department_id || '').trim();
     const minRating = Math.max(0, Math.min(5, Number(req.query?.min_rating || 0)));
     const sortBy = String(req.query?.sort || 'newest').trim().toLowerCase();
 
-    const programQuery = ALLOWED_PROGRAMS.includes(program) ? { $or: [{ programs: program }, { program }] } : {};
-    let query = { ...programQuery };
+    let query = {};
 
     if (search) {
-      const searchCriteria = {
+      query = {
         $or: [
           { title: { $regex: search, $options: 'i' } },
           { description: { $regex: search, $options: 'i' } },
@@ -315,13 +311,12 @@ exports.listCandidateTopics = async (req, res) => {
           { keywords: { $in: [new RegExp(search, 'i')] } },
         ],
       };
-      query = Object.keys(programQuery).length ? { $and: [programQuery, searchCriteria] } : searchCriteria;
     }
 
     if (departmentFilter) {
       const deptCriteria = { department_ids: departmentFilter };
-      if (query.$and) {
-        query.$and.push(deptCriteria);
+      if (query.$or) {
+        query = { $and: [query, deptCriteria] };
       } else if (Object.keys(query).length) {
         query = { $and: [query, deptCriteria] };
       } else {
@@ -359,10 +354,9 @@ exports.listCandidateTopics = async (req, res) => {
 exports.getCandidateTopicDetail = async (req, res) => {
   try {
     const candId = String(req.user?.cand_id || '').trim();
-    const program = normalizeProgram(req.user?.program || 'HND');
     const topicId = String(req.params?.topicId || '').trim();
 
-    const topic = await InternshipTopic.findOne({ _id: topicId, $or: [{ programs: program }, { program }] }).lean();
+    const topic = await InternshipTopic.findById(topicId).lean();
     if (!topic) return res.status(404).json({ success: false, message: 'Topic not found' });
 
     const departments = await getDepartmentsForTopics([topic]);

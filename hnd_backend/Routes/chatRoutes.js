@@ -1,4 +1,5 @@
 const express = require('express');
+const path = require('path');
 const router = express.Router();
 const multer = require('multer');
 
@@ -11,14 +12,19 @@ const chatUpload = multer({
 	storage: multer.memoryStorage(),
 	limits: { fileSize: 10 * 1024 * 1024 },
 	fileFilter: (_req, file, cb) => {
+		const mime = String(file.mimetype || '').toLowerCase();
+		const ext = path.extname(String(file.originalname || '')).toLowerCase();
 		const allowedMime = [
 			'application/pdf',
 			'image/jpeg',
 			'image/png',
 			'image/webp',
 			'image/gif',
+			'application/msword',
+			'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
 		];
-		if (allowedMime.includes(String(file.mimetype || '').toLowerCase())) return cb(null, true);
+		const allowedExt = ['.pdf', '.doc', '.docx', '.jpg', '.jpeg', '.png', '.webp', '.gif'];
+		if (allowedMime.includes(mime) || allowedExt.includes(ext)) return cb(null, true);
 		return cb(new multer.MulterError('LIMIT_UNEXPECTED_FILE', 'Unsupported attachment type'));
 	},
 });

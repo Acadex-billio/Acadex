@@ -76,6 +76,9 @@ const GroupChat = ({ mode = 'candidate' }) => {
   const [searchingUsers, setSearchingUsers] = useState(false);
   const [replyingTo, setReplyingTo] = useState(null);
   const [highlightedMessageId, setHighlightedMessageId] = useState('');
+  const [mentionQuery, setMentionQuery] = useState('');
+  const [mentionResults, setMentionResults] = useState([]);
+  const [selectedMentions, setSelectedMentions] = useState([]);
   const [attachmentObjectUrls, setAttachmentObjectUrls] = useState({});
   const [attachmentThumbUrls, setAttachmentThumbUrls] = useState({});
   const [loadingAttachmentIds, setLoadingAttachmentIds] = useState({});
@@ -501,6 +504,32 @@ const GroupChat = ({ mode = 'candidate' }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [refreshRooms]);
 
+  useEffect(() => {
+    const match = input.match(/(^|\s)@([a-zA-Z0-9_.-]*)$/);
+    const nextQuery = match?.[2] || '';
+    setMentionQuery(nextQuery);
+
+    if (!nextQuery) {
+      setMentionResults([]);
+      return;
+    }
+
+    const q = nextQuery.trim().toLowerCase();
+    const filtered = members.filter((member) => {
+      const label = `${member.name || ''} ${member.cand_id || ''}`.toLowerCase();
+      return label.includes(q);
+    }).slice(0, 6);
+    setMentionResults(filtered);
+  }, [input, members]);
+
+  const onSelectMention = (member) => {
+    const nextValue = input.replace(/(^|\s)@([a-zA-Z0-9_.-]*)$/, `$1@${member.name || member.cand_id} `);
+    setInput(nextValue);
+    setSelectedMentions((prev) => (prev.includes(member.cand_id) ? prev : [...prev, member.cand_id]));
+    setMentionQuery('');
+    setMentionResults([]);
+  };
+
   const onSend = async () => {
     if (!activeRoomId) return;
     if (!canType) return;
@@ -509,8 +538,12 @@ const GroupChat = ({ mode = 'candidate' }) => {
     setInput('');
     const pendingAttachment = selectedAttachment;
     const pendingReply = replyingTo;
+    const pendingMentions = selectedMentions;
     setSelectedAttachment(null);
     setReplyingTo(null);
+    setSelectedMentions([]);
+    setMentionQuery('');
+    setMentionResults([]);
     const optimisticId = `temp-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 
     const optimisticMessage = {
@@ -545,6 +578,7 @@ const GroupChat = ({ mode = 'candidate' }) => {
       if (text) payload.append('text', text);
       if (pendingAttachment) payload.append('attachment', pendingAttachment);
       if (pendingReply?._id) payload.append('reply_to_message_id', String(pendingReply._id));
+      if (pendingMentions.length) payload.append('mentions', JSON.stringify(pendingMentions));
 
       const { data: sent } = await api.post(`/chat/rooms/${encodeURIComponent(activeRoomId)}/messages`, payload, {
         headers: { 'Content-Type': 'multipart/form-data' },
@@ -597,6 +631,7 @@ const GroupChat = ({ mode = 'candidate' }) => {
       setMessages((ms) => ms.filter((m) => String(m._id) !== optimisticId));
       if (pendingAttachment) setSelectedAttachment(pendingAttachment);
       if (pendingReply) setReplyingTo(pendingReply);
+      setSelectedMentions(pendingMentions);
       setInput(text);
       showToast(getErrorMessage(err, 'Failed to send message'), 'error');
     }
@@ -1425,6 +1460,11 @@ const GroupChat = ({ mode = 'candidate' }) => {
                   placeholder="Type a message…"
                   disabled={!canType}
                   onKeyDown={(e) => {
+                    if (e.key === 'Enter' && mentionResults.length && mentionQuery) {
+                      e.preventDefault();
+                      onSelectMention(mentionResults[0]);
+                      return;
+                    }
                     if (e.key === 'Enter') onSend();
                   }}
                 />
@@ -1464,6 +1504,22 @@ const GroupChat = ({ mode = 'candidate' }) => {
                       theme="light"
                       previewPosition="none"
                     />
+                  </div>
+                )}
+
+                {mentionResults.length > 0 && (
+                  <div className={styles.mentionDropdown}>
+                    {mentionResults.map((member) => (
+                      <button
+                        key={member.cand_id}
+                        type="button"
+                        className={styles.mentionOption}
+                        onClick={() => onSelectMention(member)}
+                      >
+                        <span>{member.name || member.cand_id}</span>
+                        <span className={styles.mentionMeta}>{member.cand_id}</span>
+                      </button>
+                    ))}
                   </div>
                 )}
 
