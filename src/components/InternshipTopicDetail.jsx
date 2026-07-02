@@ -18,7 +18,6 @@ const InternshipTopicDetail = ({ previewMode = false }) => {
   const [topic, setTopic] = useState(null);
   const [busyAction, setBusyAction] = useState('');
   const [showAuthPrompt, setShowAuthPrompt] = useState(false);
-  const authPromptTimeoutRef = useRef(null);
   const authPromptIntervalRef = useRef(null);
 
   const loadTopic = useCallback(async () => {
@@ -45,18 +44,25 @@ const InternshipTopicDetail = ({ previewMode = false }) => {
   }, [isAuthenticated, isPreviewRoute, navigate, topicId]);
 
   useEffect(() => {
+    // Only run prompt logic on preview routes for unauthenticated users
     if (isAuthenticated || !isPreviewRoute) {
       setShowAuthPrompt(false);
       return undefined;
     }
 
-    const showPrompt = () => setShowAuthPrompt(true);
-    authPromptTimeoutRef.current = window.setTimeout(showPrompt, 8000);
-    authPromptIntervalRef.current = window.setInterval(showPrompt, 20000);
+    // show immediately and then every 20s if closed
+    setShowAuthPrompt(true);
+    // prevent body scroll while modal is visible
+    document.body.style.overflow = 'hidden';
+
+    authPromptIntervalRef.current = window.setInterval(() => {
+      setShowAuthPrompt(true);
+      document.body.style.overflow = 'hidden';
+    }, 20000);
 
     return () => {
-      window.clearTimeout(authPromptTimeoutRef.current);
       window.clearInterval(authPromptIntervalRef.current);
+      document.body.style.overflow = '';
     };
   }, [isAuthenticated, isPreviewRoute]);
 
@@ -222,18 +228,42 @@ const InternshipTopicDetail = ({ previewMode = false }) => {
 
       {showAuthPrompt && (
         <div className={styles.authPromptOverlay} role="dialog" aria-modal="true">
-          <div className={styles.authPromptCard}>
-            <h2>Unlock full access to internship topics</h2>
-            <p>Login or register now — it takes 2 minutes to join and access thousands of internship research topics.</p>
+          <div className={styles.authPromptCard} onClick={(e) => e.stopPropagation()}>
+            <h2>You're Current Viewing this Topic as a GUEST</h2>
+            <p>To have full access to this entire topic and more simplified steps, You are Required to LOG-IN or REGISTER.
+After Authentication, you also get access to other Thousands of Interesting Topics For your department and program. Not limited to topics, explore all materials available on acadex</p>
             <div className={styles.authPromptActions}>
-              <button type="button" className={styles.authPromptButtonPrimary} onClick={() => { setShowAuthPrompt(false); navigate('/login', { state: { from: location.pathname + location.search } }); }}>
+              <button
+                type="button"
+                className={styles.authPromptButtonPrimary}
+                onClick={() => {
+                  setShowAuthPrompt(false);
+                  document.body.style.overflow = '';
+                  navigate('/login', { state: { from: location.pathname + location.search } });
+                }}
+              >
                 Login
               </button>
-              <button type="button" className={styles.authPromptButtonSecondary} onClick={() => { setShowAuthPrompt(false); navigate('/register', { state: { from: location.pathname + location.search } }); }}>
+              <button
+                type="button"
+                className={styles.authPromptButtonSecondary}
+                onClick={() => {
+                  setShowAuthPrompt(false);
+                  document.body.style.overflow = '';
+                  navigate('/register', { state: { from: location.pathname + location.search } });
+                }}
+              >
                 Register
               </button>
             </div>
-            <button type="button" className={styles.authPromptClose} onClick={() => setShowAuthPrompt(false)}>
+            <button
+              type="button"
+              className={styles.authPromptClose}
+              onClick={() => {
+                setShowAuthPrompt(false);
+                document.body.style.overflow = '';
+              }}
+            >
               Maybe later
             </button>
           </div>

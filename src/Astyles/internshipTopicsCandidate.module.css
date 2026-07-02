@@ -401,6 +401,79 @@
   height: 20px;
 }
 
+/* Auth prompt modal (global) */
+.authPromptOverlay {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(16, 39, 59, 0.45);
+  padding: 24px;
+  z-index: 1200;
+}
+
+.authPromptCard {
+  width: 100%;
+  max-width: 720px;
+  border-radius: 12px;
+  padding: 24px;
+  background: #ffffff;
+  box-shadow: 0 22px 48px rgba(15, 77, 79, 0.18);
+  text-align: left;
+}
+
+.authPromptCard h2 {
+  margin: 0 0 10px;
+  font-size: 24px;
+  line-height: 1.1;
+  color: #0c4e6d;
+}
+
+.authPromptCard p {
+  margin: 0 0 18px;
+  color: #4c6c7c;
+  line-height: 1.6;
+  font-size: 15px;
+}
+
+.authPromptActions {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.authPromptButtonPrimary,
+.authPromptButtonSecondary {
+  border-radius: 999px;
+  padding: 12px 18px;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.authPromptButtonPrimary {
+  background: linear-gradient(135deg, #0f7a44 0%, #1b8c50 100%);
+  color: #ffffff;
+  border: none;
+}
+
+.authPromptButtonSecondary {
+  background: #eef8ef;
+  color: #1f6d32;
+  border: 1px solid #cbe8d3;
+}
+
+.authPromptClose {
+  margin-top: 12px;
+  display: inline-block;
+  border: none;
+  background: transparent;
+  color: #5d7280;
+  font-size: 13px;
+  cursor: pointer;
+}
+
 @media (max-width: 920px) {
   .filters {
     grid-template-columns: 1fr;
