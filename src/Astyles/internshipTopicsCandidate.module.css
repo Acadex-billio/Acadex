@@ -409,4 +409,114 @@
   .detailLayout {
     grid-template-columns: 1fr;
   }
+
+  .detailCard {
+    padding: 18px;
+  }
+
+  .detailCard h1 {
+    font-size: 24px;
+    line-height: 1.15;
+  }
+
+  .topicIconWrap {
+    width: 56px;
+    height: 56px;
+    margin-right: 12px;
+  }
+
+  .topicIcon {
+    font-size: 22px;
+  }
+
+  .sectionHeading {
+    font-size: 15px;
+  }
+
+  .metrics {
+    gap: 12px;
+    font-size: 12px;
+  }
+
+  .programBadge {
+    padding: 6px 10px;
+    font-size: 11px;
+  }
+
+  .authGateNotice {
+    font-size: 13px;
+  }
+
+  .authPromptOverlay {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    background: rgba(16, 39, 59, 0.45);
+    padding: 18px;
+    z-index: 1200;
+  }
+
+  .authPromptCard {
+    width: 100%;
+    max-width: 480px;
+    border-radius: 20px;
+    padding: 20px;
+    background: #ffffff;
+    box-shadow: 0 22px 48px rgba(15, 77, 79, 0.18);
+    text-align: left;
+  }
+
+  .authPromptCard h2 {
+    margin: 0 0 10px;
+    font-size: 20px;
+    line-height: 1.2;
+    color: #0c4e6d;
+  }
+
+  .authPromptCard p {
+    margin: 0 0 18px;
+    color: #4c6c7c;
+    line-height: 1.6;
+    font-size: 14px;
+  }
+
+  .authPromptActions {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .authPromptButtonPrimary,
+  .authPromptButtonSecondary {
+    width: 100%;
+    border-radius: 999px;
+    padding: 14px 16px;
+    font-size: 14px;
+    font-weight: 700;
+  }
+
+  .authPromptButtonPrimary {
+    background: linear-gradient(135deg, #0f7a44 0%, #1b8c50 100%);
+    color: #ffffff;
+    border: none;
+  }
+
+  .authPromptButtonSecondary {
+    background: #eef8ef;
+    color: #1f6d32;
+    border: 1px solid #cbe8d3;
+  }
+
+  .authPromptClose {
+    margin-top: 12px;
+    width: 100%;
+    border: none;
+    background: transparent;
+    color: #5d7280;
+    font-size: 13px;
+    text-align: center;
+    cursor: pointer;
+  }
 }

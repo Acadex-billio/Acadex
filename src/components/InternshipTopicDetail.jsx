@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useLocation, useParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
@@ -17,6 +17,9 @@ const InternshipTopicDetail = ({ previewMode = false }) => {
   const [loading, setLoading] = useState(true);
   const [topic, setTopic] = useState(null);
   const [busyAction, setBusyAction] = useState('');
+  const [showAuthPrompt, setShowAuthPrompt] = useState(false);
+  const authPromptTimeoutRef = useRef(null);
+  const authPromptIntervalRef = useRef(null);
 
   const loadTopic = useCallback(async () => {
     setLoading(true);
@@ -40,6 +43,22 @@ const InternshipTopicDetail = ({ previewMode = false }) => {
     if (isAuthenticated || isPreviewRoute) return;
     navigate(`/candidate/internship-topics/preview/${encodeURIComponent(topicId)}`, { replace: true });
   }, [isAuthenticated, isPreviewRoute, navigate, topicId]);
+
+  useEffect(() => {
+    if (isAuthenticated || !isPreviewRoute) {
+      setShowAuthPrompt(false);
+      return undefined;
+    }
+
+    const showPrompt = () => setShowAuthPrompt(true);
+    authPromptTimeoutRef.current = window.setTimeout(showPrompt, 8000);
+    authPromptIntervalRef.current = window.setInterval(showPrompt, 20000);
+
+    return () => {
+      window.clearTimeout(authPromptTimeoutRef.current);
+      window.clearInterval(authPromptIntervalRef.current);
+    };
+  }, [isAuthenticated, isPreviewRoute]);
 
   const requireAuthForAction = (message = 'Please log in or create an account to access the full topic experience.') => {
     if (isAuthenticated) return true;
@@ -198,6 +217,26 @@ const InternshipTopicDetail = ({ previewMode = false }) => {
       {!isAuthenticated && (
         <div className={styles.authGateNotice}>
           <strong>Preview mode:</strong> you can review this topic without an account. Sign in or create an account to save it, rate it, and join the feedback experience.
+        </div>
+      )}
+
+      {showAuthPrompt && (
+        <div className={styles.authPromptOverlay} role="dialog" aria-modal="true">
+          <div className={styles.authPromptCard}>
+            <h2>Unlock full access to internship topics</h2>
+            <p>Login or register now — it takes 2 minutes to join and access thousands of internship research topics.</p>
+            <div className={styles.authPromptActions}>
+              <button type="button" className={styles.authPromptButtonPrimary} onClick={() => { setShowAuthPrompt(false); navigate('/login', { state: { from: location.pathname + location.search } }); }}>
+                Login
+              </button>
+              <button type="button" className={styles.authPromptButtonSecondary} onClick={() => { setShowAuthPrompt(false); navigate('/register', { state: { from: location.pathname + location.search } }); }}>
+                Register
+              </button>
+            </div>
+            <button type="button" className={styles.authPromptClose} onClick={() => setShowAuthPrompt(false)}>
+              Maybe later
+            </button>
+          </div>
         </div>
       )}
 
