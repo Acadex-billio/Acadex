@@ -81,6 +81,9 @@ const CandidateInternshipTopics = () => {
     return Array.from(map.values());
   }, [topics]);
 
+  const authButtonLabel = isAuthenticated ? 'Back to dashboard' : 'Register / Authenticate now';
+  const authButtonLink = isAuthenticated ? '/candidate/dashboard' : '/login';
+
   if (loading) {
     return <GraduationCapLoader fullscreen label="Loading research topics..." />;
   }
@@ -96,8 +99,11 @@ const CandidateInternshipTopics = () => {
   return (
     <div className={styles.page}>
       <div className={styles.header}>
-        <h1>Internship Research Topics</h1>
-        <p>Browse proposed research directions and open one to see a preview. Sign in to save topics and join the feedback loop.</p>
+        <div>
+          <h1>Internship Research Topics</h1>
+          <p>Browse proposed research directions and open one to see a preview. Sign in to save topics and join the feedback loop.</p>
+        </div>
+        <Link to={authButtonLink} className={styles.authButton}>{authButtonLabel}</Link>
       </div>
 
       <div className={styles.filters}>
