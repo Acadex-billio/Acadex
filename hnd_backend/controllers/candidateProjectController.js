@@ -1,6 +1,8 @@
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
+const http = require('http');
+const https = require('https');
 const { spawn } = require('child_process');
 const { pipeline } = require('stream/promises');
 const mongoose = require('mongoose');
@@ -50,6 +52,23 @@ const writeS3ObjectToFile = async (source, destinationPath) => {
   const writeStream = fs.createWriteStream(destinationPath);
   await pipeline(readStream, writeStream);
   return true;
+};
+
+const downloadHttpToFile = async (sourceUrl, destinationPath) => {
+  await fs.promises.mkdir(path.dirname(destinationPath), { recursive: true });
+  const client = sourceUrl.startsWith('https://') ? https : http;
+  return new Promise((resolve, reject) => {
+    const request = client.get(sourceUrl, (response) => {
+      if (response.statusCode !== 200) {
+        return reject(new Error(`Failed to download file: HTTP ${response.statusCode}`));
+      }
+      const writeStream = fs.createWriteStream(destinationPath);
+      pipeline(response, writeStream)
+        .then(resolve)
+        .catch(reject);
+    });
+    request.on('error', reject);
+  });
 };
 
 const runLibreOfficeConvert = (command, sourcePath, outputDir) =>
@@ -394,11 +413,23 @@ exports.previewSubmissionFile = async (req, res) => {
 
     const sourceName = submission.file_name || path.basename(String(submission.file_path || 'submission').replace(/^\/+/, ''));
     const sourcePath = path.join(previewCacheDir, sourceName);
+    const filePathValue = String(submission.file_path || '').trim();
 
-    if (String(submission.file_path || '').startsWith('http')) {
-      await writeS3ObjectToFile(submission.file_path, sourcePath);
+    if (!filePathValue) {
+      return res.status(404).json({ success: false, message: 'Submission file path is missing.' });
+    }
+
+    if (/^https?:\/\//i.test(filePathValue)) {
+      await downloadHttpToFile(filePathValue, sourcePath);
+    } else if (filePathValue.startsWith('/uploads/') || filePathValue.startsWith('uploads/')) {
+      const localPath = path.join(__dirname, '..', filePathValue.replace(/^\/+/, ''));
+      if (!fs.existsSync(localPath)) {
+        return res.status(404).json({ success: false, message: 'Submission file not found.' });
+      }
+      await fs.promises.copyFile(localPath, sourcePath);
     } else {
-      const localPath = path.join(__dirname, '..', String(submission.file_path || '').replace(/^\/+/, ''));
+      // Fallback: try local relative path as stored
+      const localPath = path.join(__dirname, '..', filePathValue);
       if (!fs.existsSync(localPath)) {
         return res.status(404).json({ success: false, message: 'Submission file not found.' });
       }
