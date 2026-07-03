@@ -56,6 +56,25 @@ function parseKeywords(v) {
   return coerceStringArray(v).map((keyword) => keyword.toLowerCase());
 }
 
+function buildSearchQuery(search) {
+  const normalized = String(search || '').trim();
+  if (!normalized) return null;
+  return {
+    $or: [
+      { title: { $regex: normalized, $options: 'i' } },
+      { description: { $regex: normalized, $options: 'i' } },
+      { research_guide: { $regex: normalized, $options: 'i' } },
+      { keywords: { $in: [new RegExp(normalized, 'i')] } },
+    ],
+  };
+}
+
+function combineQuery(query, clause) {
+  if (!clause) return query;
+  if (!query || !Object.keys(query).length) return clause;
+  return { $and: [query, clause] };
+}
+
 function buildDepartmentMap(departments) {
   return new Map((departments || []).map((d) => [String(d._id), d]));
 }
@@ -206,7 +225,8 @@ exports.listAdminTopics = async (req, res) => {
 
     const search = String(req.query?.q || '').trim();
     if (search) {
-      query.$text = { $search: search };
+      const searchQuery = buildSearchQuery(search);
+      query = combineQuery(query, searchQuery);
     }
 
     const [rows, total] = await Promise.all([
