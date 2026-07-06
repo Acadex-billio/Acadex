@@ -82,7 +82,7 @@ const CandidateInternshipTopics = () => {
   }, [topics]);
 
   const authButtonLabel = isAuthenticated ? 'Back to dashboard' : 'Register / Authenticate now';
-  const authButtonLink = isAuthenticated ? '/candidate/dashboard' : '/login';
+  const authButtonLink = isAuthenticated ? '/candidate' : '/login';
 
   if (loading) {
     return <GraduationCapLoader fullscreen label="Loading research topics..." />;

@@ -13,6 +13,7 @@ const { uploadFile, getS3ObjectStream } = require('../utils/s3Uploader');
 const { resolveSubscription } = require('../utils/subscriptionUtils');
 const { getCenterPricing } = require('../utils/subscriptionCatalog');
 const { consumeCenterAuthorization } = require('./subscriptionController');
+const materialAccessService = require('../services/materialAccessService');
 
 const INVITE_LEN_BYTES = 9; // 12 chars base64url-ish after sanitize
 
@@ -912,7 +913,8 @@ exports.createCenter = async (req, res) => {
     if (!name) return res.status(400).json({ success: false, message: 'Center name is required' });
     if (!description) return res.status(400).json({ success: false, message: 'Center description is required' });
 
-    if (subscription.plan === 'basic') {
+    const hasCenterAccess = await materialAccessService.hasActiveAccess(candId, room?._id || '', 'center', 'preview').catch(() => false);
+    if (subscription.plan === 'basic' && !hasCenterAccess) {
       return res.status(403).json({
         success: false,
         code: 'PLAN_UPGRADE_REQUIRED',
@@ -920,7 +922,7 @@ exports.createCenter = async (req, res) => {
       });
     }
 
-    if (subscription.plan === 'paygo') {
+    if (subscription.plan === 'paygo' && !hasCenterAccess) {
       if (!paymentTransactionId) {
         const pricing = await getCenterPricing('create', subscription.plan || 'paygo');
         return res.status(402).json({
@@ -1083,7 +1085,8 @@ exports.respondToInvite = async (req, res) => {
     if (status === 'accepted') {
       const room = await ChatRoom.findById(invite.room_id).select('type program').lean();
       if (room && room.type === 'center' && String(room.program || 'HND').toUpperCase() === program) {
-        if (subscription.plan === 'basic') {
+        const hasCenterAccess = await materialAccessService.hasActiveAccess(candId, String(invite.room_id), 'center', 'preview').catch(() => false);
+        if (subscription.plan === 'basic' && !hasCenterAccess) {
           await ChatInvite.updateOne({ _id: inviteId }, { $set: { status: 'pending', responded_at: null } });
           return res.status(403).json({
             success: false,
@@ -1092,7 +1095,7 @@ exports.respondToInvite = async (req, res) => {
           });
         }
 
-        if (subscription.plan === 'paygo') {
+        if (subscription.plan === 'paygo' && !hasCenterAccess) {
           if (!paymentTransactionId) {
             const pricing = await getCenterPricing('join', subscription.plan || 'paygo');
             await ChatInvite.updateOne({ _id: inviteId }, { $set: { status: 'pending', responded_at: null } });

@@ -1,9 +1,18 @@
 const express = require('express');
 const router = express.Router();
+const mongoose = require('mongoose');
 const { requireAuth } = require('../middlewares/jwtAuth');
 const materialAccessService = require('../services/materialAccessService');
 const paymentCallbackService = require('../services/paymentCallbackService');
+const User = require('../models/User');
 const { getMaterialAccessInfo } = require('../middlewares/materialAccessMiddleware');
+
+async function resolveAccessUserId(value) {
+  if (!value) return null;
+  if (mongoose.Types.ObjectId.isValid(value)) return value;
+  const user = await User.findOne({ cand_id: String(value).trim() }).select('_id').lean();
+  return user?._id || null;
+}
 
 /**
  * GET /api/material-access/check
@@ -90,6 +99,46 @@ router.get('/my-accesses', requireAuth, async (req, res) => {
       message: 'Error fetching accesses',
       error: error.message,
     });
+  }
+});
+
+router.get('/users/:userId/accesses', requireAuth, async (req, res) => {
+  try {
+    const targetUserId = String(req.params.userId || '').trim();
+    const requesterRole = String(req.user?.role || '').trim().toLowerCase();
+    const requesterCandId = String(req.user?.cand_id || '').trim();
+    const requesterObjectId = String(req.user?.id || req.user?._id || '').trim();
+
+    const canView = requesterRole === 'admin' || requesterRole === 'developer' || targetUserId === requesterObjectId || targetUserId === requesterCandId;
+    if (!canView) {
+      return res.status(403).json({ success: false, message: 'Not authorized to view access grants for this user.' });
+    }
+
+    const resolvedUserId = await resolveAccessUserId(targetUserId);
+    if (!resolvedUserId) {
+      return res.status(404).json({ success: false, message: 'User not found.' });
+    }
+
+    const accesses = await materialAccessService.getUserActiveAccesses(resolvedUserId);
+    const accessesWithRemaining = accesses.map((access) => ({
+      id: access._id,
+      materialId: access.materialId,
+      materialType: access.materialType,
+      accessType: access.accessType,
+      grantedAt: access.grantedAt,
+      expiresAt: access.expiresAt,
+      remainingTime: Math.ceil((access.expiresAt - new Date()) / 1000),
+    }));
+
+    return res.json({
+      success: true,
+      userId: targetUserId,
+      count: accessesWithRemaining.length,
+      accesses: accessesWithRemaining,
+    });
+  } catch (error) {
+    console.error('Error fetching user access grants:', error);
+    return res.status(500).json({ success: false, message: 'Error fetching access grants', error: error.message });
   }
 });
 

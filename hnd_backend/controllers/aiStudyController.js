@@ -4,6 +4,7 @@ const mongoose = require('mongoose');
 const QuestionPaper = require('../models/QuestionPaper');
 const AiStudyMaterial = require('../models/AiStudyMaterial');
 const AiStudySession = require('../models/AiStudySession');
+const materialAccessService = require('../services/materialAccessService');
 
 const STUDY_LIMIT = 20;
 
@@ -238,6 +239,11 @@ exports.startStudySession = async (req, res) => {
     }
     if (normalizeProgram(material.program) !== program) {
       return res.status(403).json({ success: false, message: 'You cannot access this study material.' });
+    }
+
+    const hasAiAccess = await materialAccessService.hasActiveAccess(candidateId, String(materialId), 'ai_mode', 'preview').catch(() => false);
+    if (!hasAiAccess) {
+      return res.status(403).json({ success: false, message: 'You need granted access to use AI study mode.' });
     }
 
     const materialDepartments = Array.isArray(material.departments) ? material.departments.map((d) => String(d)) : [];

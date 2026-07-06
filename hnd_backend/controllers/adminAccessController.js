@@ -5,6 +5,7 @@ const QuestionPaper = require('../models/QuestionPaper');
 const Report = require('../models/Report');
 const Presentation = require('../models/Presentation');
 const ChatRoom = require('../models/ChatRoom');
+const { grantMaterialAccess } = require('../services/materialAccessService');
 const { sendEmail } = require('../services/emailService');
 
 function normalizeItemType(raw) {
@@ -235,13 +236,31 @@ exports.findAndGrant = async (req, res) => {
         status: 'grant-success',
         provider_reference: `admin-grant-${Date.now()}`,
         expires_at: expiresAt,
-        meta: { access_type: access_action ? String(access_action).trim() : null },
+        meta: {
+          access_type: access_action ? String(access_action).trim() : null,
+          source: 'admin_grant',
+        },
       });
       if (!grant.item_title && grant.item_id) {
         grant.item_title = String(grant.item_id);
       }
       await grant.save();
-      if (['paper', 'report', 'presentation'].includes(normalizedItemType)) {
+
+      if (['paper', 'report', 'presentation'].includes(normalizedItemType) && grant.item_id) {
+        const materialTypeMap = {
+          paper: 'questionPaper',
+          report: 'report',
+          presentation: 'presentation',
+        };
+        const accessType = String(access_action || 'preview').trim().toLowerCase() === 'download' ? 'download' : 'preview';
+        await grantMaterialAccess(
+          u._id,
+          grant.item_id,
+          materialTypeMap[normalizedItemType] || normalizedItemType,
+          accessType,
+          null,
+          expiresAt
+        );
         await sendMaterialGrantEmail(
           { name: u.name, email: u.email },
           normalizedItemType,
@@ -249,6 +268,16 @@ exports.findAndGrant = async (req, res) => {
           null,
           null,
           access_action
+        );
+      } else if (['center', 'ai_mode'].includes(normalizedItemType)) {
+        const accessType = String(access_action || 'preview').trim().toLowerCase() === 'download' ? 'download' : 'preview';
+        await grantMaterialAccess(
+          u._id,
+          null,
+          normalizedItemType === 'center' ? 'center' : 'ai_mode',
+          accessType,
+          null,
+          expiresAt
         );
       }
       grants.push(grant);

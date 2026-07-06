@@ -14,12 +14,13 @@ async function grantMaterialAccess(
   materialId,
   materialType,
   accessType,
-  paymentTransactionId
+  paymentTransactionId,
+  expiresAtOverride = null
 ) {
   try {
     // Create new access grant
     const grantedAt = new Date();
-    const expiresAt = new Date(grantedAt.getTime() + 60 * 60 * 1000); // 1 hour
+    const expiresAt = expiresAtOverride || new Date(grantedAt.getTime() + 60 * 60 * 1000); // 1 hour
 
     const materialAccess = new MaterialAccess({
       userId,
@@ -53,18 +54,40 @@ const User = require('../models/User');
 async function hasActiveAccess(userId, materialId, materialType, accessType) {
   try {
     // 1) direct MaterialAccess records (admin or payment grants stored in MaterialAccess)
+    const normalizedMaterialId = String(materialId || '').trim();
     const direct = await MaterialAccess.findOne({
       userId,
-      materialId,
       materialType,
       accessType,
       expiresAt: { $gt: new Date() },
+      $or: [
+        { materialId: normalizedMaterialId || null },
+        { materialId: null },
+        { materialId: { $exists: false } },
+      ],
     });
     if (direct) return true;
 
     // 2) consult user subscription and CandidatePurchase/PaymentAccessGrant via subscription utils
     const user = await User.findById(userId).select('cand_id subscription email').lean();
     if (!user) return false;
+
+    const normalizedMaterialType = String(materialType || '').trim();
+    const normalizedMaterialTypeKey = normalizedMaterialType.toLowerCase();
+    if (['ai_mode', 'center', 'chat_room'].includes(normalizedMaterialTypeKey)) {
+      const accessGrant = await MaterialAccess.findOne({
+        userId,
+        materialType: normalizedMaterialTypeKey === 'chat_room' ? 'center' : normalizedMaterialTypeKey,
+        accessType: 'preview',
+        expiresAt: { $gt: new Date() },
+        $or: [
+          { materialId: String(materialId || '').trim() || null },
+          { materialId: null },
+          { materialId: { $exists: false } },
+        ],
+      });
+      if (accessGrant) return true;
+    }
 
     const resolved = resolveSubscription(user.subscription || {});
     const plan = resolved.plan;

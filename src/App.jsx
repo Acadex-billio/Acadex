@@ -53,7 +53,7 @@ const CandidateActivity = lazy(() => import('./components/CandidateActivity'));
 const Documentation = lazy(() => import('./components/Documentation'));
 const TermsOfService = lazy(() => import('./components/TermsOfService'));
 const PrivacyPolicy = lazy(() => import('./components/PrivacyPolicy'));
-const NotFound = lazy(() => import('./components/NotFound'));
+const PageNotFound = lazy(() => import('./components/PageNotFound'));
 const CandidateLecturers = lazy(() => import('./components/CandidateLecturers'));
 const CandidateTutorshipBookings = lazy(() => import('./components/CandidateTutorshipBookings'));
 const LecturerDashboard = lazy(() => import('./components/LecturerDashboard'));
@@ -275,7 +275,7 @@ const App = () => (
               <Route path="/groupchat" element={<Navigate to="/candidate/chat" replace />} />
               <Route path="/can-profile" element={<Navigate to="/candidate/profile" replace />} />
               <Route path="/payment/confirmation" element={<PaymentConfirmation />} />
-              <Route path="*" element={<NotFound />} />
+              <Route path="*" element={<PageNotFound />} />
             </Routes>
           </Suspense>
         </Router>

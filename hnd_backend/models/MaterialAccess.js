@@ -8,12 +8,12 @@ const materialAccessSchema = new mongoose.Schema(
       required: true,
     },
     materialId: {
-      type: mongoose.Schema.Types.ObjectId,
-      required: true,
+      type: mongoose.Schema.Types.Mixed,
+      default: null,
     },
     materialType: {
       type: String,
-      enum: ['questionPaper', 'report', 'presentation'],
+      enum: ['questionPaper', 'report', 'presentation', 'center', 'ai_mode'],
       required: true,
     },
     accessType: {
