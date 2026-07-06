@@ -6,7 +6,7 @@ const promoCodeSchema = Joi.string().trim().uppercase().pattern(/^[A-Z0-9_-]{3,3
 const objectIdSchema = Joi.string().hex().length(24);
 
 const subscriptionCheckoutSchema = Joi.object({
-  planCode: Joi.string().trim().valid('pro', 'paygo').required(),
+  planCode: Joi.string().trim().valid('pro', 'paygo', 'full-package').required(),
   phoneNumber: phoneSchema.required(),
   paymentMethod: Joi.string().trim().valid('momo', 'mtn_momo', 'orange_money').default('momo'),
   promoCode: promoCodeSchema.allow('', null).optional(),
@@ -15,7 +15,7 @@ const subscriptionCheckoutSchema = Joi.object({
 });
 
 const manualSubscriptionCheckoutSchema = Joi.object({
-  planCode: Joi.string().trim().valid('pro', 'paygo').required(),
+  planCode: Joi.string().trim().valid('pro', 'paygo', 'full-package').required(),
   paymentProof: Joi.string().trim().min(6).max(500).required(),
   promoCode: promoCodeSchema.allow('', null).optional(),
   referralCode: promoCodeSchema.allow('', null).optional(),

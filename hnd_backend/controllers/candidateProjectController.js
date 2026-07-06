@@ -54,19 +54,28 @@ const writeS3ObjectToFile = async (source, destinationPath) => {
   return true;
 };
 
-const downloadHttpToFile = async (sourceUrl, destinationPath) => {
+const downloadHttpToFile = async (sourceUrl, destinationPath, redirectCount = 0) => {
   await fs.promises.mkdir(path.dirname(destinationPath), { recursive: true });
   const client = sourceUrl.startsWith('https://') ? https : http;
   return new Promise((resolve, reject) => {
     const request = client.get(sourceUrl, (response) => {
+      if (response.statusCode >= 300 && response.statusCode < 400 && response.headers.location) {
+        if (redirectCount >= 5) {
+          return reject(new Error('Too many redirects while downloading preview file.'));
+        }
+        return resolve(downloadHttpToFile(response.headers.location, destinationPath, redirectCount + 1));
+      }
+
       if (response.statusCode !== 200) {
         return reject(new Error(`Failed to download file: HTTP ${response.statusCode}`));
       }
+
       const writeStream = fs.createWriteStream(destinationPath);
       pipeline(response, writeStream)
         .then(resolve)
         .catch(reject);
     });
+
     request.on('error', reject);
   });
 };
@@ -414,36 +423,81 @@ exports.previewSubmissionFile = async (req, res) => {
     const sourceName = submission.file_name || path.basename(String(submission.file_path || 'submission').replace(/^\/+/, ''));
     const sourcePath = path.join(previewCacheDir, sourceName);
     const filePathValue = String(submission.file_path || '').trim();
+    const fileExt = path.extname(sourceName).toLowerCase();
 
     if (!filePathValue) {
       return res.status(404).json({ success: false, message: 'Submission file path is missing.' });
     }
 
+    const makeLocalPath = (rawPath) => {
+      const safePath = String(rawPath || '').replace(/^\/+/, '');
+      return path.resolve(path.join(__dirname, '..', safePath));
+    };
+
+    console.log('[CandidateProject] preview request', {
+      submissionId: id,
+      filePathValue,
+      sourceName,
+      fileExt,
+    });
+
     if (/^https?:\/\//i.test(filePathValue)) {
       await downloadHttpToFile(filePathValue, sourcePath);
-    } else if (filePathValue.startsWith('/uploads/') || filePathValue.startsWith('uploads/')) {
-      const localPath = path.join(__dirname, '..', filePathValue.replace(/^\/+/, ''));
-      if (!fs.existsSync(localPath)) {
-        return res.status(404).json({ success: false, message: 'Submission file not found.' });
+    } else if (/^s3:\/\//i.test(filePathValue) || (S3_BASE_URL && filePathValue.startsWith(S3_BASE_URL))) {
+      const downloaded = await writeS3ObjectToFile(filePathValue, sourcePath);
+      if (!downloaded) {
+        return res.status(404).json({ success: false, message: 'Unable to fetch file from S3 path.' });
       }
-      await fs.promises.copyFile(localPath, sourcePath);
     } else {
-      // Fallback: try local relative path as stored
-      const localPath = path.join(__dirname, '..', filePathValue);
-      if (!fs.existsSync(localPath)) {
-        return res.status(404).json({ success: false, message: 'Submission file not found.' });
+      const localPathsToTry = [
+        makeLocalPath(filePathValue),
+        makeLocalPath(`/uploads/candidate-projects/${sourceName}`),
+        makeLocalPath(`uploads/candidate-projects/${sourceName}`),
+        makeLocalPath(`uploads/${sourceName}`),
+      ];
+
+      let resolvedLocalPath = null;
+      for (const localPath of localPathsToTry) {
+        if (fs.existsSync(localPath)) {
+          resolvedLocalPath = localPath;
+          break;
+        }
       }
-      await fs.promises.copyFile(localPath, sourcePath);
+
+      if (!resolvedLocalPath) {
+        console.error('[CandidateProject] preview file not found in any local path', {
+          filePathValue,
+          attempted: localPathsToTry,
+        });
+        return res.status(404).json({
+          success: false,
+          message: 'Submission file not found at any expected local path.',
+          attempted_paths: localPathsToTry,
+        });
+      }
+
+      await fs.promises.copyFile(resolvedLocalPath, sourcePath);
     }
 
     const pdfName = sourceName.replace(/\.[^.]+$/, '.pdf');
     const pdfPath = path.join(previewCacheDir, pdfName);
 
+    if (fileExt === '.pdf') {
+      if (!fs.existsSync(sourcePath)) {
+        return res.status(404).json({ success: false, message: 'Submission PDF file missing.' });
+      }
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', 'inline');
+      return fs.createReadStream(sourcePath).pipe(res);
+    }
+
     if (!fs.existsSync(pdfPath)) {
+      console.log('[CandidateProject] converting preview source to PDF', { sourcePath, pdfPath });
       await convertToPdf(sourcePath, previewCacheDir, `candidate-project:${sourceName}`);
     }
 
     if (!fs.existsSync(pdfPath)) {
+      console.error('[CandidateProject] preview conversion failed for', { sourcePath, pdfPath });
       return res.status(500).json({ success: false, message: 'Preview conversion failed.' });
     }
 

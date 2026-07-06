@@ -21,6 +21,7 @@ const {
   startCampayPayment,
   refreshCampayPaymentStatus,
 } = require('../services/paymentOrchestrationService');
+const paymentGrantService = require('../services/paymentGrantService');
 const {
   sanitizePromoCodeInput,
   applyCouponToAmount,
@@ -831,6 +832,7 @@ exports.startBookingPayment = async (req, res) => {
           phoneNumber,
           payerMessage: `Tutorship ${booking.topic}`.slice(0, 60),
           payeeNote: `Lecturer booking ${booking._id}`.slice(0, 120),
+          onSuccessfulPayment: paymentGrantService.applySuccessfulPayment,
         });
       }
     } catch (err) {
@@ -901,7 +903,7 @@ exports.refreshBookingPaymentStatus = async (req, res) => {
     }
 
     if (tx.status === 'pending') {
-      await refreshCampayPaymentStatus(tx);
+      await refreshCampayPaymentStatus(tx, paymentGrantService.applySuccessfulPayment);
       if (tx.status === 'successful') {
         booking.payment_status = 'paid';
         booking.status = 'scheduled';
@@ -1323,6 +1325,7 @@ exports.startInviteConferencePayment = async (req, res) => {
           phoneNumber,
           payerMessage: `Conference access ${booking.topic}`.slice(0, 60),
           payeeNote: `Booking invite access ${booking._id}`.slice(0, 120),
+          onSuccessfulPayment: paymentGrantService.applySuccessfulPayment,
         });
       }
     } catch (err) {
@@ -1376,7 +1379,7 @@ exports.refreshInviteConferencePayment = async (req, res) => {
     if (!tx) return res.status(404).json({ success: false, message: 'Payment transaction not found.' });
 
     if (tx.status === 'pending') {
-      await refreshCampayPaymentStatus(tx);
+      await refreshCampayPaymentStatus(tx, paymentGrantService.applySuccessfulPayment);
       invite.payment_status = tx.status === 'successful' ? 'paid' : mapProviderStatusToBookingPaymentStatus(tx.status);
       booking.invited_candidates[inviteIndex] = invite;
       await booking.save();

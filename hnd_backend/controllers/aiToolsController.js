@@ -21,6 +21,9 @@ function clamp(n, min, max) {
   return Math.min(max, Math.max(min, n));
 }
 
+const ACTIVITY_ALLOWED_CONTENT_TYPES = new Set(['account', 'ai_chat', 'lecturer_booking', 'chat_center']);
+const ACTIVITY_EXCLUDED_ACTIONS = new Set(['download', 'preview', 'save', 'view']);
+
 function parseRange(req) {
   const period = String(req.query.period || '').trim().toLowerCase();
   const now = new Date();
@@ -58,6 +61,7 @@ exports.getPlatformHistory = async (req, res) => {
     const action = String(req.query.action || '').trim();
     const userId = String(req.query.user_id || '').trim();
     const candidateName = String(req.query.candidate_name || '').trim();
+    const mode = String(req.query.mode || '').trim().toLowerCase();
 
     const query = { createdAt: { $gte: from, $lte: to } };
     if (contentType) query.content_type = contentType;
@@ -109,10 +113,19 @@ exports.getPlatformHistory = async (req, res) => {
       nameByUserId = new Map(users.map((u) => [String(u.cand_id), String(u.name || '').trim()]));
     }
 
+    const logs = rows.filter((l) => {
+      if (mode !== 'activity') return true;
+      const normalizedContentType = String(l.content_type || '').trim().toLowerCase();
+      const normalizedAction = String(l.action || '').trim().toLowerCase();
+      if (!ACTIVITY_ALLOWED_CONTENT_TYPES.has(normalizedContentType)) return false;
+      if (ACTIVITY_EXCLUDED_ACTIONS.has(normalizedAction)) return false;
+      return true;
+    });
+
     return res.json({
       success: true,
       range: { from, to },
-      logs: rows.map((l) => ({
+      logs: logs.map((l) => ({
         history_id: l._id,
         user_id: l.user_id,
         user_name: String(l.user_name || '').trim() || nameByUserId.get(String(l.user_id || '').trim()) || null,
@@ -121,7 +134,7 @@ exports.getPlatformHistory = async (req, res) => {
         action: l.action,
         timestamp: l.createdAt,
       })),
-      pagination: { page, limit, total },
+      pagination: { page, limit, total: mode === 'activity' ? logs.length : total },
     });
   } catch (err) {
     return res.status(500).json({ success: false, message: err.message || 'Failed to load history' });

@@ -7,6 +7,7 @@ const ChatRoom = require('../models/ChatRoom');
 const PaymentTransaction = require('../models/PaymentTransaction');
 const PaymentAccessGrant = require('../models/PaymentAccessGrant');
 const materialAccessService = require('../services/materialAccessService');
+const paymentGrantService = require('../services/paymentGrantService');
 const paymentCallbackService = require('../services/paymentCallbackService');
 const History = require('../models/History');
 const { getPlanDefinitions, getPlanDefinition, getCenterPricing } = require('../utils/subscriptionCatalog');
@@ -152,7 +153,7 @@ async function applySuccessfulPayment(transaction) {
   transaction.completed_at = finalizedTransaction.completed_at;
 
   if (transaction.purpose_type === 'subscription') {
-    const nextPlan = transaction.purpose_code === 'plan_pro' ? 'pro' : 'paygo';
+    const nextPlan = String(transaction.purpose_code || '').replace(/^plan_/, '') || 'paygo';
     await User.updateOne(
       { cand_id: transaction.user_cand_id },
       {
@@ -228,7 +229,7 @@ async function createTransaction({ candId, phoneNumber, purposeType, purposeCode
   const isCouponPayment = Number(amount || 0) <= 0 && sanitizePromoCodeInput(metadata?.promo_code);
   if (isCouponPayment) {
     const coupon = { code: metadata?.promo_code, expires_at: metadata?.coupon_expires_at || null, _id: metadata?.coupon_id || null };
-    return applySuccessfulPayment(await createCouponTransaction({
+    return paymentGrantService.applySuccessfulPayment(await createCouponTransaction({
       candId,
       purposeType,
       purposeCode,
@@ -241,6 +242,34 @@ async function createTransaction({ candId, phoneNumber, purposeType, purposeCode
       metadata,
       coupon,
     }));
+  }
+
+  if (Number(amount || 0) <= 0) {
+    const transaction = await PaymentTransaction.create({
+      user_cand_id: candId,
+      provider: 'free',
+      provider_mode: 'production',
+      purpose_type: purposeType,
+      purpose_code: purposeCode,
+      resource_type: resourceType,
+      resource_id: resourceId ? String(resourceId) : null,
+      amount: 0,
+      currency,
+      phone_number: String(phoneNumber || '').trim(),
+      description,
+      external_reference: validateTransactionReference(buildTransactionReference()),
+      external_id: `cand-${candId}`,
+      status: 'successful',
+      provider_response: { source: 'free' },
+      metadata: metadata || null,
+      initiated_at: new Date(),
+      completed_at: new Date(),
+      expires_at: null,
+      idempotency_key: idempotencyKey || null,
+    });
+
+    // Immediately apply successful payment side-effects
+    return paymentGrantService.applySuccessfulPayment(transaction);
   }
 
   return startCampayPayment({
@@ -266,14 +295,14 @@ async function createTransaction({ candId, phoneNumber, purposeType, purposeCode
     payeeNote: description.slice(0, 120),
     paymentMethod,
     redirectUrl: metadata?.redirectUrl || metadata?.returnUrl || null,
-    onSuccessfulPayment: applySuccessfulPayment,
+    onSuccessfulPayment: paymentGrantService.applySuccessfulPayment,
   });
 }
 
 async function refreshTransactionStatus(transaction) {
   if (!transaction) return transaction;
   if (String(transaction.provider || '').toLowerCase() !== 'camerpay') return transaction;
-  return refreshCampayPaymentStatus(transaction, applySuccessfulPayment);
+  return refreshCampayPaymentStatus(transaction, paymentGrantService.applySuccessfulPayment);
 }
 
 async function buildPlanCards() {
@@ -291,11 +320,13 @@ exports.getCatalog = async (_req, res) => {
         basic: await getCenterPricing('create', 'basic'),
         pro: await getCenterPricing('create', 'pro'),
         paygo: await getCenterPricing('create', 'paygo'),
+        'full-package': await getCenterPricing('create', 'full-package'),
       },
       join: {
         basic: await getCenterPricing('join', 'basic'),
         pro: await getCenterPricing('join', 'pro'),
         paygo: await getCenterPricing('join', 'paygo'),
+        'full-package': await getCenterPricing('join', 'full-package'),
       },
     },
   });
@@ -334,8 +365,8 @@ exports.startPlanCheckout = async (req, res) => {
     const promoCode = sanitizePromoCodeInput(req.body?.promoCode || req.body?.referralCode);
     const plan = await getPlanDefinition(planCode);
 
-    if (!['pro', 'paygo'].includes(plan.code)) {
-      return res.status(400).json({ success: false, message: 'Only Pro or PAYGO plans require payment.' });
+    if (!['pro', 'paygo', 'full-package'].includes(plan.code)) {
+      return res.status(400).json({ success: false, message: 'Only Pro, PAYGO, or Full Package plans require payment.' });
     }
 
     const pricing = await applyCouponToAmount({
@@ -612,8 +643,8 @@ exports.startManualPlanCheckout = async (req, res) => {
     const paymentProof = String(req.body?.paymentProof || '').trim();
     const plan = await getPlanDefinition(planCode);
 
-    if (!['pro', 'paygo'].includes(plan.code)) {
-      return res.status(400).json({ success: false, message: 'Only Pro or PAYGO plans require payment.' });
+    if (!['pro', 'paygo', 'full-package'].includes(plan.code)) {
+      return res.status(400).json({ success: false, message: 'Only Pro, PAYGO, or Full Package plans require payment.' });
     }
 
     if (paymentProof.length < 6) {

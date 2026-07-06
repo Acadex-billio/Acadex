@@ -47,17 +47,54 @@ async function grantMaterialAccess(
  * @param {String} accessType - Type of access (preview, download)
  * @returns {Promise<Boolean>} True if user has active access
  */
+const { resolveSubscription, findActiveGrantIncludingAdmin } = require('../utils/subscriptionUtils');
+const User = require('../models/User');
+
 async function hasActiveAccess(userId, materialId, materialType, accessType) {
   try {
-    const access = await MaterialAccess.findOne({
+    // 1) direct MaterialAccess records (admin or payment grants stored in MaterialAccess)
+    const direct = await MaterialAccess.findOne({
       userId,
       materialId,
       materialType,
       accessType,
-      expiresAt: { $gt: new Date() }, // Not expired
+      expiresAt: { $gt: new Date() },
     });
+    if (direct) return true;
 
-    return !!access;
+    // 2) consult user subscription and CandidatePurchase/PaymentAccessGrant via subscription utils
+    const user = await User.findById(userId).select('cand_id subscription email').lean();
+    if (!user) return false;
+
+    const resolved = resolveSubscription(user.subscription || {});
+    const plan = resolved.plan;
+
+    // normalize materialType into grant code prefix used by subscription utils
+    const normType = (String(materialType || '').toLowerCase() === 'questionpaper' || String(materialType || '').toLowerCase() === 'question_paper') ? 'question_paper' : String(materialType || '').toLowerCase();
+
+    if (plan === 'pro') {
+      // Pro: free access to question papers, centers, ai_mode and downloads
+      if (['question_paper', 'center', 'ai_mode'].includes(normType)) return true;
+      // for reports/presentations, direct purchase required
+      const grantCode = accessType === 'download' ? `${normType}_download` : `${normType}_preview_full`;
+      const g = await findActiveGrantIncludingAdmin({ candId: user.cand_id, grantCode, resourceId: materialId }).catch(() => null);
+      return !!g;
+    }
+
+    if (plan === 'full-package') {
+      // full-package: generally allow download and preview
+      if (['question_paper', 'center', 'ai_mode'].includes(normType)) return true;
+      if (['report', 'presentation'].includes(normType)) return true;
+      // fallback to checking grants
+      const grantCode = accessType === 'download' ? `${normType}_download` : `${normType}_preview_full`;
+      const g = await findActiveGrantIncludingAdmin({ candId: user.cand_id, grantCode, resourceId: materialId }).catch(() => null);
+      return !!g;
+    }
+
+    // paygo/basic require explicit purchase or temporary grant
+    const grantCode = accessType === 'download' ? `${normType}_download` : `${normType}_preview_full`;
+    const g = await findActiveGrantIncludingAdmin({ candId: user.cand_id, grantCode, resourceId: materialId }).catch(() => null);
+    return !!g;
   } catch (error) {
     console.error('Error checking material access:', error);
     return false;

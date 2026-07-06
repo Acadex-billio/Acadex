@@ -32,6 +32,7 @@ const AdminActivity = () => {
       if (filterFrom) params.set('from', new Date(filterFrom).toISOString());
       if (filterTo) params.set('to', new Date(filterTo).toISOString());
 
+      params.set('mode', 'activity');
       const res = await api.get(`/ai-tools/history?${params.toString()}`);
       setLogs(Array.isArray(res.data?.logs) ? res.data.logs : []);
       setTotal(res.data?.pagination?.total || 0);

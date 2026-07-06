@@ -70,6 +70,9 @@ const StudyModeMaterials = lazy(() => import('./components/StudyModeMaterials'))
 const PaymentConfirmation = lazy(() => import('./components/PaymentConfirmation'));
 const DeveloperProjectSubmissions = lazy(() => import('./components/DeveloperProjectSubmissions'));
 const DeveloperPricing = lazy(() => import('./components/DeveloperPricing'));
+const PurchaseHistory = lazy(() => import('./components/PurchaseHistory'));
+const AccessGrantHistory = lazy(() => import('./components/AccessGrantHistory'));
+const PermissionVerification = lazy(() => import('./components/PermissionVerification'));
 
 const RouteLoadingListener = () => {
   const location = useLocation();
@@ -179,6 +182,9 @@ const App = () => (
                 <Route path="manage-users/admins" element={<ProtectedRoute><DeveloperRoute><ManageUsers /></DeveloperRoute></ProtectedRoute>} />
                 <Route path="manage-candidates" element={<Navigate to="/admin/manage-users/candidates" replace />} />
                 <Route path="manage-billing" element={<ProtectedRoute><DeveloperRoute><ManageBilling /></DeveloperRoute></ProtectedRoute>} />
+                <Route path="purchase-history" element={<ProtectedRoute><DeveloperRoute><PurchaseHistory /></DeveloperRoute></ProtectedRoute>} />
+                <Route path="access-grant-history" element={<ProtectedRoute><DeveloperRoute><AccessGrantHistory /></DeveloperRoute></ProtectedRoute>} />
+                <Route path="permission-verification" element={<ProtectedRoute><DeveloperRoute><PermissionVerification /></DeveloperRoute></ProtectedRoute>} />
                 <Route path="manage-admins" element={<Navigate to="/admin/manage-users" replace />} />
                 <Route path="departments" element={<Department />} />
                 <Route path="reports" element={<ReportUpload />} />

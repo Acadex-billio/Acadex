@@ -6,6 +6,7 @@ const { refreshCampayPaymentStatus } = require('../services/paymentOrchestration
 const { runPaymentReconciliation, getReconciliationSummary } = require('../services/paymentReconciliationScheduler');
 
 const PaymentAccessGrant = require('../models/PaymentAccessGrant');
+const paymentGrantService = require('../services/paymentGrantService');
 
 const PLAN_DURATION_MS = 90 * 24 * 60 * 60 * 1000;
 
@@ -24,61 +25,11 @@ exports.repairTransaction = async (req, res) => {
     transaction.provider_reference = providerTransactionId;
     await transaction.save();
 
-    const refreshed = await refreshCampayPaymentStatus(transaction);
+    const refreshed = await refreshCampayPaymentStatus(transaction, paymentGrantService.applySuccessfulPayment);
 
-    // If successful, apply subscription or material access side-effects
+    // If successful, apply centralized payment side-effects
     if (refreshed.status === 'successful') {
-      refreshed.completed_at = refreshed.completed_at || new Date();
-
-      if (refreshed.purpose_type === 'subscription') {
-        const nextPlan = refreshed.purpose_code === 'plan_pro' ? 'pro' : 'paygo';
-        await User.updateOne(
-          { cand_id: refreshed.user_cand_id },
-          {
-            $set: {
-              subscription: {
-                plan: nextPlan,
-                status: 'active',
-                activated_at: new Date(),
-                expires_at: new Date(Date.now() + PLAN_DURATION_MS),
-                last_payment_at: new Date(),
-                phone_number: refreshed.phone_number,
-                source_transaction_id: refreshed._id,
-              },
-            },
-          }
-        );
-      }
-
-      if (refreshed.purpose_type === 'material_access') {
-        const expiresAt = new Date(Date.now() + (Number(refreshed.metadata?.access_minutes || 60) * 60 * 1000));
-        const grantCode = String(refreshed.purpose_code || '').trim();
-        await PaymentAccessGrant.create({
-          user_cand_id: refreshed.user_cand_id,
-          grant_code: grantCode,
-          resource_type: refreshed.resource_type,
-          resource_id: String(refreshed.resource_id),
-          transaction_id: refreshed._id,
-          amount: refreshed.amount,
-          currency: refreshed.currency,
-          status: 'active',
-          granted_at: new Date(),
-          expires_at: expiresAt,
-          metadata: { description: refreshed.description },
-        });
-      }
-
-      try {
-        const History = require('../models/History');
-        await History.create({
-          user_id: refreshed.user_cand_id,
-          content_type: 'payment',
-          content_title: refreshed.description,
-          action: refreshed.purpose_code,
-        });
-      } catch (_) {}
-
-      await refreshed.save();
+      await paymentGrantService.applySuccessfulPayment(refreshed);
     }
 
     return res.json({ success: true, message: 'Repair attempted', transaction: refreshed });

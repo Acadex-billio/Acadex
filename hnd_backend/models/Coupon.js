@@ -24,7 +24,7 @@ const couponSchema = new mongoose.Schema(
     },
     target_plans: {
       type: [String],
-      enum: ['pro', 'paygo'],
+      enum: ['pro', 'paygo', 'full-package'],
       default: [],
     },
     outcome_type: {

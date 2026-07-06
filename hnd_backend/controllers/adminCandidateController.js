@@ -2,6 +2,7 @@ const User = require('../models/User');
 const PaymentTransaction = require('../models/PaymentTransaction');
 const { sendEmail } = require('../services/emailService');
 const { sendWebPushNotification, isWebPushConfigured } = require('../utils/webPush');
+const paymentGrantService = require('../services/paymentGrantService');
 
 const normalizeCandId = (v) => String(v || '').trim();
 const getDefaultLanguageForProgram = (program) => {
@@ -615,7 +616,7 @@ exports.updateSubscription = async (req, res) => {
     if (!candId) return res.status(400).json({ success: false, message: 'candId is required' });
 
     const { plan, status, expires_at } = req.body || {};
-    const VALID_PLANS = ['basic', 'pro', 'paygo'];
+    const VALID_PLANS = ['basic', 'pro', 'paygo', 'full-package'];
     const VALID_STATUSES = ['active', 'expired'];
 
     const user = await User.findOne({ cand_id: candId });
@@ -741,7 +742,7 @@ exports.approveManualPaymentVerification = async (req, res) => {
       return res.json({ success: true, message: 'Payment already approved' });
     }
 
-    const nextPlan = transaction.purpose_code === 'plan_pro' ? 'pro' : 'paygo';
+    const nextPlan = String(transaction.purpose_code || '').replace(/^plan_/, '') || 'paygo';
     transaction.status = 'successful';
     transaction.completed_at = new Date();
     transaction.provider_reference = transaction.provider_reference || `MANUAL-${transaction._id}`;
@@ -758,22 +759,8 @@ exports.approveManualPaymentVerification = async (req, res) => {
 
     await transaction.save();
 
-    await User.updateOne(
-      { cand_id: transaction.user_cand_id },
-      {
-        $set: {
-          subscription: {
-            plan: nextPlan,
-            status: 'active',
-            activated_at: new Date(),
-            expires_at: new Date(Date.now() + (90 * 24 * 60 * 60 * 1000)),
-            last_payment_at: new Date(),
-            phone_number: transaction.phone_number,
-            source_transaction_id: transaction._id,
-          },
-        },
-      }
-    );
+    // Centralized side-effects: persist CandidatePurchase and apply subscription state
+    await paymentGrantService.applySuccessfulPayment(transaction);
 
     return res.json({ success: true, message: 'Manual payment verified. Subscription activated.' });
   } catch (err) {

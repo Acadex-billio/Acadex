@@ -81,9 +81,9 @@ const DeveloperPricing = () => {
       <div className={styles.grid}>
       <section className={styles.section}>
         <h3 className={styles.sectionTitle}>Plans</h3>
-        {['basic', 'pro', 'paygo'].map((plan) => (
+        {['basic', 'pro', 'paygo', 'full-package'].map((plan) => (
           <div key={plan} className={styles.row}>
-            <label className={styles.label}>{plan.toUpperCase()} Plan Price (XAF)</label>
+            <label className={styles.label}>{plan === 'full-package' ? 'FULL PACKAGE' : plan.toUpperCase()} Plan Price (XAF)</label>
             <input className={styles.input} type="number" min="0" step="0.01" value={toCurrencyString(pricing?.plans?.[plan]?.price)} onChange={(e) => setField(`plans.${plan}.price`, Number(e.target.value || 0))} />
           </div>
         ))}

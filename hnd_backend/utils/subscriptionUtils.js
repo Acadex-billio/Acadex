@@ -1,5 +1,6 @@
 const User = require('../models/User');
 const PaymentAccessGrant = require('../models/PaymentAccessGrant');
+const CandidatePurchase = require('../models/CandidatePurchase');
 const { getPlanDefinition, getMaterialDefaults } = require('./subscriptionCatalog');
 const { Coupon } = require('../models/Coupon');
 const { isCouponActiveNow, ensureCouponBackedSubscriptionStillActive } = require('../services/couponService');
@@ -7,7 +8,7 @@ const { isCouponActiveNow, ensureCouponBackedSubscriptionStillActive } = require
 function normalizeSubscription(raw) {
   const plan = String(raw?.plan || 'basic').toLowerCase();
   return {
-    plan: ['basic', 'pro', 'paygo'].includes(plan) ? plan : 'basic',
+    plan: ['basic', 'pro', 'paygo', 'full-package'].includes(plan) ? plan : 'basic',
     status: String(raw?.status || 'active').toLowerCase() === 'expired' ? 'expired' : 'active',
     activated_at: raw?.activated_at ? new Date(raw.activated_at) : null,
     expires_at: raw?.expires_at ? new Date(raw.expires_at) : null,
@@ -115,6 +116,55 @@ async function findActiveGrant({ candId, grantCode, resourceId }) {
   return null;
 }
 
+async function findActiveGrantIncludingAdmin({ candId, grantCode, resourceId }) {
+  // First check PaymentAccessGrant as before
+  const g = await findActiveGrant({ candId, grantCode, resourceId }).catch(() => null);
+  if (g) return g;
+
+  // If none, try CandidatePurchase admin grants by resolving the user id
+  try {
+    const user = await User.findOne({ cand_id: String(candId).trim() }).select('_id email').lean();
+    if (!user) return null;
+    const now = new Date();
+    // derive item_type from grantCode prefix (e.g., 'report_preview_full' -> 'report')
+    const parts = String(grantCode || '').split('_');
+    const itemType = parts[0] || null;
+    if (!itemType) return null;
+
+    const candidateId = user._id;
+    const purchase = await CandidatePurchase.findOne({
+      $and: [
+        { status: 'grant-success' },
+        { expires_at: { $gt: now } },
+        {
+          $or: [
+            { candidate_id: candidateId },
+            { candidate_email: String(user.email || '').trim().toLowerCase() },
+          ],
+        },
+        { item_type: itemType },
+        { item_id: String(resourceId) },
+      ],
+    })
+      .sort({ expires_at: -1 })
+      .lean();
+
+    if (!purchase) return null;
+
+    // normalize to same shape as PaymentAccessGrant to satisfy callers
+    return {
+      user_cand_id: String(candId).trim(),
+      grant_code: grantCode,
+      resource_id: String(resourceId).trim(),
+      status: 'active',
+      expires_at: purchase.expires_at,
+      metadata: { source: 'admin_grant', purchase_id: purchase._id },
+    };
+  } catch (err) {
+    return null;
+  }
+}
+
 async function getMaterialAccessSummary({ user, materialType, resourceId, doc }) {
   await ensureCouponBackedSubscriptionStillActive({
     candId: user?.cand_id,
@@ -141,6 +191,14 @@ async function getMaterialAccessSummary({ user, materialType, resourceId, doc })
     };
   }
 
+  if (resolvedSubscription.plan === 'full-package') {
+    return {
+      ...base,
+      allow_download: true,
+      preview_page_limit: config.full_package_preview_limit || null,
+    };
+  }
+
   if (resolvedSubscription.plan === 'basic') {
     return {
       ...base,
@@ -151,8 +209,8 @@ async function getMaterialAccessSummary({ user, materialType, resourceId, doc })
   const previewGrantCode = `${materialType}_preview_full`;
   const downloadGrantCode = `${materialType}_download`;
   const [previewGrant, downloadGrant] = await Promise.all([
-    findActiveGrant({ candId: user?.cand_id, grantCode: previewGrantCode, resourceId }),
-    findActiveGrant({ candId: user?.cand_id, grantCode: downloadGrantCode, resourceId }),
+    findActiveGrantIncludingAdmin({ candId: user?.cand_id, grantCode: previewGrantCode, resourceId }),
+    findActiveGrantIncludingAdmin({ candId: user?.cand_id, grantCode: downloadGrantCode, resourceId }),
   ]);
 
   return {

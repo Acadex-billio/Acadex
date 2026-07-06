@@ -25,7 +25,7 @@ const CandidateActivity = () => {
       const me = await api.get('/auth/me');
       const candId = me.data?.user?.cand_id;
       if (!candId) throw new Error('Candidate ID not available');
-      const res = await api.get(`/candidate/history/${encodeURIComponent(candId)}`);
+      const res = await api.get(`/candidate/history/${encodeURIComponent(candId)}?mode=activity`);
       const logsArray = Array.isArray(res.data?.logs) ? res.data.logs : [];
       setLogs(logsArray);
       setTotal(logsArray.length);

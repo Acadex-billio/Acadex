@@ -10,6 +10,7 @@ const {
 const User = require('../models/User');
 const PaymentAccessGrant = require('../models/PaymentAccessGrant');
 const History = require('../models/History');
+const paymentGrantService = require('../services/paymentGrantService');
 const {
   normalizeWebhookPaymentStatus,
   validateTransactionReference,
@@ -231,95 +232,12 @@ exports.handleCamerpayCallback = async (req, res) => {
       return;
     }
 
-    // Apply subscription/access based on transaction type
-    if (finalizedTransaction.purpose_type === 'subscription') {
-      const nextPlan = finalizedTransaction.purpose_code === 'plan_pro' ? 'pro' : 'paygo';
-      await User.updateOne(
-        { cand_id: finalizedTransaction.user_cand_id },
-        {
-          $set: {
-            subscription: {
-              plan: nextPlan,
-              status: 'active',
-              activated_at: new Date(),
-              expires_at: new Date(Date.now() + PLAN_DURATION_MS),
-              last_payment_at: new Date(),
-              phone_number: finalizedTransaction.phone_number,
-              source_transaction_id: finalizedTransaction._id,
-            },
-          },
-        }
-      );
-
-      logger.info('Subscription activated via webhook', {
-        transaction_id: finalizedTransaction._id,
-        user_cand_id: finalizedTransaction.user_cand_id,
-        plan: nextPlan,
-      });
-    }
-
-    // For material access, grant temporary access
-    if (finalizedTransaction.purpose_type === 'material_access') {
-      const accessMinutes = validateAccessMinutes(finalizedTransaction.metadata?.access_minutes || 60);
-      const expiresAt = new Date(Date.now() + (accessMinutes * 60 * 1000));
-      const grantCode = String(finalizedTransaction.purpose_code || '').trim();
-      await PaymentAccessGrant.findOneAndUpdate(
-        {
-          user_cand_id: finalizedTransaction.user_cand_id,
-          transaction_id: finalizedTransaction._id,
-          grant_code: grantCode,
-          resource_id: String(finalizedTransaction.resource_id),
-        },
-        {
-          $setOnInsert: {
-            user_cand_id: finalizedTransaction.user_cand_id,
-            grant_code: grantCode,
-            resource_type: finalizedTransaction.resource_type,
-            resource_id: String(finalizedTransaction.resource_id),
-            transaction_id: finalizedTransaction._id,
-            amount: finalizedTransaction.amount,
-            currency: finalizedTransaction.currency,
-            status: 'active',
-            granted_at: new Date(),
-            expires_at: expiresAt,
-            metadata: {
-              description: finalizedTransaction.description,
-            },
-          },
-        },
-        { upsert: true, new: true }
-      );
-
-      logger.info('Material access granted via webhook', {
-        transaction_id: finalizedTransaction._id,
-        user_cand_id: finalizedTransaction.user_cand_id,
-        grant_code: grantCode,
-        resource_type: finalizedTransaction.resource_type,
-        resource_id: finalizedTransaction.resource_id,
-        access_minutes: accessMinutes,
-      });
-    }
-
-    // Record payment history
-    try {
-      const History = require('../models/History');
-      const historyAccessMinutes = finalizedTransaction.purpose_type === 'material_access'
-        ? validateAccessMinutes(finalizedTransaction.metadata?.access_minutes || 60)
-        : null;
-      const materialScope = finalizedTransaction.purpose_type === 'material_access'
-        ? ` [resource:${finalizedTransaction.resource_type}:${finalizedTransaction.resource_id} duration:${historyAccessMinutes}m]`
-        : '';
-      await History.create({
-        user_id: finalizedTransaction.user_cand_id,
-        content_type: 'payment',
-        content_title: `${finalizedTransaction.description}${materialScope}`,
-        action: finalizedTransaction.purpose_code,
-      });
-    } catch (_) {}
+    // Centralize subscription/material access side-effects
+    await paymentGrantService.applySuccessfulPayment(finalizedTransaction);
 
     if (receiptUser?.email && receiptUser.allow_emails !== false) {
       const planLabel = finalizedTransaction.purpose_type === 'subscription'
-        ? (finalizedTransaction.purpose_code === 'plan_pro' ? 'Pro subscription' : 'PAYGO subscription')
+        ? String(finalizedTransaction.purpose_code || '').replace(/^plan_/, '').replace(/-/g, ' ').replace(/\b\w/g, (ch) => ch.toUpperCase()) + ' subscription'
         : finalizedTransaction.purpose_type.replace(/_/g, ' ');
       const emailSubject = `Acadex payment receipt — ${finalizedTransaction.description}`;
       const emailText = [

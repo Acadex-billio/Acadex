@@ -10,6 +10,7 @@ const adminReportController = require('../controllers/adminReportController');
 const adminPresentationController = require('../controllers/adminPresentationController');
 const adminCandidateController = require('../controllers/adminCandidateController');
 const candidateProjectController = require('../controllers/candidateProjectController');
+const adminAccessController = require('../controllers/adminAccessController');
 const platformPricingController = require('../controllers/platformPricingController');
 const internshipTopicController = require('../controllers/internshipTopicController');
 const couponController = require('../controllers/couponController');
@@ -114,6 +115,13 @@ router.get('/project-submissions/:id/draft', requireDeveloper, candidateProjectC
 router.get('/project-submissions/:id/preview', requireDeveloper, candidateProjectController.previewSubmissionFile);
 router.get('/project-submissions/pricing', requireDeveloper, candidateProjectController.listPricingForDeveloper);
 router.put('/project-submissions/pricing', requireDeveloper, candidateProjectController.updatePricing);
+
+// Admin access grants
+router.get('/access-grants', requireDeveloper, adminAccessController.listGrants);
+router.get('/access-grants/material', requireDeveloper, adminAccessController.lookupMaterial);
+router.post('/access-grants/find-and-grant', requireDeveloper, adminAccessController.findAndGrant);
+router.get('/purchase-history', requireDeveloper, adminAccessController.listPurchaseHistory);
+
 
 router.get('/pricing', requireDeveloper, platformPricingController.getPricing);
 router.put('/pricing', requireDeveloper, platformPricingController.updatePricing);

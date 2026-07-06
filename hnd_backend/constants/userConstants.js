@@ -17,6 +17,7 @@ const SUBSCRIPTION_PLANS = Object.freeze({
   BASIC: 'basic',
   PRO: 'pro',
   PAYGO: 'paygo',
+  FULL_PACKAGE: 'full-package',
 });
 
 const SUBSCRIPTION_STATUSES = Object.freeze({

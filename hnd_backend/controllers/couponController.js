@@ -45,7 +45,7 @@ const validateCouponPayload = ({ body, partial = false }) => {
 
   if (body.target_plans !== undefined) {
     const plans = parseArray(body.target_plans).map((v) => v.toLowerCase());
-    const invalid = plans.find((p) => !['pro', 'paygo'].includes(p));
+    const invalid = plans.find((p) => !['pro', 'paygo', 'full-package'].includes(p));
     if (invalid) throw Object.assign(new Error(`Invalid target plan: ${invalid}`), { statusCode: 400 });
     payload.target_plans = Array.from(new Set(plans));
   }
