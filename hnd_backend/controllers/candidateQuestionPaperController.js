@@ -179,37 +179,51 @@ exports.downloadPaper = async (req, res) => {
     }
 
     const candidate = await User.findOne({ cand_id: req.user?.cand_id }).select('cand_id subscription').lean();
-    const access = await getMaterialAccessSummary({
-      user: { cand_id: req.user?.cand_id, subscription: candidate?.subscription || null },
-      materialType: 'question_paper',
-      resourceId: paper._id,
-      doc: paper,
-    });
+    const user = await User.findOne({ cand_id: req.user?.cand_id }).select('_id cand_id subscription').lean();
+    if (!user) return res.status(401).json({ success: false, message: 'User not found' });
 
-    if (!access.allow_download) {
-      if (access.plan === 'basic') {
-        return res.status(403).json({
+    // Check if user has an active grant for download access to this material
+    const hasGrantedAccess = await materialAccessService.hasActiveAccess(
+      user._id,
+      paper._id,
+      'questionPaper',
+      'download'
+    );
+
+    if (!hasGrantedAccess) {
+      // No active grant, check subscription plan
+      const access = await getMaterialAccessSummary({
+        user: { cand_id: req.user?.cand_id, subscription: candidate?.subscription || null },
+        materialType: 'question_paper',
+        resourceId: paper._id,
+        doc: paper,
+      });
+
+      if (!access.allow_download) {
+        if (access.plan === 'basic') {
+          return res.status(403).json({
+            success: false,
+            code: 'PLAN_UPGRADE_REQUIRED',
+            message: 'Basic plan cannot download question papers. Upgrade to Pro to unlock downloads.',
+          });
+        }
+        return res.status(402).json({
           success: false,
-          code: 'PLAN_UPGRADE_REQUIRED',
-          message: 'Basic plan cannot download question papers. Upgrade to Pro to unlock downloads.',
+          code: 'PAYMENT_REQUIRED',
+          message: 'PAYGO download requires a separate payment for this question paper.',
+          payment_requirement: {
+            title: 'Unlock question paper download',
+            message: `Pay ${access.payment_required.download.amount} ${access.payment_required.download.currency} to download this question paper for 1 hour.`,
+            action: 'download',
+            amount: access.payment_required.download.amount,
+            currency: access.payment_required.download.currency,
+            resource_type: 'question_paper',
+            resource_id: String(paper._id),
+            purpose_code: access.payment_required.download.purpose_code,
+            access_minutes: access.payment_required.download.access_minutes,
+          },
         });
       }
-      return res.status(402).json({
-        success: false,
-        code: 'PAYMENT_REQUIRED',
-        message: 'PAYGO download requires a separate payment for this question paper.',
-        payment_requirement: {
-          title: 'Unlock question paper download',
-          message: `Pay ${access.payment_required.download.amount} ${access.payment_required.download.currency} to download this question paper for 1 hour.`,
-          action: 'download',
-          amount: access.payment_required.download.amount,
-          currency: access.payment_required.download.currency,
-          resource_type: 'question_paper',
-          resource_id: String(paper._id),
-          purpose_code: access.payment_required.download.purpose_code,
-          access_minutes: access.payment_required.download.access_minutes,
-        },
-      });
     }
     const isRemote = /^https?:\/\//i.test(requested);
     const filename = isRemote ? requested : sanitizeFilename(requested);
@@ -273,7 +287,16 @@ exports.previewPaper = async (req, res) => {
       return res.status(403).json({ success: false, message: 'Not authorized to access this paper' });
     }
 
-    const candidate = await User.findOne({ cand_id: req.user?.cand_id }).select('cand_id subscription').lean();
+    const candidate = await User.findOne({ cand_id: req.user?.cand_id }).select('cand_id subscription').lean();    const user = await User.findOne({ cand_id: req.user?.cand_id }).select('_id cand_id subscription').lean();
+    if (!user) return res.status(401).json({ success: false, message: 'User not found' });
+
+    // Check if user has an active grant for preview access to this material
+    const hasGrantedAccess = await materialAccessService.hasActiveAccess(
+      user._id,
+      paper._id,
+      'questionPaper',
+      'preview'
+    );
     const access = await getMaterialAccessSummary({
       user: { cand_id: req.user?.cand_id, subscription: candidate?.subscription || null },
       materialType: 'question_paper',

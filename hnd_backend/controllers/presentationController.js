@@ -248,37 +248,51 @@ exports.downloadFile = async (req, res) => {
   }
 
   const candidate = await User.findOne({ cand_id: req.user?.cand_id }).select('cand_id subscription').lean();
-  const access = await getMaterialAccessSummary({
-    user: { cand_id: req.user?.cand_id, subscription: candidate?.subscription || null },
-    materialType: 'presentation',
-    resourceId: presentation._id,
-    doc: presentation,
-  });
+  const user = await User.findOne({ cand_id: req.user?.cand_id }).select('_id cand_id subscription').lean();
+  if (!user) return res.status(401).json({ success: false, message: 'User not found' });
 
-  if (!access.allow_download) {
-    if (access.plan === 'basic') {
-      return res.status(403).json({
+  // Check if user has an active grant for download access to this material
+  const hasGrantedAccess = await materialAccessService.hasActiveAccess(
+    user._id,
+    presentation._id,
+    'presentation',
+    'download'
+  );
+
+  if (!hasGrantedAccess) {
+    // No active grant, check subscription plan
+    const access = await getMaterialAccessSummary({
+      user: { cand_id: req.user?.cand_id, subscription: candidate?.subscription || null },
+      materialType: 'presentation',
+      resourceId: presentation._id,
+      doc: presentation,
+    });
+
+    if (!access.allow_download) {
+      if (access.plan === 'basic') {
+        return res.status(403).json({
+          success: false,
+          code: 'PLAN_UPGRADE_REQUIRED',
+          message: 'Basic plan cannot download presentations. Upgrade to Pro to unlock downloads.',
+        });
+      }
+      return res.status(402).json({
         success: false,
-        code: 'PLAN_UPGRADE_REQUIRED',
-        message: 'Basic plan cannot download presentations. Upgrade to Pro to unlock downloads.',
+        code: 'PAYMENT_REQUIRED',
+        message: 'PAYGO download requires a separate payment for this presentation.',
+        payment_requirement: {
+          title: 'Unlock presentation download',
+          message: `Pay ${access.payment_required.download.amount} ${access.payment_required.download.currency} to download this presentation for 1 hour.`,
+          action: 'download',
+          amount: access.payment_required.download.amount,
+          currency: access.payment_required.download.currency,
+          resource_type: 'presentation',
+          resource_id: String(presentation._id),
+          purpose_code: access.payment_required.download.purpose_code,
+          access_minutes: access.payment_required.download.access_minutes,
+        },
       });
     }
-    return res.status(402).json({
-      success: false,
-      code: 'PAYMENT_REQUIRED',
-      message: 'PAYGO download requires a separate payment for this presentation.',
-      payment_requirement: {
-        title: 'Unlock presentation download',
-        message: `Pay ${access.payment_required.download.amount} ${access.payment_required.download.currency} to download this presentation for 1 hour.`,
-        action: 'download',
-        amount: access.payment_required.download.amount,
-        currency: access.payment_required.download.currency,
-        resource_type: 'presentation',
-        resource_id: String(presentation._id),
-        purpose_code: access.payment_required.download.purpose_code,
-        access_minutes: access.payment_required.download.access_minutes,
-      },
-    });
   }
 
   try {
@@ -324,6 +338,17 @@ exports.previewFile = async (req, res) => {
   }
 
   const candidate = await User.findOne({ cand_id: req.user?.cand_id }).select('cand_id subscription').lean();
+  const user = await User.findOne({ cand_id: req.user?.cand_id }).select('_id cand_id subscription').lean();
+  if (!user) return res.status(401).json({ success: false, message: 'User not found' });
+
+  // Check if user has an active grant for preview access to this material
+  const hasGrantedAccess = await materialAccessService.hasActiveAccess(
+    user._id,
+    presentation._id,
+    'presentation',
+    'preview'
+  );
+
   const access = await getMaterialAccessSummary({
     user: { cand_id: req.user?.cand_id, subscription: candidate?.subscription || null },
     materialType: 'presentation',

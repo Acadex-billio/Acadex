@@ -271,22 +271,36 @@ exports.downloadFile = async (req, res) => {
     }
 
     const candidate = await User.findOne({ cand_id: req.user?.cand_id }).select('cand_id subscription').lean();
-    const access = await getMaterialAccessSummary({
-      user: { cand_id: req.user?.cand_id, subscription: candidate?.subscription || null },
-      materialType: 'report',
-      resourceId: report._id,
-      doc: report,
-    });
+    const user = await User.findOne({ cand_id: req.user?.cand_id }).select('_id cand_id subscription').lean();
+    if (!user) return res.status(401).json({ success: false, message: 'User not found' });
 
-    if (!access.allow_download) {
-      if (access.plan === 'basic') {
-        return res.status(403).json({
-          success: false,
-          code: 'PLAN_UPGRADE_REQUIRED',
-          message: 'Basic plan cannot download reports. Upgrade to Pro to unlock downloads.',
-        });
+    // Check if user has an active grant for download access to this material
+    const hasGrantedAccess = await materialAccessService.hasActiveAccess(
+      user._id,
+      report._id,
+      'report',
+      'download'
+    );
+
+    if (!hasGrantedAccess) {
+      // No active grant, check subscription plan
+      const access = await getMaterialAccessSummary({
+        user: { cand_id: req.user?.cand_id, subscription: candidate?.subscription || null },
+        materialType: 'report',
+        resourceId: report._id,
+        doc: report,
+      });
+
+      if (!access.allow_download) {
+        if (access.plan === 'basic') {
+          return res.status(403).json({
+            success: false,
+            code: 'PLAN_UPGRADE_REQUIRED',
+            message: 'Basic plan cannot download reports. Upgrade to Pro to unlock downloads.',
+          });
+        }
+        return res.status(402).json(buildDownloadPaymentRequired(report, access));
       }
-      return res.status(402).json(buildDownloadPaymentRequired(report, access));
     }
 
     const logDownload = async () => {
@@ -339,6 +353,17 @@ exports.previewFile = (req, res) => {
     }
 
     const candidate = await User.findOne({ cand_id: req.user?.cand_id }).select('cand_id subscription').lean();
+    const user = await User.findOne({ cand_id: req.user?.cand_id }).select('_id cand_id subscription').lean();
+    if (!user) return res.status(401).json({ success: false, message: 'User not found' });
+
+    // Check if user has an active grant for preview access to this material
+    const hasGrantedAccess = await materialAccessService.hasActiveAccess(
+      user._id,
+      report._id,
+      'report',
+      'preview'
+    );
+
     const access = await getMaterialAccessSummary({
       user: { cand_id: req.user?.cand_id, subscription: candidate?.subscription || null },
       materialType: 'report',
