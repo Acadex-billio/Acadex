@@ -49,19 +49,30 @@ async function grantMaterialAccess(
  * @returns {Promise<Boolean>} True if user has active access
  */
 const { resolveSubscription, findActiveGrantIncludingAdmin } = require('../utils/subscriptionUtils');
+const mongoose = require('mongoose');
 const User = require('../models/User');
 
 async function hasActiveAccess(userId, materialId, materialType, accessType) {
   try {
     // 1) direct MaterialAccess records (admin or payment grants stored in MaterialAccess)
     const normalizedMaterialId = String(materialId || '').trim();
+    const possibleMaterialIds = [];
+    if (normalizedMaterialId) {
+      possibleMaterialIds.push(normalizedMaterialId);
+      if (mongoose.Types.ObjectId.isValid(normalizedMaterialId)) {
+        try {
+          possibleMaterialIds.push(mongoose.Types.ObjectId(normalizedMaterialId));
+        } catch (_) {}
+      }
+    }
+
     const direct = await MaterialAccess.findOne({
       userId,
       materialType,
       accessType,
       expiresAt: { $gt: new Date() },
       $or: [
-        { materialId: normalizedMaterialId || null },
+        ...(possibleMaterialIds.length ? [{ materialId: { $in: possibleMaterialIds } }] : []),
         { materialId: null },
         { materialId: { $exists: false } },
       ],
@@ -75,13 +86,22 @@ async function hasActiveAccess(userId, materialId, materialType, accessType) {
     const normalizedMaterialType = String(materialType || '').trim();
     const normalizedMaterialTypeKey = normalizedMaterialType.toLowerCase();
     if (['ai_mode', 'center', 'chat_room'].includes(normalizedMaterialTypeKey)) {
+      const nm = normalizedMaterialTypeKey === 'chat_room' ? 'center' : normalizedMaterialTypeKey;
+      const normalizedId = String(materialId || '').trim();
+      const possibleIds2 = [];
+      if (normalizedId) {
+        possibleIds2.push(normalizedId);
+        if (mongoose.Types.ObjectId.isValid(normalizedId)) {
+          try { possibleIds2.push(mongoose.Types.ObjectId(normalizedId)); } catch (_) {}
+        }
+      }
       const accessGrant = await MaterialAccess.findOne({
         userId,
-        materialType: normalizedMaterialTypeKey === 'chat_room' ? 'center' : normalizedMaterialTypeKey,
+        materialType: nm,
         accessType: 'preview',
         expiresAt: { $gt: new Date() },
         $or: [
-          { materialId: String(materialId || '').trim() || null },
+          ...(possibleIds2.length ? [{ materialId: { $in: possibleIds2 } }] : []),
           { materialId: null },
           { materialId: { $exists: false } },
         ],
@@ -152,12 +172,23 @@ async function getUserActiveAccesses(userId) {
  */
 async function getActiveAccessForMaterial(userId, materialId, materialType) {
   try {
-    const access = await MaterialAccess.findOne({
+    const normalizedMaterialId = String(materialId || '').trim();
+    const possibleMaterialIds = [];
+    if (normalizedMaterialId) {
+      possibleMaterialIds.push(normalizedMaterialId);
+      if (mongoose.Types.ObjectId.isValid(normalizedMaterialId)) {
+        try { possibleMaterialIds.push(mongoose.Types.ObjectId(normalizedMaterialId)); } catch (_) {}
+      }
+    }
+
+    const query = {
       userId,
-      materialId,
       materialType,
       expiresAt: { $gt: new Date() },
-    });
+      $or: [ ...(possibleMaterialIds.length ? [{ materialId: { $in: possibleMaterialIds } }] : []), { materialId: null }, { materialId: { $exists: false } } ],
+    };
+
+    const access = await MaterialAccess.findOne(query);
 
     return access;
   } catch (error) {
@@ -175,11 +206,20 @@ async function getActiveAccessForMaterial(userId, materialId, materialType) {
  */
 async function getRemainingAccessTime(userId, materialId, materialType) {
   try {
+    const normalizedMaterialId = String(materialId || '').trim();
+    const possibleMaterialIds = [];
+    if (normalizedMaterialId) {
+      possibleMaterialIds.push(normalizedMaterialId);
+      if (mongoose.Types.ObjectId.isValid(normalizedMaterialId)) {
+        try { possibleMaterialIds.push(mongoose.Types.ObjectId(normalizedMaterialId)); } catch (_) {}
+      }
+    }
+
     const access = await MaterialAccess.findOne({
       userId,
-      materialId,
       materialType,
       expiresAt: { $gt: new Date() },
+      $or: [ ...(possibleMaterialIds.length ? [{ materialId: { $in: possibleMaterialIds } }] : []), { materialId: null }, { materialId: { $exists: false } } ],
     });
 
     if (!access) return -1;
@@ -201,11 +241,22 @@ async function getRemainingAccessTime(userId, materialId, materialType) {
  */
 async function revokeMaterialAccess(userId, materialId, materialType) {
   try {
-    const access = await MaterialAccess.findOneAndUpdate(
-      { userId, materialId, materialType },
-      { expiresAt: new Date(), isActive: false },
-      { new: true }
-    );
+    const normalizedMaterialId = String(materialId || '').trim();
+    const possibleMaterialIds = [];
+    if (normalizedMaterialId) {
+      possibleMaterialIds.push(normalizedMaterialId);
+      if (mongoose.Types.ObjectId.isValid(normalizedMaterialId)) {
+        try { possibleMaterialIds.push(mongoose.Types.ObjectId(normalizedMaterialId)); } catch (_) {}
+      }
+    }
+
+    const query = {
+      userId,
+      materialType,
+      $or: [ ...(possibleMaterialIds.length ? [{ materialId: { $in: possibleMaterialIds } }] : []), { materialId: null }, { materialId: { $exists: false } } ],
+    };
+
+    const access = await MaterialAccess.findOneAndUpdate(query, { expiresAt: new Date(), isActive: false }, { new: true });
 
     return access;
   } catch (error) {
