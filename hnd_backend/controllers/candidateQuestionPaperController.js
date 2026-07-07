@@ -294,12 +294,25 @@ exports.previewPaper = async (req, res) => {
       'questionPaper',
       'preview'
     );
-    const access = await getMaterialAccessSummary({
-      user: { cand_id: req.user?.cand_id, subscription: candidate?.subscription || null },
-      materialType: 'question_paper',
-      resourceId: paper._id,
-      doc: paper,
-    });
+    let access;
+    if (hasGrantedAccess) {
+      // Provide a grant-based access object so preview headers and behavior reflect the grant
+      access = {
+        plan: 'grant',
+        allow_preview: true,
+        allow_download: true,
+        allow_copy: false,
+        preview_page_limit: null,
+        payment_required: {},
+      };
+    } else {
+      access = await getMaterialAccessSummary({
+        user: { cand_id: req.user?.cand_id, subscription: candidate?.subscription || null },
+        materialType: 'question_paper',
+        resourceId: paper._id,
+        doc: paper,
+      });
+    }
 
     const isRemote = /^https?:\/\//i.test(requested);
     const filename = isRemote ? requested : sanitizeFilename(requested);

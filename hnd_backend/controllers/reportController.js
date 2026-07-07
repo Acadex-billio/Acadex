@@ -364,12 +364,24 @@ exports.previewFile = (req, res) => {
       'preview'
     );
 
-    const access = await getMaterialAccessSummary({
-      user: { cand_id: req.user?.cand_id, subscription: candidate?.subscription || null },
-      materialType: 'report',
-      resourceId: report._id,
-      doc: report,
-    });
+    let access;
+    if (hasGrantedAccess) {
+      access = {
+        plan: 'grant',
+        allow_preview: true,
+        allow_download: true,
+        allow_copy: false,
+        preview_page_limit: null,
+        payment_required: {},
+      };
+    } else {
+      access = await getMaterialAccessSummary({
+        user: { cand_id: req.user?.cand_id, subscription: candidate?.subscription || null },
+        materialType: 'report',
+        resourceId: report._id,
+        doc: report,
+      });
+    }
 
     const filePath = requested;
     const isRemote = /^https?:\/\//i.test(filePath);

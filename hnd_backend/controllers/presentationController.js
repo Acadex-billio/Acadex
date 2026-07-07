@@ -349,12 +349,24 @@ exports.previewFile = async (req, res) => {
     'preview'
   );
 
-  const access = await getMaterialAccessSummary({
-    user: { cand_id: req.user?.cand_id, subscription: candidate?.subscription || null },
-    materialType: 'presentation',
-    resourceId: presentation._id,
-    doc: presentation,
-  });
+  let access;
+  if (hasGrantedAccess) {
+    access = {
+      plan: 'grant',
+      allow_preview: true,
+      allow_download: true,
+      allow_copy: false,
+      preview_page_limit: null,
+      payment_required: {},
+    };
+  } else {
+    access = await getMaterialAccessSummary({
+      user: { cand_id: req.user?.cand_id, subscription: candidate?.subscription || null },
+      materialType: 'presentation',
+      resourceId: presentation._id,
+      doc: presentation,
+    });
+  }
 
   try {
     const userId = req.user?.cand_id;
