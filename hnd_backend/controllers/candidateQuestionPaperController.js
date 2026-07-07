@@ -241,9 +241,6 @@ exports.downloadPaper = async (req, res) => {
     } catch (_) {
     }
 
-    const user = await User.findOne({ cand_id: req.user?.cand_id }).select('_id').lean();
-    if (!user) return res.status(401).json({ success: false, message: 'User not found' });
-
     try {
       await materialAccessService.grantMaterialAccess(user._id, paper._id, 'questionPaper', 'download', null);
     } catch (grantError) {
