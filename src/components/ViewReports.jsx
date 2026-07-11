@@ -114,7 +114,7 @@ const ViewReport = () => {
       if (filterCategory && String(r.report_category || '').toUpperCase() !== filterCategory) return false;
       return r.title.toLowerCase().includes(search.toLowerCase());
     });
-  }, [reports, search]);
+  }, [reports, search, filterCategory]);
 
   const extractFileName = useCallback((file) => file?.replace(/\\/g, "/").split("/").pop(), []);
 
