@@ -38,6 +38,11 @@ const InternshipTopicDetail = lazy(() => import('./components/InternshipTopicDet
 const Settings = lazy(() => import('./components/Settings'));
 const AdminDashboard = lazy(() => import('./components/AdminDashboard'));
 const ReportUpload = lazy(() => import('./components/ReportUpload'));
+const ReportWritingGuide = lazy(() => import('./components/ReportWritingGuide'));
+const CandidateReportGuides = lazy(() => import('./components/CandidateReportGuides'));
+const AdminPublishResults = lazy(() => import('./components/AdminPublishResults'));
+const AdminFAQs = lazy(() => import('./components/AdminFAQs'));
+const CandidateFAQs = lazy(() => import('./components/CandidateFAQs'));
 const UploadPresentation = lazy(() => import('./components/UploadPresentation'));
 const ViewPresentation = lazy(() => import('./components/ViewPresentation'));
 const GroupChat = lazy(() => import('./components/GroupChat')); 
@@ -188,6 +193,9 @@ const App = () => (
                 <Route path="manage-admins" element={<Navigate to="/admin/manage-users" replace />} />
                 <Route path="departments" element={<Department />} />
                 <Route path="reports" element={<ReportUpload />} />
+                <Route path="reports/writing-guide" element={<ReportWritingGuide />} />
+                <Route path="reports/publish-results" element={<AdminPublishResults />} />
+                <Route path="faqs" element={<AdminFAQs />} />
                 <Route path="presentations" element={<UploadPresentation />} />
                 <Route path="question-papers" element={<QuestionUpload />} />
                 <Route path="chat" element={<GroupChat mode="admin" />} />
@@ -221,8 +229,12 @@ const App = () => (
                 </ProtectedRoute>
               }>
                 <Route index element={<CandidateDashboard />} />
-                <Route path="question-papers" element={<QuestionPapers />} />
+                <Route path="question-papers" element={<Navigate to="/candidate/question-papers/hnd" replace />} />
+                <Route path="question-papers/:paperType" element={<QuestionPapers />} />
                 <Route path="reports" element={<ViewReports />} />
+                <Route path="reports/guides" element={<CandidateReportGuides />} />
+                <Route path="reports/faqs" element={<CandidateFAQs />} />
+                <Route path="results" element={<AdminPublishResults />} />
                 <Route path="presentations" element={<ViewPresentation />} />
                 <Route path="announcements" element={<Announcements />} />
                 <Route path="internship-topics" element={<CandidateInternshipTopics />} />

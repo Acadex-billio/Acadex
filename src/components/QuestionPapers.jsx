@@ -4,13 +4,26 @@ import styles from "../Astyles/pastQuestion.module.css";
 import { getErrorMessage } from "../utility/getErrorMessage";
 import GraduationCapLoader from "./GraduationCapLoader";
 import SecurePdfPreview from "./SecurePdfPreview";
-import { showToast } from "../utility/ToastNotification";
 import PaymentActionModal from "./PaymentActionModal";
-import { useNavigate } from "react-router-dom";
+import { showToast } from "../utility/ToastNotification";
+import { useNavigate, useParams } from "react-router-dom";
 import { FaFilePdf, FaCalendarAlt, FaBuilding, FaClock, FaRegFileAlt, FaSearch, FaRegChartBar } from "react-icons/fa";
+
+const PAPER_TYPE_LABELS = {
+  hnd: 'HND Papers',
+  ca: 'CA Papers',
+  exam: 'Exam Papers',
+  mock: 'Mock Papers',
+};
+
+const VALID_PAPER_TYPES = ['hnd', 'ca', 'exam', 'mock'];
 
 const QuestionPapers = () => {
   const navigate = useNavigate();
+  const { paperType } = useParams();
+  const normalizedPaperType = VALID_PAPER_TYPES.includes(String(paperType || '').trim().toLowerCase())
+    ? String(paperType).trim().toLowerCase()
+    : 'hnd';
   const [papers, setPapers] = useState([]);
   const [departments, setDepartments] = useState([]);
   const [search, setSearch] = useState("");
@@ -81,7 +94,8 @@ const QuestionPapers = () => {
     let cancelled = false;
     const loadPapers = async () => {
       try {
-        const { data } = await api.get('/candidate/question-papers');
+        const query = normalizedPaperType ? `?paper_type=${encodeURIComponent(normalizedPaperType)}` : '';
+        const { data } = await api.get(`/candidate/question-papers${query}`);
         if (!cancelled) setPapers(Array.isArray(data?.papers) ? data.papers : []);
       } catch (err) {
         if (!cancelled) showToast(getErrorMessage(err, "Unable to load question papers. Check connection and try again."), 'error');
@@ -89,7 +103,7 @@ const QuestionPapers = () => {
     };
     loadPapers();
     return () => { cancelled = true; };
-  }, []);
+  }, [normalizedPaperType]);
 
   /** ----------------------------
    * Filtered Papers
@@ -388,7 +402,7 @@ const QuestionPapers = () => {
       {actionLoading ? <GraduationCapLoader fullscreen label={actionLabel} /> : null}
       <div className={styles.container}>
       <section className={styles.heroPanel}>
-        <h2 className={styles.heading}>Question Papers</h2>
+        <h2 className={styles.heading}>{PAPER_TYPE_LABELS[normalizedPaperType] || 'Question Papers'}</h2>
         <p className={styles.heroSubtitle}>Access past papers to practice smarter and excel in your exams.</p>
         <div className={styles.activityPill}>
           <FaRegChartBar className={styles.activityIcon} />

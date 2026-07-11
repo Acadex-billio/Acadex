@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const path = require('path');
 const materialAccessService = require('../services/materialAccessService');
 const Report = require('../models/Report');
 const Presentation = require('../models/Presentation');
@@ -38,8 +39,26 @@ async function resolveMaterialId(materialType, identifier, req) {
 
   if (!model || !query) return null;
 
-  const doc = await model.findOne(query).select('_id').lean();
-  return doc?._id || null;
+  // First try program-scoped match
+  let doc = await model.findOne(query).select('_id').lean();
+  if (doc && doc._id) return doc._id;
+
+  // Fallback: try matching by exact file_path without program
+  try {
+    const exact = await model.findOne({ file_path: decoded }).select('_id').lean();
+    if (exact && exact._id) return exact._id;
+  } catch (_) {}
+
+  // Final fallback: match by filename suffix (handles S3 URL variants)
+  try {
+    const filename = path.basename(decoded.split('?')[0] || decoded);
+    if (filename) {
+      const bySuffix = await model.findOne({ file_path: { $regex: `${filename}$` } }).select('_id').lean();
+      if (bySuffix && bySuffix._id) return bySuffix._id;
+    }
+  } catch (_) {}
+
+  return null;
 }
 
 /**

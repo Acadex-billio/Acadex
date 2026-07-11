@@ -27,6 +27,8 @@ const CandidateShell = () => {
   const { startLoading, stopLoading } = useLoading();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
+  const [paperSubmenuOpen, setPaperSubmenuOpen] = useState(false);
+  const [reportsSubmenuOpen, setReportsSubmenuOpen] = useState(false);
   const [announcementCount, setAnnouncementCount] = useState(0);
   const [feedbackCount, setFeedbackCount] = useState(0);
   const [bookingAlertCount, setBookingAlertCount] = useState(0);
@@ -184,7 +186,6 @@ const CandidateShell = () => {
 
   const sidebarMainItems = useMemo(
     () => [
-      { to: '/candidate/reports', label: t('nav.reports'), icon: FaFileAlt },
       { to: '/candidate/presentations', label: t('nav.presentations'), icon: FaBook },
       { to: '/candidate/announcements', label: t('nav.announcements'), icon: FaBullhorn, badge: announcementCount },
       { to: '/candidate/earn-money', label: 'Earn Money', icon: FaDollarSign },
@@ -193,6 +194,16 @@ const CandidateShell = () => {
     ],
     [announcementCount, bookingAlertCount, t]
   );
+
+  const isPapersActive = location.pathname.startsWith('/candidate/question-papers');
+  const isReportsActive = location.pathname.startsWith('/candidate/reports');
+
+  useEffect(() => {
+    if (isPapersActive) {
+      setPaperSubmenuOpen(true);
+    }
+    if (isReportsActive) setReportsSubmenuOpen(true);
+  }, [isPapersActive, isReportsActive]);
 
   const accountMenuItems = useMemo(
     () => [
@@ -363,6 +374,94 @@ const CandidateShell = () => {
           </div>
 
           <nav className={styles.nav}>
+            <button
+              type="button"
+              className={`${styles.navLink} ${isPapersActive ? styles.active : ''}`}
+              onClick={() => {
+                setPaperSubmenuOpen((prev) => !prev);
+                onNavClick();
+                navigate('/candidate/question-papers/hnd');
+              }}
+            >
+              <FaFileAlt className={styles.navIcon} />
+              <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, width: '100%' }}>
+                <span>Question Papers</span>
+                <FaChevronDown className={`${styles.accountChevron} ${paperSubmenuOpen ? styles.accountChevronOpen : ''}`} />
+              </span>
+            </button>
+            {paperSubmenuOpen && (
+              <div className={styles.navSubgroup}>
+                <NavLink
+                  to="/candidate/question-papers/hnd"
+                  className={({ isActive }) => `${styles.navLink} ${isActive ? styles.active : ''}`}
+                  onClick={onNavClick}
+                >
+                  HND Papers
+                </NavLink>
+                <NavLink
+                  to="/candidate/question-papers/ca"
+                  className={({ isActive }) => `${styles.navLink} ${isActive ? styles.active : ''}`}
+                  onClick={onNavClick}
+                >
+                  CA Papers
+                </NavLink>
+                <NavLink
+                  to="/candidate/question-papers/exam"
+                  className={({ isActive }) => `${styles.navLink} ${isActive ? styles.active : ''}`}
+                  onClick={onNavClick}
+                >
+                  Exam Papers
+                </NavLink>
+                <NavLink
+                  to="/candidate/question-papers/mock"
+                  className={({ isActive }) => `${styles.navLink} ${isActive ? styles.active : ''}`}
+                  onClick={onNavClick}
+                >
+                  Mock Papers
+                </NavLink>
+              </div>
+            )}
+            <button
+              type="button"
+              className={`${styles.navLink} ${isReportsActive ? styles.active : ''}`}
+              onClick={() => {
+                setReportsSubmenuOpen((prev) => !prev);
+                onNavClick();
+                navigate('/candidate/reports');
+              }}
+            >
+              <FaFileAlt className={styles.navIcon} />
+              <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, width: '100%' }}>
+                <span>Academic Reports</span>
+                <FaChevronDown className={`${styles.accountChevron} ${reportsSubmenuOpen ? styles.accountChevronOpen : ''}`} />
+              </span>
+            </button>
+            {reportsSubmenuOpen && (
+              <div className={styles.navSubgroup}>
+                <NavLink
+                  to="/candidate/reports"
+                  className={({ isActive }) => `${styles.navLink} ${isActive ? styles.active : ''}`}
+                  onClick={onNavClick}
+                >
+                  Reports
+                </NavLink>
+                <NavLink
+                  to="/candidate/reports/guides"
+                  className={({ isActive }) => `${styles.navLink} ${isActive ? styles.active : ''}`}
+                  onClick={onNavClick}
+                >
+                  Report Guides
+                </NavLink>
+              </div>
+            )}
+            <NavLink
+              to="/candidate/results"
+              className={({ isActive }) => `${styles.navLink} ${isActive ? styles.active : ''}`}
+              onClick={onNavClick}
+            >
+              <FaChartLine className={styles.navIcon} />
+              <span>Results</span>
+            </NavLink>
             {sidebarMainItems.map(({ to, label, icon: Icon, badge }) => (
               <NavLink
                 key={to}
@@ -408,7 +507,7 @@ const CandidateShell = () => {
           <FaHome />
           <span>Home</span>
         </NavLink>
-        <NavLink to="/candidate/question-papers" className={({ isActive }) => isActive ? styles.footerLinkActive : ''}>
+        <NavLink to="/candidate/question-papers/hnd" className={({ isActive }) => isActive ? styles.footerLinkActive : ''}>
           <FaClipboardList />
           <span>Papers</span>
         </NavLink>

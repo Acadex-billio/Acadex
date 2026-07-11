@@ -125,10 +125,16 @@ exports.getQuestionPapers = async (req, res) => {
   try {
     const deptId = req.user?.dpt_id || null;
     const program = String(req.user?.program || 'HND').toUpperCase();
+    const paper_type_q = String(req.query?.paper_type || '').trim().toLowerCase();
+    const validTypes = ['hnd', 'ca', 'exam', 'mock'];
 
     const query = deptId
       ? { program, $or: [{ audience: 'GENERAL' }, { departments: deptId }] }
       : { program, audience: 'GENERAL' };
+
+    if (validTypes.includes(paper_type_q)) {
+      query.paper_type = paper_type_q;
+    }
 
     const papers = await QuestionPaper.find(query)
       .sort({ createdAt: -1 })
@@ -142,6 +148,7 @@ exports.getQuestionPapers = async (req, res) => {
       paper_file: p.paper_file,
       upload_date: p.createdAt,
       uploaded_by: p.uploaded_by,
+      paper_type: p.paper_type || 'hnd',
       program: String(p.program || 'HND').toUpperCase(),
       audience: p.audience,
       more_info: p.more_info,

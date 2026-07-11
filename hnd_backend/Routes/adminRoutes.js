@@ -82,11 +82,18 @@ router.post(
 router.get('/download-paper/:filename', questionPaperController.downloadPaper);
 
 router.get('/reports/list', adminReportController.listReports);
+router.get('/reports/guides/list', adminReportController.listGuides);
 router.post(
   '/upload-report',
   uploadReport.single('reportDoc'),
   validateDocumentUpload,
   adminReportController.uploadReport
+);
+router.post(
+  '/upload-guide',
+  uploadReport.single('guideFile'),
+  validateDocumentUpload,
+  adminReportController.uploadGuide
 );
 router.put('/reports/:id', validate({ params: schemas.ids.mongoIdParam }), adminReportController.updateReport);
 router.delete('/reports/:id', validate({ params: schemas.ids.mongoIdParam }), adminReportController.deleteReport);

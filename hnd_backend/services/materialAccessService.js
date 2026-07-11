@@ -54,6 +54,23 @@ const User = require('../models/User');
 
 async function hasActiveAccess(userId, materialId, materialType, accessType) {
   try {
+    // Normalize userId: allow passing cand_id (e.g., "CAND00006") or ObjectId/_id.
+    let resolvedUserId = userId;
+    try {
+      if (!mongoose.Types.ObjectId.isValid(String(userId || '')) ) {
+        // treat as cand_id, attempt to lookup user
+        const candidate = await User.findOne({ cand_id: String(userId || '') }).select('_id cand_id subscription').lean();
+        if (candidate && candidate._id) {
+          resolvedUserId = candidate._id;
+        } else {
+          // no matching user
+          return false;
+        }
+      }
+    } catch (e) {
+      // fallback: continue with original userId
+      resolvedUserId = userId;
+    }
     // 1) direct MaterialAccess records (admin or payment grants stored in MaterialAccess)
     const normalizedMaterialId = String(materialId || '').trim();
     const possibleMaterialIds = [];
@@ -67,7 +84,7 @@ async function hasActiveAccess(userId, materialId, materialType, accessType) {
     }
 
     const direct = await MaterialAccess.findOne({
-      userId,
+      userId: resolvedUserId,
       materialType,
       accessType,
       expiresAt: { $gt: new Date() },
@@ -80,7 +97,7 @@ async function hasActiveAccess(userId, materialId, materialType, accessType) {
     if (direct) return true;
 
     // 2) consult user subscription and CandidatePurchase/PaymentAccessGrant via subscription utils
-    const user = await User.findById(userId).select('cand_id subscription email').lean();
+    const user = await User.findById(resolvedUserId).select('cand_id subscription email').lean();
     if (!user) return false;
 
     const normalizedMaterialType = String(materialType || '').trim();

@@ -19,7 +19,14 @@ const questionPaperSchema = new mongoose.Schema(
     course_title: { type: String, required: true, trim: true },
     hnd_year: { type: String, required: true, trim: true },
     paper_file: { type: String, required: true },
-    uploaded_by: { type: String, required: true, trim: true },
+    uploaded_by: { type: String, required: false, trim: true },
+    // paper_type distinguishes HND vs CA/Exam/Mock papers
+    paper_type: { type: String, enum: ['hnd', 'ca', 'exam', 'mock'], default: 'hnd', index: true },
+    // fields for non-HND papers
+    institution_name: { type: String, trim: true, default: '' },
+    region: { type: String, trim: true, default: '' },
+    semester: { type: String, trim: true, default: '' },
+    institution_url: { type: String, trim: true, default: '' },
     program: { type: String, enum: ['HND', 'BTS', 'BACHELOR', 'MASTERS', 'LICENCE', 'MASTER'], default: 'HND', index: true },
     audience: { type: String, enum: ['GENERAL', 'SINGLE', 'MULTIPLE'], default: 'GENERAL' },
     more_info: { type: String, default: '' },

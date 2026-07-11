@@ -30,6 +30,7 @@ const reportSchema = new mongoose.Schema(
     departments: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Department' }],
     material_price: { type: Number, default: null, min: 0 },
     project_github_url: { type: String, trim: true, default: null },
+    is_guide: { type: Boolean, default: false, index: true },
     subscription_access: { type: subscriptionAccessSchema, default: () => ({}) },
   },
   { timestamps: true }

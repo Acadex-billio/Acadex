@@ -297,6 +297,120 @@ exports.listReports = async (req, res) => {
   }
 };
 
+/**
+ * List only report guides (is_guide = true)
+ */
+exports.listGuides = async (req, res) => {
+  try {
+    const program = String(req.query?.program || '').trim().toUpperCase();
+    const query = { is_guide: true };
+    if (ALLOWED_PROGRAMS.includes(program)) query.program = program;
+    const rows = await Report.find(query)
+      .sort({ createdAt: -1 })
+      .populate('departments', 'department_name abbreviation')
+      .lean();
+
+    const formatted = rows.map((r) => ({
+      report_id: r._id,
+      title: r.title,
+      writer_names: r.writer_names,
+      writer_email: r.writer_email,
+      keywords: r.keywords,
+      description: r.description,
+      location: r.location,
+      pages: r.pages,
+      file_path: r.file_path,
+      program: String(r.program || 'HND').toUpperCase(),
+      audience: r.audience,
+      notify_candidates: r.notify_candidates,
+      material_price: r.material_price ?? null,
+      project_github_url: r.project_github_url || null,
+      departments: (r.departments || []).map((d) => ({
+        dpt_id: (d && d._id ? d._id : d)?.toString?.() ?? String(d),
+        department_name: (typeof d === 'object' && d?.department_name) || '',
+        abbreviation: (typeof d === 'object' && d?.abbreviation) || '',
+      })),
+      upload_date: r.createdAt,
+    }));
+
+    return res.json({ success: true, reports: formatted });
+  } catch (err) {
+    console.error('[AdminReport] List guides error:', err);
+    return res.status(500).json({ success: false, message: 'Failed to fetch report guides' });
+  }
+};
+
+/**
+ * Upload a report guide - similar to uploadReport but marks is_guide = true
+ */
+exports.uploadGuide = async (req, res) => {
+  try {
+    const {
+      audience,
+      dpt_id,
+      dpt_ids,
+      title,
+      writer_names,
+      writer_email,
+      description,
+      location,
+      keywords,
+      pages,
+      program,
+    } = req.body;
+    const normalizedProgram = String(program || 'HND').trim().toUpperCase();
+    if (!ALLOWED_PROGRAMS.includes(normalizedProgram)) {
+      return res.status(400).json({ success: false, message: 'Invalid program selected.' });
+    }
+
+    if (!req.file || !title || !writer_names || !writer_email || !description || !location || !keywords || !pages || !audience) {
+      return res.status(400).json({ success: false, message: 'Missing required fields or file.' });
+    }
+
+    let targetDeptIds = [];
+    if (audience === 'SINGLE') {
+      if (!dpt_id) return res.status(400).json({ success: false, message: 'Missing dpt_id for SINGLE.' });
+      targetDeptIds = [dpt_id];
+    } else if (audience === 'MULTIPLE') {
+      const parsed = parseDptIds(dpt_ids);
+      if (!parsed.length) {
+        return res.status(400).json({ success: false, message: 'Missing dpt_ids for MULTIPLE.' });
+      }
+      targetDeptIds = parsed;
+    }
+
+    // Upload file to S3
+    let filePath = '';
+    try {
+      const upload = await uploadFile(req.file.buffer, req.file.originalname, req.file.mimetype, 'reports');
+      filePath = upload.url;
+    } catch (uploadErr) {
+      console.error('[AdminReport] Guide S3 upload failed:', uploadErr);
+      return res.status(500).json({ success: false, message: 'Failed to upload guide to S3' });
+    }
+
+    const guide = await Report.create({
+      title: title.trim(),
+      writer_names: writer_names.trim(),
+      writer_email: writer_email.trim(),
+      keywords: keywords.trim(),
+      description: description.trim(),
+      location: String(location || '').trim(),
+      pages: String(pages).trim(),
+      file_path: filePath,
+      program: normalizedProgram,
+      audience,
+      departments: targetDeptIds,
+      is_guide: true,
+    });
+
+    return res.json({ success: true, report_id: guide._id });
+  } catch (err) {
+    console.error('[AdminReport] uploadGuide Error:', err);
+    res.status(500).json({ success: false, message: 'Internal server error' });
+  }
+};
+
 exports.updateReport = async (req, res) => {
   try {
     const { id } = req.params;

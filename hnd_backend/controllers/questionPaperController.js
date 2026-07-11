@@ -75,6 +75,11 @@ exports.getDepartments = async (req, res) => {
 exports.uploadPaper = async (req, res) => {
   try {
     const { audience, dpt_id, dpt_ids, paperTitle, hndYear, uploaded_by, notify, program } = req.body;
+    const paper_type = String(req.body.paper_type || 'hnd').toLowerCase();
+    const institution_name = String(req.body.institution_name || '').trim();
+    const region = String(req.body.region || '').trim();
+    const semester = String(req.body.semester || '').trim();
+    const institution_url = String(req.body.institution_url || '').trim();
     const file = req.file;
     const normalizedProgram = String(program || 'HND').trim().toUpperCase();
     if (!ALLOWED_PROGRAMS.includes(normalizedProgram)) {
@@ -86,8 +91,17 @@ exports.uploadPaper = async (req, res) => {
     if (!AUDIENCE.has(aud)) {
       return res.status(400).json({ success: false, message: 'Invalid audience.' });
     }
-    if (!paperTitle || !hndYear || !uploaded_by || !file) {
+    // Validate required fields based on paper type
+    if (!paperTitle || !hndYear || !file) {
       return res.status(400).json({ success: false, message: 'Missing required fields or file.' });
+    }
+    if (paper_type === 'hnd') {
+      if (!uploaded_by) return res.status(400).json({ success: false, message: 'Missing uploaded_by for HND paper.' });
+    } else {
+      // CA / Exam / Mock papers require institution details
+      if (!institution_name || !region || !semester) {
+        return res.status(400).json({ success: false, message: 'Missing institution, region, or semester for selected paper type.' });
+      }
     }
 
     let targetDeptIds = [];
@@ -113,7 +127,7 @@ exports.uploadPaper = async (req, res) => {
       }
     }
 
-    const moreInfo = coerceMoreInfo(req.body);
+    const moreInfo = paper_type === 'hnd' ? coerceMoreInfo(req.body) : '';
 
     let paperFilePath = file.filename;
     try {
@@ -148,11 +162,16 @@ exports.uploadPaper = async (req, res) => {
       course_title: paperTitle.trim(),
       hnd_year: String(hndYear).trim(),
       paper_file: paperFilePath,
-      uploaded_by: uploaded_by.trim(),
+      uploaded_by: (uploaded_by || '').trim(),
       program: normalizedProgram,
       audience: aud,
       more_info: moreInfo,
       departments: targetDeptIds,
+      paper_type: paper_type || 'hnd',
+      institution_name: institution_name || '',
+      region: region || '',
+      semester: semester || '',
+      institution_url: institution_url || '',
     });
 
     let emailReport = { attempted: 0, sent: 0, failed: 0 };
@@ -210,7 +229,9 @@ exports.uploadPaper = async (req, res) => {
 exports.getQuestionPapers = async (req, res) => {
   try {
     const program = String(req.query?.program || '').trim().toUpperCase();
+    const paper_type_q = String(req.query?.paper_type || '').trim().toLowerCase();
     const query = ALLOWED_PROGRAMS.includes(program) ? { program } : {};
+    if (paper_type_q && ['hnd', 'ca', 'exam', 'mock'].includes(paper_type_q)) query.paper_type = paper_type_q;
     const papers = await QuestionPaper.find(query)
       .sort({ createdAt: -1 })
       .populate('departments', 'dpt_id department_name')
@@ -223,6 +244,11 @@ exports.getQuestionPapers = async (req, res) => {
       paper_file: p.paper_file,
       upload_date: p.createdAt,
       uploaded_by: p.uploaded_by,
+      paper_type: p.paper_type || 'hnd',
+      institution_name: p.institution_name || '',
+      region: p.region || '',
+      semester: p.semester || '',
+      institution_url: p.institution_url || '',
       program: String(p.program || 'HND').toUpperCase(),
       audience: p.audience,
       more_info: p.more_info,
@@ -288,6 +314,11 @@ exports.updatePaper = async (req, res) => {
   try {
     const { id } = req.params;
     const { audience, dpt_id, dpt_ids, paperTitle, hndYear, uploaded_by, more_info, study_links, program } = req.body;
+    const paper_type = String(req.body.paper_type || 'hnd').toLowerCase();
+    const institution_name = String(req.body.institution_name || '').trim();
+    const region = String(req.body.region || '').trim();
+    const semester = String(req.body.semester || '').trim();
+    const institution_url = String(req.body.institution_url || '').trim();
     const normalizedProgram = String(program || 'HND').trim().toUpperCase();
     if (!['HND', 'BTS'].includes(normalizedProgram)) {
       return res.status(400).json({ success: false, message: 'Program must be HND or BTS.' });
@@ -297,8 +328,15 @@ exports.updatePaper = async (req, res) => {
     if (!AUDIENCE.has(aud)) {
       return res.status(400).json({ success: false, message: 'Invalid audience.' });
     }
-    if (!paperTitle || !hndYear || !uploaded_by) {
+    if (!paperTitle || !hndYear) {
       return res.status(400).json({ success: false, message: 'Missing required fields.' });
+    }
+    if (paper_type === 'hnd') {
+      if (!uploaded_by) return res.status(400).json({ success: false, message: 'Missing uploaded_by for HND paper.' });
+    } else {
+      if (!institution_name || !region || !semester) {
+        return res.status(400).json({ success: false, message: 'Missing institution, region, or semester for selected paper type.' });
+      }
     }
 
     let targetDeptIds = [];
@@ -325,11 +363,16 @@ exports.updatePaper = async (req, res) => {
 
     paper.course_title = String(paperTitle).trim();
     paper.hnd_year = String(hndYear).trim();
-    paper.uploaded_by = String(uploaded_by).trim();
+    paper.uploaded_by = (uploaded_by || '').trim();
     paper.program = normalizedProgram;
     paper.audience = aud;
-    paper.more_info = coerceMoreInfo({ more_info, study_links });
+    paper.more_info = paper_type === 'hnd' ? coerceMoreInfo({ more_info, study_links }) : '';
     paper.departments = targetDeptIds;
+    paper.paper_type = paper_type || 'hnd';
+    paper.institution_name = institution_name || '';
+    paper.region = region || '';
+    paper.semester = semester || '';
+    paper.institution_url = institution_url || '';
     await paper.save();
 
     return res.json({ success: true, message: 'Question paper updated successfully' });

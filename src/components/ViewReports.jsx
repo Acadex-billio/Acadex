@@ -17,6 +17,7 @@ const ViewReport = () => {
   const navigate = useNavigate();
   const [reports, setReports] = useState([]);
   const [search, setSearch] = useState("");
+  const [filterCategory, setFilterCategory] = useState('');
   const [previewFile, setPreviewFile] = useState(null);
   const [previewUrl, setPreviewUrl] = useState(null);
   const [myCounts, setMyCounts] = useState({ downloads: 0, previews: 0 });
@@ -64,6 +65,12 @@ const ViewReport = () => {
   }, []);
 
   useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const category = String(params.get('category') || '').trim().toUpperCase();
+    setFilterCategory(category || '');
+  }, [location.search]);
+
+  useEffect(() => {
     let cancelled = false;
     const loadMyCounts = async () => {
       try {
@@ -83,12 +90,15 @@ const ViewReport = () => {
     };
   }, []);
 
-  /** Fetch reports - mount only */
+  /** Fetch reports - mount and refresh when category changes */
   useEffect(() => {
     let cancelled = false;
     const fetchReports = async () => {
       try {
-        const { data } = await api.get('/candidate/reports');
+        const params = new URLSearchParams();
+        if (filterCategory) params.set('category', filterCategory);
+        const url = `/candidate/reports${params.toString() ? `?${params.toString()}` : ''}`;
+        const { data } = await api.get(url);
         if (!cancelled) setReports(data?.reports || []);
       } catch (err) {
         if (!cancelled) showToast(getErrorMessage(err, "Failed to load reports. Check connection and try again."), 'error');
@@ -96,13 +106,14 @@ const ViewReport = () => {
     };
     fetchReports();
     return () => { cancelled = true; };
-  }, []);
+  }, [filterCategory]);
 
   // Filter reports
   const filteredReports = useMemo(() => {
-    return reports.filter((r) =>
-      r.title.toLowerCase().includes(search.toLowerCase())
-    );
+    return reports.filter((r) => {
+      if (filterCategory && String(r.report_category || '').toUpperCase() !== filterCategory) return false;
+      return r.title.toLowerCase().includes(search.toLowerCase());
+    });
   }, [reports, search]);
 
   const extractFileName = useCallback((file) => file?.replace(/\\/g, "/").split("/").pop(), []);

@@ -26,7 +26,10 @@ const resolveMaterial = async (resourceType, identifier, program) => {
     if (identifier.match && identifier.match(/^[0-9a-fA-F]{24}$/)) {
       return await Report.findById(identifier).lean();
     }
-    return await Report.findOne({ file_path: identifier, program }).lean();
+    // Try to resolve by program first, but fall back to global match (guides may belong to other programs)
+    let found = await Report.findOne({ file_path: identifier, program }).lean();
+    if (found) return found;
+    return await Report.findOne({ file_path: identifier }).lean();
   }
 
   if (rt === 'presentation') {

@@ -71,6 +71,7 @@ router.post(
 );
 
 router.get('/reports', reportController.getAll);
+router.get('/reports/guides', reportController.getGuides);
 router.get('/reports/file/:filename', checkMaterialAccess('report', 'download'), reportController.downloadFile);
 router.get('/reports/preview/:filename', checkMaterialAccess('report', 'preview'), reportController.previewFile);
 

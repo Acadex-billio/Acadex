@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { NavLink, Outlet, useNavigate } from 'react-router-dom';
+import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { FaBars, FaTimes, FaHome, FaFolderOpen, FaFileAlt, FaClipboardList, FaUpload, FaCog, FaUserCircle, FaUsers, FaRobot, FaHistory, FaBullhorn, FaCommentDots, FaComments, FaChartLine, FaSignOutAlt, FaCreditCard, FaLightbulb, FaChalkboardTeacher, FaChevronDown, FaAd, FaBell, FaDollarSign } from 'react-icons/fa';
 import AdDisplay from '../AdDisplay';
 import styles from '../../Astyles/DashboardShell.module.css';
@@ -70,6 +70,7 @@ const AdminShell = () => {
   const [chatCount, setChatCount] = useState(0);
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
   const [manageUsersOpen, setManageUsersOpen] = useState(false);
+  const [reportsOpen, setReportsOpen] = useState(false);
   const accountMenuRef = useRef(null);
 
   useEffect(() => {
@@ -138,13 +139,15 @@ const AdminShell = () => {
     };
   }, []);
 
+  const location = useLocation();
   const navItems = useMemo(() => {
     const initial = [
       { to: '/admin', label: t('nav.dashboard'), icon: FaHome },
       { to: '/admin/departments', label: t('nav.departments'), icon: FaFolderOpen },
-      { to: '/admin/reports', label: t('nav.reports'), icon: FaFileAlt },
       { to: '/admin/presentations', label: t('nav.presentations'), icon: FaClipboardList },
       { to: '/admin/question-papers', label: t('nav.questionPapers'), icon: FaUpload },
+      { to: '/admin/reports/publish-results', label: 'Publish Results', icon: FaFileAlt },
+      { to: '/admin/faqs', label: 'FAQs', icon: FaCommentDots },
       { to: '/admin/internship-topics', label: t('nav.internshipTopics'), icon: FaLightbulb },
       { to: '/admin/ai-assistant', label: t('nav.aiAssistant'), icon: FaRobot },
       ...(isDeveloper ? [{ to: '/admin/custom-alert', label: 'Custom Alerts', icon: FaBell }] : []),
@@ -176,6 +179,14 @@ const AdminShell = () => {
   );
 
   const closeSidebar = () => setSidebarOpen(false);
+
+  const isReportsActive = location.pathname.startsWith('/admin/reports');
+
+  useEffect(() => {
+    if (isReportsActive) {
+      setReportsOpen(true);
+    }
+  }, [isReportsActive]);
 
   const onAccountMenuNav = (to) => {
     setAccountMenuOpen(false);
@@ -369,6 +380,39 @@ const AdminShell = () => {
               </div>
             ) : null}
 
+            <button
+              type="button"
+              className={`${styles.navLink} ${isReportsActive ? styles.active : ''}`}
+              onClick={() => setReportsOpen((prev) => !prev)}
+              aria-expanded={reportsOpen}
+            >
+              <FaFileAlt className={styles.navIcon} />
+              <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, width: '100%' }}>
+                <span>Reports</span>
+                <FaChevronDown className={`${styles.accountChevron} ${reportsOpen ? styles.accountChevronOpen : ''}`} />
+              </span>
+            </button>
+            {reportsOpen ? (
+              <div className={styles.navSubgroup}>
+                <NavLink
+                  to="/admin/reports"
+                  className={({ isActive }) => `${styles.navLink} ${isActive ? styles.active : ''}`}
+                  onClick={onNavClick}
+                >
+                  <FaFileAlt className={styles.navIcon} />
+                  <span>Verified Report</span>
+                </NavLink>
+                <NavLink
+                  to="/admin/reports/writing-guide"
+                  className={({ isActive }) => `${styles.navLink} ${isActive ? styles.active : ''}`}
+                  onClick={onNavClick}
+                >
+                  <FaFileAlt className={styles.navIcon} />
+                  <span>Report Writing Guide</span>
+                </NavLink>
+              </div>
+            ) : null}
+
             {navItems.map(({ to, label, icon: Icon, badge }) => (
               <NavLink
                 key={to}
@@ -431,6 +475,14 @@ const AdminShell = () => {
             <NavLink to="/admin/reports" className={({ isActive }) => isActive ? styles.footerLinkActive : ''}>
               <FaFileAlt />
               <span>Add-Report</span>
+            </NavLink>
+            <NavLink to="/admin/reports/publish-results" className={({ isActive }) => isActive ? styles.footerLinkActive : ''}>
+              <FaFileAlt />
+              <span>Publish Results</span>
+            </NavLink>
+            <NavLink to="/admin/faqs" className={({ isActive }) => isActive ? styles.footerLinkActive : ''}>
+              <FaCommentDots />
+              <span>FAQs</span>
             </NavLink>
           </>
         )}

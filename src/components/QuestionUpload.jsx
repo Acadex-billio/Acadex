@@ -20,6 +20,15 @@ const AUDIENCE = {
 
 const PROGRAM_OPTIONS = ['HND', 'BTS', 'LICENCE', 'BACHELOR', 'MASTERS', 'MASTER'];
 
+const PAPER_TYPES = [
+  { label: 'HND Papers', value: 'hnd' },
+  { label: 'CA Papers', value: 'ca' },
+  { label: 'Exam Papers', value: 'exam' },
+  { label: 'Mock Papers', value: 'mock' },
+];
+
+const REGIONS = ['Adamawa','Centre','East','Far North','Littoral','North','Northwest','South','Southwest','West'];
+
 const PAGE_SIZE = 7;
 
 const QuestionUpload = () => {
@@ -27,6 +36,7 @@ const QuestionUpload = () => {
   const { t } = useTranslation();
   const [departments, setDepartments] = useState([]);
   const [program, setProgram] = useState(String(user?.program || 'HND').toUpperCase());
+  const [paperType, setPaperType] = useState('hnd');
   const [audience, setAudience] = useState(AUDIENCE.SINGLE);
 
   const [papers, setPapers] = useState([]);
@@ -40,6 +50,10 @@ const QuestionUpload = () => {
   const [paperTitle, setPaperTitle] = useState('');
   const [hndYear, setHndYear] = useState('');
   const [uploadedBy, setUploadedBy] = useState('');
+  const [institutionName, setInstitutionName] = useState('');
+  const [region, setRegion] = useState('');
+  const [semester, setSemester] = useState('');
+  const [institutionUrl, setInstitutionUrl] = useState('');
   const [paperFile, setPaperFile] = useState(null);
   const [numLinks, setNumLinks] = useState(0);
   const [studyLinks, setStudyLinks] = useState([]);
@@ -52,14 +66,14 @@ const QuestionUpload = () => {
   const fetchPapers = useCallback(async () => {
     try {
       startLoading();
-      const { data } = await api.get(`/admin/get-question-papers?program=${encodeURIComponent(program)}`);
+      const { data } = await api.get(`/admin/get-question-papers?program=${encodeURIComponent(program)}&paper_type=${encodeURIComponent(paperType)}`);
       setPapers(Array.isArray(data?.papers) ? data.papers : []);
     } catch (err) {
       showToast(getErrorMessage(err, 'Unable to load question papers. Check connection and try again.'), 'error');
     } finally {
       stopLoading();
     }
-  }, [program, startLoading, stopLoading]);
+  }, [program, paperType, startLoading, stopLoading]);
 
   /** Fetch departments - mount only, no retry on failure */
   useEffect(() => {
@@ -82,6 +96,11 @@ const QuestionUpload = () => {
   useEffect(() => {
     fetchPapers();
   }, [fetchPapers]);
+
+  useEffect(() => {
+    // whenever paperType changes, re-fetch papers
+    fetchPapers();
+  }, [paperType, fetchPapers]);
 
   /** Reset department selections when audience changes */
   useEffect(() => {
@@ -138,13 +157,15 @@ const QuestionUpload = () => {
 
   /** Validation */
   const validate = useMemo(() => {
-    if (!paperTitle.trim() || !hndYear.trim() || !uploadedBy.trim()) return false;
+    if (!paperTitle.trim() || !hndYear.trim()) return false;
+    if (paperType === 'hnd' && !uploadedBy.trim()) return false;
+    if (paperType !== 'hnd' && (!institutionName.trim() || !region.trim() || !semester.trim())) return false;
     if (!activeId && !paperFile) return false;
     if (audience === AUDIENCE.SINGLE && !singleDept) return false;
     if (audience === AUDIENCE.MULTIPLE && multiDepts.length === 0) return false;
     if (studyLinks.some((link) => link && !/^https?:\/\/.+/i.test(link))) return false;
     return true;
-  }, [paperTitle, hndYear, uploadedBy, paperFile, audience, singleDept, multiDepts, studyLinks, activeId]);
+  }, [paperTitle, hndYear, uploadedBy, paperFile, audience, singleDept, multiDepts, studyLinks, activeId, paperType, institutionName, region, semester]);
 
   const clearForm = () => {
     setActiveId(null);
@@ -179,6 +200,11 @@ const QuestionUpload = () => {
     setPaperTitle(p.paper_title || '');
     setHndYear(String(p.hnd_year || ''));
     setUploadedBy(p.uploaded_by || '');
+    setPaperType(p.paper_type || 'hnd');
+    setInstitutionName(p.institution_name || '');
+    setRegion(p.region || '');
+    setSemester(p.semester || '');
+    setInstitutionUrl(p.institution_url || '');
     setPaperFile(null);
     const links = (p.more_info || '')
       .split(',')
@@ -203,6 +229,11 @@ const QuestionUpload = () => {
         uploaded_by: uploadedBy.trim(),
         program,
         study_links: JSON.stringify(studyLinks.filter(Boolean)),
+        paper_type: paperType,
+        institution_name: institutionName,
+        region,
+        semester,
+        institution_url: institutionUrl,
       };
 
       const { data } = await api.put(`/admin/question-papers/${activeId}`, payload);
@@ -218,7 +249,7 @@ const QuestionUpload = () => {
     } finally {
       stopLoading();
     }
-  }, [activeId, audience, fetchPapers, hndYear, multiDepts, paperTitle, program, singleDept, startLoading, stopLoading, studyLinks, uploadedBy]);
+  }, [activeId, audience, fetchPapers, hndYear, multiDepts, paperTitle, program, singleDept, startLoading, stopLoading, studyLinks, uploadedBy, paperType, institutionName, region, semester, institutionUrl]);
 
   const openNotify = useCallback(
     (e) => {
@@ -270,10 +301,17 @@ const QuestionUpload = () => {
         if (audience === AUDIENCE.MULTIPLE) fd.append('dpt_ids', JSON.stringify(multiDepts));
         fd.append('paperTitle', paperTitle.trim());
         fd.append('hndYear', hndYear.trim());
-        fd.append('uploaded_by', uploadedBy.trim());
+        if (paperType === 'hnd') fd.append('uploaded_by', uploadedBy.trim());
+        fd.append('paper_type', paperType);
+        if (paperType !== 'hnd') {
+          fd.append('institution_name', institutionName);
+          fd.append('region', region);
+          fd.append('semester', semester);
+          if (institutionUrl) fd.append('institution_url', institutionUrl);
+        }
         fd.append('program', program);
         fd.append('paperFile', paperFile);
-        fd.append('study_links', JSON.stringify(studyLinks.filter(Boolean)));
+        if (paperType === 'hnd') fd.append('study_links', JSON.stringify(studyLinks.filter(Boolean)));
         fd.append('notify', notify ? 'true' : 'false');
 
         const { data } = await api.post('/admin/upload-paper', fd);
@@ -292,7 +330,7 @@ const QuestionUpload = () => {
         setNotifyModalOpen(false);
       }
     },
-    [audience, fetchPapers, hndYear, multiDepts, paperFile, paperTitle, program, singleDept, startLoading, stopLoading, studyLinks, uploadedBy]
+    [audience, fetchPapers, hndYear, multiDepts, paperFile, paperTitle, program, singleDept, startLoading, stopLoading, studyLinks, uploadedBy, paperType, institutionName, region, semester, institutionUrl]
   );
 
   const filteredPapers = useMemo(() => {
@@ -435,19 +473,86 @@ const QuestionUpload = () => {
               <input type="text" value={hndYear} onChange={(e) => setHndYear(e.target.value)} required />
             </div>
 
-            {/* Uploaded By */}
+            {/* Paper Type Selector */}
             <div className={styles.field}>
-              <label>
-                Uploaded By (Admin Name/Email) <span>*</span>
-              </label>
-              <input
-                type="text"
-                value={uploadedBy}
-                onChange={(e) => setUploadedBy(e.target.value)}
-                placeholder="Your name or email"
-                required
-              />
+              <label>Paper Type <span>*</span></label>
+              <select value={paperType} onChange={(e) => setPaperType(e.target.value)}>
+                {PAPER_TYPES.map((pt) => (
+                  <option key={pt.value} value={pt.value}>{pt.label}</option>
+                ))}
+              </select>
             </div>
+
+            {/* HND-specific fields */}
+            {paperType === 'hnd' && (
+              <>
+                <div className={styles.field}>
+                  <label>
+                    Uploaded By (Admin Name/Email) <span>*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={uploadedBy}
+                    onChange={(e) => setUploadedBy(e.target.value)}
+                    placeholder="Your name or email"
+                    required
+                  />
+                </div>
+
+                {/* Study Links */}
+                <div className={styles.field}>
+                  <label>Number of Study Links (Max 5)</label>
+                  <input type="number" min="0" max="5" value={numLinks} onChange={handleLinkCountChange} />
+                </div>
+
+                {numLinks > 0 && (
+                  <div className={styles.linkGrid}>
+                    {studyLinks.map((link, i) => (
+                      <div key={`link-${i}`} className={styles.linkTile}>
+                        <input
+                          type="url"
+                          placeholder={`Study Link ${i + 1}`}
+                          value={link}
+                          onChange={(e) => handleLinkChange(i, e.target.value)}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </>
+            )}
+
+            {/* Non-HND fields */}
+            {paperType !== 'hnd' && (
+              <>
+                <div className={styles.field}>
+                  <label>Institution Name <span>*</span></label>
+                  <input type="text" value={institutionName} onChange={(e) => setInstitutionName(e.target.value)} required />
+                </div>
+
+                <div className={styles.field}>
+                  <label>Region <span>*</span></label>
+                  <select value={region} onChange={(e) => setRegion(e.target.value)}>
+                    <option value="">-- Select region --</option>
+                    {REGIONS.map((r) => <option key={r} value={r}>{r}</option>)}
+                  </select>
+                </div>
+
+                <div className={styles.field}>
+                  <label>Semester <span>*</span></label>
+                  <select value={semester} onChange={(e) => setSemester(e.target.value)}>
+                    <option value="">-- Select semester --</option>
+                    <option value="1">Semester 1</option>
+                    <option value="2">Semester 2</option>
+                  </select>
+                </div>
+
+                <div className={styles.field}>
+                  <label>Institution URL (optional)</label>
+                  <input type="url" value={institutionUrl} onChange={(e) => setInstitutionUrl(e.target.value)} />
+                </div>
+              </>
+            )}
 
             {/* File Upload */}
             <div className={styles.field}>
@@ -510,7 +615,12 @@ const QuestionUpload = () => {
 
         <section className={`${crudStyles.card} ${crudStyles.stickyPanel}`}>
           <div className={crudStyles.cardHeader}>
-            <h3 className={crudStyles.cardTitle}>Existing Question Papers</h3>
+            <h3 className={crudStyles.cardTitle}>Existing { (PAPER_TYPES.find(pt => pt.value === paperType) || { label: 'HND Papers' }).label }</h3>
+            <div style={{ marginLeft: 'auto' }}>
+              <select value={paperType} onChange={(e) => setPaperType(e.target.value)}>
+                {PAPER_TYPES.map((pt) => <option key={pt.value} value={pt.value}>{pt.label}</option>)}
+              </select>
+            </div>
           </div>
 
           <input
@@ -570,6 +680,12 @@ const QuestionUpload = () => {
                           Program: {String(p.program || 'HND').toUpperCase()} • Year: {p.hnd_year} • Audience: {p.audience}
                           <br />
                           Depts: {deptLabel}
+                          {p.paper_type && p.paper_type !== 'hnd' && (
+                            <>
+                              <br />
+                              Institution: {p.institution_name || '—'} • Region: {p.region || '—'} • Semester: {p.semester || '—'}
+                            </>
+                          )}
                         </div>
                       </div>
 
