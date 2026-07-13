@@ -10,8 +10,8 @@ const fs = require('fs');
 const { sanitizeFilename } = require('../middlewares/requestValidation');
 const { getS3ObjectStream } = require('../utils/s3Uploader');
 const materialAccessService = require('../services/materialAccessService');
-const { getMaterialAccessSummary } = require('../utils/subscriptionUtils');
-const { streamToBuffer, subsetPdfBuffer } = require('../utils/pdfAccess');
+const { getMaterialAccessSummary, isFreeMaterialAccess } = require('../utils/subscriptionUtils');
+const { streamToBuffer, subsetPdfBuffer, applyPdfWatermark } = require('../utils/pdfAccess');
 
 const PAPERS_DIR = path.join(__dirname, '../uploads/papers');
 
@@ -70,11 +70,17 @@ const applyPreviewHeaders = (res, access) => {
   res.setHeader('X-Preview-Page-Limit', access?.preview_page_limit ? String(access.preview_page_limit) : 'full');
 };
 
-const sendPdfResponse = async (res, buffer, access) => {
-  const output = access?.preview_page_limit ? await subsetPdfBuffer(buffer, access.preview_page_limit) : buffer;
+const sendPdfResponse = async (res, buffer, access, metadata = {}) => {
+  let output = access?.preview_page_limit ? await subsetPdfBuffer(buffer, access.preview_page_limit) : buffer;
+  if (metadata?.isFreeMaterial) {
+    output = await applyPdfWatermark(output, { logoPath: path.resolve(__dirname, '../../public/logo192.png') });
+  }
   applyPreviewHeaders(res, access);
   res.setHeader('Content-Type', 'application/pdf');
   res.setHeader('Content-Disposition', 'inline');
+  if (metadata?.isFreeMaterial) {
+    res.setHeader('X-Free-Material', 'true');
+  }
   return res.send(output);
 };
 
@@ -189,6 +195,8 @@ exports.downloadPaper = async (req, res) => {
     const user = await User.findOne({ cand_id: req.user?.cand_id }).select('_id cand_id subscription').lean();
     if (!user) return res.status(401).json({ success: false, message: 'User not found' });
 
+    const isFreeMaterial = await isFreeMaterialAccess('question_paper', paper);
+
     // Check if user has an active grant for download access to this material
     const hasGrantedAccess = await materialAccessService.hasActiveAccess(
       user._id,
@@ -197,7 +205,7 @@ exports.downloadPaper = async (req, res) => {
       'download'
     );
 
-    if (!hasGrantedAccess) {
+    if (!hasGrantedAccess && !isFreeMaterial) {
       // No active grant, check subscription plan
       const access = await getMaterialAccessSummary({
         user: { cand_id: req.user?.cand_id, subscription: candidate?.subscription || null },
@@ -257,6 +265,16 @@ exports.downloadPaper = async (req, res) => {
 
     if (isRemote) {
       const remoteName = sanitizeFilename(path.basename(requested)) || 'question-paper';
+      const ext = path.extname(remoteName).toLowerCase();
+      if (isFreeMaterial && ext === '.pdf') {
+        const key = getS3KeyFromValue(requested);
+        if (!key) return res.status(404).json({ success: false, message: 'File not found' });
+        const buffer = await streamToBuffer(getS3ObjectStream(key));
+        const watermarked = await applyPdfWatermark(buffer, { logoPath: path.resolve(__dirname, '../../public/logo192.png') });
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `attachment; filename="${remoteName}"`);
+        return res.send(watermarked);
+      }
       if (streamS3ToResponse(requested, res, 'attachment', remoteName)) return;
       return res.status(404).json({ success: false, message: 'File not found' });
     }
@@ -264,6 +282,15 @@ exports.downloadPaper = async (req, res) => {
     const filePath = path.join(PAPERS_DIR, filename);
     if (!fs.existsSync(filePath)) {
       return res.status(404).json({ success: false, message: 'File not found' });
+    }
+
+    const ext = path.extname(filename).toLowerCase();
+    if (isFreeMaterial && ext === '.pdf') {
+      const buffer = await fs.promises.readFile(filePath);
+      const watermarked = await applyPdfWatermark(buffer, { logoPath: path.resolve(__dirname, '../../public/logo192.png') });
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+      return res.send(watermarked);
     }
 
     return res.download(filePath, filename);
@@ -291,8 +318,11 @@ exports.previewPaper = async (req, res) => {
       return res.status(403).json({ success: false, message: 'Not authorized to access this paper' });
     }
 
-    const candidate = await User.findOne({ cand_id: req.user?.cand_id }).select('cand_id subscription').lean();    const user = await User.findOne({ cand_id: req.user?.cand_id }).select('_id cand_id subscription').lean();
+    const candidate = await User.findOne({ cand_id: req.user?.cand_id }).select('cand_id subscription').lean();
+    const user = await User.findOne({ cand_id: req.user?.cand_id }).select('_id cand_id subscription').lean();
     if (!user) return res.status(401).json({ success: false, message: 'User not found' });
+
+    const isFreeMaterial = await isFreeMaterialAccess('question_paper', paper);
 
     // Check if user has an active grant for preview access to this material
     const hasGrantedAccess = await materialAccessService.hasActiveAccess(
@@ -302,10 +332,10 @@ exports.previewPaper = async (req, res) => {
       'preview'
     );
     let access;
-    if (hasGrantedAccess) {
+    if (hasGrantedAccess || isFreeMaterial) {
       // Provide a grant-based access object so preview headers and behavior reflect the grant
       access = {
-        plan: 'grant',
+        plan: isFreeMaterial ? 'free' : 'grant',
         allow_preview: true,
         allow_download: true,
         allow_copy: false,
@@ -343,7 +373,7 @@ exports.previewPaper = async (req, res) => {
         const key = getS3KeyFromValue(requested);
         if (!key) return res.status(404).json({ success: false, message: 'File not found' });
         const buffer = await streamToBuffer(getS3ObjectStream(key));
-        return sendPdfResponse(res, buffer, access);
+        return sendPdfResponse(res, buffer, access, { isFreeMaterial });
       }
       return res.status(400).json({ success: false, message: 'Preview for remote files is only supported for PDF' });
     }
@@ -354,7 +384,7 @@ exports.previewPaper = async (req, res) => {
     }
 
     const buffer = await fs.promises.readFile(filePath);
-    return sendPdfResponse(res, buffer, access);
+    return sendPdfResponse(res, buffer, access, { isFreeMaterial });
   } catch (err) {
     console.error('[CandidateQuestionPaper] Preview error:', err);
     return res.status(500).json({ success: false, message: 'Failed to preview file' });

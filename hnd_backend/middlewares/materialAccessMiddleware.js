@@ -7,10 +7,19 @@ const QuestionPaper = require('../models/QuestionPaper');
 
 function getRouteMaterialIdentifier(req) {
   if (req.params.id) return req.params.id;
-  if (req.params.filename) return decodeURIComponent(req.params.filename);
+  if (req.params.filename) return req.params.filename;
   if (req.body.materialId) return req.body.materialId;
   if (req.body.resourceId) return req.body.resourceId;
   return null;
+}
+
+function normalizeMaterialIdentifier(identifier) {
+  if (!identifier) return '';
+  let value = String(identifier || '').trim();
+  try {
+    value = decodeURIComponent(value);
+  } catch (_) {}
+  return value.split('?')[0].trim();
 }
 
 async function resolveMaterialId(materialType, identifier, req) {
@@ -19,41 +28,53 @@ async function resolveMaterialId(materialType, identifier, req) {
     return identifier;
   }
 
-  const decoded = String(identifier || '').trim();
+  const decoded = normalizeMaterialIdentifier(identifier);
   if (!decoded) return null;
 
   const program = String(req.user?.program || 'HND').toUpperCase();
   let model;
   let query;
+  let fallbackQuery;
+  let suffixField;
 
   if (materialType === 'report') {
     model = Report;
     query = { file_path: decoded, program };
+    fallbackQuery = { file_path: decoded };
+    suffixField = 'file_path';
   } else if (materialType === 'presentation') {
     model = Presentation;
     query = { file_path: decoded, program };
+    fallbackQuery = { file_path: decoded };
+    suffixField = 'file_path';
   } else if (materialType === 'questionPaper') {
     model = QuestionPaper;
     query = { paper_file: decoded, program };
+    fallbackQuery = { paper_file: decoded };
+    suffixField = 'paper_file';
   }
 
   if (!model || !query) return null;
 
-  // First try program-scoped match
-  let doc = await model.findOne(query).select('_id').lean();
-  if (doc && doc._id) return doc._id;
+  const tryFind = async (candidateQuery) => {
+    try {
+      const doc = await model.findOne(candidateQuery).select('_id').lean();
+      return doc && doc._id ? doc._id : null;
+    } catch (_) {
+      return null;
+    }
+  };
 
-  // Fallback: try matching by exact file_path without program
-  try {
-    const exact = await model.findOne({ file_path: decoded }).select('_id').lean();
-    if (exact && exact._id) return exact._id;
-  } catch (_) {}
+  const direct = await tryFind(query);
+  if (direct) return direct;
 
-  // Final fallback: match by filename suffix (handles S3 URL variants)
+  const fallback = await tryFind(fallbackQuery);
+  if (fallback) return fallback;
+
   try {
-    const filename = path.basename(decoded.split('?')[0] || decoded);
+    const filename = path.basename(decoded);
     if (filename) {
-      const bySuffix = await model.findOne({ file_path: { $regex: `${filename}$` } }).select('_id').lean();
+      const bySuffix = await model.findOne({ [suffixField]: { $regex: `${filename}$` } }).select('_id').lean();
       if (bySuffix && bySuffix._id) return bySuffix._id;
     }
   } catch (_) {}

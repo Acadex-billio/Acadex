@@ -77,6 +77,20 @@ async function getMaterialAccessConfig(materialType, doc) {
   return config;
 }
 
+async function isFreeMaterialAccess(materialType, doc) {
+  const normalizedType = String(materialType || '').trim().toLowerCase();
+  if (normalizedType === 'report') {
+    return Boolean(doc?.is_guide);
+  }
+
+  if (normalizedType === 'question_paper' || normalizedType === 'questionpaper') {
+    const paperType = String(doc?.paper_type || '').trim().toLowerCase();
+    return ['ca', 'exam', 'mock'].includes(paperType);
+  }
+
+  return false;
+}
+
 async function findActiveGrant({ candId, grantCode, resourceId }) {
   const now = new Date();
   const grant = await PaymentAccessGrant.findOne({
@@ -260,4 +274,7 @@ module.exports = {
   getMaterialAccessConfig,
   getMaterialAccessSummary,
   buildCandidatePaymentRequirement,
+  isFreeMaterialAccess,
+  findActiveGrant,
+  findActiveGrantIncludingAdmin,
 };

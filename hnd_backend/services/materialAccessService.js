@@ -1,4 +1,7 @@
 const MaterialAccess = require('../models/MaterialAccess');
+const QuestionPaper = require('../models/QuestionPaper');
+const Report = require('../models/Report');
+const Presentation = require('../models/Presentation');
 
 /**
  * Grant material access to a user for preview or download
@@ -48,9 +51,38 @@ async function grantMaterialAccess(
  * @param {String} accessType - Type of access (preview, download)
  * @returns {Promise<Boolean>} True if user has active access
  */
-const { resolveSubscription, findActiveGrantIncludingAdmin } = require('../utils/subscriptionUtils');
+const { resolveSubscription, findActiveGrantIncludingAdmin, isFreeMaterialAccess } = require('../utils/subscriptionUtils');
 const mongoose = require('mongoose');
 const User = require('../models/User');
+
+async function resolveMaterialDocument(materialType, identifier) {
+  const normalizedType = String(materialType || '').trim().toLowerCase();
+  const normalizedIdentifier = String(identifier || '').trim();
+  if (!normalizedIdentifier) return null;
+
+  if (normalizedType === 'questionpaper' || normalizedType === 'question_paper') {
+    if (mongoose.Types.ObjectId.isValid(normalizedIdentifier)) {
+      return QuestionPaper.findById(normalizedIdentifier).select('paper_type is_guide').lean().catch(() => null);
+    }
+    return QuestionPaper.findOne({ paper_file: normalizedIdentifier }).select('paper_type is_guide').lean().catch(() => null);
+  }
+
+  if (normalizedType === 'report') {
+    if (mongoose.Types.ObjectId.isValid(normalizedIdentifier)) {
+      return Report.findById(normalizedIdentifier).select('is_guide paper_type').lean().catch(() => null);
+    }
+    return Report.findOne({ file_path: normalizedIdentifier }).select('is_guide paper_type').lean().catch(() => null);
+  }
+
+  if (normalizedType === 'presentation') {
+    if (mongoose.Types.ObjectId.isValid(normalizedIdentifier)) {
+      return Presentation.findById(normalizedIdentifier).select('is_guide paper_type').lean().catch(() => null);
+    }
+    return Presentation.findOne({ file_path: normalizedIdentifier }).select('is_guide paper_type').lean().catch(() => null);
+  }
+
+  return null;
+}
 
 async function hasActiveAccess(userId, materialId, materialType, accessType) {
   try {
@@ -124,6 +156,12 @@ async function hasActiveAccess(userId, materialId, materialType, accessType) {
         ],
       });
       if (accessGrant) return true;
+    }
+
+    const materialDoc = await resolveMaterialDocument(normalizedMaterialType, normalizedMaterialId);
+
+    if (await isFreeMaterialAccess(normalizedMaterialType, materialDoc)) {
+      return true;
     }
 
     const resolved = resolveSubscription(user.subscription || {});
