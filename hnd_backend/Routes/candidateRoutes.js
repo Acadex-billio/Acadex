@@ -13,6 +13,7 @@ const candidateQuestionPaperController = require('../controllers/candidateQuesti
 const downloadsController = require('../controllers/downloadsController');
 const candidateAccountController = require('../controllers/candidateAccountController');
 const candidateProjectController = require('../controllers/candidateProjectController');
+const faqController = require('../controllers/faqController');
 const { checkMaterialAccess, getMaterialAccessInfo } = require('../middlewares/materialAccessMiddleware');
 const subscriptionController = require('../controllers/subscriptionController');
 const internshipTopicController = require('../controllers/internshipTopicController');
@@ -128,5 +129,9 @@ router.post('/account/program-update/respond', candidateAccountController.respon
 router.get('/projects/overview', candidateProjectController.getMySubmissionOverview);
 router.post('/projects/request-permission', candidateProjectController.requestPermission);
 router.post('/projects/submit', projectUpload.single('file'), candidateProjectController.submitProject);
+
+// FAQs for candidates
+router.get('/faqs', faqController.listPublic);
+router.get('/faqs/:slugOrId', faqController.getBySlugOrId);
 
 module.exports = router;
