@@ -127,7 +127,7 @@ const PaymentActionModal = ({
       setStatusText('Payment completed. Redirecting...');
       const finalPayment = finalResult?.payment || payment;
       const materialNotice = finalPayment?.purpose_type === 'material_access'
-        ? ` Material access unlocked (ID: ${finalPayment.resource_id}, Duration: ${finalPayment.access_minutes || 60} minutes).`
+        ? ` Material access unlocked for ${finalPayment.material_name || 'material'} (Duration: ${finalPayment.access_minutes || 60} minutes).`
         : '';
       showToast(`Payment confirmed successfully.${materialNotice}`, 'success');
       await onSuccess?.(finalResult);

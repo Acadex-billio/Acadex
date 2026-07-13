@@ -13,6 +13,10 @@ const { USER_PROGRAMS } = require('../constants/userConstants');
 const { getOrCreatePricingDocument, getPricingSnapshot } = require('../services/platformPricingService');
 const { getS3ObjectStream } = require('../utils/s3Uploader');
 const { enqueueLibreOfficeJob } = require('../services/libreOfficeQueue');
+const { sendWebPushNotification, isWebPushConfigured } = require('../utils/webPush');
+const { sendEmail, hasEmailConfig } = require('../services/emailService');
+const User = require('../models/User');
+const History = require('../models/History');
 
 const uploadsDir = path.join(__dirname, '..', 'uploads', 'candidate-projects');
 if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
@@ -194,6 +198,99 @@ const getTargetProgramLabel = (program) => {
   };
   return labels[program] || program;
 };
+
+const resolveLocalSubmissionFilePath = (filePathValue, sourceName) => {
+  const rawPath = String(filePathValue || '').trim();
+  const source = String(sourceName || '').trim();
+  const appRoot = path.resolve(__dirname, '..');
+  const namesToTry = [];
+
+  if (source) {
+    namesToTry.push(source);
+    const baseName = path.basename(source);
+    if (baseName && !namesToTry.includes(baseName)) namesToTry.push(baseName);
+  }
+
+  if (rawPath) {
+    const fileNameFromPath = path.basename(rawPath.replace(/\\/g, '/'));
+    if (fileNameFromPath && !namesToTry.includes(fileNameFromPath)) namesToTry.push(fileNameFromPath);
+  }
+
+  const candidatePaths = [];
+  const addCandidate = (candidate) => {
+    if (!candidate) return;
+    const resolved = String(candidate).trim();
+    if (!resolved || candidatePaths.includes(resolved)) return;
+    candidatePaths.push(resolved);
+  };
+
+  const addRelativeCandidate = (value) => {
+    const normalized = String(value || '').trim();
+    if (!normalized) return;
+    const withoutLeadingSlash = normalized.replace(/^\/+/, '');
+    addCandidate(path.join(appRoot, withoutLeadingSlash));
+    if (!withoutLeadingSlash.startsWith('uploads' + path.posix.sep) && !withoutLeadingSlash.startsWith('uploads/')) {
+      addCandidate(path.join(appRoot, 'uploads', withoutLeadingSlash));
+    }
+  };
+
+  if (rawPath) {
+    const isLikelyAppRelative = rawPath.startsWith('/uploads') || rawPath.startsWith('uploads') || rawPath.startsWith('candidate-projects');
+    if (isLikelyAppRelative) {
+      addRelativeCandidate(rawPath);
+      addRelativeCandidate(path.posix.join('uploads', 'candidate-projects', path.basename(rawPath)));
+    } else if (path.isAbsolute(rawPath)) {
+      addCandidate(rawPath);
+    } else {
+      addCandidate(path.join(appRoot, rawPath));
+    }
+
+    addCandidate(path.join(uploadsDir, path.basename(rawPath)));
+    addCandidate(path.join(appRoot, 'uploads', 'candidate-projects', path.basename(rawPath)));
+    addCandidate(path.join(appRoot, 'uploads', path.basename(rawPath)));
+  }
+
+  for (const name of namesToTry) {
+    addCandidate(path.join(uploadsDir, name));
+    addCandidate(path.join(appRoot, 'uploads', 'candidate-projects', name));
+    addCandidate(path.join(appRoot, 'uploads', name));
+    addRelativeCandidate(path.posix.join('uploads', 'candidate-projects', name));
+    addRelativeCandidate(path.posix.join('uploads', name));
+  }
+  const found = candidatePaths.find((candidatePath) => fs.existsSync(candidatePath));
+  if (found) return found;
+
+  // Fallback: try scanning uploads folder for filenames that match the logical name
+  const tryFindByStrippedName = (logicalName) => {
+    if (!logicalName) return null;
+    const stripped = String(logicalName).replace(/^\d+-/, '').toLowerCase();
+    const alnum = stripped.replace(/[^a-z0-9]/g, '');
+    try {
+      const files = fs.readdirSync(uploadsDir);
+      for (const f of files) {
+        const fn = f.toLowerCase();
+        const fnStripped = fn.replace(/^\d+-/, '');
+        const fnAlnum = fnStripped.replace(/[^a-z0-9]/g, '');
+        if (fn === logicalName.toLowerCase()) return path.join(uploadsDir, f);
+        if (fnStripped === stripped) return path.join(uploadsDir, f);
+        if (fnAlnum === alnum && alnum) return path.join(uploadsDir, f);
+        if (fn.includes(stripped)) return path.join(uploadsDir, f);
+      }
+    } catch (_) {}
+    return null;
+  };
+
+  const bySource = tryFindByStrippedName(source);
+  if (bySource) return bySource;
+
+  const fileNameFromPath = rawPath ? path.basename(rawPath.replace(/\\/g, '/')) : null;
+  const byRaw = tryFindByStrippedName(fileNameFromPath);
+  if (byRaw) return byRaw;
+
+  return null;
+};
+
+exports.resolveLocalSubmissionFilePath = resolveLocalSubmissionFilePath;
 
 exports.getMySubmissionOverview = async (req, res) => {
   try {
@@ -429,11 +526,6 @@ exports.previewSubmissionFile = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Submission file path is missing.' });
     }
 
-    const makeLocalPath = (rawPath) => {
-      const safePath = String(rawPath || '').replace(/^\/+/, '');
-      return path.resolve(path.join(__dirname, '..', safePath));
-    };
-
     console.log('[CandidateProject] preview request', {
       submissionId: id,
       filePathValue,
@@ -441,38 +533,55 @@ exports.previewSubmissionFile = async (req, res) => {
       fileExt,
     });
 
+    // First check if file is a remote URL (HTTP/HTTPS)
     if (/^https?:\/\//i.test(filePathValue)) {
       await downloadHttpToFile(filePathValue, sourcePath);
-    } else if (/^s3:\/\//i.test(filePathValue) || (S3_BASE_URL && filePathValue.startsWith(S3_BASE_URL))) {
+    } 
+    // Check if file is S3 URL (either S3 protocol or S3 base URL)
+    else if (/^s3:\/\//i.test(filePathValue) || (S3_BASE_URL && filePathValue.startsWith(S3_BASE_URL))) {
       const downloaded = await writeS3ObjectToFile(filePathValue, sourcePath);
       if (!downloaded) {
         return res.status(404).json({ success: false, message: 'Unable to fetch file from S3 path.' });
       }
-    } else {
-      const localPathsToTry = [
-        makeLocalPath(filePathValue),
-        makeLocalPath(`/uploads/candidate-projects/${sourceName}`),
-        makeLocalPath(`uploads/candidate-projects/${sourceName}`),
-        makeLocalPath(`uploads/${sourceName}`),
-      ];
+    }
+    // Check if it's a local path
+    else {
+      const resolvedLocalPath = resolveLocalSubmissionFilePath(filePathValue, sourceName);
+      const attemptedPaths = [];
+      const addAttempt = (candidate) => {
+        if (!candidate) return;
+        const normalized = String(candidate).trim();
+        if (normalized && !attemptedPaths.includes(normalized)) attemptedPaths.push(normalized);
+      };
 
-      let resolvedLocalPath = null;
-      for (const localPath of localPathsToTry) {
-        if (fs.existsSync(localPath)) {
-          resolvedLocalPath = localPath;
-          break;
+      const rawPath = String(filePathValue || '').trim();
+      const appRoot = path.resolve(__dirname, '..');
+      if (rawPath) {
+        const rawBaseName = path.basename(rawPath.replace(/\\/g, '/'));
+        if (rawPath.startsWith('/uploads') || rawPath.startsWith('uploads') || rawPath.startsWith('candidate-projects')) {
+          addAttempt(path.join(appRoot, rawPath.replace(/^\/+/, '')));
+          addAttempt(path.join(appRoot, 'uploads', rawPath.replace(/^\/+/, '')));
+        } else if (path.isAbsolute(rawPath)) {
+          addAttempt(rawPath);
+        } else {
+          addAttempt(path.join(appRoot, rawPath));
         }
+        addAttempt(path.join(uploadsDir, rawBaseName));
+        addAttempt(path.join(appRoot, 'uploads', 'candidate-projects', rawBaseName));
       }
+      addAttempt(path.join(uploadsDir, sourceName));
+      addAttempt(path.join(appRoot, 'uploads', 'candidate-projects', sourceName));
+      addAttempt(path.join(appRoot, 'uploads', sourceName));
 
       if (!resolvedLocalPath) {
         console.error('[CandidateProject] preview file not found in any local path', {
           filePathValue,
-          attempted: localPathsToTry,
+          attempted: attemptedPaths,
         });
         return res.status(404).json({
           success: false,
           message: 'Submission file not found at any expected local path.',
-          attempted_paths: localPathsToTry,
+          attempted_paths: attemptedPaths,
         });
       }
 
@@ -603,13 +712,110 @@ exports.updateSubmission = async (req, res) => {
         }
       }
 
-      await CandidateProjectSubmission.deleteOne({ _id: submission._id });
-      return res.json({ success: true, message: 'Rejected submission deleted successfully.' });
+        await CandidateProjectSubmission.deleteOne({ _id: submission._id });
+
+        // Notify candidate about deletion
+        try {
+          const user = await User.findOne({ cand_id: submission.uploader_cand_id }).lean();
+          if (user) {
+            // History entry
+            try {
+              await History.create({
+                user_id: String(user.cand_id),
+                user_name: user.name || null,
+                content_type: 'candidate_project',
+                content_title: submission.title || submission.file_name || 'Candidate Project',
+                action: 'submission_deleted',
+              });
+            } catch (_) {}
+
+            // Web push
+            if (isWebPushConfigured && user.allow_push_notifications && user.push_subscription) {
+              try {
+                await sendWebPushNotification(user.push_subscription, {
+                  title: 'Submission deleted',
+                  body: `Your submission "${submission.title || submission.file_name}" was deleted by an administrator.`,
+                  source: 'candidate_project',
+                  contentId: String(submission._id),
+                  url: `/candidate/projects`,
+                }, { name: user.name, email: user.email });
+              } catch (_) {}
+            }
+
+            // Email
+            if (hasEmailConfig() && user.allow_emails && user.email) {
+              try {
+                await sendEmail({
+                  to: user.email,
+                  subject: 'Your submission was deleted',
+                  html: `<p>Hi ${user.name || ''},</p><p>Your submission <strong>${submission.title || submission.file_name}</strong> has been deleted by the administrator.</p>`,
+                });
+              } catch (_) {}
+            }
+          }
+        } catch (notifyErr) {
+          console.warn('[CandidateProject] delete notification error:', notifyErr?.message || notifyErr);
+        }
+
+        return res.json({ success: true, message: 'Rejected submission deleted successfully.' });
     } else {
       return res.status(400).json({ success: false, message: 'Unknown action.' });
     }
 
     await submission.save();
+
+    // Notify candidate about status update
+    (async () => {
+      try {
+        const user = await User.findOne({ cand_id: submission.uploader_cand_id }).lean();
+        if (!user) return;
+
+        // Create history record
+        try {
+          await History.create({
+            user_id: String(user.cand_id),
+            user_name: user.name || null,
+            content_type: 'candidate_project',
+            content_title: submission.title || submission.file_name || 'Candidate Project',
+            action: `submission_status:${submission.status}`,
+          });
+        } catch (_) {}
+
+        const title = 'Submission status updated';
+        const body = `Your submission "${submission.title || submission.file_name}" is now ${submission.status}.`;
+
+        // Web push
+        if (isWebPushConfigured && user.allow_push_notifications && user.push_subscription) {
+          try {
+            await sendWebPushNotification(user.push_subscription, {
+              title,
+              body,
+              source: 'candidate_project',
+              contentId: String(submission._id),
+              url: `/candidate/projects/${submission._id}`,
+            }, { name: user.name, email: user.email });
+          } catch (err) {
+            console.warn('[CandidateProject] push notify error:', err?.message || err);
+          }
+        }
+
+        // Email
+        if (hasEmailConfig() && user.allow_emails && user.email) {
+          try {
+            await sendEmail({
+              to: user.email,
+              subject: title,
+              html: `<p>Hi ${user.name || ''},</p><p>${body}</p>`,
+            });
+          } catch (err) {
+            console.warn('[CandidateProject] email notify error:', err?.message || err);
+          }
+        }
+      } catch (err) {
+        console.warn('[CandidateProject] notify after update error:', err?.message || err);
+      }
+    })();
+
     return res.json({ success: true, submission });
   } catch (err) {
     console.error('[CandidateProject] update error:', err);

@@ -4,13 +4,17 @@
  * Domain: houseofgraceweb.com
  * From email: hndplatform@houseofgraceweb.com
  */
-const { Resend } = require('resend');
-
-const resend = new Resend(process.env.RESEND_API_KEY);
+let Resend;
+let resend = null;
+try {
+  Resend = require('resend').Resend;
+} catch (_) {
+  Resend = null;
+}
 
 const hasEmailConfig = () => {
   const apiKey = process.env.RESEND_API_KEY;
-  return Boolean(apiKey && apiKey.trim());
+  return Boolean(apiKey && apiKey.trim() && Resend);
 };
 
 /**
@@ -26,6 +30,7 @@ const sendEmail = async (options) => {
   }
 
   try {
+    if (!resend) resend = new Resend(process.env.RESEND_API_KEY);
     const result = await resend.emails.send({
       from: 'Acadex <hndplatform@houseofgraceweb.com>',
       ...options,

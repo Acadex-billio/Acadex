@@ -50,7 +50,7 @@ function buildTransactionReference() {
 }
 
 function buildPaymentSummary(transaction) {
-  return {
+  const summary = {
     transaction_id: transaction._id,
     purpose_type: transaction.purpose_type,
     purpose_code: transaction.purpose_code,
@@ -68,6 +68,13 @@ function buildPaymentSummary(transaction) {
     createdAt: transaction.createdAt,
     completed_at: transaction.completed_at,
   };
+  
+  // Include material_name for material access payments
+  if (transaction.purpose_type === 'material_access' && transaction.metadata?.material_name) {
+    summary.material_name = transaction.metadata.material_name;
+  }
+  
+  return summary;
 }
 
 async function loadCandidate(candId) {
@@ -475,6 +482,10 @@ exports.startMaterialCheckout = async (req, res) => {
       baseAmount: paymentDetails.amount,
     });
 
+    // Extract material name for payment feedback
+    const materialName = material.title || material.course_title || `${resourceType.replace('_', ' ')}`;
+    const materialYear = material.hnd_year || new Date(material.createdAt).getFullYear();
+
     const transaction = await createTransaction({
       candId,
       phoneNumber,
@@ -490,6 +501,8 @@ exports.startMaterialCheckout = async (req, res) => {
         action,
         resource_type: resourceType,
         resource_id: resourceId,
+        material_name: materialName,
+        material_year: materialYear,
         original_amount: paymentDetails.amount,
         discount_amount: pricing.discountAmount,
         promo_code: pricing.promoCode,

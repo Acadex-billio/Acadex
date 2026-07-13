@@ -448,15 +448,15 @@
 }
 
 .title {
-  font-size: 1.35rem;
+  font-size: clamp(0.95rem, 2.5vw, 1.25rem);
   font-weight: 700;
   color: #111827;
   margin-bottom: 4px;
-  line-height: 1.35;
+  line-height: 1.4;
   overflow-wrap: anywhere;
   word-break: break-word;
   display: -webkit-box;
-  -webkit-line-clamp: 2;
+  -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }

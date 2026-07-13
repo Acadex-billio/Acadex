@@ -233,7 +233,8 @@ const App = () => (
                 <Route path="question-papers/:paperType" element={<QuestionPapers />} />
                 <Route path="reports" element={<ViewReports />} />
                 <Route path="reports/guides" element={<CandidateReportGuides />} />
-                <Route path="reports/faqs" element={<CandidateFAQs />} />
+                <Route path="faqs" element={<CandidateFAQs />} />
+                <Route path="reports/faqs" element={<Navigate to="/candidate/faqs" replace />} />
                 <Route path="results" element={<AdminPublishResults />} />
                 <Route path="presentations" element={<ViewPresentation />} />
                 <Route path="announcements" element={<Announcements />} />

@@ -1,23 +1,31 @@
-import React, { useState } from 'react';
-
-const initialFaqs = [
-  {
-    id: 1,
-    question: 'How do I access my academic reports?',
-    answer: 'Go to Academic Reports in the sidebar and open Reports or Report Guides for preview and download.',
-  },
-  {
-    id: 2,
-    question: 'Who can view report guides?',
-    answer: 'All candidates can view report guides once they are published, regardless of program or department.',
-  },
-];
+import React, { useState, useEffect } from 'react';
+import api from '../services/api';
+import { getErrorMessage } from '../utility/getErrorMessage';
+import { showToast } from '../utility/ToastNotification';
 
 const AdminFAQs = () => {
-  const [faqs, setFaqs] = useState(initialFaqs);
+  const [faqs, setFaqs] = useState([]);
   const [editingId, setEditingId] = useState(null);
   const [draftQuestion, setDraftQuestion] = useState('');
   const [draftAnswer, setDraftAnswer] = useState('');
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    const loadFaqs = async () => {
+      try {
+        const { data } = await api.get('/admin/faqs');
+        if (!cancelled) setFaqs(Array.isArray(data?.faqs) ? data.faqs : []);
+      } catch (err) {
+        if (!cancelled) showToast(getErrorMessage(err, 'Unable to load FAQs'), 'error');
+        if (!cancelled) setFaqs([]);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+    loadFaqs();
+    return () => { cancelled = true; };
+  }, []);
 
   const startNewFaq = () => {
     setEditingId(null);
@@ -25,45 +33,50 @@ const AdminFAQs = () => {
     setDraftAnswer('');
   };
 
-  const saveFaq = () => {
-    if (!draftQuestion.trim() || !draftAnswer.trim()) {
-      return;
-    }
+  const saveFaq = async () => {
+    if (!draftQuestion.trim() || !draftAnswer.trim()) return showToast('Provide both question and answer', 'warning');
 
-    if (editingId) {
-      setFaqs((current) =>
-        current.map((faq) =>
-          faq.id === editingId ? { ...faq, question: draftQuestion, answer: draftAnswer } : faq
-        )
-      );
-    } else {
-      setFaqs((current) => [
-        ...current,
-        {
-          id: current.length ? Math.max(...current.map((faq) => faq.id)) + 1 : 1,
-          question: draftQuestion,
-          answer: draftAnswer,
-        },
-      ]);
-    }
-
-    setEditingId(null);
-    setDraftQuestion('');
-    setDraftAnswer('');
-  };
-
-  const editFaq = (faq) => {
-    setEditingId(faq.id);
-    setDraftQuestion(faq.question);
-    setDraftAnswer(faq.answer);
-  };
-
-  const deleteFaq = (faqId) => {
-    setFaqs((current) => current.filter((faq) => faq.id !== faqId));
-    if (editingId === faqId) {
+    try {
+      if (editingId) {
+        const { data } = await api.put(`/admin/faqs/${encodeURIComponent(editingId)}`, {
+          title: draftQuestion,
+          content: draftAnswer,
+        });
+        const updated = data?.faq;
+        if (updated) setFaqs((current) => current.map((f) => (String(f._id) === String(updated._id) ? updated : f)));
+        showToast('FAQ updated', 'success');
+      } else {
+        const { data } = await api.post('/admin/faqs', { title: draftQuestion, content: draftAnswer, audience: 'candidate', published: true });
+        const created = data?.faq;
+        if (created) setFaqs((current) => [created, ...current]);
+        showToast('FAQ created', 'success');
+      }
       setEditingId(null);
       setDraftQuestion('');
       setDraftAnswer('');
+    } catch (err) {
+      showToast(getErrorMessage(err, 'Failed to save FAQ'), 'error');
+    }
+  };
+
+  const editFaq = (faq) => {
+    setEditingId(faq._id || faq.id);
+    setDraftQuestion(faq.title || faq.question || '');
+    setDraftAnswer(faq.content || faq.answer || '');
+  };
+
+  const deleteFaq = async (faqId) => {
+    try {
+      await api.delete(`/admin/faqs/${encodeURIComponent(faqId)}`);
+      setFaqs((current) => current.filter((faq) => String(faq._id || faq.id) !== String(faqId)));
+      if (String(editingId) === String(faqId)) {
+        setEditingId(null);
+        setDraftQuestion('');
+        setDraftAnswer('');
+      }
+      showToast('FAQ deleted', 'success');
+    } catch (err) {
+      showToast(getErrorMessage(err, 'Failed to delete FAQ'), 'error');
     }
   };
 
@@ -129,32 +142,38 @@ const AdminFAQs = () => {
         <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 24, padding: 22, boxShadow: '0 1px 3px rgba(15, 23, 42, 0.08)' }}>
           <h2 style={{ margin: 0, fontSize: 20, marginBottom: 14 }}>Current FAQs</h2>
           <div style={{ display: 'grid', gap: 14 }}>
-            {faqs.map((faq) => (
-              <div key={faq.id} style={{ padding: 18, background: '#f8fafc', borderRadius: 18, border: '1px solid #e2e8f0' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'flex-start' }}>
-                  <div>
-                    <p style={{ margin: 0, fontWeight: 700 }}>{faq.question}</p>
-                    <p style={{ margin: '10px 0 0', color: '#475569' }}>{faq.answer}</p>
-                  </div>
-                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                    <button
-                      type="button"
-                      onClick={() => editFaq(faq)}
-                      style={{ padding: '8px 12px', borderRadius: 12, border: 'none', background: '#2563eb', color: '#fff', cursor: 'pointer' }}
-                    >
-                      Edit
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => deleteFaq(faq.id)}
-                      style={{ padding: '8px 12px', borderRadius: 12, border: 'none', background: '#ef4444', color: '#fff', cursor: 'pointer' }}
-                    >
-                      Delete
-                    </button>
+            {loading ? (
+              <div>Loading...</div>
+            ) : faqs.length === 0 ? (
+              <div>No FAQs found.</div>
+            ) : (
+              faqs.map((faq) => (
+                <div key={faq._id || faq.id || faq.slug} style={{ padding: 18, background: '#f8fafc', borderRadius: 18, border: '1px solid #e2e8f0' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'flex-start' }}>
+                    <div>
+                      <p style={{ margin: 0, fontWeight: 700 }}>{faq.title || faq.question}</p>
+                      <p style={{ margin: '10px 0 0', color: '#475569' }}>{faq.content || faq.answer}</p>
+                    </div>
+                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                      <button
+                        type="button"
+                        onClick={() => editFaq(faq)}
+                        style={{ padding: '8px 12px', borderRadius: 12, border: 'none', background: '#2563eb', color: '#fff', cursor: 'pointer' }}
+                      >
+                        Edit
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => deleteFaq(faq._id || faq.id)}
+                        style={{ padding: '8px 12px', borderRadius: 12, border: 'none', background: '#ef4444', color: '#fff', cursor: 'pointer' }}
+                      >
+                        Delete
+                      </button>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              ))
+            )}
           </div>
         </div>
       </section>

@@ -188,6 +188,7 @@ const CandidateShell = () => {
     () => [
       { to: '/candidate/presentations', label: t('nav.presentations'), icon: FaBook },
       { to: '/candidate/announcements', label: t('nav.announcements'), icon: FaBullhorn, badge: announcementCount },
+      { to: '/candidate/faqs', label: 'FAQs', icon: FaCommentDots },
       { to: '/candidate/earn-money', label: 'Earn Money', icon: FaDollarSign },
       { to: '/candidate/internship-topics', label: t('nav.internshipTopics'), icon: FaLightbulb },
       { to: '/candidate/tutorship-bookings', label: 'Tutorship Bookings', icon: FaComments, badge: bookingAlertCount },

@@ -15,6 +15,7 @@ const platformPricingController = require('../controllers/platformPricingControl
 const internshipTopicController = require('../controllers/internshipTopicController');
 const couponController = require('../controllers/couponController');
 const adminBillingController = require('../controllers/adminBillingController');
+const faqController = require('../controllers/faqController');
 const { validateDocumentUpload } = require('../middlewares/uploadValidation');
 const { requireAuth, requireAdmin, requireDeveloper, requireSuperAdmin } = require('../middlewares/jwtAuth');
 const { validate, schemas } = require('../middlewares/validateRequest');
@@ -138,6 +139,12 @@ router.get('/internship-topics', internshipTopicController.listAdminTopics);
 router.post('/internship-topics', internshipTopicController.createTopic);
 router.put('/internship-topics/:topicId', validate({ params: schemas.ids.topicIdParam }), internshipTopicController.updateTopic);
 router.delete('/internship-topics/:topicId', validate({ params: schemas.ids.topicIdParam }), internshipTopicController.deleteTopic);
+
+// Admin FAQs CRUD
+router.get('/faqs', faqController.listAdmin);
+router.post('/faqs', faqController.create);
+router.put('/faqs/:id', validate({ params: schemas.ids.mongoIdParam }), faqController.update);
+router.delete('/faqs/:id', validate({ params: schemas.ids.mongoIdParam }), faqController.remove);
 
 // Superadmin routes
 router.get('/users', adminCandidateController.listAllUsers);
