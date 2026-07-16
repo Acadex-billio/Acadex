@@ -31,6 +31,7 @@ const UploadPresentation = () => {
   const [pages, setPages] = useState('');
   const [materialPrice, setMaterialPrice] = useState('');
   const [projectGithubUrl, setProjectGithubUrl] = useState('');
+  const [description, setDescription] = useState('');
   const [presentationFile, setPresentationFile] = useState(null);
 
   const [presentations, setPresentations] = useState([]);
@@ -60,6 +61,7 @@ const UploadPresentation = () => {
     setPages('');
     setMaterialPrice('');
     setProjectGithubUrl('');
+    setDescription('');
     setPresentationFile(null);
     setAudience('GENERAL');
     setDptId('');
@@ -270,6 +272,7 @@ const UploadPresentation = () => {
     }
     setReportId(p.report_id || null);
     setTitle(p.title || '');
+    setDescription(p.description || '');
     setPresenterName(p.presenter_name || '');
     setPresenterEmail(p.presenter_email || '');
     setLocation(p.location || '');
@@ -325,6 +328,7 @@ const UploadPresentation = () => {
       const payload = {
         report_id: report_id || '',
         title: title.trim(),
+        description: description.trim(),
         presenter_name: presenterName.trim(),
         presenter_email: presenterEmail.trim(),
         location: location.trim(),
@@ -382,6 +386,7 @@ const UploadPresentation = () => {
       const fd = new FormData();
       fd.append('report_id', report_id || '');
       fd.append('title', title.trim());
+      fd.append('description', description.trim());
       fd.append('presenter_name', presenterName.trim());
       fd.append('presenter_email', presenterEmail.trim());
       fd.append('location', location.trim());
@@ -578,6 +583,16 @@ const UploadPresentation = () => {
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 required
+              />
+            </div>
+
+            <div className={styles.field}>
+              <label className={styles.label}>Presentation Description</label>
+              <textarea
+                rows={4}
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder="Describe how the presentation looks and what candidates can expect"
               />
             </div>
 

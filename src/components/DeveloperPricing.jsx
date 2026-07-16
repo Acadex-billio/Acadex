@@ -95,11 +95,19 @@ const DeveloperPricing = () => {
           <React.Fragment key={material}>
             <div className={styles.subTitle}>{material.replace('_', ' ').toUpperCase()}</div>
             <div className={styles.row}>
-              <label className={styles.label}>Full Preview Price</label>
+              <label className={styles.label}>Basic Preview Price</label>
+              <input className={styles.input} type="number" min="0" step="0.01" value={toCurrencyString(pricing?.materials?.[material]?.basic_full_preview_price)} onChange={(e) => setField(`materials.${material}.basic_full_preview_price`, Number(e.target.value || 0))} />
+            </div>
+            <div className={styles.row}>
+              <label className={styles.label}>Basic Download Price</label>
+              <input className={styles.input} type="number" min="0" step="0.01" value={toCurrencyString(pricing?.materials?.[material]?.basic_download_price)} onChange={(e) => setField(`materials.${material}.basic_download_price`, Number(e.target.value || 0))} />
+            </div>
+            <div className={styles.row}>
+              <label className={styles.label}>PAYGO Full Preview Price</label>
               <input className={styles.input} type="number" min="0" step="0.01" value={toCurrencyString(pricing?.materials?.[material]?.paygo_full_preview_price)} onChange={(e) => setField(`materials.${material}.paygo_full_preview_price`, Number(e.target.value || 0))} />
             </div>
             <div className={styles.row}>
-              <label className={styles.label}>Download Price</label>
+              <label className={styles.label}>PAYGO Download Price</label>
               <input className={styles.input} type="number" min="0" step="0.01" value={toCurrencyString(pricing?.materials?.[material]?.paygo_download_price)} onChange={(e) => setField(`materials.${material}.paygo_download_price`, Number(e.target.value || 0))} />
             </div>
           </React.Fragment>
@@ -111,9 +119,9 @@ const DeveloperPricing = () => {
         {['create', 'join'].map((action) => (
           <React.Fragment key={action}>
             <div className={styles.subTitle}>{action.toUpperCase()} Center</div>
-            {['basic', 'pro', 'paygo'].map((plan) => (
+            {['basic', 'pro', 'paygo', 'full-package'].map((plan) => (
               <div key={`${action}-${plan}`} className={styles.row}>
-                <label className={styles.label}>{plan.toUpperCase()}</label>
+                <label className={styles.label}>{plan === 'full-package' ? 'FULL PACKAGE' : plan.toUpperCase()}</label>
                 <input className={styles.input} type="number" min="0" step="0.01" value={toCurrencyString(pricing?.center?.[action]?.[plan]?.amount)} onChange={(e) => setField(`center.${action}.${plan}.amount`, Number(e.target.value || 0))} />
               </div>
             ))}

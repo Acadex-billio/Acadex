@@ -28,10 +28,15 @@ const ViewPresentation = () => {
   const [studyLinksByDept, setStudyLinksByDept] = useState({});
 
   const openTopicPopup = (presentation) => {
-    setTopicPopup({ open: true, id: presentation.presentation_id, topic: presentation.presentation_title || 'No topic available' });
+    setTopicPopup({
+      open: true,
+      id: presentation.presentation_id,
+      topic: presentation.presentation_title || 'No topic available',
+      description: presentation.description || null,
+    });
   };
 
-  const closeTopicPopup = () => setTopicPopup({ open: false, id: null, topic: '' });
+  const closeTopicPopup = () => setTopicPopup({ open: false, id: null, topic: '', description: '' });
 
   const isLongTopic = (text) => String(text || '').trim().length > 80;
 
@@ -250,6 +255,20 @@ const ViewPresentation = () => {
 
   const openPaymentModal = (config) => setPaymentRequest(config);
 
+  const handlePaymentRequired = (presentation, action, requirement) => {
+    const amount = Number(requirement?.amount ?? presentation.material_price ?? (action === 'download' ? 150 : 100));
+    const currency = requirement?.currency || 'XAF';
+    const actionText = action === 'download' ? 'download' : 'preview';
+
+    showToast(`Payment is required to ${actionText} this presentation. Redirecting to payment (${amount} ${currency}).`, 'warning');
+    openPaymentModal(createMaterialPaymentRequest(presentation, action, {
+      ...(requirement || {}),
+      amount,
+      currency,
+      message: requirement?.message || `Payment is required before you can ${actionText} this presentation.`,
+    }));
+  };
+
   const parseErrorPayload = async (err) => {
     const payload = err?.response?.data;
     if (!payload) return null;
@@ -268,9 +287,9 @@ const ViewPresentation = () => {
   const createMaterialPaymentRequest = (presentation, action, requirement) => ({
     title: requirement?.title || (action === 'download' ? 'Unlock presentation download' : 'Unlock full presentation preview'),
     description: requirement?.message || (action === 'download'
-      ? 'PAYGO requires a separate payment before you can download this presentation.'
-      : 'PAYGO requires a separate payment before you can preview every page of this presentation.'),
-    amount: requirement?.amount || (action === 'download' ? 150 : 100),
+      ? 'A payment is required before you can download this presentation.'
+      : 'A payment is required before you can preview every page of this presentation.'),
+    amount: requirement?.amount ?? presentation.material_price ?? (action === 'download' ? 150 : 100),
     currency: requirement?.currency || 'XAF',
     onStartPayment: async ({ phoneNumber, paymentMethod = 'momo', promoCode = '' }) => {
       const { data } = await api.post('/candidate/payments/materials/checkout', {
@@ -322,6 +341,10 @@ const ViewPresentation = () => {
         openPaymentModal(createMaterialPaymentRequest(presentation, 'preview', errorData.payment_requirement));
         return;
       }
+      if (!options.skipPaymentHandling && err?.response?.status === 403 && /pay|payment|required|access/i.test(String(errorData?.message || ''))) {
+        handlePaymentRequired(presentation, 'preview', errorData?.payment_requirement);
+        return;
+      }
       if (err?.response?.status === 403 && errorData?.code === 'PLAN_UPGRADE_REQUIRED') {
         showToast(errorData.message || 'Upgrade your subscription to continue.', 'warning');
         navigate('/candidate/subscription');
@@ -362,6 +385,10 @@ const ViewPresentation = () => {
       const errorData = await parseErrorPayload(err);
       if (!options.skipPaymentHandling && err?.response?.status === 402 && errorData?.payment_requirement) {
         openPaymentModal(createMaterialPaymentRequest(presentation, 'download', errorData.payment_requirement));
+        return;
+      }
+      if (!options.skipPaymentHandling && err?.response?.status === 403 && /pay|payment|required|access/i.test(String(errorData?.message || ''))) {
+        handlePaymentRequired(presentation, 'download', errorData?.payment_requirement);
         return;
       }
       if (err?.response?.status === 403 && errorData?.code === 'PLAN_UPGRADE_REQUIRED') {
@@ -440,7 +467,8 @@ const ViewPresentation = () => {
                       <span className={styles.chip}><FaClock className={styles.chipIcon} /> {formatTimeAgo(p.upload_date)}</span>
                     </div>
                     <p className={styles.meta}>
-                      {p.presenter_name || 'Unknown presenter'}{p.presenter_email ? ` • ${p.presenter_email}` : ''}
+                      {p.presenter_name || 'Unknown presenter'}
+                      {Number.isFinite(Number(p.material_price)) ? ` • ${Number(p.material_price).toLocaleString()} XAF` : ''}
                     </p>
                   </div>
                 </div>
@@ -504,6 +532,11 @@ const ViewPresentation = () => {
           <div className={styles.topicPopupBox} onClick={(e) => e.stopPropagation()}>
             <div className={styles.topicPopupHeader}>Full topic</div>
             <p className={styles.topicPopupText}>{topicPopup.topic}</p>
+            {topicPopup.description ? (
+              <p style={{ marginTop: 16, color: '#334155', lineHeight: 1.65, fontSize: 14 }}>
+                {topicPopup.description}
+              </p>
+            ) : null}
             <button type="button" className={styles.topicPopupClose} onClick={closeTopicPopup}>Close</button>
           </div>
         </div>

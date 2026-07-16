@@ -86,7 +86,7 @@ exports.getReports = async (req, res) => {
 
 exports.uploadPresentation = async (req, res) => {
   try {
-    const { report_id, title, presenter_name, presenter_email, material_price, project_github_url, from_submission_id, notify, program, audience, dpt_id, dpt_ids, location, pages } = req.body;
+    const { report_id, title, presenter_name, presenter_email, material_price, project_github_url, from_submission_id, notify, program, audience, dpt_id, dpt_ids, location, pages, description } = req.body;
     const normalizedProgram = String(program || 'HND').trim().toUpperCase();
     if (!ALLOWED_PROGRAMS.includes(normalizedProgram)) {
       return res.status(400).json({ success: false, message: 'Invalid program selected.' });
@@ -105,6 +105,7 @@ exports.uploadPresentation = async (req, res) => {
     }
 
     const parsedMaterialPrice = parseOptionalPrice(material_price);
+    const finalDescription = String(description || '').trim() || null;
     if (Number.isNaN(parsedMaterialPrice)) {
       return res.status(400).json({ success: false, message: 'Material price must be a number greater than or equal to 0.' });
     }
@@ -204,6 +205,7 @@ exports.uploadPresentation = async (req, res) => {
       title: title.trim(),
       presenter_name: presenter_name.trim(),
       presenter_email: presenter_email.trim(),
+      description: finalDescription,
       program: normalizedProgram,
       audience: normalizedAudience,
       departments: departmentIds,
@@ -276,6 +278,7 @@ exports.listPresentations = async (req, res) => {
     const formatted = rows.map((p) => ({
       presentation_id: p._id,
       title: p.title,
+      description: p.description || null,
       presenter_name: p.presenter_name,
       presenter_email: p.presenter_email,
       file_path: p.file_path,
@@ -301,7 +304,7 @@ exports.listPresentations = async (req, res) => {
 exports.updatePresentation = async (req, res) => {
   try {
     const { id } = req.params;
-    const { report_id, title, presenter_name, presenter_email, material_price, project_github_url, program, audience, dpt_id, dpt_ids, location, pages } = req.body;
+    const { report_id, title, presenter_name, presenter_email, material_price, project_github_url, program, audience, dpt_id, dpt_ids, location, pages, description } = req.body;
     const normalizedProgram = String(program || 'HND').trim().toUpperCase();
     if (!ALLOWED_PROGRAMS.includes(normalizedProgram)) {
       return res.status(400).json({ success: false, message: 'Invalid program selected.' });
@@ -317,6 +320,7 @@ exports.updatePresentation = async (req, res) => {
     }
 
     const parsedMaterialPrice = parseOptionalPrice(material_price);
+    const finalDescription = String(description || '').trim() || null;
     if (Number.isNaN(parsedMaterialPrice)) {
       return res.status(400).json({ success: false, message: 'Material price must be a number greater than or equal to 0.' });
     }
@@ -359,6 +363,7 @@ exports.updatePresentation = async (req, res) => {
     pres.title = String(title).trim();
     pres.presenter_name = String(presenter_name).trim();
     pres.presenter_email = String(presenter_email).trim();
+    pres.description = finalDescription;
     pres.program = normalizedProgram;
     pres.audience = normalizedAudience;
     pres.departments = departmentIds;

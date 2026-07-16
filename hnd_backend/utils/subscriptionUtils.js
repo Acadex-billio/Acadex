@@ -71,6 +71,7 @@ async function getMaterialAccessConfig(materialType, doc) {
 
   const materialPrice = Number(doc?.material_price);
   if (Number.isFinite(materialPrice) && materialPrice >= 0) {
+    config.paygo_full_preview_price = materialPrice;
     config.paygo_download_price = materialPrice;
   }
 
@@ -197,26 +198,11 @@ async function getMaterialAccessSummary({ user, materialType, resourceId, doc })
     access_config: config,
   };
 
-  if (resolvedSubscription.plan === 'pro') {
-    return {
-      ...base,
-      allow_download: true,
-      preview_page_limit: null,
-    };
-  }
-
   if (resolvedSubscription.plan === 'full-package') {
     return {
       ...base,
       allow_download: true,
       preview_page_limit: config.full_package_preview_limit || null,
-    };
-  }
-
-  if (resolvedSubscription.plan === 'basic') {
-    return {
-      ...base,
-      upgrade_required: true,
     };
   }
 
@@ -227,9 +213,15 @@ async function getMaterialAccessSummary({ user, materialType, resourceId, doc })
     findActiveGrantIncludingAdmin({ candId: user?.cand_id, grantCode: downloadGrantCode, resourceId }),
   ]);
 
+  const preview_page_limit = previewGrant
+    ? null
+    : resolvedSubscription.plan === 'basic'
+      ? config.basic_preview_pages
+      : config.paygo_preview_pages;
+
   return {
     ...base,
-    preview_page_limit: previewGrant ? null : config.paygo_preview_pages,
+    preview_page_limit,
     allow_download: Boolean(downloadGrant),
     payment_required: {
       preview: previewGrant

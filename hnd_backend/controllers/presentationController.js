@@ -209,6 +209,7 @@ exports.getAll = async (req, res) => {
       report_id: p.report_id?._id,
       report_title: p.report_id?.title || null,
       report_pages: p.report_id?.pages || null,
+      description: p.description || null,
       report_departments: (Array.isArray(p.report_id?.departments)
         ? p.report_id.departments.map((d) => ({
             dpt_id: d._id?.toString?.() || String(d),
