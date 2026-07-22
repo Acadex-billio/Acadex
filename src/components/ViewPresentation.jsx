@@ -135,10 +135,13 @@ const ViewPresentation = () => {
               { responseType: 'blob', timeout: 120000 }
             );
             
-            if (res.data instanceof Blob && res.data.size > 0) {
+            if (res.status === 200 && res.data instanceof Blob && res.data.size > 0) {
               const url = URL.createObjectURL(res.data);
               cache[filePath] = url;
               console.log('[Thumbnails] Loaded:', filePath);
+            } else {
+              console.warn('[Thumbnails] Thumbnail unavailable:', filePath, res.status);
+              cache[filePath] = null;
             }
           } catch (err) {
             console.warn('[Thumbnails] Failed to load:', filePath, err.message);

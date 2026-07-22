@@ -25,12 +25,18 @@ if (!fs.existsSync(PDF_DIR)) fs.mkdirSync(PDF_DIR, { recursive: true });
 if (!fs.existsSync(THUMBNAIL_DIR)) fs.mkdirSync(THUMBNAIL_DIR, { recursive: true });
 
 const LO_PATHS = [
+  String(process.env.LIBREOFFICE_PATH || '').trim(),
   'C:\\Program Files\\LibreOffice\\program\\soffice.exe',
   'C:\\Program Files (x86)\\LibreOffice\\program\\soffice.exe',
+  '/usr/bin/libreoffice',
+  '/usr/bin/soffice',
+  '/usr/lib/libreoffice/program/soffice',
+  '/snap/bin/libreoffice',
+  '/snap/bin/soffice',
   'libreoffice',
   'soffice',
-];
-const COMMAND_CANDIDATES = LO_PATHS.filter((p) => p.includes('\\') ? fs.existsSync(p) : true);
+].filter(Boolean);
+const COMMAND_CANDIDATES = LO_PATHS.filter((p) => p.includes('\\') || p.startsWith('/') ? fs.existsSync(p) : true);
 
 // Program groups: English vs French
 const PROGRAM_GROUPS = {
@@ -193,6 +199,33 @@ const convertPdfToThumbnail = async (pdfPath, outputDir, options = {}) => {
     });
     throw err;
   }
+};
+
+const sendThumbnailFile = (res, thumbnailPath) => {
+  res.setHeader('Content-Type', 'image/png');
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
+  res.setHeader('Content-Length', fs.statSync(thumbnailPath).size);
+
+  const fileStream = fs.createReadStream(thumbnailPath);
+  fileStream.on('error', (err) => {
+    console.error('[Presentations] Thumbnail stream error:', err.message);
+    if (!res.headersSent) {
+      res.status(500).send('Thumbnail unavailable');
+    }
+  });
+  return fileStream.pipe(res);
+};
+
+const sendThumbnailPlaceholder = (res, message = 'Preview unavailable') => {
+  res.setHeader('Content-Type', 'image/svg+xml');
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
+  return res.send(
+    `<svg width="340" height="160" xmlns="http://www.w3.org/2000/svg"><rect width="340" height="160" fill="#f0f8f5"/><text x="50%" y="50%" font-size="12" fill="#9ca3af" text-anchor="middle" dy=".3em">${message}</text></svg>`
+  );
 };
 
 const canAccessPresentation = (presentation, userProgram, deptId) => {
@@ -578,14 +611,7 @@ exports.getThumbnail = async (req, res) => {
 
       // Serve cached thumbnail if available
       if (fs.existsSync(thumbnailPath)) {
-        return res.sendFile(thumbnailPath, {
-          headers: {
-            'Content-Type': 'image/png',
-            'Cache-Control': 'no-store, no-cache, must-revalidate',
-            Pragma: 'no-cache',
-            Expires: '0',
-          },
-        });
+        return sendThumbnailFile(res, thumbnailPath);
       }
 
       try {
@@ -621,14 +647,7 @@ exports.getThumbnail = async (req, res) => {
           
           // Serve the generated thumbnail
           if (fs.existsSync(thumbnailPath)) {
-            return res.sendFile(thumbnailPath, {
-              headers: {
-                'Content-Type': 'image/png',
-                'Cache-Control': 'no-store, no-cache, must-revalidate',
-                Pragma: 'no-cache',
-                Expires: '0',
-              },
-            });
+            return sendThumbnailFile(res, thumbnailPath);
           }
         }
       } catch (err) {
@@ -639,9 +658,7 @@ exports.getThumbnail = async (req, res) => {
       }
 
       // Return placeholder if generation failed
-      return res.setHeader('Content-Type', 'image/svg+xml').send(
-        '<svg width="340" height="160" xmlns="http://www.w3.org/2000/svg"><rect width="340" height="160" fill="#f0f8f5"/><text x="50%" y="50%" font-size="12" fill="#9ca3af" text-anchor="middle" dy=".3em">Preview Loading...</text></svg>'
-      );
+      return sendThumbnailPlaceholder(res, 'Preview unavailable');
     }
 
     // For local files, generate/serve thumbnail
@@ -663,9 +680,7 @@ exports.getThumbnail = async (req, res) => {
           await convertToPdf(path.resolve(inputPath), path.resolve(PDF_DIR));
         } catch (err) {
           console.error('[Presentations] PDF conversion for thumbnail failed:', err.message);
-          return res.setHeader('Content-Type', 'image/svg+xml').send(
-            '<svg width="340" height="160" xmlns="http://www.w3.org/2000/svg"><rect width="340" height="160" fill="#f0f8f5"/><text x="50%" y="50%" font-size="12" fill="#9ca3af" text-anchor="middle" dy=".3em">Converting...</text></svg>'
-          );
+          return sendThumbnailPlaceholder(res, 'Preview unavailable');
         }
       }
 
@@ -676,23 +691,14 @@ exports.getThumbnail = async (req, res) => {
           await convertPdfToThumbnail(pdfPath, THUMBNAIL_DIR);
         } catch (err) {
           console.error('[Presentations] Thumbnail generation failed:', err.message);
-          return res.setHeader('Content-Type', 'image/svg+xml').send(
-            '<svg width="340" height="160" xmlns="http://www.w3.org/2000/svg"><rect width="340" height="160" fill="#f0f8f5"/><text x="50%" y="50%" font-size="12" fill="#9ca3af" text-anchor="middle" dy=".3em">Preview Error</text></svg>'
-          );
+          return sendThumbnailPlaceholder(res, 'Preview unavailable');
         }
       }
     }
 
     // Serve generated thumbnail
     if (fs.existsSync(thumbnailPath)) {
-      return res.sendFile(thumbnailPath, {
-        headers: {
-          'Content-Type': 'image/png',
-          'Cache-Control': 'no-store, no-cache, must-revalidate',
-          Pragma: 'no-cache',
-          Expires: '0',
-        },
-      });
+      return sendThumbnailFile(res, thumbnailPath);
     }
 
     // Fallback placeholder
