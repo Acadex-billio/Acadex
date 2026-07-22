@@ -3,6 +3,6 @@ services:
     name: hnd-platform-backend
     env: docker
     rootDir: hnd_backend
-    dockerfilePath: ./Dockerfile
+    dockerfilePath: Dockerfile
     autoDeploy: true
     plan: free

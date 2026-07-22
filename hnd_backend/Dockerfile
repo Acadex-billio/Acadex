@@ -13,6 +13,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
+ENV PATH="/usr/lib/libreoffice/program:${PATH}"
+
 COPY package*.json ./
 RUN npm ci --omit=dev
 
