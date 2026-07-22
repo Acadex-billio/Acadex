@@ -609,7 +609,28 @@ exports.getThumbnail = async (req, res) => {
       const thumbnailName = pdfName.replace(/\.pdf$/i, '_thumb.png');
       const thumbnailPath = path.join(THUMBNAIL_DIR, thumbnailName);
 
-      // Serve cached thumbnail if available
+      // Try serving thumbnail from S3 first (pre-generated)
+      try {
+        const key = getS3KeyFromValue(requested);
+        if (key) {
+          const extRemote = path.extname(key).toLowerCase();
+          const baseRemote = path.basename(key, extRemote);
+          const thumbnailS3Key = `presentations/thumbnails/${baseRemote}_thumb.png`;
+          try {
+            console.log('[Presentations] Attempting to stream thumbnail from S3:', { thumbnailS3Key });
+            const s3Stream = getS3ObjectStream(thumbnailS3Key);
+            res.setHeader('Content-Type', 'image/png');
+            res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
+            res.setHeader('Pragma', 'no-cache');
+            res.setHeader('Expires', '0');
+            return s3Stream.pipe(res);
+          } catch (s3Err) {
+            console.log('[Presentations] S3 thumbnail not found or unreadable, will attempt local generation:', { err: s3Err.message });
+          }
+        }
+      } catch (_) {}
+
+      // Serve cached thumbnail if available (local)
       if (fs.existsSync(thumbnailPath)) {
         return sendThumbnailFile(res, thumbnailPath);
       }
