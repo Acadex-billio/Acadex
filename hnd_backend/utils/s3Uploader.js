@@ -1,4 +1,4 @@
-const { S3Client, PutObjectCommand, GetObjectCommand } = require('@aws-sdk/client-s3');
+const { S3Client, PutObjectCommand, GetObjectCommand, HeadObjectCommand } = require('@aws-sdk/client-s3');
 const path = require('path');
 const crypto = require('crypto');
 const { PassThrough } = require('stream');
@@ -138,8 +138,19 @@ const getS3ObjectStream = (key) => {
   }
 
   const stream = new PassThrough();
-  s3.send(new GetObjectCommand({ Bucket: AWS_BUCKET_NAME, Key: key }))
-    .then((result) => {
+  (async () => {
+    try {
+      // Check existence first to surface a clear null when missing
+      await s3.send(new HeadObjectCommand({ Bucket: AWS_BUCKET_NAME, Key: key }));
+    } catch (err) {
+      console.warn('[S3Uploader] HeadObject failed (object missing):', { key, message: err.message });
+      // Return null-like behavior by emitting 'end' after next tick
+      process.nextTick(() => stream.emit('missing'));
+      return;
+    }
+
+    try {
+      const result = await s3.send(new GetObjectCommand({ Bucket: AWS_BUCKET_NAME, Key: key }));
       const bodyStream = result?.Body;
       if (!bodyStream || typeof bodyStream.pipe !== 'function') {
         throw new Error('S3 object body is not a readable stream');
@@ -147,15 +158,15 @@ const getS3ObjectStream = (key) => {
       bodyStream.on('error', (err) => stream.emit('error', err));
       bodyStream.pipe(stream);
       console.log('[S3Uploader] S3 read stream created successfully:', key);
-    })
-    .catch((err) => {
+    } catch (err) {
       console.error('[S3Uploader] Failed to create read stream:', {
         error: err.message,
         key,
         bucket: AWS_BUCKET_NAME,
       });
       stream.emit('error', err);
-    });
+    }
+  })();
 
   return stream;
 };

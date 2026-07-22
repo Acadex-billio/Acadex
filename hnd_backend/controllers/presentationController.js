@@ -617,13 +617,34 @@ exports.getThumbnail = async (req, res) => {
           const baseRemote = path.basename(key, extRemote);
           const thumbnailS3Key = `presentations/thumbnails/${baseRemote}_thumb.png`;
           try {
-            console.log('[Presentations] Attempting to stream thumbnail from S3:', { thumbnailS3Key });
-            const s3Stream = getS3ObjectStream(thumbnailS3Key);
-            res.setHeader('Content-Type', 'image/png');
-            res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
-            res.setHeader('Pragma', 'no-cache');
-            res.setHeader('Expires', '0');
-            return s3Stream.pipe(res);
+              console.log('[Presentations] Attempting to stream thumbnail from S3:', { thumbnailS3Key });
+              const s3Stream = getS3ObjectStream(thumbnailS3Key);
+
+              // Wait briefly for the S3 stream to indicate presence or absence.
+              const readyStream = await new Promise((resolve) => {
+                let settled = false;
+                const cleanup = () => {
+                  s3Stream.removeListener('missing', onMissing);
+                  s3Stream.removeListener('error', onError);
+                  s3Stream.removeListener('data', onData);
+                };
+                const onMissing = () => { if (!settled) { settled = true; cleanup(); resolve(null); } };
+                const onError = () => { if (!settled) { settled = true; cleanup(); resolve(null); } };
+                const onData = (chunk) => { if (!settled) { settled = true; cleanup(); s3Stream.pause(); resolve(s3Stream); } };
+                s3Stream.once('missing', onMissing);
+                s3Stream.once('error', onError);
+                s3Stream.once('data', onData);
+                // Timeout fallback
+                setTimeout(() => { if (!settled) { settled = true; cleanup(); resolve(null); } }, 700);
+              });
+
+              if (readyStream) {
+                res.setHeader('Content-Type', 'image/png');
+                res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
+                res.setHeader('Pragma', 'no-cache');
+                res.setHeader('Expires', '0');
+                return readyStream.pipe(res);
+              }
           } catch (s3Err) {
             console.log('[Presentations] S3 thumbnail not found or unreadable, will attempt local generation:', { err: s3Err.message });
           }
