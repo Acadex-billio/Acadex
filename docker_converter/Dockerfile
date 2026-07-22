@@ -1,4 +1,4 @@
-FROM debian:bookworm-slim
+FROM node:20-bookworm
 
 ENV DEBIAN_FRONTEND=noninteractive
 ENV PATH="/usr/lib/libreoffice/program:${PATH}"
