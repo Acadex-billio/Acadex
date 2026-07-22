@@ -7,19 +7,22 @@ const History = require('../models/History');
 const User = require('../models/User');
 const path = require('path');
 const fs = require('fs');
-const os = require('os');
 const { spawn } = require('child_process');
 const { pipeline } = require('stream/promises');
 const { sanitizeFilename } = require('../middlewares/requestValidation');
 const { getS3ObjectStream } = require('../utils/s3Uploader');
 const { getMaterialAccessSummary } = require('../utils/subscriptionUtils');
-const { streamToBuffer, subsetPdfBuffer } = require('../utils/pdfAccess');
+const { streamToBuffer, subsetPdfBuffer, cropPdfFirstPageHalf } = require('../utils/pdfAccess');
 const { enqueueLibreOfficeJob } = require('../services/libreOfficeQueue');
+const { renderPdfFirstPageToPng } = require('../utils/pdfToImage');
 
 const PRESENTATION_DIR = path.join(__dirname, '../uploads/presentations');
-const PREVIEW_CACHE_DIR = path.join(os.tmpdir(), 'hnd-preview', 'presentations');
-const PDF_DIR = path.join(PREVIEW_CACHE_DIR, 'pdfs');
+const PRESENTATION_PDF_DIR = path.join(PRESENTATION_DIR, 'pdfs');
+const THUMBNAIL_DIR = path.join(PRESENTATION_DIR, 'thumbnails');
+// Use the same PDF directory as admin controller
+const PDF_DIR = PRESENTATION_PDF_DIR;
 if (!fs.existsSync(PDF_DIR)) fs.mkdirSync(PDF_DIR, { recursive: true });
+if (!fs.existsSync(THUMBNAIL_DIR)) fs.mkdirSync(THUMBNAIL_DIR, { recursive: true });
 
 const LO_PATHS = [
   'C:\\Program Files\\LibreOffice\\program\\soffice.exe',
@@ -28,6 +31,26 @@ const LO_PATHS = [
   'soffice',
 ];
 const COMMAND_CANDIDATES = LO_PATHS.filter((p) => p.includes('\\') ? fs.existsSync(p) : true);
+
+// Program groups: English vs French
+const PROGRAM_GROUPS = {
+  ENGLISH: ['HND', 'BACHELOR', 'MASTERS'],
+  FRENCH: ['BTS', 'LICENCE', 'MASTER'],
+};
+
+// Helper to get program group
+const getProgramGroup = (program) => {
+  const prog = String(program || 'HND').toUpperCase();
+  if (PROGRAM_GROUPS.ENGLISH.includes(prog)) return 'ENGLISH';
+  if (PROGRAM_GROUPS.FRENCH.includes(prog)) return 'FRENCH';
+  return null;
+};
+
+// Helper to get all programs in the user's group
+const getUserProgramsInGroup = (userProgram) => {
+  const group = getProgramGroup(userProgram);
+  return group === 'ENGLISH' ? PROGRAM_GROUPS.ENGLISH : PROGRAM_GROUPS.FRENCH;
+};
 
 const S3_BASE_URL = String(process.env.AWS_S3_URL || '').replace(/\/$/, '');
 
@@ -146,8 +169,42 @@ const convertToPdf = async (sourcePath, outputDir) => {
   });
 };
 
-const canAccessPresentation = (presentation, deptId) => {
+const convertPdfToThumbnail = async (pdfPath, outputDir, options = {}) => {
+  const thumbnailName = path.basename(pdfPath).replace(/\.pdf$/i, '_thumb.png');
+  const outputPath = path.join(outputDir, thumbnailName);
+
+  // Check if thumbnail already exists
+  if (fs.existsSync(outputPath)) {
+    return outputPath;
+  }
+
+  try {
+    await renderPdfFirstPageToPng(pdfPath, outputPath, {
+      scale: 1.5,
+      maxWidth: 340,
+      maxHeight: 160,
+      ...options,
+    });
+    return outputPath;
+  } catch (err) {
+    console.error('[Presentations] Thumbnail generation failed:', {
+      pdfPath,
+      error: err.message,
+    });
+    throw err;
+  }
+};
+
+const canAccessPresentation = (presentation, userProgram, deptId) => {
   if (!presentation) return false;
+  
+  // Check if user is in the same program group
+  const userProgramsInGroup = getUserProgramsInGroup(userProgram);
+  if (!userProgramsInGroup.includes(String(presentation.program).toUpperCase())) {
+    return false;
+  }
+
+  // Check audience access within the group
   const aud = String(presentation.audience || 'GENERAL').toUpperCase();
   if (aud === 'GENERAL') return true;
   if (!deptId) return false;
@@ -162,7 +219,13 @@ const applyPreviewHeaders = (res, access) => {
 };
 
 const sendPdfResponse = async (res, buffer, access) => {
-  const output = access?.preview_page_limit ? await subsetPdfBuffer(buffer, access.preview_page_limit) : buffer;
+  let output = buffer;
+  if (access?.preview_page_limit) {
+    output = await subsetPdfBuffer(buffer, access.preview_page_limit);
+    if (access.preview_page_limit === 1) {
+      output = await cropPdfFirstPageHalf(output);
+    }
+  }
   applyPreviewHeaders(res, access);
   res.setHeader('Content-Type', 'application/pdf');
   res.setHeader('Content-Disposition', 'inline');
@@ -176,10 +239,13 @@ exports.getAll = async (req, res) => {
     const skip = (page - 1) * limit;
 
     const deptId = req.user?.dpt_id || null;
-    const program = String(req.user?.program || 'HND').toUpperCase();
+    const userProgram = String(req.user?.program || 'HND').toUpperCase();
+    const userProgramGroup = getUserProgramsInGroup(userProgram);
+
+    // Query presentations for all programs in the user's language group
     const accessQuery = deptId
-      ? { program, $or: [{ audience: 'GENERAL' }, { departments: deptId }] }
-      : { program, audience: 'GENERAL' };
+      ? { program: { $in: userProgramGroup }, $or: [{ audience: 'GENERAL' }, { departments: deptId }] }
+      : { program: { $in: userProgramGroup }, audience: 'GENERAL' };
 
     const [presentations, total] = await Promise.all([
       Presentation.find(accessQuery)
@@ -237,14 +303,15 @@ exports.downloadFile = async (req, res) => {
   const requested = decodeURIComponent(req.params.filename || '');
   if (!requested) return res.status(400).json({ success: false, message: 'Invalid filename' });
 
-  const program = String(req.user?.program || 'HND').toUpperCase();
-  const presentation = await Presentation.findOne({ file_path: requested, program })
-    .select('audience departments title subscription_access material_price')
+  const userProgram = String(req.user?.program || 'HND').toUpperCase();
+  const userProgramGroup = getUserProgramsInGroup(userProgram);
+  const presentation = await Presentation.findOne({ file_path: requested, program: { $in: userProgramGroup } })
+    .select('audience departments title subscription_access material_price program')
     .lean();
   if (!presentation) return res.status(404).json({ success: false, message: 'File not found' });
 
   const deptId = req.user?.dpt_id || null;
-  if (!canAccessPresentation(presentation, deptId)) {
+  if (!canAccessPresentation(presentation, userProgram, deptId)) {
     return res.status(403).json({ success: false, message: 'Not authorized to access this presentation' });
   }
 
@@ -327,14 +394,15 @@ exports.previewFile = async (req, res) => {
   if (!requested) return res.status(400).json({ success: false, message: 'Invalid filename' });
   console.log('[Presentations] Preview request received:', { requested });
 
-  const program = String(req.user?.program || 'HND').toUpperCase();
-  const presentation = await Presentation.findOne({ file_path: requested, program })
-    .select('audience departments title subscription_access material_price')
+  const userProgram = String(req.user?.program || 'HND').toUpperCase();
+  const userProgramGroup = getUserProgramsInGroup(userProgram);
+  const presentation = await Presentation.findOne({ file_path: requested, program: { $in: userProgramGroup } })
+    .select('audience departments title subscription_access material_price program')
     .lean();
   if (!presentation) return res.status(404).json({ success: false, message: 'File not found' });
 
   const deptId = req.user?.dpt_id || null;
-  if (!canAccessPresentation(presentation, deptId)) {
+  if (!canAccessPresentation(presentation, userProgram, deptId)) {
     return res.status(403).json({ success: false, message: 'Not authorized to access this presentation' });
   }
 
@@ -478,4 +546,163 @@ exports.previewFile = async (req, res) => {
 
   const buffer = await fs.promises.readFile(pdfPath);
   return sendPdfResponse(res, buffer, access);
+};
+
+exports.getThumbnail = async (req, res) => {
+  const requested = decodeURIComponent(req.params.filename || '');
+  if (!requested) return res.status(400).json({ success: false, message: 'Invalid filename' });
+
+  try {
+    const userProgram = String(req.user?.program || 'HND').toUpperCase();
+    const userProgramGroup = getUserProgramsInGroup(userProgram);
+    const presentation = await Presentation.findOne({ file_path: requested, program: { $in: userProgramGroup } })
+      .select('audience departments title program')
+      .lean();
+    if (!presentation) return res.status(404).json({ success: false, message: 'File not found' });
+
+    const deptId = req.user?.dpt_id || null;
+    if (!canAccessPresentation(presentation, userProgram, deptId)) {
+      return res.status(403).json({ success: false, message: 'Not authorized to access this presentation' });
+    }
+
+    // For remote S3 files, generate thumbnail on-demand
+    if (/^https?:\/\//i.test(requested)) {
+      const remoteName = sanitizeFilename(path.basename(requested)) || 'presentation';
+      const ext = path.extname(remoteName).toLowerCase();
+      const baseName = path.basename(remoteName, ext);
+      const pptxPath = path.join(PDF_DIR, `${baseName}_temp${ext}`);
+      const pdfName = `${baseName}.pdf`;
+      const pdfPath = path.join(PDF_DIR, pdfName);
+      const thumbnailName = pdfName.replace(/\.pdf$/i, '_thumb.png');
+      const thumbnailPath = path.join(THUMBNAIL_DIR, thumbnailName);
+
+      // Serve cached thumbnail if available
+      if (fs.existsSync(thumbnailPath)) {
+        return res.sendFile(thumbnailPath, {
+          headers: {
+            'Content-Type': 'image/png',
+            'Cache-Control': 'no-store, no-cache, must-revalidate',
+            Pragma: 'no-cache',
+            Expires: '0',
+          },
+        });
+      }
+
+      try {
+        // If PDF doesn't exist, download PPTX from S3 and convert it
+        if (!fs.existsSync(pdfPath)) {
+          // Download PPTX from S3 if needed
+          if (!fs.existsSync(pptxPath)) {
+            console.log('[Presentations] Downloading S3 file for thumbnail:', { requested, pptxPath });
+            const downloaded = await writeS3ObjectToFile(requested, pptxPath);
+            if (!downloaded) {
+              throw new Error('Failed to download file from S3');
+            }
+          }
+
+          // Convert PPTX to PDF
+          if (fs.existsSync(pptxPath)) {
+            console.log('[Presentations] Converting S3 PPTX to PDF for thumbnail:', { pptxPath, pdfPath });
+            await convertToPdf(path.resolve(pptxPath), path.resolve(PDF_DIR));
+            
+            // Handle LibreOffice naming: if _temp.pptx creates _temp.pdf, rename it to the expected name
+            const pdfTempPath = pdfPath.replace(/\.pdf$/i, '_temp.pdf');
+            if (fs.existsSync(pdfTempPath) && !fs.existsSync(pdfPath)) {
+              console.log('[Presentations] Renaming PDF from temp name:', { pdfTempPath, pdfPath });
+              fs.renameSync(pdfTempPath, pdfPath);
+            }
+          }
+        }
+
+        // Generate thumbnail from PDF
+        if (fs.existsSync(pdfPath)) {
+          console.log('[Presentations] Generating thumbnail from PDF:', { pdfPath, thumbnailPath });
+          await convertPdfToThumbnail(pdfPath, THUMBNAIL_DIR);
+          
+          // Serve the generated thumbnail
+          if (fs.existsSync(thumbnailPath)) {
+            return res.sendFile(thumbnailPath, {
+              headers: {
+                'Content-Type': 'image/png',
+                'Cache-Control': 'no-store, no-cache, must-revalidate',
+                Pragma: 'no-cache',
+                Expires: '0',
+              },
+            });
+          }
+        }
+      } catch (err) {
+        console.error('[Presentations] S3 thumbnail generation failed:', {
+          requested,
+          error: err.message,
+        });
+      }
+
+      // Return placeholder if generation failed
+      return res.setHeader('Content-Type', 'image/svg+xml').send(
+        '<svg width="340" height="160" xmlns="http://www.w3.org/2000/svg"><rect width="340" height="160" fill="#f0f8f5"/><text x="50%" y="50%" font-size="12" fill="#9ca3af" text-anchor="middle" dy=".3em">Preview Loading...</text></svg>'
+      );
+    }
+
+    // For local files, generate/serve thumbnail
+    const filename = sanitizeFilename(requested);
+    const pdfName = filename.replace(/\.(ppt|pptx)$/i, '.pdf');
+    const pdfPath = path.join(PDF_DIR, pdfName);
+    const thumbnailName = pdfName.replace(/\.pdf$/i, '_thumb.png');
+    const thumbnailPath = path.join(THUMBNAIL_DIR, thumbnailName);
+
+    // Generate thumbnail if it doesn't exist
+    if (!fs.existsSync(thumbnailPath)) {
+      const inputPath = path.join(PRESENTATION_DIR, filename);
+      const ext = path.extname(filename).toLowerCase();
+
+      // Convert to PDF first if needed
+      if (!fs.existsSync(pdfPath) && (ext === '.ppt' || ext === '.pptx')) {
+        try {
+          console.log('[Presentations] Converting to PDF for thumbnail:', { inputPath, pdfPath });
+          await convertToPdf(path.resolve(inputPath), path.resolve(PDF_DIR));
+        } catch (err) {
+          console.error('[Presentations] PDF conversion for thumbnail failed:', err.message);
+          return res.setHeader('Content-Type', 'image/svg+xml').send(
+            '<svg width="340" height="160" xmlns="http://www.w3.org/2000/svg"><rect width="340" height="160" fill="#f0f8f5"/><text x="50%" y="50%" font-size="12" fill="#9ca3af" text-anchor="middle" dy=".3em">Converting...</text></svg>'
+          );
+        }
+      }
+
+      // Generate thumbnail from PDF
+      if (fs.existsSync(pdfPath)) {
+        try {
+          console.log('[Presentations] Generating thumbnail:', { pdfPath, thumbnailPath });
+          await convertPdfToThumbnail(pdfPath, THUMBNAIL_DIR);
+        } catch (err) {
+          console.error('[Presentations] Thumbnail generation failed:', err.message);
+          return res.setHeader('Content-Type', 'image/svg+xml').send(
+            '<svg width="340" height="160" xmlns="http://www.w3.org/2000/svg"><rect width="340" height="160" fill="#f0f8f5"/><text x="50%" y="50%" font-size="12" fill="#9ca3af" text-anchor="middle" dy=".3em">Preview Error</text></svg>'
+          );
+        }
+      }
+    }
+
+    // Serve generated thumbnail
+    if (fs.existsSync(thumbnailPath)) {
+      return res.sendFile(thumbnailPath, {
+        headers: {
+          'Content-Type': 'image/png',
+          'Cache-Control': 'no-store, no-cache, must-revalidate',
+          Pragma: 'no-cache',
+          Expires: '0',
+        },
+      });
+    }
+
+    // Fallback placeholder
+    return res.setHeader('Content-Type', 'image/svg+xml').send(
+      '<svg width="340" height="160" xmlns="http://www.w3.org/2000/svg"><rect width="340" height="160" fill="#f0f8f5"/><text x="50%" y="50%" font-size="12" fill="#9ca3af" text-anchor="middle" dy=".3em">No Preview</text></svg>'
+    );
+  } catch (err) {
+    console.error('[Presentations] Thumbnail endpoint error:', err.message);
+    res.setHeader('Content-Type', 'image/svg+xml').send(
+      '<svg width="340" height="160" xmlns="http://www.w3.org/2000/svg"><rect width="340" height="160" fill="#e5e7eb"/><text x="50%" y="50%" font-size="12" fill="#9ca3af" text-anchor="middle" dy=".3em">Error</text></svg>'
+    );
+  }
 };

@@ -8,8 +8,6 @@
  *  Now using OpenAI embeddings instead of local transformers.js
  *
  *  ┌──────────────────────┬──────────────────────────────────────────┐
- *  │ pdf-parse            │ Extract raw text from PDF buffers        │
- *  ├──────────────────────┼──────────────────────────────────────────┤
  *  │ LangChain splitter   │ Split extracted text into semantic chunks │
  *  ├──────────────────────┼──────────────────────────────────────────┤
  *  │ OpenAI API           │ Generate vector embeddings per chunk     │
@@ -25,33 +23,12 @@
  *  ⚠  CHROMA SERVER OPTIONAL:
  *     Set env var  CHROMA_URL=http://your-chroma-server:8000
  *     Without it, an in-memory cosine-similarity store is used.
+ *
+ *  NOTE: PDF support for ingest has been removed. Use plain text only.
  */
 
-const pdfParse = require('pdf-parse');
 const KnowledgeDoc = require('../models/KnowledgeDoc');
 const { getEmbedding } = require('./openaiService');
-
-function resolvePdfParseFn() {
-  if (typeof pdfParse === 'function') return pdfParse;
-  if (pdfParse && typeof pdfParse.default === 'function') return pdfParse.default;
-  if (pdfParse && typeof pdfParse.pdfParse === 'function') return pdfParse.pdfParse;
-  return null;
-}
-
-async function parsePdfWithClass(pdfBuffer) {
-  const PDFParseClass = pdfParse && pdfParse.PDFParse;
-  if (typeof PDFParseClass !== 'function') return null;
-
-  const parser = new PDFParseClass({ data: pdfBuffer });
-  try {
-    const result = await parser.getText({});
-    return result;
-  } finally {
-    if (typeof parser.destroy === 'function') {
-      await parser.destroy().catch(() => {});
-    }
-  }
-}
 
 
 
@@ -196,20 +173,11 @@ function inMemorySearch(queryEmbedding, topK) {
     .slice(0, topK);
 }
 
-// ─── pdf-parse: extract text from PDF ────────────────────────────────────────
+// ─── pdf extraction: removed ────────────────────────────────────────────────
+// PDF support for ingest has been removed to avoid DOMMatrix dependency issues.
+// Use plain text content instead. For PDFs, extract text externally first.
 async function extractTextFromPdf(pdfBuffer) {
-  const parser = resolvePdfParseFn();
-  if (parser) {
-    const data = await parser(pdfBuffer);
-    return String(data.text || '').replace(/\s+/g, ' ').trim();
-  }
-
-  const classResult = await parsePdfWithClass(pdfBuffer);
-  if (classResult) {
-    return String(classResult.text || '').replace(/\s+/g, ' ').trim();
-  }
-
-  throw new Error('pdf-parse parser is not available in the current module format');
+  throw new Error('PDF ingest is no longer supported. Please provide plain text content instead.');
 }
 
 // ─── PUBLIC: ingestDocument ───────────────────────────────────────────────────
@@ -217,25 +185,27 @@ async function extractTextFromPdf(pdfBuffer) {
  * Ingest a document into the RAG knowledge base.
  *
  * Pipeline:
- *   pdf-parse → LangChain splitter → OpenAI embeddings → Chroma / in-memory → MongoDB
+ *   LangChain splitter → OpenAI embeddings → Chroma / in-memory → MongoDB
  *
  * @param {object}  opts
- * @param {string}  [opts.text]       - raw text content
- * @param {Buffer}  [opts.pdfBuffer]  - PDF file buffer
+ * @param {string}  [opts.text]       - raw text content (required)
  * @param {string}  opts.source       - document name / filename
- * @param {string}  [opts.sourceType] - 'text' | 'pdf'
+ * @param {string}  [opts.sourceType] - 'text' (default)
  * @returns {Promise<{docId, source, chunks_stored, store}>}
+ * @note PDF support has been removed. Please provide text content directly.
  */
 async function ingestDocument({ text, pdfBuffer, source, sourceType = 'text' }) {
-  // 1. pdf-parse — extract text from PDF if provided
+  // Extract text from content
   let rawText = String(text || '').trim();
-  if (pdfBuffer) {
-    rawText    = await extractTextFromPdf(pdfBuffer);
-    sourceType = 'pdf';
+  
+  // If pdfBuffer is provided, inform user that PDF support is not available
+  if (pdfBuffer && !rawText) {
+    throw new Error('PDF ingest is no longer supported. Please extract text from PDF externally and provide as plain text content.');
   }
+  
   if (!rawText) throw new Error('No text content to ingest');
 
-  // 2. LangChain — split into overlapping semantic chunks
+  // 1. LangChain — split into overlapping semantic chunks
   const splitter = await getSplitter();
   const langDocs = await splitter.createDocuments([rawText]);
   const chunks   = langDocs.map((d) => String(d.pageContent || '').trim()).filter(Boolean);

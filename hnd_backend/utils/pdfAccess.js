@@ -21,6 +21,24 @@ async function subsetPdfBuffer(inputBuffer, maxPages) {
   return Buffer.from(await out.save());
 }
 
+async function cropPdfFirstPageHalf(inputBuffer) {
+  if (!inputBuffer || inputBuffer.length === 0) return inputBuffer;
+  const src = await PDFDocument.load(inputBuffer, { ignoreEncryption: true });
+  const totalPages = src.getPageCount();
+  if (totalPages < 1) return inputBuffer;
+
+  const out = await PDFDocument.create();
+  const [page] = await out.copyPages(src, [0]);
+  const { width, height } = page.getSize();
+  const halfHeight = Math.max(1, Math.floor(height / 2));
+  out.addPage(page);
+
+  page.setCropBox(0, height - halfHeight, width, halfHeight);
+  page.setMediaBox(0, height - halfHeight, width, halfHeight);
+
+  return Buffer.from(await out.save());
+}
+
 async function applyPdfWatermark(inputBuffer, options = {}) {
   if (!inputBuffer || inputBuffer.length === 0) return inputBuffer;
 

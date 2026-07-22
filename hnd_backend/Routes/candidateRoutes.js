@@ -79,6 +79,7 @@ router.get('/reports/preview/:filename', checkMaterialAccess('report', 'preview'
 router.get('/presentations', presentationController.getAll);
 router.get('/presentations/file/:filename', checkMaterialAccess('presentation', 'download'), presentationController.downloadFile);
 router.get('/presentations/preview/:filename', checkMaterialAccess('presentation', 'preview'), presentationController.previewFile);
+router.get('/presentations/thumbnail/:filename', presentationController.getThumbnail);
 
 // Save (in-app) endpoints for reports and presentations
 router.post('/reports/save', downloadsController.saveDownload);

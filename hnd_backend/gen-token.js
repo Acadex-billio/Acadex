@@ -9,7 +9,7 @@ mongoose.connect(process.env.MONGODB_URI).then(async () => {
   ).lean();
   await mongoose.disconnect();
   const tok = jwt.sign(
-    { cand_id: u.cand_id, email: u.email, name: u.name || 'Admin', dpt_id: u.dpt_id || null, role: u.role, is_admin: true, program: 'HND', preferred_language: 'en', account_status: 'active' },
+    { cand_id: u.cand_id, email: u.email, name: u.name || 'Admin', dpt_id: u.dpt_id || null, role: u.role, is_admin: true, program: 'HND', preferred_language: 'en', account_status: 'active', token_type: 'access' },
     process.env.JWT_SECRET,
     { expiresIn: '1h' }
   );

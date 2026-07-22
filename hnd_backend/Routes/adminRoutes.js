@@ -109,6 +109,7 @@ router.post(
 );
 router.put('/presentations/:id', validate({ params: schemas.ids.mongoIdParam }), adminPresentationController.updatePresentation);
 router.delete('/presentations/:id', validate({ params: schemas.ids.mongoIdParam }), adminPresentationController.deletePresentation);
+router.post('/presentations/batch/convert', adminPresentationController.batchConvertPresentations);
 
 router.get('/candidates', adminCandidateController.listCandidates);
 router.get('/candidates/:candId', validate({ params: schemas.ids.candIdParam }), adminCandidateController.getCandidateDetails);

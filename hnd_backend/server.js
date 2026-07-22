@@ -237,7 +237,7 @@ app.use(
     },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Cache-Control', 'Accept'],
     exposedHeaders: ['X-Total-Count', 'X-Preview-Page-Limit', 'X-Allow-Copy', 'X-Subscription-Plan'],
     maxAge: 86400, // 24 hours
   })

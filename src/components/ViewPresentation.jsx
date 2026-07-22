@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useMemo } from "react";
 import styles from "../Astyles/viewpresentations.module.css";
-import { FaFilePowerpoint, FaCalendarAlt, FaBuilding, FaClock, FaRegFileAlt, FaSearch, FaRegChartBar } from "react-icons/fa";
+import { FaCalendarAlt, FaBuilding, FaClock, FaRegFileAlt, FaSearch, FaRegChartBar, FaUser, FaEllipsisV } from "react-icons/fa";
 import api from "../services/api";
 import { getErrorMessage } from "../utility/getErrorMessage";
 import GraduationCapLoader from "./GraduationCapLoader";
@@ -11,6 +11,8 @@ import { useNavigate } from "react-router-dom";
 
 // Remove axios defaults since we're using api service
 // axios.defaults.withCredentials = true;
+
+const normalizeFilePath = (filePath) => String(filePath || '').trim();
 
 const ViewPresentation = () => {
   const navigate = useNavigate();
@@ -26,19 +28,9 @@ const ViewPresentation = () => {
   const [linkMenu, setLinkMenu] = useState({ open: false, id: null, title: '', items: [], fallback: false });
   const [topicPopup, setTopicPopup] = useState({ open: false, id: null, topic: '' });
   const [studyLinksByDept, setStudyLinksByDept] = useState({});
-
-  const openTopicPopup = (presentation) => {
-    setTopicPopup({
-      open: true,
-      id: presentation.presentation_id,
-      topic: presentation.presentation_title || 'No topic available',
-      description: presentation.description || null,
-    });
-  };
+  const [thumbnailCache, setThumbnailCache] = useState({});
 
   const closeTopicPopup = () => setTopicPopup({ open: false, id: null, topic: '', description: '' });
-
-  const isLongTopic = (text) => String(text || '').trim().length > 80;
 
   useEffect(() => {
     const loadStudyLinks = async () => {
@@ -117,6 +109,83 @@ const ViewPresentation = () => {
     };
     fetchPresentations();
     return () => { cancelled = true; };
+  }, []);
+
+  /** Load thumbnails for presentations */
+  useEffect(() => {
+    if (!presentations.length) return;
+    
+    let cancelled = false;
+    const loadThumbnails = async () => {
+      const cache = { ...thumbnailCache };
+      const uncachedPaths = presentations
+        .map((presentation) => normalizeFilePath(presentation?.file_path))
+        .filter((filePath) => filePath && cache[filePath] === undefined);
+      if (!uncachedPaths.length) return;
+      
+      // Load thumbnails with max 3 concurrent requests
+      const loadingPromises = [];
+      for (const filePath of uncachedPaths) {
+        if (cancelled) break;
+        
+        const loadPromise = (async () => {
+          try {
+            const res = await api.get(
+              `/candidate/presentations/thumbnail/${encodeURIComponent(filePath)}`,
+              { responseType: 'blob', timeout: 120000 }
+            );
+            
+            if (res.data instanceof Blob && res.data.size > 0) {
+              const url = URL.createObjectURL(res.data);
+              cache[filePath] = url;
+              console.log('[Thumbnails] Loaded:', filePath);
+            }
+          } catch (err) {
+            console.warn('[Thumbnails] Failed to load:', filePath, err.message);
+            // Mark as failed to avoid retrying
+            cache[filePath] = null;
+          }
+        })();
+        
+        loadingPromises.push(loadPromise);
+        
+        // Limit concurrent requests to 3
+        if (loadingPromises.length >= 3) {
+          await Promise.race(loadingPromises);
+          loadingPromises.splice(0, 1);
+        }
+      }
+      
+      // Wait for remaining promises
+      await Promise.all(loadingPromises);
+      
+      if (!cancelled) {
+        setThumbnailCache(cache);
+      }
+    };
+    
+    loadThumbnails();
+    
+    return () => { 
+      cancelled = true;
+    };
+  }, [presentations, thumbnailCache]);
+
+  /** Cleanup thumbnail URLs on unmount */
+  useEffect(() => {
+    return () => {
+      // Cleanup blob URLs on component unmount only
+      Object.values(thumbnailCache).forEach(url => {
+        if (url && typeof url === 'string' && url.startsWith('blob:')) {
+          try {
+            URL.revokeObjectURL(url);
+          } catch (e) {
+            // Ignore cleanup errors
+          }
+        }
+      });
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const filteredPresentations = useMemo(() => {
@@ -441,49 +510,102 @@ const ViewPresentation = () => {
         ) : filteredPresentations.length === 0 ? (
           <p className={styles.noResults}>No presentation found.</p>
         ) : (
-          filteredPresentations.map((p) => (
-            <div key={p.presentation_id} className={styles.card}>
-              <div className={styles.cardRow}>
-                <div className={styles.cardSummary}>
-                  <div className={styles.iconBlock}>
-                    <FaFilePowerpoint className={styles.fileIcon} />
-                  </div>
-                  <div className={styles.cardContent}>
-                    <div className={styles.badgeRow}>
-                      <div className={styles.cardBadge}>Presentation</div>
-                    </div>
-                    <div className={styles.titleRow}>
-                      <h3 className={styles.title}>{p.presentation_title || p.title}</h3>
-                      {isLongTopic(p.presentation_title || p.title) && (
-                        <button type="button" className={styles.readAllLink} onClick={() => openTopicPopup(p)}>
-                          Read All
-                        </button>
-                      )}
-                    </div>
-                    <div className={styles.infoRow}>
-                      <span className={styles.chip}><FaCalendarAlt className={styles.chipIcon} /> {new Date(p.upload_date).getFullYear()}</span>
-                      <span className={styles.chip}><FaBuilding className={styles.chipIcon} /> {p.audience || p.program || 'General'}</span>
-                      <span className={styles.chip}><FaRegFileAlt className={styles.chipIcon} /> {p.report_pages || 'N/A'} pages</span>
-                      <span className={styles.chip}><FaClock className={styles.chipIcon} /> {formatTimeAgo(p.upload_date)}</span>
-                    </div>
-                    <p className={styles.meta}>
-                      {p.presenter_name || 'Unknown presenter'}
-                      {Number.isFinite(Number(p.material_price)) ? ` • ${Number(p.material_price).toLocaleString()} XAF` : ''}
-                    </p>
-                  </div>
-                </div>
+          filteredPresentations.map((p) => {
+            const normalizedFilePath = normalizeFilePath(p.file_path);
+            return (
+              <div key={p.presentation_id} className={styles.card}>
+              {/* Top Row: Badge + Menu */}
+              <div className={styles.headerRow}>
+                <div className={styles.cardBadge}>Presentation</div>
+                <button
+                  className={styles.menuButton}
+                  onClick={() => openLinkMenu(p)}
+                  title="View related links"
+                >
+                  <FaEllipsisV />
+                </button>
+              </div>
 
-                <div className={styles.actionGroup}>
-                  <button
-                    type="button"
-                    className={styles.menuButton}
-                    onClick={() => linkMenu.open && linkMenu.id === p.presentation_id ? closeLinkMenu() : openLinkMenu(p)}
-                  >
-                    ⋯
-                  </button>
-                  <button className={`${styles.textAction} ${styles.primaryAction}`} onClick={() => handlePreview(p)}>Preview</button>
-                  <button className={`${styles.textAction} ${styles.primaryAction}`} onClick={() => handleDownload(p)}>Download</button>
-                  <button className={`${styles.textAction}`} onClick={async () => {
+              {/* Document Preview Thumbnail */}
+              <div className={styles.previewThumbnail}>
+                {thumbnailCache[normalizedFilePath] ? (
+                  <img
+                    src={thumbnailCache[normalizedFilePath]}
+                    alt={p.presentation_title || 'Presentation preview'}
+                    className={styles.thumbnailImage}
+                  />
+                ) : thumbnailCache.hasOwnProperty(normalizedFilePath) && thumbnailCache[normalizedFilePath] === null ? (
+                  <div className={styles.thumbnailPlaceholder}>
+                    <span style={{color: '#cbd5e1', fontSize: '12px', textAlign: 'center'}}>Preview unavailable</span>
+                  </div>
+                ) : (
+                  <div className={styles.thumbnailPlaceholder}>
+                    <span style={{color: '#64748b', fontSize: '13px'}}>Loading preview...</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Title Section */}
+              <h3 className={styles.cardTitle}>
+                {(p.presentation_title || p.title || '').length > 80
+                  ? (p.presentation_title || p.title).substring(0, 80) + '...'
+                  : p.presentation_title || p.title}
+              </h3>
+
+              {/* Presenter Section */}
+              <div className={styles.presenterRow}>
+                <FaUser className={styles.presenterIcon} />
+                <span className={styles.presenterName}>{p.presenter_name || 'Unknown'}</span>
+              </div>
+
+              {/* Metadata Row 1: Date, Audience, Pages */}
+              <div className={styles.metadataRow}>
+                <span className={styles.metaChip}>
+                  <FaCalendarAlt className={styles.metaIcon} />
+                  {new Date(p.upload_date).getFullYear()}
+                </span>
+                <span className={styles.metaChip}>
+                  <FaBuilding className={styles.metaIcon} />
+                  {p.audience || p.program || 'GENERAL'}
+                </span>
+                <span className={styles.metaChip}>
+                  <FaRegFileAlt className={styles.metaIcon} />
+                  {p.pages || 'N/A'} Slides
+                </span>
+              </div>
+
+              {/* Metadata Row 2: Price + Time Ago */}
+              <div className={styles.metadataRow2}>
+                {Number.isFinite(Number(p.material_price)) && Number(p.material_price) > 0 ? (
+                  <span className={styles.priceTag}>
+                    <span className={styles.priceValue}>{Number(p.material_price).toLocaleString()} XAF</span>
+                  </span>
+                ) : null}
+                <span className={styles.timeTag}>
+                  <FaClock className={styles.metaIcon} />
+                  {formatTimeAgo(p.upload_date)}
+                </span>
+              </div>
+
+              {/* Action Buttons */}
+              <div className={styles.actions}>
+                <button
+                  className={styles.previewBtn}
+                  onClick={() => handlePreview(p)}
+                  title="Preview this presentation"
+                >
+                  👁 Preview
+                </button>
+                <button
+                  className={styles.downloadBtn}
+                  onClick={() => handleDownload(p)}
+                  title="Download this presentation"
+                >
+                  ⬇ Download
+                </button>
+                <button
+                  className={styles.saveBtn}
+                  onClick={async () => {
                     try {
                       const payload = { resourceType: 'presentation', filename: p.file_path, resourceId: p.presentation_id };
                       const { data } = await api.post('/candidate/presentations/save', payload);
@@ -492,10 +614,14 @@ const ViewPresentation = () => {
                       const errMsg = (err?.response?.data && err.response.data.message) || err.message || 'Failed to save';
                       showToast(errMsg, 'error');
                     }
-                  }}>Save</button>
-                </div>
+                  }}
+                  title="Save this presentation to your collection"
+                >
+                  💾 Save
+                </button>
               </div>
 
+              {/* Menu for additional links */}
               {linkMenu.open && linkMenu.id === p.presentation_id && (
                 <div className={styles.linkMenu}>
                   <div className={styles.linkMenuTitle}>{linkMenu.title}</div>
@@ -523,8 +649,9 @@ const ViewPresentation = () => {
                 </div>
               )}
             </div>
-          ))
-        )}
+          );
+        })
+      )}
       </div>
 
       {topicPopup.open && (

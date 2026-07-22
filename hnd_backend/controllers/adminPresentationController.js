@@ -8,12 +8,14 @@ const Department = require('../models/Department');
 const mongoose = require('mongoose');
 const path = require('path');
 const fs = require('fs');
+const { spawn } = require('child_process');
 const { sendBulkBcc } = require('../services/emailService');
 const { sanitizeFilename } = require('../middlewares/requestValidation');
 const { uploadFile } = require('../utils/s3Uploader');
 const { sendBulkPushNotification, isWebPushConfigured } = require('../utils/webPush');
 const { USER_PROGRAMS } = require('../constants/userConstants');
 const CandidateProjectSubmission = require('../models/CandidateProjectSubmission');
+const { enqueueLibreOfficeJob } = require('../services/libreOfficeQueue');
 
 const ALLOWED_PROGRAMS = [
   USER_PROGRAMS.HND,
@@ -33,6 +35,15 @@ const mapProgramToDepartmentTrack = (program) => {
 
 const PRESENTATION_DIR = path.join(__dirname, '../uploads/presentations');
 const PRESENTATION_PDF_DIR = path.join(PRESENTATION_DIR, 'pdfs');
+
+const LO_PATHS = [
+  'C:\\Program Files\\LibreOffice\\program\\soffice.exe',
+  'C:\\Program Files (x86)\\LibreOffice\\program\\soffice.exe',
+  'libreoffice',
+  'soffice',
+];
+
+const COMMAND_CANDIDATES = LO_PATHS.filter((p) => p.includes('\\') ? fs.existsSync(p) : true);
 
 const safeUnlink = async (filePath) => {
   try {
@@ -55,6 +66,94 @@ const parseOptionalPrice = (value) => {
 const parseGitHubUrl = (value) => {
   const raw = String(value ?? '').trim();
   return raw || null;
+};
+
+// PDF Conversion Functions
+const runLibreOfficeConvert = (command, sourcePath, outputDir) =>
+  new Promise((resolve, reject) => {
+    const args = ['--headless', '--convert-to', 'pdf', sourcePath, '--outdir', outputDir];
+    const child = spawn(command, args, { windowsHide: true });
+
+    let stderr = '';
+    child.stderr.on('data', (buf) => {
+      stderr += buf.toString();
+    });
+
+    child.on('error', (err) => {
+      reject(err);
+    });
+
+    child.on('close', (code) => {
+      if (code !== 0) return reject(new Error(stderr || `LibreOffice exited with code ${code}`));
+      return resolve();
+    });
+  });
+
+const convertToPdf = async (sourcePath, outputDir) => {
+  return enqueueLibreOfficeJob(`presentation:${path.basename(sourcePath)}`, async () => {
+    let lastError;
+    for (const command of COMMAND_CANDIDATES) {
+      try {
+        await runLibreOfficeConvert(command, sourcePath, outputDir);
+        return;
+      } catch (err) {
+        lastError = err;
+      }
+    }
+    throw lastError || new Error('LibreOffice command not available');
+  });
+};
+
+// Background conversion job
+const scheduleBackgroundConversion = (presentation, filePath) => {
+  // Don't await - run in background
+  setImmediate(async () => {
+    try {
+      const ext = path.extname(filePath).toLowerCase();
+      
+      // Only convert if it's a PPTX/PPT file
+      if (ext !== '.ppt' && ext !== '.pptx') {
+        console.log(`[Background] Skipping conversion for ${presentation._id}: not a PPTX/PPT file`);
+        return;
+      }
+
+      // Check if file is local or remote
+      if (/^https?:\/\//i.test(filePath)) {
+        console.log(`[Background] Skipping conversion for ${presentation._id}: remote file (S3)`);
+        return;
+      }
+
+      const filename = sanitizeFilename(path.basename(filePath));
+      const sourcePath = path.join(PRESENTATION_DIR, filename);
+      
+      if (!fs.existsSync(sourcePath)) {
+        console.log(`[Background] Cannot convert ${presentation._id}: source file not found`);
+        return;
+      }
+
+      const pdfName = filename.replace(/\.(ppt|pptx)$/i, '.pdf');
+      const pdfPath = path.join(PRESENTATION_PDF_DIR, pdfName);
+
+      // Check if PDF already exists
+      if (fs.existsSync(pdfPath)) {
+        console.log(`[Background] PDF already exists for ${presentation._id}, skipping`);
+        return;
+      }
+
+      // Ensure PDF directory exists
+      if (!fs.existsSync(PRESENTATION_PDF_DIR)) {
+        fs.mkdirSync(PRESENTATION_PDF_DIR, { recursive: true });
+      }
+
+      console.log(`[Background] Starting PDF conversion for presentation ${presentation._id} (${presentation.title})`);
+      
+      await convertToPdf(path.resolve(sourcePath), path.resolve(PRESENTATION_PDF_DIR));
+      
+      console.log(`[Background] PDF conversion completed successfully for ${presentation._id}`);
+    } catch (err) {
+      console.error(`[Background] PDF conversion failed for presentation ${presentation._id}: ${err.message}`);
+    }
+  });
 };
 
 exports.getReports = async (req, res) => {
@@ -215,6 +314,9 @@ exports.uploadPresentation = async (req, res) => {
       material_price: parsedMaterialPrice,
       project_github_url: parsedProjectGitHubUrl,
     });
+
+    // Schedule background PDF conversion
+    scheduleBackgroundConversion(presentation, file_path);
 
     if (linkedSubmission) {
       await CandidateProjectSubmission.deleteOne({ _id: linkedSubmission._id });
@@ -409,5 +511,86 @@ exports.deletePresentation = async (req, res) => {
   } catch (err) {
     console.error('[AdminPresentation] Delete error:', err);
     return res.status(500).json({ success: false, message: 'Delete failed.' });
+  }
+};
+
+// Batch conversion endpoint - converts all presentations without PDFs
+exports.batchConvertPresentations = async (req, res) => {
+  try {
+    // Ensure directories exist
+    if (!fs.existsSync(PRESENTATION_PDF_DIR)) {
+      fs.mkdirSync(PRESENTATION_PDF_DIR, { recursive: true });
+    }
+
+    const presentations = await Presentation.find({}).select('_id title file_path').lean();
+    console.log(`[Batch] Starting conversion for ${presentations.length} presentations`);
+
+    let converted = 0;
+    let skipped = 0;
+    let failed = 0;
+    const results = [];
+
+    // Process presentations sequentially to avoid overwhelming LibreOffice
+    for (const p of presentations) {
+      try {
+        const filePath = p.file_path;
+        const isS3 = /^https?:\/\//i.test(filePath);
+        const filename = sanitizeFilename(path.basename(filePath));
+        const pdfName = filename.replace(/\.(ppt|pptx)$/i, '.pdf');
+        const pdfPath = path.join(PRESENTATION_PDF_DIR, pdfName);
+
+        // Skip if PDF already exists
+        if (fs.existsSync(pdfPath)) {
+          skipped++;
+          results.push({ id: p._id, title: p.title, status: 'skipped', reason: 'PDF already exists' });
+          continue;
+        }
+
+        let sourcePath;
+
+        if (isS3) {
+          // For S3 files, the thumbnail endpoint will handle conversion on-demand
+          // So we can skip batch conversion for S3 files
+          skipped++;
+          results.push({ id: p._id, title: p.title, status: 'skipped', reason: 'S3 file (on-demand conversion)' });
+          continue;
+        } else {
+          // Use local file
+          sourcePath = path.join(PRESENTATION_DIR, filename);
+          if (!fs.existsSync(sourcePath)) {
+            failed++;
+            results.push({ id: p._id, title: p.title, status: 'failed', reason: 'Local file not found' });
+            continue;
+          }
+        }
+
+        // Convert to PDF
+        await convertToPdf(path.resolve(sourcePath), path.resolve(PRESENTATION_PDF_DIR));
+        converted++;
+        results.push({ id: p._id, title: p.title, status: 'converted' });
+        console.log(`[Batch] ✅ Converted: ${p.title}`);
+      } catch (err) {
+        failed++;
+        results.push({ id: p._id, title: p.title, status: 'error', reason: err.message });
+        console.error(`[Batch] ❌ Failed: ${p.title} - ${err.message}`);
+      }
+    }
+
+    console.log(`[Batch] Complete: ${converted} converted, ${skipped} skipped, ${failed} failed`);
+    
+    return res.json({
+      success: true,
+      message: 'Batch conversion completed',
+      summary: {
+        total: presentations.length,
+        converted,
+        skipped,
+        failed,
+      },
+      results,
+    });
+  } catch (err) {
+    console.error('[Batch] Fatal error:', err);
+    return res.status(500).json({ success: false, message: 'Batch conversion failed', error: err.message });
   }
 };
