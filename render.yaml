@@ -6,3 +6,11 @@ services:
     dockerfilePath: Dockerfile
     autoDeploy: true
     plan: free
+
+  - type: web
+    name: hnd-platform-converter
+    env: docker
+    rootDir: docker_converter
+    dockerfilePath: Dockerfile
+    autoDeploy: true
+    plan: free

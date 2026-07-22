@@ -36,7 +36,7 @@ const getS3Key = (folder, originalName) => {
   return `${folder}/${Date.now()}-${random}-${cleanName}`;
 };
 
-const uploadFile = async (buffer, originalName, mimeType, folder = 'uploads') => {
+const uploadFile = async (buffer, originalName, mimeType, folder = 'uploads', explicitKey = null) => {
   console.log('[S3Uploader] Starting file upload:', {
     fileName: originalName,
     mimeType,
@@ -54,7 +54,7 @@ const uploadFile = async (buffer, originalName, mimeType, folder = 'uploads') =>
     throw new Error('AWS S3 configuration is missing (BUCKET_NAME or S3_URL)');
   }
 
-  const key = getS3Key(folder, originalName);
+  const key = explicitKey || getS3Key(folder, originalName);
   console.log('[S3Uploader] Generated S3 key:', key);
 
   const params = {

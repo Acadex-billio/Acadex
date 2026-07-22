@@ -20,6 +20,8 @@ const PRESENTATION_DIR = path.join(__dirname, '../uploads/presentations');
 const PREVIEW_CACHE_DIR = path.join(os.tmpdir(), 'hnd-preview', 'presentations');
 const PDF_DIR = path.join(PREVIEW_CACHE_DIR, 'pdfs');
 const THUMBNAIL_DIR = path.join(PREVIEW_CACHE_DIR, 'thumbnails');
+const THUMBNAIL_S3_FOLDER = 'presentations/thumbnails';
+const PREVIEW_S3_FOLDER = 'presentations/previews';
 
 const LO_PATHS = [
   'C:\\Program Files\\LibreOffice\\program\\soffice.exe',
@@ -103,20 +105,37 @@ const processPresentation = async (presentation) => {
   const pdfName = `${baseName}.pdf`;
   const pdfPath = path.join(PDF_DIR, pdfName);
   const thumbnailLocalPath = path.join(THUMBNAIL_DIR, `${baseName}_thumb.png`);
-  const thumbnailS3Folder = 'presentations/thumbnails';
   const thumbnailOriginalName = `${baseName}_thumb.png`;
+  const previewPdfS3Key = `${PREVIEW_S3_FOLDER}/${baseName}.pdf`;
+  const thumbnailS3Key = `${THUMBNAIL_S3_FOLDER}/${thumbnailOriginalName}`;
 
-  // If thumbnail already on S3, skip (unless FORCE_OVERWRITE is true)
+  // Skip only when both the thumbnail and preview PDF already exist on S3.
   if (!FORCE_OVERWRITE) {
     try {
-      const thumbnailKey = `${thumbnailS3Folder}/${thumbnailOriginalName}`;
-      // Try to get stream; if succeeds, assume exists and skip
-      try {
-        const s = getS3ObjectStream(thumbnailKey);
-        // If we get a stream without immediate error, we won't wait for content; assume exists
-        console.log('[Skip] Thumbnail already on S3:', { thumbnailKey });
-        return { skipped: true, reason: 'already_on_s3', thumbnailKey };
-      } catch (_) {}
+      const thumbnailExists = (() => {
+        try {
+          const stream = getS3ObjectStream(thumbnailS3Key);
+          stream.on('error', () => {});
+          return true;
+        } catch (_) {
+          return false;
+        }
+      })();
+
+      const previewExists = (() => {
+        try {
+          const stream = getS3ObjectStream(previewPdfS3Key);
+          stream.on('error', () => {});
+          return true;
+        } catch (_) {
+          return false;
+        }
+      })();
+
+      if (thumbnailExists && previewExists) {
+        console.log('[Skip] Thumbnail and preview PDF already on S3:', { thumbnailS3Key, previewPdfS3Key });
+        return { skipped: true, reason: 'already_on_s3', thumbnailS3Key, previewPdfS3Key };
+      }
     } catch (_) {}
   }
 
@@ -162,12 +181,19 @@ const processPresentation = async (presentation) => {
     return { skipped: true, reason: 'thumbnail_failed' };
   }
 
-  // Upload thumbnail to S3
+  // Upload thumbnail and preview PDF to S3
   try {
-    const buffer = fs.readFileSync(thumbnailLocalPath);
-    const uploaded = await uploadFile(buffer, thumbnailOriginalName, 'image/png', thumbnailS3Folder);
-    console.log('[Uploaded] Thumbnail:', uploaded.url || uploaded.key);
-    return { success: true, thumbnail: uploaded };
+    const thumbnailBuffer = fs.readFileSync(thumbnailLocalPath);
+    const pdfBuffer = fs.readFileSync(pdfPath);
+
+    const [thumbnailUpload, previewUpload] = await Promise.all([
+      uploadFile(thumbnailBuffer, thumbnailOriginalName, 'image/png', THUMBNAIL_S3_FOLDER, thumbnailS3Key),
+      uploadFile(pdfBuffer, `${baseName}.pdf`, 'application/pdf', PREVIEW_S3_FOLDER, previewPdfS3Key),
+    ]);
+
+    console.log('[Uploaded] Thumbnail:', thumbnailUpload.url || thumbnailUpload.key);
+    console.log('[Uploaded] Preview PDF:', previewUpload.url || previewUpload.key);
+    return { success: true, thumbnail: thumbnailUpload, previewPdf: previewUpload };
   } catch (err) {
     console.error('[Error] Thumbnail upload failed:', err.message);
     return { skipped: true, reason: 'upload_failed' };

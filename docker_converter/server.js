@@ -1,0 +1,161 @@
+const express = require('express');
+const { spawn } = require('child_process');
+const fs = require('fs');
+const path = require('path');
+const crypto = require('crypto');
+const dotenv = require('dotenv');
+
+dotenv.config();
+
+const app = express();
+app.use(express.json({ limit: '50mb' }));
+
+const PORT = Number(process.env.PORT || 8080);
+const SHARED_SECRET = String(process.env.CONVERTER_SECRET || '').trim();
+const CONVERSION_DIR = path.join(__dirname, 'tmp');
+
+if (!fs.existsSync(CONVERSION_DIR)) {
+  fs.mkdirSync(CONVERSION_DIR, { recursive: true });
+}
+
+const requireSecret = (req, res, next) => {
+  const header = String(req.headers['x-converter-secret'] || '');
+  if (!SHARED_SECRET || header !== SHARED_SECRET) {
+    return res.status(401).json({ success: false, message: 'Unauthorized converter request' });
+  }
+  next();
+};
+
+const runCommand = (command, args) => new Promise((resolve, reject) => {
+  const child = spawn(command, args, { windowsHide: true });
+  let stderr = '';
+  let stdout = '';
+
+  child.stdout.on('data', (chunk) => {
+    stdout += chunk.toString();
+  });
+
+  child.stderr.on('data', (chunk) => {
+    stderr += chunk.toString();
+  });
+
+  child.on('error', (err) => reject(err));
+  child.on('close', (code) => {
+    if (code !== 0) {
+      return reject(new Error(stderr || `Command exited with code ${code}`));
+    }
+    resolve({ stdout, stderr });
+  });
+});
+
+const ensureSourceFile = async (sourcePath, sourceUrl, workDir) => {
+  if (sourcePath && fs.existsSync(sourcePath)) {
+    return sourcePath;
+  }
+
+  if (!sourceUrl) {
+    throw new Error('Either sourcePath or sourceUrl must be provided');
+  }
+
+  const downloadPath = path.join(workDir, `source-${Date.now()}-${path.basename(sourceUrl) || 'download'}`);
+  await runCommand('curl', ['-L', '--fail', '-o', downloadPath, sourceUrl]);
+
+  if (!fs.existsSync(downloadPath)) {
+    throw new Error('Downloaded source file was not created');
+  }
+
+  return downloadPath;
+};
+
+const convertToPdf = async (sourcePath, outputDir) => {
+  const sourceName = path.basename(sourcePath);
+  const outputPath = path.join(outputDir, sourceName.replace(/\.(ppt|pptx)$/i, '.pdf'));
+
+  await runCommand('soffice', [
+    '--headless',
+    '--convert-to', 'pdf',
+    sourcePath,
+    '--outdir', outputDir,
+  ]);
+
+  if (!fs.existsSync(outputPath)) {
+    const tempOutputPath = path.join(outputDir, sourceName.replace(/\.(ppt|pptx)$/i, '_temp.pdf'));
+    if (fs.existsSync(tempOutputPath)) {
+      fs.renameSync(tempOutputPath, outputPath);
+    }
+  }
+
+  if (!fs.existsSync(outputPath)) {
+    throw new Error('Converted PDF was not produced');
+  }
+
+  return outputPath;
+};
+
+const convertPdfToPng = async (pdfPath, outputDir) => {
+  const pdfName = path.basename(pdfPath, path.extname(pdfPath));
+  const outputPath = path.join(outputDir, `${pdfName}.png`);
+
+  await runCommand('soffice', [
+    '--headless',
+    '--convert-to', 'png',
+    '--outdir', outputDir,
+    pdfPath,
+  ]);
+
+  if (!fs.existsSync(outputPath)) {
+    throw new Error('Converted PNG was not produced');
+  }
+
+  return outputPath;
+};
+
+app.get('/health', (req, res) => {
+  res.json({ success: true, service: 'docker-converter', ok: true });
+});
+
+app.post('/convert/pdf', requireSecret, async (req, res) => {
+  try {
+    const { sourcePath, sourceUrl, outputName } = req.body || {};
+    const requestId = crypto.randomUUID();
+    const workDir = path.join(CONVERSION_DIR, requestId);
+    fs.mkdirSync(workDir, { recursive: true });
+
+    const resolvedSourcePath = await ensureSourceFile(sourcePath, sourceUrl, workDir);
+    const safeName = outputName || path.basename(resolvedSourcePath);
+    const outputPath = await convertToPdf(resolvedSourcePath, workDir);
+    const fileBuffer = fs.readFileSync(outputPath);
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `inline; filename="${safeName.replace(/\.[^.]+$/, '.pdf')}"`);
+    return res.send(fileBuffer);
+  } catch (err) {
+    console.error('[docker-converter] PDF conversion failed:', err.message);
+    return res.status(500).json({ success: false, message: err.message || 'PDF conversion failed' });
+  }
+});
+
+app.post('/convert/png', requireSecret, async (req, res) => {
+  try {
+    const { sourcePath, sourceUrl, outputName } = req.body || {};
+    const requestId = crypto.randomUUID();
+    const workDir = path.join(CONVERSION_DIR, requestId);
+    fs.mkdirSync(workDir, { recursive: true });
+
+    const resolvedSourcePath = await ensureSourceFile(sourcePath, sourceUrl, workDir);
+    const safeName = outputName || path.basename(resolvedSourcePath);
+    const outputPath = await convertPdfToPng(resolvedSourcePath, workDir);
+    const fileBuffer = fs.readFileSync(outputPath);
+
+    res.setHeader('Content-Type', 'image/png');
+    res.setHeader('Content-Disposition', `inline; filename="${safeName.replace(/\.[^.]+$/, '.png')}"`);
+    return res.send(fileBuffer);
+  } catch (err) {
+    console.error('[docker-converter] PNG conversion failed:', err.message);
+    return res.status(500).json({ success: false, message: err.message || 'PNG conversion failed' });
+  }
+});
+
+app.listen(PORT, () => {
+  console.log(`[docker-converter] listening on ${PORT}`);
+});

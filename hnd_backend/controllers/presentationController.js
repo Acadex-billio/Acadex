@@ -15,6 +15,7 @@ const { getMaterialAccessSummary } = require('../utils/subscriptionUtils');
 const { streamToBuffer, subsetPdfBuffer, cropPdfFirstPageHalf } = require('../utils/pdfAccess');
 const { enqueueLibreOfficeJob } = require('../services/libreOfficeQueue');
 const { renderPdfFirstPageToPng } = require('../utils/pdfToImage');
+const { requestConverter } = require('../utils/converterClient');
 
 const PRESENTATION_DIR = path.join(__dirname, '../uploads/presentations');
 const PRESENTATION_PDF_DIR = path.join(PRESENTATION_DIR, 'pdfs');
@@ -151,7 +152,34 @@ const runLibreOfficeConvert = (command, sourcePath, outputDir) =>
     });
   });
 
-const convertToPdf = async (sourcePath, outputDir) => {
+const convertToPdf = async (sourcePath, outputDir, options = {}) => {
+  const { sourceUrl, outputName } = options;
+  const remoteConverterBaseUrl = String(process.env.CONVERTER_BASE_URL || '').trim().replace(/\/$/, '');
+  const remoteConverterSecret = String(process.env.CONVERTER_SECRET || '').trim();
+
+  if (remoteConverterBaseUrl && remoteConverterSecret && sourceUrl) {
+    console.log('[Presentations] Using remote converter service for PDF conversion:', {
+      sourceUrl,
+      outputDir,
+      outputName,
+    });
+
+    const result = await requestConverter({
+      sourceUrl,
+      format: 'pdf',
+      outputName: outputName || path.basename(sourcePath),
+    });
+
+    const fileName = String(outputName || path.basename(sourcePath) || 'converted.pdf').replace(/\.[^.]+$/, '.pdf');
+    const destinationPath = path.join(outputDir, fileName);
+    await fs.promises.writeFile(destinationPath, result.buffer);
+    console.log('[Presentations] Remote converter returned PDF:', {
+      destinationPath,
+      size: result.buffer.length,
+    });
+    return destinationPath;
+  }
+
   return enqueueLibreOfficeJob(`presentation:${path.basename(sourcePath)}`, async () => {
     let lastError;
     for (const command of COMMAND_CANDIDATES) {
@@ -508,10 +536,28 @@ exports.previewFile = async (req, res) => {
     });
 
     try {
+      // Prefer a pre-generated preview PDF stored in S3.
+      try {
+        const remoteKey = getS3KeyFromValue(requested);
+        if (remoteKey) {
+          const remoteBase = path.basename(remoteKey, ext).replace(/\.[^.]+$/, '');
+          const previewPdfS3Key = `presentations/previews/${remoteBase}.pdf`;
+          console.log('[Presentations] Attempting to stream preview PDF from S3:', { previewPdfS3Key });
+          const previewBuffer = await streamToBuffer(getS3ObjectStream(previewPdfS3Key));
+          if (previewBuffer?.length) {
+            console.log('[Presentations] Serving pre-generated preview PDF from S3:', { previewPdfS3Key });
+            return sendPdfResponse(res, previewBuffer, access);
+          }
+        }
+      } catch (_) {}
+
       if (!fs.existsSync(pdfPath)) {
         const downloaded = await writeS3ObjectToFile(requested, sourcePath);
         if (!downloaded) return res.status(404).json({ success: false, message: 'File not found' });
-        await convertToPdf(path.resolve(sourcePath), path.resolve(PDF_DIR));
+        await convertToPdf(path.resolve(sourcePath), path.resolve(PDF_DIR), {
+          sourceUrl: requested,
+          outputName: remoteName,
+        });
       }
 
       console.log('[Presentations] Checking converted PDF output:', {
@@ -609,6 +655,21 @@ exports.getThumbnail = async (req, res) => {
       const thumbnailName = pdfName.replace(/\.pdf$/i, '_thumb.png');
       const thumbnailPath = path.join(THUMBNAIL_DIR, thumbnailName);
 
+      // Try pre-generated preview PDF first so production doesn't depend on LibreOffice at request time.
+      try {
+        const remoteKey = getS3KeyFromValue(requested);
+        if (remoteKey) {
+          const remoteBase = path.basename(remoteKey, ext).replace(/\.[^.]+$/, '');
+          const previewPdfS3Key = `presentations/previews/${remoteBase}.pdf`;
+          console.log('[Presentations] Attempting to stream preview PDF from S3:', { previewPdfS3Key });
+          const previewBuffer = await streamToBuffer(getS3ObjectStream(previewPdfS3Key));
+          if (previewBuffer?.length) {
+            console.log('[Presentations] Serving pre-generated preview PDF from S3:', { previewPdfS3Key });
+            return sendPdfResponse(res, previewBuffer, access);
+          }
+        }
+      } catch (_) {}
+
       // Try serving thumbnail from S3 first (pre-generated)
       try {
         const key = getS3KeyFromValue(requested);
@@ -671,7 +732,10 @@ exports.getThumbnail = async (req, res) => {
           // Convert PPTX to PDF
           if (fs.existsSync(pptxPath)) {
             console.log('[Presentations] Converting S3 PPTX to PDF for thumbnail:', { pptxPath, pdfPath });
-            await convertToPdf(path.resolve(pptxPath), path.resolve(PDF_DIR));
+            await convertToPdf(path.resolve(pptxPath), path.resolve(PDF_DIR), {
+              sourceUrl: requested,
+              outputName: `${baseName}.pdf`,
+            });
             
             // Handle LibreOffice naming: if _temp.pptx creates _temp.pdf, rename it to the expected name
             const pdfTempPath = pdfPath.replace(/\.pdf$/i, '_temp.pdf');
