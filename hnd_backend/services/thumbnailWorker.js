@@ -5,6 +5,10 @@ const { connection } = require('./thumbnailQueue');
 const { convertRemotePng } = require('../utils/converterClient');
 const { uploadFile } = require('../utils/s3Uploader');
 
+if (!connection) {
+  throw new Error('Thumbnail worker cannot start because REDIS_URL or ENABLE_THUMBNAIL_QUEUE is not configured');
+}
+
 const worker = new Worker('thumbnailQueue', async (job) => {
   const { pdfPath, thumbnailPath, sourceUrl } = job.data;
 

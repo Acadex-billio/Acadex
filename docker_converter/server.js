@@ -8,7 +8,7 @@ const dotenv = require('dotenv');
 dotenv.config();
 
 const app = express();
-app.use(express.json({ limit: '50mb' }));
+app.use(express.json({ limit: '200mb' }));
 
 const PORT = Number(process.env.PORT || 8080);
 const SHARED_SECRETS = Array.from(new Set(

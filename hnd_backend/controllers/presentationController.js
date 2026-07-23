@@ -17,6 +17,8 @@ const { enqueueLibreOfficeJob } = require('../services/libreOfficeQueue');
 const { renderPdfFirstPageToPng } = require('../utils/pdfToImage');
 const { requestConverter, convertRemotePng } = require('../utils/converterClient');
 const { resolveLibreOfficeCommand } = require('../utils/libreOffice');
+const { thumbnailQueue, connection } = require('../services/thumbnailQueue');
+const { QueueEvents } = require('bullmq');
 
 const PRESENTATION_DIR = path.join(__dirname, '../uploads/presentations');
 const PRESENTATION_PDF_DIR = path.join(PRESENTATION_DIR, 'pdfs');
@@ -145,13 +147,21 @@ const convertToPdf = async (sourcePath, outputDir, options = {}) => {
   const remoteConverterBaseUrl = String(process.env.CONVERTER_BASE_URL || '').trim().replace(/\/$/, '');
   const remoteConverterSecret = String(process.env.CONVERTER_SECRET || '').trim();
   const localCommand = resolveLibreOfficeCommand();
+  const shouldUseRemoteConverter = Boolean(
+    remoteConverterBaseUrl &&
+    remoteConverterSecret &&
+    (sourceUrl || (!localCommand && sourcePath))
+  );
 
-  if (remoteConverterBaseUrl && remoteConverterSecret && sourceUrl) {
+  if (shouldUseRemoteConverter) {
     let preparedSourcePath = sourcePath;
     let tempSourcePath = null;
 
     try {
       if (!preparedSourcePath || !fs.existsSync(preparedSourcePath)) {
+        if (!sourceUrl) {
+          throw new Error('No source file or source URL available for remote conversion');
+        }
         tempSourcePath = path.join(outputDir, `remote-${Date.now()}-${path.basename(sourceUrl) || 'source'}`);
         console.log('[Presentations] Downloading remote source file for converter:', {
           sourceUrl,
@@ -308,6 +318,33 @@ const sendThumbnailFile = (res, thumbnailPath) => {
     if (!res.headersSent) {
       res.status(500).send('Thumbnail unavailable');
     }
+  }
+};
+
+const shouldUseThumbnailQueue = () => String(process.env.ENABLE_THUMBNAIL_QUEUE || 'false').trim().toLowerCase() === 'true';
+
+const waitForThumbnailGeneration = async (pdfPath, thumbnailPath, sourceUrl) => {
+  if (!shouldUseThumbnailQueue() || !thumbnailQueue || !connection) return false;
+
+  try {
+    const queueEvents = new QueueEvents('thumbnailQueue', { connection });
+    const job = await thumbnailQueue.add(
+      'presentation-thumbnail',
+      { pdfPath, thumbnailPath, sourceUrl },
+      {
+        attempts: 2,
+        backoff: { type: 'exponential', delay: 2000 },
+        removeOnComplete: true,
+        removeOnFail: true,
+      }
+    );
+
+    await job.waitUntilFinished(queueEvents, 120000);
+    await queueEvents.close();
+    return fs.existsSync(thumbnailPath);
+  } catch (err) {
+    console.error('[Presentations] Thumbnail queue wait failed:', err.message);
+    return false;
   }
 };
 
@@ -780,6 +817,18 @@ exports.getThumbnail = async (req, res) => {
           console.warn('[Presentations] S3 thumbnail check failed:', checkErr.message);
         }
 
+        if (!fs.existsSync(thumbnailPath) && shouldUseThumbnailQueue()) {
+          console.log('[Presentations] Thumbnail missing; enqueuing conversion job:', {
+            pdfPath,
+            thumbnailPath,
+          });
+          const queued = await waitForThumbnailGeneration(pdfPath, thumbnailPath, requested);
+          if (queued && fs.existsSync(thumbnailPath)) {
+            return sendThumbnailFile(res, thumbnailPath);
+          }
+          console.warn('[Presentations] Thumbnail queue did not produce file in time, falling back to direct conversion');
+        }
+
         // Generate thumbnail from PDF (local attempt)
         if (fs.existsSync(pdfPath)) {
           console.log('[Presentations] Generating thumbnail from PDF:', { pdfPath, thumbnailPath });
@@ -833,6 +882,18 @@ exports.getThumbnail = async (req, res) => {
           console.error('[Presentations] PDF conversion for thumbnail failed:', err.message);
           return sendThumbnailPlaceholder(res, 'Preview unavailable');
         }
+      }
+
+      if (!fs.existsSync(thumbnailPath) && shouldUseThumbnailQueue()) {
+        console.log('[Presentations] Thumbnail missing; enqueuing conversion job:', {
+          pdfPath,
+          thumbnailPath,
+        });
+        const queued = await waitForThumbnailGeneration(pdfPath, thumbnailPath, null);
+        if (queued && fs.existsSync(thumbnailPath)) {
+          return sendThumbnailFile(res, thumbnailPath);
+        }
+        console.warn('[Presentations] Thumbnail queue did not produce file in time, falling back to direct conversion');
       }
 
       // Generate thumbnail from PDF

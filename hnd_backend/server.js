@@ -522,4 +522,16 @@ app.listen(port, () => {
   } catch (err) {
     logger.warn('Failed to start payment reconciliation scheduler', { error: err.message });
   }
+
+  try {
+    const workerEnabled = String(process.env.ENABLE_THUMBNAIL_WORKER || 'false').trim().toLowerCase();
+    if (workerEnabled === 'true') {
+      require('./services/thumbnailWorker');
+      logger.info('Thumbnail worker started');
+    } else {
+      logger.info('Thumbnail worker disabled; set ENABLE_THUMBNAIL_WORKER=true to enable');
+    }
+  } catch (err) {
+    logger.warn('Failed to start thumbnail worker', { error: err.message });
+  }
 });

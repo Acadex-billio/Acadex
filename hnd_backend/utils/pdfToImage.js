@@ -5,27 +5,7 @@
 const fs = require('fs');
 const path = require('path');
 const { spawn } = require('child_process');
-
-const LO_PATHS = [
-  '/usr/bin/soffice',
-  '/usr/bin/libreoffice',
-  'C:\\Program Files\\LibreOffice\\program\\soffice.exe',
-  'C:\\Program Files (x86)\\LibreOffice\\program\\soffice.exe',
-  'libreoffice',
-  'soffice',
-];
-
-const getAvailableCommand = () => {
-  for (const cmd of LO_PATHS) {
-    if (cmd.includes('\\')) {
-      if (fs.existsSync(cmd)) return cmd;
-    } else {
-      // For non-path commands, just return it (will be found in PATH)
-      return cmd;
-    }
-  }
-  return null;
-};
+const { resolveLibreOfficeCommand } = require('./libreOffice');
 
 /**
  * Render first page of PDF to PNG image using LibreOffice
@@ -49,7 +29,7 @@ const renderPdfFirstPageToPng = async (pdfPath, outputPath, options = {}) => {
       fs.mkdirSync(outputDir, { recursive: true });
     }
 
-    const loCommand = getAvailableCommand();
+    const loCommand = resolveLibreOfficeCommand();
     if (!loCommand) {
       throw new Error('LibreOffice not found in system PATH or standard locations');
     }

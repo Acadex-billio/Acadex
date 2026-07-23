@@ -53,6 +53,8 @@ const requestConverter = async ({ sourceUrl, sourcePath, format, outputName }) =
         },
         timeout: 120000,
         responseType: 'arraybuffer',
+        maxContentLength: Infinity,
+        maxBodyLength: Infinity,
       });
 
       console.log('[ConverterClient] Remote conversion response received:', {
