@@ -171,4 +171,14 @@ const getS3ObjectStream = (key) => {
   return stream;
 };
 
-module.exports = { uploadFile, getS3ObjectStream };
+const objectExists = async (key) => {
+  if (!AWS_BUCKET_NAME) return false;
+  try {
+    await s3.send(new HeadObjectCommand({ Bucket: AWS_BUCKET_NAME, Key: key }));
+    return true;
+  } catch (err) {
+    return false;
+  }
+};
+
+module.exports = { uploadFile, getS3ObjectStream, objectExists };

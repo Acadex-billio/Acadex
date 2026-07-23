@@ -743,10 +743,21 @@ exports.getThumbnail = async (req, res) => {
           // Convert PPTX to PDF
           if (fs.existsSync(pptxPath)) {
             console.log('[Presentations] Converting S3 PPTX to PDF for thumbnail:', { pptxPath, pdfPath });
-            await convertToPdf(path.resolve(pptxPath), path.resolve(PDF_DIR), {
-              sourceUrl: requested,
-              outputName: `${baseName}.pdf`,
-            });
+              const producedPdf = await convertToPdf(path.resolve(pptxPath), path.resolve(PDF_DIR), {
+                sourceUrl: requested,
+                outputName: `${baseName}.pdf`,
+              });
+              // Upload produced PDF to S3 under presentations/previews/<baseName>.pdf
+              try {
+                const { uploadFile } = require('../utils/s3Uploader');
+                if (process.env.AWS_BUCKET_NAME && process.env.AWS_S3_URL && fs.existsSync(producedPdf)) {
+                  const pdfBuffer = fs.readFileSync(producedPdf);
+                  const previewKey = `presentations/previews/${baseName}.pdf`;
+                  await uploadFile(pdfBuffer, `${baseName}.pdf`, 'application/pdf', 'presentations/previews', previewKey);
+                }
+              } catch (upErr) {
+                console.warn('[Presentations] Failed to upload preview PDF to S3:', upErr.message);
+              }
             
             // Handle LibreOffice naming: if _temp.pptx creates _temp.pdf, rename it to the expected name
             const pdfTempPath = pdfPath.replace(/\.pdf$/i, '_temp.pdf');
@@ -757,13 +768,36 @@ exports.getThumbnail = async (req, res) => {
           }
         }
 
-        // Generate thumbnail from PDF
+        // Check S3 for thumbnail first
+        try {
+          const { objectExists } = require('../utils/s3Uploader');
+          const thumbnailS3Key = `presentations/thumbnails/${path.basename(thumbnailPath)}`;
+          if (process.env.AWS_BUCKET_NAME && process.env.AWS_S3_URL && await objectExists(thumbnailS3Key)) {
+            const s3Url = `${process.env.AWS_S3_URL.replace(/\/$/, '')}/${thumbnailS3Key}`;
+            return streamS3ToResponse(s3Url, res, 'inline', path.basename(thumbnailPath), 'image/png');
+          }
+        } catch (checkErr) {
+          console.warn('[Presentations] S3 thumbnail check failed:', checkErr.message);
+        }
+
+        // Generate thumbnail from PDF (local attempt)
         if (fs.existsSync(pdfPath)) {
           console.log('[Presentations] Generating thumbnail from PDF:', { pdfPath, thumbnailPath });
           await convertPdfToThumbnail(pdfPath, THUMBNAIL_DIR);
-          
-          // Serve the generated thumbnail
+
+          // If generated, upload to S3 for future reuse
           if (fs.existsSync(thumbnailPath)) {
+            try {
+              const { uploadFile } = require('../utils/s3Uploader');
+              if (process.env.AWS_BUCKET_NAME && process.env.AWS_S3_URL) {
+                const buffer = fs.readFileSync(thumbnailPath);
+                const key = `presentations/thumbnails/${path.basename(thumbnailPath)}`;
+                await uploadFile(buffer, path.basename(thumbnailPath), 'image/png', 'presentations/thumbnails', key);
+              }
+            } catch (upErr) {
+              console.warn('[Presentations] Failed to upload thumbnail to S3:', upErr.message);
+            }
+
             return sendThumbnailFile(res, thumbnailPath);
           }
         }
