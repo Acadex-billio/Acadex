@@ -741,6 +741,8 @@ exports.getThumbnail = async (req, res) => {
                   console.log('[Presentations] S3 stream pipe completed successfully:', { thumbnailS3Key });
                 });
                 
+                // Resume the stream - it was paused to check for data availability
+                readyStream.resume();
                 return readyStream.pipe(res);
               }
           } catch (s3Err) {
