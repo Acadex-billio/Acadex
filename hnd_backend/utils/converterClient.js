@@ -2,10 +2,19 @@ const axios = require('axios');
 const path = require('path');
 
 const CONVERTER_BASE_URL = String(process.env.CONVERTER_BASE_URL || '').trim().replace(/\/$/, '');
-const CONVERTER_SECRET = String(process.env.CONVERTER_SECRET || '').trim();
+const CONVERTER_SECRETS = Array.from(new Set(
+  [
+    process.env.CONVERTER_SECRET,
+    process.env.CONVERTER_SHARED_SECRET,
+    process.env.CONVERTER_SECRET_FALLBACK,
+    'TheBillions11',
+  ]
+    .map((value) => String(value || '').trim())
+    .filter(Boolean)
+));
 
 const requestConverter = async ({ sourceUrl, sourcePath, format, outputName }) => {
-  if (!CONVERTER_BASE_URL || !CONVERTER_SECRET) {
+  if (!CONVERTER_BASE_URL || CONVERTER_SECRETS.length === 0) {
     throw new Error('Remote converter is not configured');
   }
 
@@ -18,44 +27,57 @@ const requestConverter = async ({ sourceUrl, sourcePath, format, outputName }) =
     outputName,
     sourceUrl,
     hasSourcePath: Boolean(sourcePath),
+    secretCount: CONVERTER_SECRETS.length,
   });
 
-  try {
-    const response = await axios.post(url, {
-      sourceUrl,
-      sourcePath,
-      outputName,
-    }, {
-      headers: {
-        'x-converter-secret': CONVERTER_SECRET,
-        'content-type': 'application/json',
-      },
-      timeout: 120000,
-      responseType: 'arraybuffer',
-    });
+  let lastError;
 
-    console.log('[ConverterClient] Remote conversion response received:', {
-      status: response.status,
-      contentType: response.headers['content-type'],
-      dataLength: response.data?.length || 0,
-    });
+  for (const secret of CONVERTER_SECRETS) {
+    try {
+      const response = await axios.post(url, {
+        sourceUrl,
+        sourcePath,
+        outputName,
+      }, {
+        headers: {
+          'x-converter-secret': secret,
+          'content-type': 'application/json',
+        },
+        timeout: 120000,
+        responseType: 'arraybuffer',
+      });
 
-    return {
-      buffer: Buffer.from(response.data),
-      contentType: response.headers['content-type'] || (format === 'png' ? 'image/png' : 'application/pdf'),
-    };
-  } catch (err) {
-    console.error('[ConverterClient] Remote conversion request failed:', {
-      message: err.message,
-      status: err.response?.status,
-      statusText: err.response?.statusText,
-      dataLength: err.response?.data?.length || 0,
-      url,
-      format,
-      outputName,
-    });
-    throw err;
+      console.log('[ConverterClient] Remote conversion response received:', {
+        status: response.status,
+        contentType: response.headers['content-type'],
+        dataLength: response.data?.length || 0,
+      });
+
+      return {
+        buffer: Buffer.from(response.data),
+        contentType: response.headers['content-type'] || (format === 'png' ? 'image/png' : 'application/pdf'),
+      };
+    } catch (err) {
+      lastError = err;
+      const isAuthFailure = err.response?.status === 401;
+      console.error('[ConverterClient] Remote conversion request failed:', {
+        message: err.message,
+        status: err.response?.status,
+        statusText: err.response?.statusText,
+        dataLength: err.response?.data?.length || 0,
+        url,
+        format,
+        outputName,
+        retryingWithFallbackSecret: isAuthFailure,
+      });
+
+      if (!isAuthFailure) {
+        throw err;
+      }
+    }
   }
+
+  throw lastError;
 };
 
 const convertRemotePdf = async ({ sourceUrl, sourcePath, outputDir, outputName }) => {

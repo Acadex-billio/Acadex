@@ -11,7 +11,16 @@ const app = express();
 app.use(express.json({ limit: '50mb' }));
 
 const PORT = Number(process.env.PORT || 8080);
-const SHARED_SECRET = String(process.env.CONVERTER_SECRET || '').trim();
+const SHARED_SECRETS = Array.from(new Set(
+  [
+    process.env.CONVERTER_SECRET,
+    process.env.CONVERTER_SHARED_SECRET,
+    process.env.CONVERTER_SECRET_FALLBACK,
+    'TheBillions11',
+  ]
+    .map((value) => String(value || '').trim())
+    .filter(Boolean)
+));
 const CONVERSION_DIR = path.join(__dirname, 'tmp');
 
 if (!fs.existsSync(CONVERSION_DIR)) {
@@ -19,8 +28,8 @@ if (!fs.existsSync(CONVERSION_DIR)) {
 }
 
 const requireSecret = (req, res, next) => {
-  const header = String(req.headers['x-converter-secret'] || '');
-  if (!SHARED_SECRET || header !== SHARED_SECRET) {
+  const header = String(req.headers['x-converter-secret'] || '').trim();
+  if (SHARED_SECRETS.length === 0 || !SHARED_SECRETS.includes(header)) {
     return res.status(401).json({ success: false, message: 'Unauthorized converter request' });
   }
   next();

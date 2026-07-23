@@ -9,7 +9,11 @@ services:
     envVars:
       - key: LIBREOFFICE_PATH
         value: /usr/bin/soffice
+      - key: CONVERTER_BASE_URL
+        value: https://acadex-converter.onrender.com
       - key: CONVERTER_SECRET
+        value: TheBillions11
+      - key: CONVERTER_SHARED_SECRET
         value: TheBillions11
 
   - type: web
@@ -23,4 +27,6 @@ services:
       - key: LIBREOFFICE_PATH
         value: /usr/bin/soffice
       - key: CONVERTER_SECRET
+        value: TheBillions11
+      - key: CONVERTER_SHARED_SECRET
         value: TheBillions11
