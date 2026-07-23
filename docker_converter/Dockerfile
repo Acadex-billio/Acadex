@@ -9,13 +9,17 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libreoffice-writer \
     libreoffice-impress \
     libreoffice-common \
-    default-jre \
+    libreoffice-java-common \
+    default-jre-headless \
     fonts-dejavu \
     fonts-liberation \
     fontconfig \
     ca-certificates \
     curl \
     && rm -rf /var/lib/apt/lists/*
+
+ENV JAVA_HOME="/usr/lib/jvm/default-java"
+ENV PATH="/usr/lib/libreoffice/program:${PATH}"
 
 WORKDIR /app
 
