@@ -15,7 +15,7 @@ const { getMaterialAccessSummary } = require('../utils/subscriptionUtils');
 const { streamToBuffer, subsetPdfBuffer, cropPdfFirstPageHalf } = require('../utils/pdfAccess');
 const { enqueueLibreOfficeJob } = require('../services/libreOfficeQueue');
 const { renderPdfFirstPageToPng } = require('../utils/pdfToImage');
-const { requestConverter } = require('../utils/converterClient');
+const { requestConverter, convertRemotePng } = require('../utils/converterClient');
 const { resolveLibreOfficeCommand } = require('../utils/libreOffice');
 
 const PRESENTATION_DIR = path.join(__dirname, '../uploads/presentations');
@@ -253,10 +253,33 @@ const convertPdfToThumbnail = async (pdfPath, outputDir, options = {}) => {
     });
     return outputPath;
   } catch (err) {
-    console.error('[Presentations] Thumbnail generation failed:', {
+    console.error('[Presentations] Local thumbnail generation failed:', {
       pdfPath,
       error: err.message,
     });
+
+    try {
+      const converterBaseUrl = String(process.env.CONVERTER_BASE_URL || '').trim();
+      if (converterBaseUrl) {
+        console.log('[Presentations] Falling back to remote converter for PNG thumbnail:', {
+          pdfPath,
+          outputPath,
+          converterBaseUrl,
+        });
+        await convertRemotePng({
+          sourcePath: pdfPath,
+          outputDir,
+          outputName: path.basename(outputPath),
+        });
+        return outputPath;
+      }
+    } catch (remoteErr) {
+      console.error('[Presentations] Remote thumbnail conversion failed:', {
+        pdfPath,
+        error: remoteErr.message,
+      });
+    }
+
     throw err;
   }
 };

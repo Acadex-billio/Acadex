@@ -102,7 +102,22 @@ const convertRemotePdf = async ({ sourceUrl, sourcePath, outputDir, outputName }
   return outputPath;
 };
 
+const convertRemotePng = async ({ sourceUrl, sourcePath, outputDir, outputName }) => {
+  const result = await requestConverter({
+    sourceUrl,
+    sourcePath,
+    format: 'png',
+    outputName,
+  });
+
+  const fileName = String(outputName || 'converted.png').replace(/\.[^.]+$/, '.png');
+  const outputPath = path.join(outputDir, fileName);
+  await require('fs').promises.writeFile(outputPath, result.buffer);
+  return outputPath;
+};
+
 module.exports = {
   requestConverter,
   convertRemotePdf,
+  convertRemotePng,
 };
