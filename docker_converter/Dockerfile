@@ -9,6 +9,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libreoffice-writer \
     libreoffice-impress \
     libreoffice-common \
+    default-jre \
     fonts-dejavu \
     fonts-liberation \
     fontconfig \

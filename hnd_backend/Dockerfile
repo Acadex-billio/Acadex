@@ -8,12 +8,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libreoffice-writer \
     libreoffice-impress \
     libreoffice-common \
+    default-jre \
     fonts-dejavu \
     fonts-liberation \
     fontconfig \
     ca-certificates \
     curl \
-    default-jre \
     && rm -rf /var/lib/apt/lists/*
 
 ENV PATH="/usr/bin:/usr/lib/libreoffice/program:${PATH}"

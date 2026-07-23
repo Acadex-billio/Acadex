@@ -7,6 +7,8 @@ const path = require('path');
 const { spawn } = require('child_process');
 
 const LO_PATHS = [
+  '/usr/bin/soffice',
+  '/usr/bin/libreoffice',
   'C:\\Program Files\\LibreOffice\\program\\soffice.exe',
   'C:\\Program Files (x86)\\LibreOffice\\program\\soffice.exe',
   'libreoffice',
