@@ -57,13 +57,22 @@ const runCommand = (command, args) => new Promise((resolve, reject) => {
   });
 });
 
-const ensureSourceFile = async (sourcePath, sourceUrl, workDir) => {
+const ensureSourceFile = async (sourcePath, sourceUrl, workDir, sourceBase64, sourceFilename) => {
+  if (sourceBase64) {
+    const safeName = String(sourceFilename || path.basename(sourceUrl || 'source') || 'source')
+      .replace(/[\\/]+/g, '_')
+      .replace(/[^a-zA-Z0-9._-]/g, '_');
+    const downloadPath = path.join(workDir, `source-${Date.now()}-${safeName}`);
+    fs.writeFileSync(downloadPath, Buffer.from(sourceBase64, 'base64'));
+    return downloadPath;
+  }
+
   if (sourcePath && fs.existsSync(sourcePath)) {
     return sourcePath;
   }
 
   if (!sourceUrl) {
-    throw new Error('Either sourcePath or sourceUrl must be provided');
+    throw new Error('Either sourcePath, sourceBase64, or sourceUrl must be provided');
   }
 
   const downloadPath = path.join(workDir, `source-${Date.now()}-${path.basename(sourceUrl) || 'download'}`);
@@ -173,12 +182,17 @@ app.get('/health', (req, res) => {
 app.post('/convert/pdf', requireSecret, async (req, res) => {
   const requestId = crypto.randomUUID();
   try {
-    const { sourcePath, sourceUrl, outputName } = req.body || {};
-    console.log(`[docker-converter:${requestId}] PDF conversion requested:`, { sourceUrl, outputName });
+    const { sourcePath, sourceUrl, outputName, sourceBase64, sourceFilename } = req.body || {};
+    console.log(`[docker-converter:${requestId}] PDF conversion requested:`, {
+      sourceUrl,
+      outputName,
+      hasSourceBase64: Boolean(sourceBase64),
+      sourceFilename,
+    });
     const workDir = path.join(CONVERSION_DIR, requestId);
     fs.mkdirSync(workDir, { recursive: true });
 
-    const resolvedSourcePath = await ensureSourceFile(sourcePath, sourceUrl, workDir);
+    const resolvedSourcePath = await ensureSourceFile(sourcePath, sourceUrl, workDir, sourceBase64, sourceFilename);
     console.log(`[docker-converter:${requestId}] Source file resolved:`, resolvedSourcePath);
     
     const safeName = outputName || path.basename(resolvedSourcePath);
@@ -201,12 +215,17 @@ app.post('/convert/pdf', requireSecret, async (req, res) => {
 app.post('/convert/png', requireSecret, async (req, res) => {
   const requestId = crypto.randomUUID();
   try {
-    const { sourcePath, sourceUrl, outputName } = req.body || {};
-    console.log(`[docker-converter:${requestId}] PNG conversion requested:`, { sourceUrl, outputName });
+    const { sourcePath, sourceUrl, outputName, sourceBase64, sourceFilename } = req.body || {};
+    console.log(`[docker-converter:${requestId}] PNG conversion requested:`, {
+      sourceUrl,
+      outputName,
+      hasSourceBase64: Boolean(sourceBase64),
+      sourceFilename,
+    });
     const workDir = path.join(CONVERSION_DIR, requestId);
     fs.mkdirSync(workDir, { recursive: true });
 
-    const resolvedSourcePath = await ensureSourceFile(sourcePath, sourceUrl, workDir);
+    const resolvedSourcePath = await ensureSourceFile(sourcePath, sourceUrl, workDir, sourceBase64, sourceFilename);
     console.log(`[docker-converter:${requestId}] Source file resolved:`, resolvedSourcePath);
     
     const safeName = outputName || path.basename(resolvedSourcePath);

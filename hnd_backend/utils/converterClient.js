@@ -1,4 +1,5 @@
 const axios = require('axios');
+const fs = require('fs');
 const path = require('path');
 
 const CONVERTER_BASE_URL = String(process.env.CONVERTER_BASE_URL || '').trim().replace(/\/$/, '');
@@ -21,12 +22,23 @@ const requestConverter = async ({ sourceUrl, sourcePath, format, outputName }) =
   const endpoint = format === 'png' ? '/convert/png' : '/convert/pdf';
   const url = `${CONVERTER_BASE_URL}${endpoint}`;
 
+  const payload = {
+    sourceUrl,
+    outputName,
+    sourceFilename: sourcePath ? path.basename(sourcePath) : undefined,
+  };
+
+  if (sourcePath && fs.existsSync(sourcePath)) {
+    payload.sourceBase64 = fs.readFileSync(sourcePath).toString('base64');
+  }
+
   console.log('[ConverterClient] Sending remote conversion request:', {
     url,
     format,
     outputName,
     sourceUrl,
     hasSourcePath: Boolean(sourcePath),
+    hasSourceBase64: Boolean(payload.sourceBase64),
     secretCount: CONVERTER_SECRETS.length,
   });
 
@@ -34,11 +46,7 @@ const requestConverter = async ({ sourceUrl, sourcePath, format, outputName }) =
 
   for (const secret of CONVERTER_SECRETS) {
     try {
-      const response = await axios.post(url, {
-        sourceUrl,
-        sourcePath,
-        outputName,
-      }, {
+      const response = await axios.post(url, payload, {
         headers: {
           'x-converter-secret': secret,
           'content-type': 'application/json',
