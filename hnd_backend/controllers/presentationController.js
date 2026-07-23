@@ -164,20 +164,29 @@ const convertToPdf = async (sourcePath, outputDir, options = {}) => {
       outputName,
     });
 
-    const result = await requestConverter({
-      sourceUrl,
-      format: 'pdf',
-      outputName: outputName || path.basename(sourcePath),
-    });
+    try {
+      const result = await requestConverter({
+        sourceUrl,
+        format: 'pdf',
+        outputName: outputName || path.basename(sourcePath),
+      });
 
-    const fileName = String(outputName || path.basename(sourcePath) || 'converted.pdf').replace(/\.[^.]+$/, '.pdf');
-    const destinationPath = path.join(outputDir, fileName);
-    await fs.promises.writeFile(destinationPath, result.buffer);
-    console.log('[Presentations] Remote converter returned PDF:', {
-      destinationPath,
-      size: result.buffer.length,
-    });
-    return destinationPath;
+      const fileName = String(outputName || path.basename(sourcePath) || 'converted.pdf').replace(/\.[^.]+$/, '.pdf');
+      const destinationPath = path.join(outputDir, fileName);
+      await fs.promises.writeFile(destinationPath, result.buffer);
+      console.log('[Presentations] Remote converter returned PDF:', {
+        destinationPath,
+        size: result.buffer.length,
+      });
+      return destinationPath;
+    } catch (err) {
+      console.error('[Presentations] Remote converter failed, falling back to local LibreOffice conversion:', {
+        message: err.message,
+        status: err.response?.status,
+        sourceUrl,
+        outputName,
+      });
+    }
   }
 
   return enqueueLibreOfficeJob(`presentation:${path.basename(sourcePath)}`, async () => {

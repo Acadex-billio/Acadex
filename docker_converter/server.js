@@ -138,6 +138,7 @@ app.post('/convert/pdf', requireSecret, async (req, res) => {
     return res.send(fileBuffer);
   } catch (err) {
     console.error(`[docker-converter:${requestId}] PDF conversion failed:`, err.message);
+    return res.status(500).json({ success: false, message: err.message || 'PDF conversion failed' });
   }
 });
 
