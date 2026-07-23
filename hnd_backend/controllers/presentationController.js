@@ -146,42 +146,12 @@ const convertToPdf = async (sourcePath, outputDir, options = {}) => {
   const remoteConverterSecret = String(process.env.CONVERTER_SECRET || '').trim();
   const localCommand = resolveLibreOfficeCommand();
 
-  if (localCommand) {
-    console.log('[Presentations] Using local LibreOffice for PDF conversion:', {
-      command: localCommand,
-      sourcePath,
-      outputDir,
-      outputName,
-    });
-
-    return enqueueLibreOfficeJob(`presentation:${path.basename(sourcePath)}`, async () => {
-      let lastError;
-      for (const command of [localCommand, ...COMMAND_CANDIDATES.filter((candidate) => candidate !== localCommand)]) {
-        try {
-          await runLibreOfficeConvert(command, sourcePath, outputDir);
-          console.log('[Presentations] LibreOffice conversion succeeded:', {
-            command,
-            sourcePath,
-            outputDir,
-          });
-          return path.join(outputDir, path.basename(sourcePath).replace(/\.(ppt|pptx)$/i, '.pdf'));
-        } catch (err) {
-          lastError = err;
-          console.error('[Presentations] LibreOffice conversion attempt failed:', {
-            command,
-            message: err.message,
-          });
-        }
-      }
-      throw lastError || new Error('LibreOffice command not available');
-    });
-  }
-
   if (remoteConverterBaseUrl && remoteConverterSecret && sourceUrl) {
     console.log('[Presentations] Using remote converter service for PDF conversion:', {
       sourceUrl,
       outputDir,
       outputName,
+      remoteConverterBaseUrl,
     });
 
     try {
@@ -207,6 +177,37 @@ const convertToPdf = async (sourcePath, outputDir, options = {}) => {
         outputName,
       });
     }
+  }
+
+  if (localCommand) {
+    console.log('[Presentations] Using local LibreOffice for PDF conversion:', {
+      command: localCommand,
+      sourcePath,
+      outputDir,
+      outputName,
+    });
+
+    return enqueueLibreOfficeJob(`presentation:${path.basename(sourcePath)}`, async () => {
+      let lastError;
+      for (const command of [localCommand]) {
+        try {
+          await runLibreOfficeConvert(command, sourcePath, outputDir);
+          console.log('[Presentations] LibreOffice conversion succeeded:', {
+            command,
+            sourcePath,
+            outputDir,
+          });
+          return path.join(outputDir, path.basename(sourcePath).replace(/\.(ppt|pptx)$/i, '.pdf'));
+        } catch (err) {
+          lastError = err;
+          console.error('[Presentations] LibreOffice conversion attempt failed:', {
+            command,
+            message: err.message,
+          });
+        }
+      }
+      throw lastError || new Error('LibreOffice command not available');
+    });
   }
 
   throw new Error('LibreOffice conversion is unavailable and no remote converter is configured');
