@@ -16,6 +16,7 @@ const { streamToBuffer, subsetPdfBuffer, cropPdfFirstPageHalf } = require('../ut
 const { enqueueLibreOfficeJob } = require('../services/libreOfficeQueue');
 const { renderPdfFirstPageToPng } = require('../utils/pdfToImage');
 const { requestConverter } = require('../utils/converterClient');
+const { resolveLibreOfficeCommand } = require('../utils/libreOffice');
 
 const PRESENTATION_DIR = path.join(__dirname, '../uploads/presentations');
 const PRESENTATION_PDF_DIR = path.join(PRESENTATION_DIR, 'pdfs');
@@ -25,32 +26,6 @@ const PDF_DIR = PRESENTATION_PDF_DIR;
 if (!fs.existsSync(PDF_DIR)) fs.mkdirSync(PDF_DIR, { recursive: true });
 if (!fs.existsSync(THUMBNAIL_DIR)) fs.mkdirSync(THUMBNAIL_DIR, { recursive: true });
 
-const LO_PATHS = [
-  String(process.env.LIBREOFFICE_PATH || '').trim(),
-  'C:\\Program Files\\LibreOffice\\program\\soffice.exe',
-  'C:\\Program Files (x86)\\LibreOffice\\program\\soffice.exe',
-  '/usr/bin/soffice',
-  '/usr/bin/libreoffice',
-  '/usr/lib/libreoffice/program/soffice',
-  '/usr/lib/libreoffice/program/libreoffice',
-  '/snap/bin/soffice',
-  '/snap/bin/libreoffice',
-  'libreoffice',
-  'soffice',
-].filter(Boolean);
-const COMMAND_CANDIDATES = LO_PATHS.filter((p) => {
-  if (!p) return false;
-  if (p.includes('\\') || p.startsWith('/')) return fs.existsSync(p);
-  return true;
-});
-
-const resolveLibreOfficeCommand = () => {
-  if (COMMAND_CANDIDATES.length === 0) {
-    return null;
-  }
-
-  return COMMAND_CANDIDATES[0];
-};
 
 // Program groups: English vs French
 const PROGRAM_GROUPS = {

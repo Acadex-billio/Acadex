@@ -1,5 +1,5 @@
 const express = require('express');
-const { spawn } = require('child_process');
+const { spawn, spawnSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
@@ -67,11 +67,47 @@ const ensureSourceFile = async (sourcePath, sourceUrl, workDir) => {
   return downloadPath;
 };
 
+const resolveLibreOfficeCommand = () => {
+  const candidates = [
+    process.env.LIBREOFFICE_PATH,
+    '/usr/bin/soffice',
+    '/usr/bin/libreoffice',
+    '/usr/lib/libreoffice/program/soffice',
+    '/usr/lib/libreoffice/program/libreoffice',
+    'soffice',
+    'libreoffice',
+  ].filter(Boolean);
+
+  for (const candidate of candidates) {
+    if (!candidate) continue;
+    if (candidate.includes('/') || candidate.includes('\\')) {
+      if (fs.existsSync(candidate)) return candidate;
+      continue;
+    }
+
+    const result = spawnSync(process.platform === 'win32' ? 'where' : 'which', [candidate], {
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+
+    if (result.status === 0 && String(result.stdout || '').trim()) {
+      return candidate;
+    }
+  }
+
+  return null;
+};
+
 const convertToPdf = async (sourcePath, outputDir) => {
   const sourceName = path.basename(sourcePath);
   const outputPath = path.join(outputDir, sourceName.replace(/\.(ppt|pptx)$/i, '.pdf'));
+  const command = resolveLibreOfficeCommand();
 
-  await runCommand('soffice', [
+  if (!command) {
+    throw new Error('LibreOffice executable was not found in the converter container');
+  }
+
+  await runCommand(command, [
     '--headless',
     '--convert-to', 'pdf',
     sourcePath,
@@ -95,8 +131,13 @@ const convertToPdf = async (sourcePath, outputDir) => {
 const convertPdfToPng = async (pdfPath, outputDir) => {
   const pdfName = path.basename(pdfPath, path.extname(pdfPath));
   const outputPath = path.join(outputDir, `${pdfName}.png`);
+  const command = resolveLibreOfficeCommand();
 
-  await runCommand('soffice', [
+  if (!command) {
+    throw new Error('LibreOffice executable was not found in the converter container');
+  }
+
+  await runCommand(command, [
     '--headless',
     '--convert-to', 'png',
     '--outdir', outputDir,
