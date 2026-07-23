@@ -655,21 +655,6 @@ exports.getThumbnail = async (req, res) => {
       const thumbnailName = pdfName.replace(/\.pdf$/i, '_thumb.png');
       const thumbnailPath = path.join(THUMBNAIL_DIR, thumbnailName);
 
-      // Try pre-generated preview PDF first so production doesn't depend on LibreOffice at request time.
-      try {
-        const remoteKey = getS3KeyFromValue(requested);
-        if (remoteKey) {
-          const remoteBase = path.basename(remoteKey, ext).replace(/\.[^.]+$/, '');
-          const previewPdfS3Key = `presentations/previews/${remoteBase}.pdf`;
-          console.log('[Presentations] Attempting to stream preview PDF from S3:', { previewPdfS3Key });
-          const previewBuffer = await streamToBuffer(getS3ObjectStream(previewPdfS3Key));
-          if (previewBuffer?.length) {
-            console.log('[Presentations] Serving pre-generated preview PDF from S3:', { previewPdfS3Key });
-            return sendPdfResponse(res, previewBuffer, access);
-          }
-        }
-      } catch (_) {}
-
       // Try serving thumbnail from S3 first (pre-generated)
       try {
         const key = getS3KeyFromValue(requested);
