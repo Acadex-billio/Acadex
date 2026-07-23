@@ -10,23 +10,52 @@ const requestConverter = async ({ sourceUrl, sourcePath, format, outputName }) =
   }
 
   const endpoint = format === 'png' ? '/convert/png' : '/convert/pdf';
-  const response = await axios.post(`${CONVERTER_BASE_URL}${endpoint}`, {
-    sourceUrl,
-    sourcePath,
+  const url = `${CONVERTER_BASE_URL}${endpoint}`;
+
+  console.log('[ConverterClient] Sending remote conversion request:', {
+    url,
+    format,
     outputName,
-  }, {
-    headers: {
-      'x-converter-secret': CONVERTER_SECRET,
-      'content-type': 'application/json',
-    },
-    timeout: 120000,
-    responseType: 'arraybuffer',
+    sourceUrl,
+    hasSourcePath: Boolean(sourcePath),
   });
 
-  return {
-    buffer: Buffer.from(response.data),
-    contentType: response.headers['content-type'] || (format === 'png' ? 'image/png' : 'application/pdf'),
-  };
+  try {
+    const response = await axios.post(url, {
+      sourceUrl,
+      sourcePath,
+      outputName,
+    }, {
+      headers: {
+        'x-converter-secret': CONVERTER_SECRET,
+        'content-type': 'application/json',
+      },
+      timeout: 120000,
+      responseType: 'arraybuffer',
+    });
+
+    console.log('[ConverterClient] Remote conversion response received:', {
+      status: response.status,
+      contentType: response.headers['content-type'],
+      dataLength: response.data?.length || 0,
+    });
+
+    return {
+      buffer: Buffer.from(response.data),
+      contentType: response.headers['content-type'] || (format === 'png' ? 'image/png' : 'application/pdf'),
+    };
+  } catch (err) {
+    console.error('[ConverterClient] Remote conversion request failed:', {
+      message: err.message,
+      status: err.response?.status,
+      statusText: err.response?.statusText,
+      dataLength: err.response?.data?.length || 0,
+      url,
+      format,
+      outputName,
+    });
+    throw err;
+  }
 };
 
 const convertRemotePdf = async ({ sourceUrl, sourcePath, outputDir, outputName }) => {
