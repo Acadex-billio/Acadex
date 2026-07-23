@@ -138,9 +138,9 @@ const ViewPresentation = () => {
             if (res.status === 200 && res.data instanceof Blob && res.data.size > 0) {
               const url = URL.createObjectURL(res.data);
               cache[filePath] = url;
-              console.log('[Thumbnails] Loaded:', filePath);
+              console.log('[Thumbnails] Loaded:', filePath, `size: ${res.data.size} bytes`);
             } else {
-              console.warn('[Thumbnails] Thumbnail unavailable:', filePath, res.status);
+              console.warn('[Thumbnails] Received invalid blob:', filePath, `status: ${res.status}, size: ${res.data?.size || 0}`);
               cache[filePath] = null;
             }
           } catch (err) {

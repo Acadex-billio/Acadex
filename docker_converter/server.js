@@ -115,43 +115,56 @@ app.get('/health', (req, res) => {
 });
 
 app.post('/convert/pdf', requireSecret, async (req, res) => {
+  const requestId = crypto.randomUUID();
   try {
     const { sourcePath, sourceUrl, outputName } = req.body || {};
-    const requestId = crypto.randomUUID();
+    console.log(`[docker-converter:${requestId}] PDF conversion requested:`, { sourceUrl, outputName });
     const workDir = path.join(CONVERSION_DIR, requestId);
     fs.mkdirSync(workDir, { recursive: true });
 
     const resolvedSourcePath = await ensureSourceFile(sourcePath, sourceUrl, workDir);
+    console.log(`[docker-converter:${requestId}] Source file resolved:`, resolvedSourcePath);
+    
     const safeName = outputName || path.basename(resolvedSourcePath);
     const outputPath = await convertToPdf(resolvedSourcePath, workDir);
+    console.log(`[docker-converter:${requestId}] PDF conversion completed:`, outputPath);
+    
     const fileBuffer = fs.readFileSync(outputPath);
+    console.log(`[docker-converter:${requestId}] PDF buffer size:`, fileBuffer.length, 'bytes');
 
     res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `inline; filename="${safeName.replace(/\.[^.]+$/, '.pdf')}"`);
+    res.setHeader('Content-Length', fileBuffer.length);
+    res.setHeader('Content-Disposition', `inline; filename="${safeName.replace(/\.[^.]+$/, '.pdf')}"`);  
     return res.send(fileBuffer);
   } catch (err) {
-    console.error('[docker-converter] PDF conversion failed:', err.message);
-    return res.status(500).json({ success: false, message: err.message || 'PDF conversion failed' });
+    console.error(`[docker-converter:${requestId}] PDF conversion failed:`, err.message);
   }
 });
 
 app.post('/convert/png', requireSecret, async (req, res) => {
+  const requestId = crypto.randomUUID();
   try {
     const { sourcePath, sourceUrl, outputName } = req.body || {};
-    const requestId = crypto.randomUUID();
+    console.log(`[docker-converter:${requestId}] PNG conversion requested:`, { sourceUrl, outputName });
     const workDir = path.join(CONVERSION_DIR, requestId);
     fs.mkdirSync(workDir, { recursive: true });
 
     const resolvedSourcePath = await ensureSourceFile(sourcePath, sourceUrl, workDir);
+    console.log(`[docker-converter:${requestId}] Source file resolved:`, resolvedSourcePath);
+    
     const safeName = outputName || path.basename(resolvedSourcePath);
     const outputPath = await convertPdfToPng(resolvedSourcePath, workDir);
+    console.log(`[docker-converter:${requestId}] PNG conversion completed:`, outputPath);
+    
     const fileBuffer = fs.readFileSync(outputPath);
+    console.log(`[docker-converter:${requestId}] PNG buffer size:`, fileBuffer.length, 'bytes');
 
     res.setHeader('Content-Type', 'image/png');
+    res.setHeader('Content-Length', fileBuffer.length);
     res.setHeader('Content-Disposition', `inline; filename="${safeName.replace(/\.[^.]+$/, '.png')}"`);
     return res.send(fileBuffer);
   } catch (err) {
-    console.error('[docker-converter] PNG conversion failed:', err.message);
+    console.error(`[docker-converter:${requestId}] PNG conversion failed:`, err.message);
     return res.status(500).json({ success: false, message: err.message || 'PNG conversion failed' });
   }
 });

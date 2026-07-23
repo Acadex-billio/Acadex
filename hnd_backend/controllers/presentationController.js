@@ -230,20 +230,30 @@ const convertPdfToThumbnail = async (pdfPath, outputDir, options = {}) => {
 };
 
 const sendThumbnailFile = (res, thumbnailPath) => {
-  res.setHeader('Content-Type', 'image/png');
-  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
-  res.setHeader('Pragma', 'no-cache');
-  res.setHeader('Expires', '0');
-  res.setHeader('Content-Length', fs.statSync(thumbnailPath).size);
+  try {
+    const size = fs.statSync(thumbnailPath).size;
+    console.log('[Presentations] Serving thumbnail file:', { thumbnailPath, size });
+    
+    res.setHeader('Content-Type', 'image/png');
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+    res.setHeader('Content-Length', size);
 
-  const fileStream = fs.createReadStream(thumbnailPath);
-  fileStream.on('error', (err) => {
-    console.error('[Presentations] Thumbnail stream error:', err.message);
+    const fileStream = fs.createReadStream(thumbnailPath);
+    fileStream.on('error', (err) => {
+      console.error('[Presentations] Thumbnail stream error:', err.message);
+      if (!res.headersSent) {
+        res.status(500).send('Thumbnail unavailable');
+      }
+    });
+    return fileStream.pipe(res);
+  } catch (err) {
+    console.error('[Presentations] sendThumbnailFile error:', { thumbnailPath, error: err.message });
     if (!res.headersSent) {
       res.status(500).send('Thumbnail unavailable');
     }
-  });
-  return fileStream.pipe(res);
+  }
 };
 
 const sendThumbnailPlaceholder = (res, message = 'Preview unavailable') => {
@@ -674,21 +684,63 @@ exports.getThumbnail = async (req, res) => {
                   s3Stream.removeListener('error', onError);
                   s3Stream.removeListener('data', onData);
                 };
-                const onMissing = () => { if (!settled) { settled = true; cleanup(); resolve(null); } };
-                const onError = () => { if (!settled) { settled = true; cleanup(); resolve(null); } };
-                const onData = (chunk) => { if (!settled) { settled = true; cleanup(); s3Stream.pause(); resolve(s3Stream); } };
+                const onMissing = () => { 
+                  if (!settled) { 
+                    settled = true; 
+                    cleanup(); 
+                    console.log('[Presentations] S3 stream: file missing'); 
+                    resolve(null); 
+                  } 
+                };
+                const onError = (err) => { 
+                  if (!settled) { 
+                    settled = true; 
+                    cleanup(); 
+                    console.log('[Presentations] S3 stream: error event', err.message); 
+                    resolve(null); 
+                  } 
+                };
+                const onData = (chunk) => { 
+                  if (!settled) { 
+                    settled = true; 
+                    cleanup(); 
+                    console.log('[Presentations] S3 stream: data received, chunk size:', chunk.length); 
+                    s3Stream.pause(); 
+                    resolve(s3Stream); 
+                  } 
+                };
                 s3Stream.once('missing', onMissing);
                 s3Stream.once('error', onError);
                 s3Stream.once('data', onData);
                 // Timeout fallback
-                setTimeout(() => { if (!settled) { settled = true; cleanup(); resolve(null); } }, 700);
+                setTimeout(() => { 
+                  if (!settled) { 
+                    settled = true; 
+                    cleanup(); 
+                    console.log('[Presentations] S3 stream: timeout waiting for data'); 
+                    resolve(null); 
+                  } 
+                }, 1500);
               });
 
               if (readyStream) {
+                console.log('[Presentations] Serving S3 thumbnail stream:', { thumbnailS3Key });
                 res.setHeader('Content-Type', 'image/png');
                 res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
                 res.setHeader('Pragma', 'no-cache');
                 res.setHeader('Expires', '0');
+                
+                readyStream.on('error', (err) => {
+                  console.error('[Presentations] S3 stream error while piping:', err.message);
+                  if (!res.headersSent) {
+                    res.status(500).send('Thumbnail unavailable');
+                  }
+                });
+                
+                readyStream.on('end', () => {
+                  console.log('[Presentations] S3 stream pipe completed successfully:', { thumbnailS3Key });
+                });
+                
                 return readyStream.pipe(res);
               }
           } catch (s3Err) {
