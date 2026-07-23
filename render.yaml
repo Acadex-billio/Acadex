@@ -9,6 +9,8 @@ services:
     envVars:
       - key: LIBREOFFICE_PATH
         value: /usr/bin/soffice
+      - key: CONVERTER_SECRET
+        value: TheBillions11
 
   - type: web
     name: hnd-platform-converter
@@ -20,3 +22,5 @@ services:
     envVars:
       - key: LIBREOFFICE_PATH
         value: /usr/bin/soffice
+      - key: CONVERTER_SECRET
+        value: TheBillions11
