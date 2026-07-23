@@ -147,15 +147,33 @@ const convertToPdf = async (sourcePath, outputDir, options = {}) => {
   const localCommand = resolveLibreOfficeCommand();
 
   if (remoteConverterBaseUrl && remoteConverterSecret && sourceUrl) {
-    console.log('[Presentations] Using remote converter service for PDF conversion:', {
-      sourceUrl,
-      outputDir,
-      outputName,
-      remoteConverterBaseUrl,
-    });
+    let preparedSourcePath = sourcePath;
+    let tempSourcePath = null;
 
     try {
+      if (!preparedSourcePath || !fs.existsSync(preparedSourcePath)) {
+        tempSourcePath = path.join(outputDir, `remote-${Date.now()}-${path.basename(sourceUrl) || 'source'}`);
+        console.log('[Presentations] Downloading remote source file for converter:', {
+          sourceUrl,
+          tempSourcePath,
+        });
+        const downloaded = await writeS3ObjectToFile(sourceUrl, tempSourcePath);
+        if (!downloaded) {
+          throw new Error('Failed to download remote source file for converter');
+        }
+        preparedSourcePath = tempSourcePath;
+      }
+
+      console.log('[Presentations] Using remote converter service for PDF conversion:', {
+        sourceUrl,
+        outputDir,
+        outputName,
+        remoteConverterBaseUrl,
+        preparedSourcePath,
+      });
+
       const result = await requestConverter({
+        sourcePath: preparedSourcePath,
         sourceUrl,
         format: 'pdf',
         outputName: outputName || path.basename(sourcePath),
@@ -176,6 +194,10 @@ const convertToPdf = async (sourcePath, outputDir, options = {}) => {
         sourceUrl,
         outputName,
       });
+    } finally {
+      if (tempSourcePath && fs.existsSync(tempSourcePath)) {
+        fs.promises.unlink(tempSourcePath).catch(() => {});
+      }
     }
   }
 
