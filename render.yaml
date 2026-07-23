@@ -6,6 +6,9 @@ services:
     dockerfilePath: Dockerfile
     autoDeploy: true
     plan: free
+    envVars:
+      - key: LIBREOFFICE_PATH
+        value: /usr/bin/soffice
 
   - type: web
     name: hnd-platform-converter
@@ -14,3 +17,6 @@ services:
     dockerfilePath: Dockerfile
     autoDeploy: true
     plan: free
+    envVars:
+      - key: LIBREOFFICE_PATH
+        value: /usr/bin/soffice

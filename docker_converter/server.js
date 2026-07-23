@@ -71,8 +71,10 @@ const resolveLibreOfficeCommand = () => {
   const candidates = [
     process.env.LIBREOFFICE_PATH,
     '/usr/bin/soffice',
+    '/usr/bin/soffice.bin',
     '/usr/bin/libreoffice',
     '/usr/lib/libreoffice/program/soffice',
+    '/usr/lib/libreoffice/program/soffice.bin',
     '/usr/lib/libreoffice/program/libreoffice',
     'soffice',
     'libreoffice',
@@ -107,6 +109,8 @@ const convertToPdf = async (sourcePath, outputDir) => {
     throw new Error('LibreOffice executable was not found in the converter container');
   }
 
+  console.log(`[docker-converter] Resolved LibreOffice command: ${command}`);
+
   await runCommand(command, [
     '--headless',
     '--convert-to', 'pdf',
@@ -136,6 +140,8 @@ const convertPdfToPng = async (pdfPath, outputDir) => {
   if (!command) {
     throw new Error('LibreOffice executable was not found in the converter container');
   }
+
+  console.log(`[docker-converter] Resolved LibreOffice command: ${command}`);
 
   await runCommand(command, [
     '--headless',

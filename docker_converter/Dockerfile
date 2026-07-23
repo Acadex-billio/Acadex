@@ -5,9 +5,10 @@ ENV PATH="/usr/lib/libreoffice/program:${PATH}"
 ENV PORT=8080
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    libreoffice \
+    libreoffice-core \
     libreoffice-writer \
     libreoffice-impress \
+    libreoffice-common \
     fonts-dejavu \
     fonts-liberation \
     fontconfig \
