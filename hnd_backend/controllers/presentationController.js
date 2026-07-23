@@ -236,27 +236,6 @@ const convertToPdf = async (sourcePath, outputDir, options = {}) => {
 
   throw new Error('LibreOffice conversion is unavailable and no remote converter is configured');
 };
-    let lastError;
-    for (const command of COMMAND_CANDIDATES) {
-      try {
-        await runLibreOfficeConvert(command, sourcePath, outputDir);
-        console.log('[Presentations] LibreOffice conversion succeeded:', {
-          command,
-          sourcePath,
-          outputDir,
-        });
-        return;
-      } catch (err) {
-        lastError = err;
-        console.error('[Presentations] LibreOffice conversion attempt failed:', {
-          command,
-          message: err.message,
-        });
-      }
-    }
-    throw lastError || new Error('LibreOffice command not available');
-  });
-};
 
 const convertPdfToThumbnail = async (pdfPath, outputDir, options = {}) => {
   const thumbnailName = path.basename(pdfPath).replace(/\.pdf$/i, '_thumb.png');
