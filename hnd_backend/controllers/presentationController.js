@@ -12,10 +12,12 @@ const { pipeline } = require('stream/promises');
 const { sanitizeFilename } = require('../middlewares/requestValidation');
 const { getS3ObjectStream } = require('../utils/s3Uploader');
 const { getMaterialAccessSummary } = require('../utils/subscriptionUtils');
+const materialAccessService = require('../services/materialAccessService');
 const { streamToBuffer, subsetPdfBuffer, cropPdfFirstPageHalf } = require('../utils/pdfAccess');
 const { enqueueLibreOfficeJob } = require('../services/libreOfficeQueue');
 const { renderPdfFirstPageToPng } = require('../utils/pdfToImage');
 const { requestConverter, convertRemotePng } = require('../utils/converterClient');
+const { isCloudConvertConfigured, convertPresentationToPdf } = require('../utils/cloudConvertClient');
 const { resolveLibreOfficeCommand } = require('../utils/libreOffice');
 const { thumbnailQueue, connection } = require('../services/thumbnailQueue');
 const { QueueEvents } = require('bullmq');
@@ -147,11 +149,65 @@ const convertToPdf = async (sourcePath, outputDir, options = {}) => {
   const remoteConverterBaseUrl = String(process.env.CONVERTER_BASE_URL || '').trim().replace(/\/$/, '');
   const remoteConverterSecret = String(process.env.CONVERTER_SECRET || '').trim();
   const localCommand = resolveLibreOfficeCommand();
+  const isPresentationFormat = !!String(path.extname(sourcePath || sourceUrl || '')).match(/\.(ppt|pptx)$/i);
+  const shouldUseCloudConvert = isCloudConvertConfigured() && isPresentationFormat;
   const shouldUseRemoteConverter = Boolean(
     remoteConverterBaseUrl &&
     remoteConverterSecret &&
     (sourceUrl || (!localCommand && sourcePath))
   );
+
+  if (shouldUseCloudConvert) {
+    let preparedSourcePath = sourcePath;
+    let tempSourcePath = null;
+
+    try {
+      if (!preparedSourcePath || !fs.existsSync(preparedSourcePath)) {
+        if (!sourceUrl) {
+          throw new Error('No source file or source URL available for CloudConvert conversion');
+        }
+        tempSourcePath = path.join(outputDir, `cloudconvert-${Date.now()}-${path.basename(sourceUrl) || 'source'}`);
+        console.log('[Presentations] Downloading remote source file for CloudConvert upload:', {
+          sourceUrl,
+          tempSourcePath,
+        });
+        const downloaded = await writeS3ObjectToFile(sourceUrl, tempSourcePath);
+        if (!downloaded) {
+          throw new Error('Failed to download remote source file for CloudConvert upload');
+        }
+        preparedSourcePath = tempSourcePath;
+      }
+
+      console.log('[Presentations] Using CloudConvert for PDF conversion:', {
+        sourceUrl,
+        outputDir,
+        outputName,
+        preparedSourcePath,
+      });
+
+      const convertedPath = await convertPresentationToPdf({
+        sourcePath: preparedSourcePath,
+        sourceUrl,
+        outputDir,
+        outputName: outputName || path.basename(preparedSourcePath),
+      });
+
+      if (convertedPath) {
+        return convertedPath;
+      }
+      throw new Error('CloudConvert returned no converted file');
+    } catch (err) {
+      console.error('[Presentations] CloudConvert conversion failed:', {
+        message: err.message,
+        sourceUrl,
+        outputName,
+      });
+    } finally {
+      if (tempSourcePath && fs.existsSync(tempSourcePath)) {
+        fs.promises.unlink(tempSourcePath).catch(() => {});
+      }
+    }
+  }
 
   if (shouldUseRemoteConverter) {
     let preparedSourcePath = sourcePath;
@@ -186,10 +242,10 @@ const convertToPdf = async (sourcePath, outputDir, options = {}) => {
         sourcePath: preparedSourcePath,
         sourceUrl,
         format: 'pdf',
-        outputName: outputName || path.basename(sourcePath),
+        outputName: outputName || path.basename(preparedSourcePath),
       });
 
-      const fileName = String(outputName || path.basename(sourcePath) || 'converted.pdf').replace(/\.[^.]+$/, '.pdf');
+      const fileName = String(outputName || path.basename(preparedSourcePath) || 'converted.pdf').replace(/\.[^.]+$/, '.pdf');
       const destinationPath = path.join(outputDir, fileName);
       await fs.promises.writeFile(destinationPath, result.buffer);
       console.log('[Presentations] Remote converter returned PDF:', {
@@ -242,7 +298,7 @@ const convertToPdf = async (sourcePath, outputDir, options = {}) => {
     });
   }
 
-  throw new Error('LibreOffice conversion is unavailable and no remote converter is configured');
+  throw new Error('No available presentation conversion method is configured');
 };
 
 const convertPdfToThumbnail = async (pdfPath, outputDir, options = {}) => {

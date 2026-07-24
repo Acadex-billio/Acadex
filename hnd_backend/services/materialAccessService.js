@@ -261,6 +261,19 @@ async function getActiveAccessForMaterial(userId, materialId, materialType) {
  */
 async function getRemainingAccessTime(userId, materialId, materialType) {
   try {
+    // Normalize userId: accept cand_id strings (like "CAND00006") or ObjectId
+    let resolvedUserId = userId;
+    try {
+      if (!mongoose.Types.ObjectId.isValid(String(userId || '')) ) {
+        const candidate = await User.findOne({ cand_id: String(userId || '') }).select('_id').lean();
+        if (candidate && candidate._id) {
+          resolvedUserId = candidate._id;
+        }
+      }
+    } catch (e) {
+      // fall back to original userId
+      resolvedUserId = userId;
+    }
     const normalizedMaterialId = String(materialId || '').trim();
     const possibleMaterialIds = [];
     if (normalizedMaterialId) {
@@ -271,7 +284,7 @@ async function getRemainingAccessTime(userId, materialId, materialType) {
     }
 
     const access = await MaterialAccess.findOne({
-      userId,
+      userId: resolvedUserId,
       materialType,
       expiresAt: { $gt: new Date() },
       $or: [ ...(possibleMaterialIds.length ? [{ materialId: { $in: possibleMaterialIds } }] : []), { materialId: null }, { materialId: { $exists: false } } ],

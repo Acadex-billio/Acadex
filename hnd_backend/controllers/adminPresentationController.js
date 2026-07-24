@@ -16,6 +16,7 @@ const { sendBulkPushNotification, isWebPushConfigured } = require('../utils/webP
 const { USER_PROGRAMS } = require('../constants/userConstants');
 const CandidateProjectSubmission = require('../models/CandidateProjectSubmission');
 const { enqueueLibreOfficeJob } = require('../services/libreOfficeQueue');
+const { isCloudConvertConfigured, convertPresentationToPdf } = require('../utils/cloudConvertClient');
 
 const ALLOWED_PROGRAMS = [
   USER_PROGRAMS.HND,
@@ -91,6 +92,19 @@ const runLibreOfficeConvert = (command, sourcePath, outputDir) =>
 
 const convertToPdf = async (sourcePath, outputDir) => {
   return enqueueLibreOfficeJob(`presentation:${path.basename(sourcePath)}`, async () => {
+    const ext = path.extname(sourcePath).toLowerCase();
+    if (isCloudConvertConfigured() && ['.ppt', '.pptx'].includes(ext)) {
+      try {
+        return await convertPresentationToPdf({
+          sourcePath: path.resolve(sourcePath),
+          outputDir,
+          outputName: path.basename(sourcePath),
+        });
+      } catch (err) {
+        console.error('[AdminPresentation] CloudConvert conversion failed, falling back to LibreOffice:', err.message);
+      }
+    }
+
     let lastError;
     for (const command of COMMAND_CANDIDATES) {
       try {
