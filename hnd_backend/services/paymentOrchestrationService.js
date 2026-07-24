@@ -87,18 +87,22 @@ const startCampayPayment = async ({
   } catch (err) {
     const normalized = normalizeCheckoutError(err, 'Failed to initialize payment request.');
     const providerBody = parseProviderBody(err?.responseBody);
-    const providerRef = String(providerBody?.transaction_uuid || providerBody?.payment_id || providerBody?.reference || providerBody?.merchant_invoice_id || externalReference).trim();
+    const providerRef = String(providerBody?.transaction_uuid || providerBody?.payment_id || providerBody?.reference || providerBody?.merchant_invoice_id || providerBody?.id || providerBody?.transaction_id || externalReference).trim();
 
     transaction.provider_reference = providerRef || transaction.provider_reference;
     transaction.provider_response = providerBody || { message: normalized.message };
 
     const statusCode = Number(err?.statusCode || 0);
-    const isTemporaryProviderError = statusCode >= 500 || [408, 429, 0].includes(statusCode) || String(err?.message || '').toLowerCase().includes('unable to reach camerpay');
-    if (isTemporaryProviderError) {
+    const isNetworkOrProviderError = [408, 429, 502, 503, 504, 0].includes(statusCode)
+      || String(err?.message || '').toLowerCase().includes('unable to reach camerpay')
+      || String(err?.message || '').toLowerCase().includes('timed out')
+      || String(err?.message || '').toLowerCase().includes('fetch failed');
+
+    if (isNetworkOrProviderError) {
       transaction.status = 'pending';
       await transaction.save();
 
-      logger.warn('Payment initialization returned a temporary CamerPay error; preserving pending transaction', {
+      logger.warn('Payment initialization returned a transient CamerPay error; preserving pending transaction', {
         transactionId: transaction._id,
         provider_error: normalized.provider_error,
         normalizedMessage: normalized.message,

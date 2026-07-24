@@ -4,14 +4,17 @@ const { PAYMENT_CURRENCY } = require('../constants/paymentConstants');
 const { validatePaymentAmountAndCurrency, validateTransactionReference } = require('./paymentValidationService');
 
 const CAMERPAY_TOKEN = String(process.env.CAMERPAY_TOKEN || '').trim();
-let CAMERPAY_API_BASE_URL = String(process.env.CAMERPAY_API_BASE_URL || 'https://api.campay.net').replace(/\/$/, '');
-// Production hosts have diverged; prefer the known live host when misconfiguration
+const CAMERPAY_API_BASE_URL_DEFAULT = 'https://api.campay.net';
+const CAMERPAY_API_BASE_URL = String(process.env.CAMERPAY_API_BASE_URL || CAMERPAY_API_BASE_URL_DEFAULT).replace(/\/$/, '');
+const CAMERPAY_API_FALLBACK_BASE_URL = String(process.env.CAMERPAY_API_BASE_URL || CAMERPAY_API_BASE_URL_DEFAULT).toLowerCase().includes('campay.net')
+  ? 'https://camerpay.biz'
+  : null;
+
 try {
   if (String(CAMERPAY_API_BASE_URL || '').toLowerCase().includes('campay.net')) {
-    logger.warn('CAMERPAY_API_BASE_URL looks like campay.net — overriding to https://camerpay.biz to avoid DNS/connectivity issues', {
+    logger.warn('CAMERPAY_API_BASE_URL is configured to campay.net; keeping configured URL and enabling camerpay.biz fallback', {
       configured_value: CAMERPAY_API_BASE_URL,
     });
-    CAMERPAY_API_BASE_URL = 'https://camerpay.biz';
   }
 } catch (e) {
   // swallow logging errors
@@ -72,7 +75,14 @@ async function fetchJson(url, options) {
     } catch (error) {
       clearTimeout(timeoutId);
       const isLastAttempt = attempt === maxAttempts;
-      if (!isLastAttempt) continue;
+      if (!isLastAttempt) {
+        logger.warn('CamerPay request failed; retrying once', {
+          url,
+          attempt,
+          error: error.message,
+        });
+        continue;
+      }
 
       const causeCode = String(error?.cause?.code || '').trim();
       const requestErr = new Error('Unable to reach CamerPay API. Please retry in a moment.');
@@ -171,16 +181,39 @@ async function initiateCollectionPayment({
     if (payerMessage) payload.payer_message = String(payerMessage).slice(0, 120);
     if (payeeNote) payload.payee_note = String(payeeNote).slice(0, 240);
 
-    let requestUrl = `${CAMERPAY_API_BASE_URL}/api/payment/initiate`;
-    const response = await fetchJson(requestUrl, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${CAMERPAY_TOKEN}`,
-        'Content-Type': 'application/json',
-        'User-Agent': 'Acadex/1.0',
-      },
-      body: JSON.stringify(payload),
-    });
+    const requestUrls = [`${CAMERPAY_API_BASE_URL}/api/payment/initiate`];
+    if (CAMERPAY_API_FALLBACK_BASE_URL) {
+      requestUrls.push(`${CAMERPAY_API_FALLBACK_BASE_URL}/api/payment/initiate`);
+    }
+
+    let response = null;
+    let lastError = null;
+    for (const requestUrl of requestUrls) {
+      try {
+        response = await fetchJson(requestUrl, {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${CAMERPAY_TOKEN}`,
+            'Content-Type': 'application/json',
+            'User-Agent': 'Acadex/1.0',
+          },
+          body: JSON.stringify(payload),
+        });
+        break;
+      } catch (err) {
+        lastError = err;
+        logger.warn('CamerPay payment initiation failed for endpoint; trying next if available', {
+          endpoint: requestUrl,
+          error: err.message,
+          statusCode: err.statusCode,
+          attemptUrls: requestUrls,
+        });
+      }
+    }
+
+    if (!response) {
+      throw lastError || new Error('Unable to initiate CamerPay payment.');
+    }
 
     const providerReference = response?.transaction_uuid || response?.payment_id || response?.reference || reference;
     logger.info('CamerPay payment initiated successfully', {
@@ -234,13 +267,35 @@ async function getCollectionPaymentStatus(providerReference) {
       providerReference,
     });
 
-    const response = await fetchJson(statusUrl, {
-      method: 'GET',
-      headers: {
-        Authorization: `Bearer ${CAMERPAY_TOKEN}`,
-        'User-Agent': 'Acadex/1.0',
-      },
-    });
+    const statusUrls = [`${CAMERPAY_API_BASE_URL}/api/payment/${encodeURIComponent(providerReference)}/status`];
+    if (CAMERPAY_API_FALLBACK_BASE_URL) {
+      statusUrls.push(`${CAMERPAY_API_FALLBACK_BASE_URL}/api/payment/${encodeURIComponent(providerReference)}/status`);
+    }
+
+    let response = null;
+    let lastError = null;
+    for (const tryUrl of statusUrls) {
+      try {
+        response = await fetchJson(tryUrl, {
+          method: 'GET',
+          headers: {
+            Authorization: `Bearer ${CAMERPAY_TOKEN}`,
+            'User-Agent': 'Acadex/1.0',
+          },
+        });
+        break;
+      } catch (err) {
+        lastError = err;
+        logger.warn('CamerPay status check failed for endpoint; trying next if available', {
+          endpoint: tryUrl,
+          providerReference,
+          error: err.message,
+        });
+      }
+    }
+    if (!response) {
+      throw lastError || new Error('Unable to get CamerPay payment status.');
+    }
 
     const payUrl = response?.pay_url || '';
     logger.info('CamerPay payment status response', {

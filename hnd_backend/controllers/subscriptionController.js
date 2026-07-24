@@ -35,6 +35,23 @@ const PLAN_DURATION_MS = 90 * 24 * 60 * 60 * 1000;
 const MANUAL_PAYMENT_RECIPIENT_NUMBER = '678507737';
 const MANUAL_PAYMENT_RECIPIENT_NAME = 'TEBEI NOEL FORKANG';
 
+const PROGRAM_GROUPS = {
+  ENGLISH: ['HND', 'BACHELOR', 'MASTERS'],
+  FRENCH: ['BTS', 'LICENCE', 'MASTER'],
+};
+
+const getProgramGroup = (program) => {
+  const prog = String(program || 'HND').toUpperCase();
+  if (PROGRAM_GROUPS.ENGLISH.includes(prog)) return 'ENGLISH';
+  if (PROGRAM_GROUPS.FRENCH.includes(prog)) return 'FRENCH';
+  return null;
+};
+
+const getProgramsInGroup = (program) => {
+  const group = getProgramGroup(program);
+  return group ? PROGRAM_GROUPS[group] : [String(program || 'HND').toUpperCase()];
+};
+
 function requireCandidate(req) {
   const candId = String(req.user?.cand_id || '').trim();
   if (!candId) {
@@ -434,7 +451,8 @@ async function findMaterial(resourceType, resourceId, program, deptId) {
     return allowed ? doc : null;
   }
   if (resourceType === 'presentation') {
-    const doc = await Presentation.findOne({ _id: resourceIdValue, program }).select(audienceFields).lean();
+    const allowedPrograms = getProgramsInGroup(program);
+    const doc = await Presentation.findOne({ _id: resourceIdValue, program: { $in: allowedPrograms } }).select(audienceFields).lean();
     if (!doc) return null;
     const audience = String(doc.audience || 'GENERAL').toUpperCase();
     const allowed = audience === 'GENERAL' || (deptId && (doc.departments || []).map(String).includes(String(deptId)));
