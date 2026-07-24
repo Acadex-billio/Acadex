@@ -67,7 +67,7 @@ const Documentation = () => {
         />
         <meta property="og:locale" content="en_US" />
         <meta property="og:url" content="https://www.acadexe.com/documentation" />
-        <meta property="og:image" content="https://www.acadexe.com/hnd-mark.svg" />
+        <meta property="og:image" content="https://www.acadexe.com/logo192.png" />
         <meta property="og:image:alt" content="Acadex documentation preview" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:site" content="@AcadexOfficial" />
@@ -77,7 +77,7 @@ const Documentation = () => {
           name="twitter:description"
           content="A quick guide to academic resources and tools available on Acadex for HND and BTS students, lecturers, and institutions."
         />
-        <meta name="twitter:image" content="https://www.acadexe.com/hnd-mark.svg" />
+        <meta name="twitter:image" content="https://www.acadexe.com/logo192.png" />
         <meta name="twitter:image:alt" content="Acadex documentation preview" />
         <link rel="canonical" href="https://www.acadexe.com/documentation" />
         <meta name="keywords" content="Acadex documentation, HND study portal, BTS platform guide, academic resource platform, Brightstack Innovations" />

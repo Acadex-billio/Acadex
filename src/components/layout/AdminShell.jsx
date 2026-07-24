@@ -244,7 +244,7 @@ const AdminShell = () => {
     <div className={styles.shell}>
       <div className={styles.sidebarHeader}>
         <button type="button" className={styles.sidebarHomeLink} onClick={navigateHome} aria-label="Go to Acadex homepage">
-          <img src={process.env.PUBLIC_URL + '/hnd-mark.svg'} alt="Acadex logo" className={styles.sidebarLogoImage} />
+          <img src={process.env.PUBLIC_URL + '/acadex-logo.png'} alt="Acadex logo" className={styles.sidebarLogoImage} />
           <span className={styles.sidebarHomeText}>Acadex</span>
           <span className={styles.sidebarHomeMeta}>Yoo {headerLabel}, {headerIcon}</span>
         </button>

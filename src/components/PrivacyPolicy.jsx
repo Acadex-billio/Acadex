@@ -21,7 +21,7 @@ const PrivacyPolicy = () => {
           content="Understand how Acadex collects, uses, and protects user data for secure educational access."
         />
         <meta property="og:url" content="https://www.acadexe.com/privacy-policy" />
-        <meta property="og:image" content="https://www.acadexe.com/hnd-mark.svg" />
+        <meta property="og:image" content="https://www.acadexe.com/logo192.png" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:site" content="@AcadexOfficial" />
         <meta name="twitter:creator" content="@AcadexOfficial" />
@@ -30,7 +30,7 @@ const PrivacyPolicy = () => {
           name="twitter:description"
           content="Understand how Acadex collects, uses, and protects user data for secure educational access."
         />
-        <meta name="twitter:image" content="https://www.acadexe.com/hnd-mark.svg" />
+        <meta name="twitter:image" content="https://www.acadexe.com/logo192.png" />
         <meta name="twitter:image:alt" content="Acadex privacy policy" />
         <link rel="canonical" href="https://www.acadexe.com/privacy-policy" />
         <meta name="keywords" content="Acadex privacy policy, data protection, HND student privacy, BTS platform security" />

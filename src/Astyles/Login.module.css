@@ -69,16 +69,37 @@
   margin-bottom: 28px;
 }
 
+.logoContainer {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-bottom: 28px;
+}
+
+.logoImage {
+  max-width: 200px;
+  max-height: 60px;
+  width: auto;
+  height: auto;
+}
+
 .backHome {
   align-self: flex-start;
   margin-bottom: 14px;
   color: var(--primary);
   text-decoration: none;
   font-weight: 700;
+  padding: 8px 16px;
+  border: 2px solid var(--primary);
+  border-radius: 6px;
+  transition: all 0.3s ease;
+  display: inline-block;
+  font-size: 14px;
 }
 
 .backHome:hover {
-  text-decoration: underline;
+  background-color: var(--primary);
+  color: #ffffff;
 }
 
 .formSide h2 {

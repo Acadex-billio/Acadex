@@ -27,7 +27,7 @@ const AdPerformanceReport = () => {
   const handlePrintReport = useCallback(() => {
     try {
       const ctr = overrideMetrics.impressions > 0 ? ((overrideMetrics.clicks / overrideMetrics.impressions) * 100) : 0;
-      const printLogo = ad.logoUrl || `${process.env.PUBLIC_URL || ''}/hnd-mark.svg`;
+      const printLogo = ad.logoUrl || `${process.env.PUBLIC_URL || ''}/acadex-logo.png`;
       const reportTitle = 'ACADEX AD REPORT';
       const reportSubtitle = 'Campaign performance summary';
       const campaignId = `ADX-${(ad._id || '').toString().substring(0, 8).toUpperCase()}`;
@@ -428,7 +428,7 @@ const AdPerformanceReport = () => {
   const endDate = ad.endDate ? new Date(ad.endDate).toLocaleDateString('en-GB', { year: 'numeric', month: '2-digit', day: '2-digit' }) : 'N/A';
   const createdDate = new Date(ad.createdAt).toLocaleDateString('en-GB', { year: 'numeric', month: 'short', day: '2-digit' });
   const reportDate = new Date().toLocaleDateString('en-GB', { year: 'numeric', month: 'short', day: '2-digit' });
-  const reportLogo = ad.logoUrl || `${process.env.PUBLIC_URL || ''}/hnd-mark.svg`;
+  const reportLogo = ad.logoUrl || `${process.env.PUBLIC_URL || ''}/acadex-logo.png`;
   const computedCtr = overrideMetrics.impressions > 0 ? ((overrideMetrics.clicks / overrideMetrics.impressions) * 100) : 0;
 
   return (
@@ -442,7 +442,7 @@ const AdPerformanceReport = () => {
         </div>
         <div className={styles.titleSection}>
           <div className={styles.reportLogoWrapper}>
-            <img src={reportLogo} alt="Ad logo" className={styles.reportLogo} onError={(e) => { e.currentTarget.src = `${process.env.PUBLIC_URL || ''}/hnd-mark.svg`; }} />
+            <img src={reportLogo} alt="Ad logo" className={styles.reportLogo} onError={(e) => { e.currentTarget.src = `${process.env.PUBLIC_URL || ''}/acadex-logo.png`; }} />
           </div>
           <h1 className={styles.pageTitle}>AD PERFORMANCE REPORT</h1>
           <p className={styles.platformName}>ACADEX PLATFORM</p>

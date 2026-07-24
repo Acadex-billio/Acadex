@@ -22,7 +22,7 @@
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.9) 0 54px, rgba(255, 255, 255, 0.55) 54px 56px, rgba(255, 255, 255, 0) 56px),
     radial-gradient(circle at 50% 32%, rgba(255, 255, 255, 0.94) 0%, rgba(255, 255, 255, 0.73) 31%, rgba(255, 255, 255, 0.12) 66%),
-    url('../assets/homebackgroundimage.png') center/cover no-repeat;
+    url('../assets/Official Homebg.png') center/cover no-repeat;
   box-shadow: none;
 }
 

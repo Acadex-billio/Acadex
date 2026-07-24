@@ -5,6 +5,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
 import ResetPassword from './ResetPassword';
+import AcademicHeroIllustration from './AcademicHeroIllustration';
 import styles from '../Astyles/Login.module.css';
 import { showToast } from '../utility/ToastNotification';
 import { getErrorMessage } from '../utility/getErrorMessage';
@@ -80,22 +81,22 @@ const Login = () => {
           content="Secure login for students and administrators to access HND academic resources and collaboration tools."
         />
         <meta property="og:url" content="https://www.acadexe.com/login" />
-        <meta property="og:image" content="https://www.acadexe.com/hnd-mark.svg" />
+        <meta property="og:image" content="https://www.acadexe.com/logo192.png" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="Acadex Login" />
         <meta
           name="twitter:description"
           content="Login to Acadex to access secure HND and BTS study resources, reports, presentations, and collaboration tools."
         />
-        <meta name="twitter:image" content="https://www.acadexe.com/hnd-mark.svg" />
+        <meta name="twitter:image" content="https://www.acadexe.com/logo192.png" />
         <link rel="canonical" href="https://www.acadexe.com/login" />
         <meta name="keywords" content="Acadex login, HND portal, BTS student login, academic resource access" />
       </Helmet>
 
       <div className={styles.card}>
-        {/* LEFT IMAGE */}
+        {/* LEFT HERO ILLUSTRATION */}
         <div className={styles.imageSide}>
-          <img src="/Billio.jpeg" alt="Student" />
+          <AcademicHeroIllustration />
         </div>
 
         {/* RIGHT FORM */}
@@ -112,7 +113,10 @@ const Login = () => {
               <option value="fr">🇫🇷 {t('common.french')}</option>
             </select>
           </div>
-          <div className={styles.logo}>Acadex</div>
+
+          <div className={styles.logoContainer}>
+            <img src={process.env.PUBLIC_URL + '/acadex-logo.png'} alt="Acadex Logo" className={styles.logoImage} />
+          </div>
 
           <h2>{t('loginPage.heading')}</h2>
           <p className={styles.subtitle}>

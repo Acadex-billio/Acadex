@@ -51,11 +51,11 @@ const Home = () => {
                 <meta property="og:title" content="Acadex | Academic Resource Hub for HND, BTS, Bachelor, Licence, Masters, and Researchers" />
                 <meta property="og:description" content="Explore verified academic resources for HND, BTS, Bachelor, Licence, Masters, lecturers, and researchers on Acadex." />
                 <meta property="og:url" content="https://www.acadexe.com/" />
-                <meta property="og:image" content="https://www.acadexe.com/hnd-mark.svg" />
+                <meta property="og:image" content="https://www.acadexe.com/logo192.png" />
                 <meta name="twitter:card" content="summary_large_image" />
                 <meta name="twitter:title" content="Acadex | Academic Resource Hub for HND, BTS, Bachelor, Licence, Masters, and Researchers" />
                 <meta name="twitter:description" content="A secure portal for HND, BTS, Bachelor, Licence, Masters, lecturers, and researchers to access question papers, reports, presentations, and collaboration tools." />
-                <meta name="twitter:image" content="https://www.acadexe.com/hnd-mark.svg" />
+                <meta name="twitter:image" content="https://www.acadexe.com/logo192.png" />
                 <link rel="canonical" href="https://www.acadexe.com/" />
                 <script type="application/ld+json">
                     {JSON.stringify({
@@ -78,7 +78,7 @@ const Home = () => {
                 <header className={styles.topBar}>
                     <div className={styles.brand}>
                         <img
-                            src={process.env.PUBLIC_URL + '/hnd-mark.svg'}
+                            src={process.env.PUBLIC_URL + '/acadex-logo.png'}
                             alt="Acadex logo"
                             className={styles.brandLogo}
                         />
