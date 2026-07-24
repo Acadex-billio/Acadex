@@ -14,6 +14,26 @@ import { useNavigate } from "react-router-dom";
 
 const normalizeFilePath = (filePath) => String(filePath || '').trim();
 
+const getPlaceholderTheme = (filePath) => {
+  const seed = String(filePath || 'placeholder')
+    .split('')
+    .reduce((sum, char) => sum + char.charCodeAt(0), 0);
+
+  const palettes = [
+    ['#f0f8f5', '#dcefe3', '#9ac7a6'],
+    ['#edf7ff', '#d8e8fb', '#84b6e6'],
+    ['#fff8eb', '#f6e3bb', '#cf9a46'],
+    ['#f7f3ff', '#e0d8fb', '#7b6ec5'],
+    ['#eefaf7', '#d8f1e7', '#56a98b'],
+  ];
+
+  const palette = palettes[seed % palettes.length];
+  return {
+    background: `linear-gradient(135deg, ${palette[0]} 0%, ${palette[1]} 100%)`,
+    highlight: `radial-gradient(circle at top left, ${palette[2]} 0%, rgba(255,255,255,0) 55%)`,
+  };
+};
+
 const ViewPresentation = () => {
   const navigate = useNavigate();
   const [presentations, setPresentations] = useState([]);
@@ -114,62 +134,61 @@ const ViewPresentation = () => {
   /** Load thumbnails for presentations */
   useEffect(() => {
     if (!presentations.length) return;
-    
+
     let cancelled = false;
     const loadThumbnails = async () => {
-      const cache = { ...thumbnailCache };
       const uncachedPaths = presentations
         .map((presentation) => normalizeFilePath(presentation?.file_path))
-        .filter((filePath) => filePath && cache[filePath] === undefined);
+        .filter((filePath) => filePath && thumbnailCache[filePath] === undefined);
+
       if (!uncachedPaths.length) return;
-      
-      // Load thumbnails with max 3 concurrent requests
+
       const loadingPromises = [];
       for (const filePath of uncachedPaths) {
         if (cancelled) break;
-        
+
         const loadPromise = (async () => {
           try {
             const res = await api.get(
               `/candidate/presentations/thumbnail/${encodeURIComponent(filePath)}`,
               { responseType: 'blob', timeout: 120000 }
             );
-            
-            if (res.status === 200 && res.data instanceof Blob && res.data.size > 0) {
+
+            const contentType = String(res.headers?.['content-type'] || res.data?.type || '').toLowerCase();
+            const isPlaceholderResponse = contentType.includes('image/svg+xml') || contentType.includes('svg');
+
+            if (res.status === 200 && res.data instanceof Blob && res.data.size > 0 && !isPlaceholderResponse) {
               const url = URL.createObjectURL(res.data);
-              cache[filePath] = url;
+              setThumbnailCache((prev) => ({ ...prev, [filePath]: url }));
               console.log('[Thumbnails] Loaded:', filePath, `size: ${res.data.size} bytes`);
             } else {
-              console.warn('[Thumbnails] Received invalid blob:', filePath, `status: ${res.status}, size: ${res.data?.size || 0}`);
-              cache[filePath] = null;
+              console.warn('[Thumbnails] Received placeholder or invalid blob:', filePath, {
+                status: res.status,
+                size: res.data?.size || 0,
+                contentType,
+              });
+              setThumbnailCache((prev) => ({ ...prev, [filePath]: undefined }));
             }
           } catch (err) {
             console.warn('[Thumbnails] Failed to load:', filePath, err.message);
-            // Mark as failed to avoid retrying
-            cache[filePath] = null;
+            setThumbnailCache((prev) => ({ ...prev, [filePath]: undefined }));
           }
         })();
-        
+
         loadingPromises.push(loadPromise);
-        
-        // Limit concurrent requests to 3
+
         if (loadingPromises.length >= 3) {
           await Promise.race(loadingPromises);
           loadingPromises.splice(0, 1);
         }
       }
-      
-      // Wait for remaining promises
+
       await Promise.all(loadingPromises);
-      
-      if (!cancelled) {
-        setThumbnailCache(cache);
-      }
     };
-    
+
     loadThumbnails();
-    
-    return () => { 
+
+    return () => {
       cancelled = true;
     };
   }, [presentations, thumbnailCache]);
@@ -515,6 +534,7 @@ const ViewPresentation = () => {
         ) : (
           filteredPresentations.map((p) => {
             const normalizedFilePath = normalizeFilePath(p.file_path);
+            const placeholderTheme = getPlaceholderTheme(normalizedFilePath);
             return (
               <div key={p.presentation_id} className={styles.card}>
               {/* Top Row: Badge + Menu */}
@@ -531,19 +551,44 @@ const ViewPresentation = () => {
 
               {/* Document Preview Thumbnail */}
               <div className={styles.previewThumbnail}>
-                {thumbnailCache[normalizedFilePath] ? (
+                {typeof thumbnailCache[normalizedFilePath] === 'string' && thumbnailCache[normalizedFilePath].startsWith('blob:') ? (
                   <img
                     src={thumbnailCache[normalizedFilePath]}
                     alt={p.presentation_title || 'Presentation preview'}
                     className={styles.thumbnailImage}
                   />
-                ) : thumbnailCache.hasOwnProperty(normalizedFilePath) && thumbnailCache[normalizedFilePath] === null ? (
-                  <div className={styles.thumbnailPlaceholder}>
-                    <span style={{color: '#cbd5e1', fontSize: '12px', textAlign: 'center'}}>Preview unavailable</span>
-                  </div>
                 ) : (
-                  <div className={styles.thumbnailPlaceholder}>
-                    <span style={{color: '#64748b', fontSize: '13px'}}>Loading preview...</span>
+                  <div
+                    className={styles.thumbnailPlaceholder}
+                    style={{
+                      background: placeholderTheme.background,
+                      position: 'relative',
+                    }}
+                  >
+                    <div
+                      style={{
+                        position: 'absolute',
+                        inset: 0,
+                        background: placeholderTheme.highlight,
+                        opacity: 0.8,
+                      }}
+                    />
+                    <div
+                      style={{
+                        position: 'absolute',
+                        left: 14,
+                        right: 14,
+                        top: 14,
+                        bottom: 14,
+                        borderRadius: 12,
+                        border: '1px solid rgba(255,255,255,0.75)',
+                        background: 'rgba(255,255,255,0.36)',
+                        backdropFilter: 'blur(2px)',
+                      }}
+                    />
+                    <span style={{ color: '#334155', fontSize: '13px', fontWeight: 700, position: 'relative', zIndex: 1 }}>
+                      Loading preview...
+                    </span>
                   </div>
                 )}
               </div>

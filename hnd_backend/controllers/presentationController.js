@@ -383,8 +383,7 @@ const waitForThumbnailGeneration = async (pdfPath, thumbnailPath, sourceUrl) => 
   if (!shouldUseThumbnailQueue() || !thumbnailQueue || !connection) return false;
 
   try {
-    const queueEvents = new QueueEvents('thumbnailQueue', { connection });
-    const job = await thumbnailQueue.add(
+    await thumbnailQueue.add(
       'presentation-thumbnail',
       { pdfPath, thumbnailPath, sourceUrl },
       {
@@ -395,11 +394,14 @@ const waitForThumbnailGeneration = async (pdfPath, thumbnailPath, sourceUrl) => 
       }
     );
 
-    await job.waitUntilFinished(queueEvents, 120000);
-    await queueEvents.close();
-    return fs.existsSync(thumbnailPath);
+    console.log('[Presentations] Thumbnail job enqueued in background:', {
+      pdfPath,
+      thumbnailPath,
+      sourceUrl,
+    });
+    return true;
   } catch (err) {
-    console.error('[Presentations] Thumbnail queue wait failed:', err.message);
+    console.error('[Presentations] Thumbnail queue enqueue failed:', err.message);
     return false;
   }
 };
@@ -878,11 +880,8 @@ exports.getThumbnail = async (req, res) => {
             pdfPath,
             thumbnailPath,
           });
-          const queued = await waitForThumbnailGeneration(pdfPath, thumbnailPath, requested);
-          if (queued && fs.existsSync(thumbnailPath)) {
-            return sendThumbnailFile(res, thumbnailPath);
-          }
-          console.warn('[Presentations] Thumbnail queue did not produce file in time, falling back to direct conversion');
+          await waitForThumbnailGeneration(pdfPath, thumbnailPath, requested);
+          return sendThumbnailPlaceholder(res, 'Loading preview...');
         }
 
         // Generate thumbnail from PDF (local attempt)
@@ -945,11 +944,8 @@ exports.getThumbnail = async (req, res) => {
           pdfPath,
           thumbnailPath,
         });
-        const queued = await waitForThumbnailGeneration(pdfPath, thumbnailPath, null);
-        if (queued && fs.existsSync(thumbnailPath)) {
-          return sendThumbnailFile(res, thumbnailPath);
-        }
-        console.warn('[Presentations] Thumbnail queue did not produce file in time, falling back to direct conversion');
+        await waitForThumbnailGeneration(pdfPath, thumbnailPath, null);
+        return sendThumbnailPlaceholder(res, 'Loading preview...');
       }
 
       // Generate thumbnail from PDF

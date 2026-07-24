@@ -524,12 +524,12 @@ app.listen(port, () => {
   }
 
   try {
-    const workerEnabled = String(process.env.ENABLE_THUMBNAIL_WORKER || 'false').trim().toLowerCase();
-    if (workerEnabled === 'true') {
+    const workerEnabled = String(process.env.ENABLE_THUMBNAIL_WORKER || '').trim().toLowerCase() === 'true' || Boolean(process.env.REDIS_URL);
+    if (workerEnabled) {
       require('./services/thumbnailWorker');
       logger.info('Thumbnail worker started');
     } else {
-      logger.info('Thumbnail worker disabled; set ENABLE_THUMBNAIL_WORKER=true to enable');
+      logger.info('Thumbnail worker disabled; set ENABLE_THUMBNAIL_WORKER=true or configure REDIS_URL to enable');
     }
   } catch (err) {
     logger.warn('Failed to start thumbnail worker', { error: err.message });
