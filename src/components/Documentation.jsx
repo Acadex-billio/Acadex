@@ -85,10 +85,10 @@ const Documentation = () => {
 
       <section className={styles.panel}>
         <p className={styles.kicker}>Platform Guide</p>
-        <h1 className={styles.title}>Acadex Documentation</h1>
+        <h1 className={styles.title}>About Acadex</h1>
         <p className={styles.subtitle}>
-          The platform centralizes academic resources for Higher National Diploma students.
-          Use this page as a quick reference for what is available after sign in.
+          Acadex is a modern academic platform built for students, lecturers, and institutions to share verified learning
+          resources, manage academic support, and collaborate in a safe and structured environment.
         </p>
 
         <div className={styles.grid}>
@@ -102,27 +102,38 @@ const Documentation = () => {
 
         <section className={styles.details}>
           <article>
-            <h2>Candidate Experience</h2>
+            <h2>What Acadex Offers</h2>
             <p>
-              HND and BTS candidates access a secure dashboard to retrieve study materials,
-              register for tutoring sessions, manage payments, and track announcements.
-              Student workflows are designed to keep learning focused and compliant with institutional standards.
+              The platform brings together past question papers, research reports, presentations, internship topics,
+              announcements, AI-assisted study help, secure payments, lecturer support, and communication tools in one place.
+              Students can learn faster, lecturers can share knowledge more effectively, and administrators can manage content
+              with greater transparency.
             </p>
           </article>
           <article>
-            <h2>Lecturer Support</h2>
+            <h2>How Students Should Use It</h2>
             <p>
-              Verified lecturers manage profiles, set hourly or session rates, receive bookings,
-              and upload academic resources. Lecturers also collaborate with candidates through
-              personal and group chat channels while earning revenue on platform-enabled bookings.
+              Materials on Acadex are meant for study purposes and academic reference. Students may use reports and
+              presentations to learn structures, ideas, and research approaches, but they must not submit another person’s
+              work as their own. Where work is referenced, the student should acknowledge the original author and include the
+              Acadex source URL or citation details provided on the platform.
             </p>
           </article>
           <article>
-            <h2>Administrator Controls</h2>
+            <h2>Academic Integrity and Community Safety</h2>
             <p>
-              Admins publish verified content, approve reports and presentations, manage pricing,
-              monitor ads, and handle support requests. Administrative tools keep the platform secure,
-              compliant, and easy to maintain.
+              Acadex protects academic integrity by treating defended reports and protected academic work as copyrighted or
+              protected materials. The platform also maintains community standards for chats and tutoring spaces, where users
+              are expected to avoid immoral content, abusive language, false information, harassment, nudity, or harmful conduct.
+              Violations may lead to moderation actions, account restrictions, or permanent suspension.
+            </p>
+          </article>
+          <article>
+            <h2>For Lecturers and Institutions</h2>
+            <p>
+              Verified lecturers can manage profiles, receive bookings, deliver tutoring, and contribute academic resources.
+              Institutions and administrators can oversee approvals, content quality, payments, and compliance while ensuring
+              that the platform remains useful, secure, and beneficial for learners.
             </p>
           </article>
         </section>

@@ -1,6 +1,9 @@
 .page {
   min-height: 100svh;
-  background: linear-gradient(180deg, #f3f8f4 0%, #eef4ff 100%);
+  background:
+    radial-gradient(circle at top left, rgba(68, 162, 103, 0.16), transparent 30%),
+    radial-gradient(circle at bottom right, rgba(39, 119, 71, 0.14), transparent 28%),
+    linear-gradient(135deg, #f7fff9 0%, #edf8ef 48%, #e2f6e7 100%);
   padding: 24px 14px;
   display: flex;
   justify-content: center;
@@ -9,36 +12,47 @@
 
 .panel {
   width: min(900px, 100%);
-  background: #ffffff;
-  border: 1px solid #d7e2e9;
-  border-radius: 16px;
-  box-shadow: 0 10px 26px rgba(19, 54, 88, 0.1);
+  background: rgba(255, 255, 255, 0.96);
+  border: 1px solid #c8e8d3;
+  border-radius: 18px;
+  box-shadow: 0 16px 38px rgba(16, 60, 37, 0.12);
   padding: clamp(18px, 3.4vw, 36px);
 }
 
 .panel h1 {
   margin: 0;
-  color: #16438f;
+  color: #175b36;
   font-size: clamp(30px, 4.8vw, 44px);
 }
 
 .updated {
   margin-top: 10px;
-  color: #53627a;
+  color: #5b7a66;
   font-size: 14px;
+  font-weight: 600;
 }
 
 .panel h2 {
   margin-top: 22px;
   margin-bottom: 8px;
   font-size: 20px;
-  color: #25496f;
+  color: #236b41;
 }
 
-.panel p {
+.panel p,
+.panel li {
   margin: 0;
-  line-height: 1.65;
-  color: #223045;
+  line-height: 1.7;
+  color: #2a3d33;
+}
+
+.panel ul {
+  padding-left: 20px;
+  margin: 10px 0 0;
+}
+
+.panel li + li {
+  margin-top: 7px;
 }
 
 .actions {
@@ -51,7 +65,7 @@
 .actions a {
   text-decoration: none;
   font-weight: 700;
-  color: #196d32;
+  color: #23784b;
 }
 
 .actions a:hover {
