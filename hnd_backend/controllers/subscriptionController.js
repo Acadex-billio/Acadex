@@ -80,6 +80,8 @@ function buildPaymentSummary(transaction) {
     status: transaction.status,
     provider: transaction.provider,
     provider_mode: transaction.provider_mode,
+    provider_reference: transaction.provider_reference || null,
+    external_reference: transaction.external_reference || null,
     access_minutes: Number(transaction?.metadata?.access_minutes || 0) || null,
     payment_action: transaction?.metadata?.action || null,
     createdAt: transaction.createdAt,
@@ -609,7 +611,16 @@ exports.getPaymentStatus = async (req, res) => {
   try {
     const candId = requireCandidate(req);
     const transactionId = String(req.params?.transactionId || '').trim();
-    const transaction = await PaymentTransaction.findOne({ _id: transactionId, user_cand_id: candId });
+    let transaction = await PaymentTransaction.findOne({ _id: transactionId, user_cand_id: candId });
+    if (!transaction) {
+      transaction = await PaymentTransaction.findOne({
+        user_cand_id: candId,
+        $or: [
+          { provider_reference: transactionId },
+          { external_reference: transactionId },
+        ],
+      });
+    }
     if (!transaction) return res.status(404).json({ success: false, message: 'Payment transaction not found' });
 
     await refreshTransactionStatus(transaction);

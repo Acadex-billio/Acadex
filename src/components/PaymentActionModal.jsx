@@ -113,7 +113,8 @@ const PaymentActionModal = ({
       });
 
       const payment = startResult?.payment || startResult;
-      if (!payment?.transaction_id) {
+      const paymentRef = payment?.provider_reference || payment?.transaction_id;
+      if (!paymentRef) {
         throw new Error('Payment could not be initialized.');
       }
 
@@ -121,7 +122,7 @@ const PaymentActionModal = ({
       const normalizedStatus = String(payment.status || '').toLowerCase();
       if (normalizedStatus !== 'successful') {
         setStatusText('Waiting approval...');
-        finalResult = await pollStatus(payment.transaction_id);
+        finalResult = await pollStatus(paymentRef);
       }
 
       setStatusText('Payment completed. Redirecting...');

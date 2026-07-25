@@ -155,7 +155,7 @@ async function initiateCollectionPayment({
     const reference = validateTransactionReference(externalReference || externalId || crypto.randomUUID());
     payload = {
       payment_method: providerMethod,
-      amount: String(amount),
+      amount: Number(amount),
       currency: paymentCurrency,
       customer_phone: sanitizedPhone,
       merchant_invoice_id: reference,
@@ -215,10 +215,19 @@ async function initiateCollectionPayment({
       throw lastError || new Error('Unable to initiate CamerPay payment.');
     }
 
-    const providerReference = response?.transaction_uuid || response?.payment_id || response?.reference || reference;
+      const providerReference = response?.transaction_uuid
+      || response?.payment_id
+      || response?.transaction_id
+      || response?.reference
+      || response?.data?.transaction_uuid
+      || response?.data?.payment_id
+      || response?.data?.transaction_id
+      || response?.data?.reference
+      || reference;
     logger.info('CamerPay payment initiated successfully', {
       payment_id: response?.payment_id,
       transaction_uuid: response?.transaction_uuid,
+      transaction_id: response?.transaction_id,
       reference: reference,
       providerReference,
       merchant_invoice_id: payload.merchant_invoice_id,
@@ -231,7 +240,7 @@ async function initiateCollectionPayment({
       providerMode: getProviderMode(),
       providerReference,
       status: 'pending',
-      transactionId: response?.transaction_uuid || response?.payment_id || response?.transaction_id || null,
+      transactionId: providerReference || null,
       providerResponse: response,
     };
   } catch (err) {
@@ -306,21 +315,42 @@ async function getCollectionPaymentStatus(providerReference) {
       response_keys: Object.keys(response || {}),
     });
 
-    const providerStatus = String(response?.status || response?.payment_status || '').toLowerCase();
-    const normalizedStatus = ['successful', 'success', 'completed', 'paid', 'paid_success', 'paid_successful', 'settled'].includes(providerStatus)
+    const providerStatus = String(
+      response?.status
+      || response?.payment_status
+      || response?.status_code
+      || response?.payment?.status
+      || response?.data?.status
+      || response?.data?.payment_status
+      || response?.data?.status_code
+      || response?.data?.payment?.status
+      || response?.data?.payment?.transaction_status
+      || ''
+    ).toLowerCase();
+    const normalizedStatus = ['successful', 'success', 'completed', 'paid', 'paid_success', 'paid_successful', 'settled', 'approved'].includes(providerStatus)
       ? 'successful'
-      : ['failed', 'cancelled', 'declined', 'expired'].includes(providerStatus)
+      : ['failed', 'cancelled', 'declined', 'expired', 'rejected'].includes(providerStatus)
         ? 'failed'
-        : ['pending', 'processing', 'initiated', 'created', 'queued', 'started', 'unknown'].includes(providerStatus)
+        : ['pending', 'processing', 'initiated', 'created', 'queued', 'started', 'unknown', 'awaiting_payment', 'awaiting_approval', 'waiting_for_approval', 'waiting_approval', 'pending_approval', 'awaiting_confirmation'].includes(providerStatus)
           ? 'pending'
           : 'pending';
+
+    const normalizedProviderReference = response?.transaction_uuid
+      || response?.payment_id
+      || response?.transaction_id
+      || response?.reference
+      || response?.data?.transaction_uuid
+      || response?.data?.payment_id
+      || response?.data?.transaction_id
+      || response?.data?.reference
+      || providerReference;
 
     return {
       provider: 'camerpay',
       providerMode: getProviderMode(),
-      providerReference,
+      providerReference: normalizedProviderReference,
       status: normalizedStatus,
-      transactionId: response?.transaction_uuid || response?.payment_id || response?.transaction_id || null,
+      transactionId: normalizedProviderReference || null,
       amount: response?.amount,
       currency: response?.currency,
       providerResponse: response,
