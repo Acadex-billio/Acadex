@@ -1,5 +1,6 @@
 const materialAccessService = require('./materialAccessService');
 const PaymentTransaction = require('../models/PaymentTransaction');
+const mongoose = require('mongoose');
 
 /**
  * Handle payment success and grant material access
@@ -101,7 +102,20 @@ async function handlePaymentFailure(paymentData) {
  */
 async function getPaymentStatus(transactionId) {
   try {
-    const transaction = await PaymentTransaction.findById(transactionId);
+    let transaction = null;
+
+    // Accept either a Mongo ObjectId or a provider/external reference (UUID/string)
+    const normalized = String(transactionId || '').trim();
+    if (mongoose.Types.ObjectId.isValid(normalized)) {
+      transaction = await PaymentTransaction.findById(normalized);
+    } else if (normalized) {
+      transaction = await PaymentTransaction.findOne({
+        $or: [
+          { provider_reference: normalized },
+          { external_reference: normalized },
+        ],
+      });
+    }
 
     if (!transaction) {
       return { success: false, message: 'Transaction not found' };
