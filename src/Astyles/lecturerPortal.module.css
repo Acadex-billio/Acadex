@@ -5,14 +5,14 @@
 
 /* ── Layout ── */
 .page {
-  --brand-primary: #0e5f84;
-  --brand-primary-dark: #0b4561;
-  --brand-text: #10273b;
-  --brand-muted: #587084;
-  --brand-border: rgba(16, 39, 59, 0.12);
-  --brand-surface: #f7fafc;
+  --brand-primary: #4caf50;
+  --brand-primary-dark: #2e7d32;
+  --brand-text: #0f172a;
+  --brand-muted: #64748b;
+  --brand-border: rgba(15, 23, 42, 0.12);
+  --brand-surface: #f5f5f5;
   --brand-surface-strong: #ffffff;
-  --brand-accent: #eaf6fb;
+  --brand-accent: #e8f5e9;
   padding: 24px;
   display: flex;
   flex-direction: column;
@@ -47,9 +47,9 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  background: #fef3c7;
-  color: #92400e;
-  border-left: 3px solid #d97706;
+  background: #e8f5e9;
+  color: #1b5e20;
+  border-left: 3px solid #66bb6a;
   font-size: 12px;
   font-weight: 600;
   padding: 8px 12px;
@@ -126,8 +126,8 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  background: #fef3c7;
-  border: 1px solid #fcd34d;
+  background: #e8f5e9;
+  border: 1px solid #c8e6c9;
   border-radius: 12px;
   padding: 14px 16px;
   flex-wrap: wrap;
@@ -135,12 +135,12 @@
 
 .pendingBannerIcon {
   font-size: 20px;
-  color: #d97706;
+  color: #2e7d32;
   flex-shrink: 0;
 }
 
-.pendingBanner strong { color: #92400e; }
-.pendingBanner span { color: #78350f; font-size: 13px; }
+.pendingBanner strong { color: #1b5e20; }
+.pendingBanner span { color: #2e7d32; font-size: 13px; }
 
 .pendingBannerBtn {
   margin-left: auto;
@@ -251,7 +251,7 @@
 
 .pendingStepDot { background: #dcfce7; color: #16a34a; }
 .pendingStepDotActive { background: #dbeafe; color: #2563eb; box-shadow: 0 0 0 4px rgba(37,99,235,0.15); }
-.pendingStepDotWaiting { background: #fef3c7; color: #d97706; }
+.pendingStepDotWaiting { background: #e8f5e9; color: #2e7d32; }
 .pendingStepDotLocked { background: #f1f5f9; color: #94a3b8; }
 
 .pendingStepText strong { display: block; font-size: 13px; color: #0f172a; margin-bottom: 2px; }

@@ -34,6 +34,12 @@ const CandidateLecturers = () => {
     };
   }, []);
 
+  useEffect(() => {
+    if (bookingForm.booking_type === 'video_conference' && bookingForm.session_mode !== 'video') {
+      setBookingForm((prev) => ({ ...prev, session_mode: 'video' }));
+    }
+  }, [bookingForm.booking_type, bookingForm.session_mode]);
+
   const updateField = (key, value) => {
     setBookingForm((prev) => ({ ...prev, [key]: value }));
   };
@@ -140,7 +146,7 @@ const CandidateLecturers = () => {
               <label>Delivery Mode</label>
               <select className={styles.select} value={bookingForm.session_mode} onChange={(e) => updateField('session_mode', e.target.value)}>
                 <option value="video">Video</option>
-                <option value="chat">Chat</option>
+                <option value="chat" disabled={bookingForm.booking_type === 'video_conference'}>Chat</option>
               </select>
             </div>
           </div>

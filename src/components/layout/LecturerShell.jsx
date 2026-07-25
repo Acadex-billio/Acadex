@@ -55,6 +55,12 @@ const LecturerShell = () => {
     setSidebarOpen(false);
   };
 
+  const navigateHome = () => {
+    startLoading();
+    navigate('/');
+    setTimeout(() => stopLoading(), 350);
+  };
+
   const onLogout = async () => {
     startLoading();
     try {
@@ -121,12 +127,20 @@ const LecturerShell = () => {
 
       <div className={styles.body}>
         <aside className={`${styles.sidebar} ${sidebarOpen ? styles.sidebarOpen : ''}`}>
-          <div className={styles.sidebarTop}>
-            <div className={styles.sidebarTitle}>Lecturer Portal</div>
-            <button type="button" className={styles.iconBtn} onClick={() => setSidebarOpen(false)} title="Close" aria-label="Close menu">
-              <FaTimes />
+          <div className={styles.sidebarHeader}>
+            <button type="button" className={styles.sidebarHomeLink} onClick={navigateHome} aria-label="Go to Acadex homepage">
+              <img src={process.env.PUBLIC_URL + '/acadex-logo.png'} alt="Acadex logo" className={styles.sidebarLogoImage} />
+              <span className={styles.sidebarHomeText}>Acadex</span>
+              <span className={styles.sidebarHomeMeta}>Lecturer</span>
             </button>
           </div>
+
+          <div className={styles.sidebarTop}>
+              <div className={styles.sidebarTitle}>Lecturer Portal</div>
+              <button type="button" className={styles.iconBtn} onClick={() => setSidebarOpen(false)} title="Close" aria-label="Close menu">
+                <FaTimes />
+              </button>
+            </div>
 
           {isPending && (
             <div className={lecStyles.shellPendingBanner}>

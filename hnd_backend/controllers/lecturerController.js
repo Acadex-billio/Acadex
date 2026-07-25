@@ -610,7 +610,10 @@ exports.createBooking = async (req, res) => {
     const bookingType = String(req.body?.booking_type || 'tutorship').trim().toLowerCase() === 'video_conference'
       ? 'video_conference'
       : 'tutorship';
-    const sessionMode = String(req.body?.session_mode || 'video').toLowerCase() === 'chat' ? 'chat' : 'video';
+    const incomingSessionMode = String(req.body?.session_mode || 'video').toLowerCase();
+    const sessionMode = bookingType === 'video_conference'
+      ? 'video'
+      : (incomingSessionMode === 'chat' ? 'chat' : 'video');
     const scheduledFor = new Date(req.body?.scheduled_for || '');
     const durationMinutes = Math.max(15, Number(req.body?.duration_minutes || 60));
 
