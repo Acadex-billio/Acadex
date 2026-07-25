@@ -153,6 +153,10 @@ const refreshCampayPaymentStatus = async (transaction, onSuccessfulPayment) => {
   const providerResult = await getCollectionPaymentStatus(transaction.provider_reference || transaction.external_reference);
   transaction.provider_response = providerResult.providerResponse || transaction.provider_response;
 
+  if (providerResult.providerReference && String(providerResult.providerReference).trim()) {
+    transaction.provider_reference = String(providerResult.providerReference).trim();
+  }
+
   if (providerResult.status === 'successful') {
     transaction.status = 'successful';
     transaction.completed_at = transaction.completed_at || new Date();
