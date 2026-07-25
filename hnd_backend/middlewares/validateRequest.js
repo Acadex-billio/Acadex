@@ -48,6 +48,12 @@ const schemas = {
     roomIdParam: Joi.object({ roomId: objectIdSchema.required() }),
     bookingIdParam: Joi.object({ bookingId: objectIdSchema.required() }),
     transactionIdParam: Joi.object({ transactionId: objectIdSchema.required() }),
+    transactionReferenceParam: Joi.object({
+      transactionId: Joi.alternatives().try(
+        objectIdSchema,
+        Joi.string().trim().min(6).max(200),
+      ).required(),
+    }),
     topicIdParam: Joi.object({ topicId: objectIdSchema.required() }),
     inviteIdParam: Joi.object({ inviteId: objectIdSchema.required() }),
     messageIdParam: Joi.object({ messageId: objectIdSchema.required() }),

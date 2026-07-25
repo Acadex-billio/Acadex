@@ -111,7 +111,7 @@ router.post('/internship-topics/:topicId/reaction', validate({ params: schemas.i
 
 router.post('/payments/materials/checkout', userPaymentInitiationRateLimit, createAuditTrail('payment.material.checkout', { bodyFields: ['resourceType', 'resourceId', 'action', 'phoneNumber', 'promoCode', 'referralCode', 'idempotencyKey'] }), validate({ body: schemas.candidate.materialCheckout }), subscriptionController.startMaterialCheckout);
 router.post('/payments/centers/checkout', userPaymentInitiationRateLimit, createAuditTrail('payment.center.checkout', { bodyFields: ['action', 'roomId', 'phoneNumber', 'promoCode', 'referralCode', 'idempotencyKey'] }), validate({ body: schemas.candidate.centerCheckout }), subscriptionController.startCenterCheckout);
-router.get('/payments/:transactionId/status', userPaymentStatusRateLimit, createAuditTrail('payment.status.read', { paramFields: ['transactionId'] }), validate({ params: schemas.ids.transactionIdParam }), subscriptionController.getPaymentStatus);
+router.get('/payments/:transactionId/status', userPaymentStatusRateLimit, createAuditTrail('payment.status.read', { paramFields: ['transactionId'] }), validate({ params: schemas.ids.transactionReferenceParam }), subscriptionController.getPaymentStatus);
 
 router.post('/history/add', historyController.add);
 router.get('/history/:user_id', requireSelfOrAdmin('user_id'), historyController.getByUser);
