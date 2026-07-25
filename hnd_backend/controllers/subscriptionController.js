@@ -610,20 +610,36 @@ exports.startCenterCheckout = async (req, res) => {
 exports.getPaymentStatus = async (req, res) => {
   try {
     const candId = requireCandidate(req);
-    const transactionId = String(req.params?.transactionId || '').trim();
-    let transaction = await PaymentTransaction.findOne({ _id: transactionId, user_cand_id: candId });
-    if (!transaction) {
-      transaction = await PaymentTransaction.findOne({
-        user_cand_id: candId,
-        $or: [
-          { provider_reference: transactionId },
-          { external_reference: transactionId },
-        ],
-      });
+    const rawId = String(req.params?.transactionId || '').trim();
+
+    // Try ObjectId lookup only when valid, otherwise fallback to provider/external refs
+    let transaction = null;
+    if (rawId) {
+      const mongoose = require('mongoose');
+      if (mongoose.Types.ObjectId.isValid(rawId)) {
+        transaction = await PaymentTransaction.findOne({ _id: rawId, user_cand_id: candId });
+      }
+
+      if (!transaction) {
+        transaction = await PaymentTransaction.findOne({
+          user_cand_id: candId,
+          $or: [
+            { provider_reference: rawId },
+            { external_reference: rawId },
+          ],
+        });
+      }
     }
+
     if (!transaction) return res.status(404).json({ success: false, message: 'Payment transaction not found' });
 
-    await refreshTransactionStatus(transaction);
+    try {
+      await refreshTransactionStatus(transaction);
+    } catch (refreshErr) {
+      // log and continue — don't surface provider transient errors to client as 500
+      logger.warn('Failed to refresh transaction status during status read', { transactionId: String(transaction._id), error: String(refreshErr?.message || refreshErr) });
+    }
+
     const latestUser = await User.findOne({ cand_id: candId }).select('subscription').lean();
 
     return res.json({
