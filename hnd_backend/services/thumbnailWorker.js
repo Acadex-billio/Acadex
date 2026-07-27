@@ -2,7 +2,6 @@ const { Worker } = require('bullmq');
 const path = require('path');
 const fs = require('fs');
 const { connection } = require('./thumbnailQueue');
-const { convertRemotePng } = require('../utils/converterClient');
 const { uploadFile } = require('../utils/s3Uploader');
 
 if (!connection) {
@@ -27,20 +26,8 @@ const worker = new Worker('thumbnailQueue', async (job) => {
     }
     return { ok: true };
   } catch (err) {
-    // Fallback to remote converter PNG
-    try {
-      await convertRemotePng({ sourcePath: pdfPath, outputDir: path.dirname(thumbnailPath), outputName: path.basename(thumbnailPath) });
-      // Upload to S3 if configured (use deterministic key)
-      if (process.env.AWS_BUCKET_NAME && process.env.AWS_S3_URL) {
-        const buffer = fs.readFileSync(thumbnailPath);
-        const key = `presentations/thumbnails/${path.basename(thumbnailPath)}`;
-        await uploadFile(buffer, path.basename(thumbnailPath), 'image/png', 'presentations/thumbnails', key);
-      }
-      return { ok: true, fallback: true };
-    } catch (err2) {
-      console.error('[ThumbnailWorker] Conversion failed:', err2.message);
-      throw err2;
-    }
+    console.error('[ThumbnailWorker] Local thumbnail conversion failed:', err.message);
+    throw err;
   }
 }, { connection });
 

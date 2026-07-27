@@ -16,7 +16,6 @@ const materialAccessService = require('../services/materialAccessService');
 const { streamToBuffer, subsetPdfBuffer, cropPdfFirstPageHalf } = require('../utils/pdfAccess');
 const { enqueueLibreOfficeJob } = require('../services/libreOfficeQueue');
 const { renderPdfFirstPageToPng } = require('../utils/pdfToImage');
-const { requestConverter, convertRemotePng } = require('../utils/converterClient');
 const { isCloudConvertConfigured, convertPresentationToPdf } = require('../utils/cloudConvertClient');
 const { resolveLibreOfficeCommand } = require('../utils/libreOffice');
 const { thumbnailQueue, connection } = require('../services/thumbnailQueue');
@@ -146,16 +145,9 @@ const runLibreOfficeConvert = (command, sourcePath, outputDir) =>
 
 const convertToPdf = async (sourcePath, outputDir, options = {}) => {
   const { sourceUrl, outputName } = options;
-  const remoteConverterBaseUrl = String(process.env.CONVERTER_BASE_URL || '').trim().replace(/\/$/, '');
-  const remoteConverterSecret = String(process.env.CONVERTER_SECRET || '').trim();
   const localCommand = resolveLibreOfficeCommand();
   const isPresentationFormat = !!String(path.extname(sourcePath || sourceUrl || '')).match(/\.(ppt|pptx)$/i);
   const shouldUseCloudConvert = isCloudConvertConfigured() && isPresentationFormat;
-  const shouldUseRemoteConverter = Boolean(
-    remoteConverterBaseUrl &&
-    remoteConverterSecret &&
-    (sourceUrl || (!localCommand && sourcePath))
-  );
 
   if (shouldUseCloudConvert) {
     let preparedSourcePath = sourcePath;
@@ -199,64 +191,6 @@ const convertToPdf = async (sourcePath, outputDir, options = {}) => {
     } catch (err) {
       console.error('[Presentations] CloudConvert conversion failed:', {
         message: err.message,
-        sourceUrl,
-        outputName,
-      });
-    } finally {
-      if (tempSourcePath && fs.existsSync(tempSourcePath)) {
-        fs.promises.unlink(tempSourcePath).catch(() => {});
-      }
-    }
-  }
-
-  if (shouldUseRemoteConverter) {
-    let preparedSourcePath = sourcePath;
-    let tempSourcePath = null;
-
-    try {
-      if (!preparedSourcePath || !fs.existsSync(preparedSourcePath)) {
-        if (!sourceUrl) {
-          throw new Error('No source file or source URL available for remote conversion');
-        }
-        tempSourcePath = path.join(outputDir, `remote-${Date.now()}-${path.basename(sourceUrl) || 'source'}`);
-        console.log('[Presentations] Downloading remote source file for converter:', {
-          sourceUrl,
-          tempSourcePath,
-        });
-        const downloaded = await writeS3ObjectToFile(sourceUrl, tempSourcePath);
-        if (!downloaded) {
-          throw new Error('Failed to download remote source file for converter');
-        }
-        preparedSourcePath = tempSourcePath;
-      }
-
-      console.log('[Presentations] Using remote converter service for PDF conversion:', {
-        sourceUrl,
-        outputDir,
-        outputName,
-        remoteConverterBaseUrl,
-        preparedSourcePath,
-      });
-
-      const result = await requestConverter({
-        sourcePath: preparedSourcePath,
-        sourceUrl,
-        format: 'pdf',
-        outputName: outputName || path.basename(preparedSourcePath),
-      });
-
-      const fileName = String(outputName || path.basename(preparedSourcePath) || 'converted.pdf').replace(/\.[^.]+$/, '.pdf');
-      const destinationPath = path.join(outputDir, fileName);
-      await fs.promises.writeFile(destinationPath, result.buffer);
-      console.log('[Presentations] Remote converter returned PDF:', {
-        destinationPath,
-        size: result.buffer.length,
-      });
-      return destinationPath;
-    } catch (err) {
-      console.error('[Presentations] Remote converter failed:', {
-        message: err.message,
-        status: err.response?.status,
         sourceUrl,
         outputName,
       });
@@ -323,29 +257,6 @@ const convertPdfToThumbnail = async (pdfPath, outputDir, options = {}) => {
       pdfPath,
       error: err.message,
     });
-
-    try {
-      const converterBaseUrl = String(process.env.CONVERTER_BASE_URL || '').trim();
-      if (converterBaseUrl) {
-        console.log('[Presentations] Falling back to remote converter for PNG thumbnail:', {
-          pdfPath,
-          outputPath,
-          converterBaseUrl,
-        });
-        await convertRemotePng({
-          sourcePath: pdfPath,
-          outputDir,
-          outputName: path.basename(outputPath),
-        });
-        return outputPath;
-      }
-    } catch (remoteErr) {
-      console.error('[Presentations] Remote thumbnail conversion failed:', {
-        pdfPath,
-        error: remoteErr.message,
-      });
-    }
-
     throw err;
   }
 };
