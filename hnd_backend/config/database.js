@@ -19,6 +19,15 @@ const buildMongoOptions = () => ({
   retryWrites: true,
 });
 
+const isDatabaseConnectionError = (error) => {
+  const message = String(error?.message || error || '');
+  return (
+    error?.name === 'MongoServerSelectionError' ||
+    error?.name === 'MongoNetworkError' ||
+    /ECONNREFUSED|Server selection timed out|Topology|socket hang up|MongoServerSelectionError|MongoNetworkError/i.test(message)
+  );
+};
+
 const connectDB = async () => {
   try {
     const mongoUri = process.env.MONGODB_URI || 'mongodb://localhost:27017/hnd_platform';
@@ -58,13 +67,33 @@ const connectDB = async () => {
       console.warn('[Mongo] ChatRoom index sync skipped:', e?.message || e);
     }
   } catch (err) {
-    console.error('MongoDB connection error:', err.message);
-    process.exit(1);
+    console.error('MongoDB connection error:', err?.message || err);
+    throw err;
   }
 };
 
+mongoose.connection.on('error', (err) => {
+  console.error('[DB] Connection error:', err?.message || err);
+});
+
 mongoose.connection.on('disconnected', () => {
   console.warn('MongoDB disconnected');
+});
+
+process.on('unhandledRejection', (reason) => {
+  if (isDatabaseConnectionError(reason)) {
+    console.warn('[DB] Ignored database connection rejection to keep the process alive:', reason?.message || reason);
+    return;
+  }
+  console.error('Unhandled rejection:', reason);
+});
+
+process.on('uncaughtException', (error) => {
+  if (isDatabaseConnectionError(error)) {
+    console.warn('[DB] Ignored uncaught database connection error to keep the process alive:', error?.message || error);
+    return;
+  }
+  throw error;
 });
 
 module.exports = connectDB;

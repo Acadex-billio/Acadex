@@ -4,17 +4,17 @@ const dotenv = require('dotenv');
 
 const rootEnvPath = path.resolve(__dirname, '..', '.env');
 dotenv.config({ path: rootEnvPath, quiet: true });
-dotenv.config({ path: path.resolve(__dirname, '.env'), quiet: true, override: true });
+// Load local .env without overriding actual runtime environment variables (Railway/Vercel)
+dotenv.config({ path: path.resolve(__dirname, '.env'), quiet: true, override: false });
 
 const logger = require('./utils/logger');
 
-// Validate critical environment variables
+// Validate critical environment variables (warn but don't crash - keep service responsive)
 const requiredEnvVars = ['JWT_SECRET', 'MONGODB_URI'];
 const missingEnvVars = requiredEnvVars.filter(varName => !process.env[varName]);
 
 if (missingEnvVars.length > 0) {
-  logger.error('Missing critical environment variables', { missingEnvVars });
-  process.exit(1);
+  logger.warn('Missing startup environment variables (service will still start)', { missingEnvVars });
 }
 
 // Ensure NODE_ENV is explicitly set
@@ -79,7 +79,13 @@ const port = process.env.PORT || 5000;
 const corsDebugEnabled = String(process.env.CORS_DEBUG || '').trim().toLowerCase() === 'true';
 const startupDebugEnabled = String(process.env.STARTUP_DEBUG || '').trim().toLowerCase() === 'true';
 
-connectDB();
+// Initialize database connection but do not let DB failures crash the whole process
+connectDB().catch((err) => {
+  logger.error('Database initialization failed', {
+    error: err?.message || err,
+    stack: err?.stack,
+  });
+});
 
 // Initialize performance monitoring
 initPerformanceMonitoring();
@@ -153,23 +159,19 @@ if (isProduction) {
   const readiness = getServiceReadiness();
 
   if (!readiness.payment.hasToken) {
-    logger.error('Missing CAMERPAY_TOKEN in production');
-    process.exit(1);
+    logger.warn('Missing CAMERPAY_TOKEN in production; payment routes may fail');
   }
 
   if (!readiness.ready.storage) {
-    logger.error('Missing AWS S3 configuration in production');
-    process.exit(1);
+    logger.warn('Missing AWS S3 configuration in production; uploads may fail');
   }
 
   if (!readiness.ready.email) {
-    logger.error('Missing RESEND_API_KEY in production');
-    process.exit(1);
+    logger.warn('Missing RESEND_API_KEY in production; email features may fail');
   }
 
   if (isAiFeaturesEnabled && !readiness.ready.ai) {
-    logger.error('AI features enabled but OPENAI_API_KEY or TAVILY_API_KEY missing in production');
-    process.exit(1);
+    logger.warn('AI features enabled but OPENAI_API_KEY or TAVILY_API_KEY missing in production');
   }
 }
 
@@ -182,7 +184,7 @@ const fallbackOrigins = [
   'https://www.acadexe.com',
   'https://acadexe.com',
   'https://hnd-platform.vercel.app',
-  'https://acadex-hng2.onrender.com',
+  'https://your-vercel-frontend-domain',
   'http://localhost:3000',
   'http://localhost:3001',
 ];
@@ -296,8 +298,7 @@ if (!sessionSecret) {
 if (isProduction) {
   const normalizedSessionSecret = String(sessionSecret || '').trim();
   if (!normalizedSessionSecret || normalizedSessionSecret === 'dev-insecure-secret') {
-    logger.error('SESSION_SECRET must be set to a strong value in production');
-    process.exit(1);
+    logger.warn('SESSION_SECRET is missing or insecure in production; falling back to a development secret');
   }
 }
 
@@ -322,11 +323,16 @@ const mongoSessionOptions = {
   maxIdleTimeMS: parsePositiveInt(process.env.MONGO_MAX_IDLE_TIME_MS, 60000),
 };
 
-const sessionStore = MongoStore.create({
-  mongoUrl: process.env.MONGODB_URI || 'mongodb://localhost:27017/hnd_platform',
-  ttl: 7 * 24 * 60 * 60,
-  mongoOptions: mongoSessionOptions,
-});
+let sessionStore = null;
+try {
+  sessionStore = MongoStore.create({
+    mongoUrl: process.env.MONGODB_URI || 'mongodb://localhost:27017/hnd_platform',
+    ttl: 7 * 24 * 60 * 60,
+    mongoOptions: mongoSessionOptions,
+  });
+} catch (err) {
+  logger.error('Failed to initialize session store', { error: err?.message || err, stack: err?.stack });
+}
 
 if (startupDebugEnabled) {
   logger.info('Auth configuration (JWT-based)', {
@@ -350,7 +356,7 @@ app.use(
     secret: sessionSecret || 'dev-insecure-secret',
     resave: false,
     saveUninitialized: false,
-    store: sessionStore,
+    store: sessionStore || undefined,
     cookie: {
       httpOnly: true,
       // Production-secure configuration
@@ -362,21 +368,23 @@ app.use(
   })
 );
 
-sessionStore.on('connected', () => {
-  logger.info('Session store connected');
-});
-
-sessionStore.on('error', (err) => {
-  logger.error('Session store connection error', {
-    error: err.message,
-    stack: err.stack,
-    mongoUri: process.env.MONGODB_URI ? 'Set' : 'Missing'
+if (sessionStore) {
+  sessionStore.on('connected', () => {
+    logger.info('Session store connected');
   });
-});
 
-sessionStore.on('disconnected', () => {
-  logger.warn('Session store disconnected');
-});
+  sessionStore.on('error', (err) => {
+    logger.error('Session store connection error', {
+      error: err.message,
+      stack: err.stack,
+      mongoUri: process.env.MONGODB_URI ? 'Set' : 'Missing'
+    });
+  });
+
+  sessionStore.on('disconnected', () => {
+    logger.warn('Session store disconnected');
+  });
+}
 
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 

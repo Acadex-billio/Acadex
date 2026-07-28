@@ -12,19 +12,14 @@ const inferBaseUrl = () => {
 };
 
 const normalizeApiBaseUrl = (rawUrl) => {
-  const fallback = 'https://hnd-platform-backend.onrender.com/api';
+  const fallback = 'https://your-railway-backend-url/api';
   const value = String(rawUrl || '').trim();
   if (!value) return fallback;
 
-  // Backward-compatibility: rewrite legacy host if still present in env.
-  const normalizedHost = value.replace(
-    /^https:\/\/hnd-platform\.onrender\.com(?=\/|$)/i,
-    'https://hnd-platform-backend.onrender.com'
-  );
-
-  return /\/api\/?$/i.test(normalizedHost)
-    ? normalizedHost.replace(/\/$/, '')
-    : `${normalizedHost.replace(/\/$/, '')}/api`;
+  const trimmed = value.replace(/\/+$/, '');
+  return /\/api\/?$/i.test(trimmed)
+    ? trimmed
+    : `${trimmed}/api`;
 };
 
 const isLocalhost =
