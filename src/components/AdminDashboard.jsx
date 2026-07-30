@@ -48,6 +48,7 @@ const AdminDashboard = () => {
   const [accountStats, setAccountStats] = useState(null);
   const [paymentAnalytics, setPaymentAnalytics] = useState({
     total_revenue: 0,
+    total_payout: 0,
     labels: [],
     subscription_revenue: [],
     material_revenue: [],
@@ -55,6 +56,12 @@ const AdminDashboard = () => {
     payment_method_mtn: [],
     payment_method_om: [],
   });
+
+  const paymentTotals = useMemo(() => {
+    const totalRevenue = Number(paymentAnalytics?.total_revenue || 0);
+    const totalPayout = Number(paymentAnalytics?.total_payout || 0);
+    return { totalRevenue, totalPayout, balance: totalRevenue - totalPayout };
+  }, [paymentAnalytics]);
   const [recentRegistrations, setRecentRegistrations] = useState([]);
   const [dataLoading, setDataLoading] = useState(false);
 
@@ -77,6 +84,7 @@ const AdminDashboard = () => {
         setSummary(summaryRes.data?.summary || {});
         setPaymentAnalytics(paymentRes.data?.analytics || {
           total_revenue: 0,
+          total_payout: 0,
           labels: [],
           subscription_revenue: [],
           material_revenue: [],
@@ -386,8 +394,16 @@ const AdminDashboard = () => {
               <h3>Payment revenue by type</h3>
             </div>
             <div className={styles.paymentSummary}>
-              <span>Total revenue</span>
-              <strong>{formatCurrency(paymentAnalytics.total_revenue)}</strong>
+                <div>
+                  <div style={{ fontSize: 13, color: 'var(--muted)' }}>Total revenue</div>
+                  <strong>{formatCurrency(paymentTotals.totalRevenue)}</strong>
+                </div>
+                <div style={{ textAlign: 'right' }}>
+                  <div className={styles.totalPayoutSmall}>Total payout</div>
+                  <div className={styles.totalPayoutValue}>{formatCurrency(paymentTotals.totalPayout)}</div>
+                  <div className={styles.balanceSmall}>Balance</div>
+                  <div className={styles.balanceValue}>{formatCurrency(paymentTotals.balance)}</div>
+                </div>
             </div>
             <div className={styles.chartWrapper}>
               <Bar data={paymentRevenueData} options={paymentRevenueOptions} />

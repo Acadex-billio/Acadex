@@ -130,7 +130,14 @@ async function sendEmailToAddress(toEmail) {
   }
 }
 
+const isDatabaseConnected = () => mongoose.connection && mongoose.connection.readyState === 1;
+
 async function notifyDevelopersOnce() {
+  if (!isDatabaseConnected()) {
+    logger.warn('Skipping keepalive notifications because MongoDB is not connected');
+    return;
+  }
+
   try {
     const developers = await User.find({ role: 'developer', account_status: 'active' }).lean().exec();
     if (!Array.isArray(developers) || developers.length === 0) {
@@ -166,6 +173,11 @@ async function notifyDevelopersOnce() {
 }
 
 async function sendPeriodicEmailsToDevelopers() {
+  if (!isDatabaseConnected()) {
+    logger.warn('Skipping periodic developer emails because MongoDB is not connected');
+    return;
+  }
+
   try {
     const developers = await User.find({ role: 'developer', account_status: 'active' }).lean().exec();
     if (!Array.isArray(developers) || developers.length === 0) return;

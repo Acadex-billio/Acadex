@@ -36,6 +36,11 @@ const candidateProjectSubmissionSchema = new mongoose.Schema(
     published_at: { type: Date, default: null },
     published_resource_id: { type: String, default: null, trim: true },
     published_resource_type: { type: String, enum: ['report', 'presentation', null], default: null },
+    payout_batch_uuid: { type: String, default: null, trim: true },
+    payout_status: { type: String, enum: ['none', 'pending', 'processing', 'completed', 'failed'], default: 'none', index: true },
+    payout_message: { type: String, default: null, trim: true },
+    payout_sent_at: { type: Date, default: null },
+    payout_completed_at: { type: Date, default: null },
   },
   { timestamps: true }
 );

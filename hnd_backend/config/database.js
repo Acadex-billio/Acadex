@@ -17,6 +17,7 @@ const buildMongoOptions = () => ({
   socketTimeoutMS: parsePositiveInt(process.env.MONGO_SOCKET_TIMEOUT_MS, 45000),
   maxIdleTimeMS: parsePositiveInt(process.env.MONGO_MAX_IDLE_TIME_MS, 60000),
   retryWrites: true,
+  bufferCommands: false,
 });
 
 const isDatabaseConnectionError = (error) => {

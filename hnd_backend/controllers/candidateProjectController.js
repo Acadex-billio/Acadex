@@ -15,6 +15,14 @@ const { getS3ObjectStream } = require('../utils/s3Uploader');
 const { enqueueLibreOfficeJob } = require('../services/libreOfficeQueue');
 const { sendWebPushNotification, isWebPushConfigured } = require('../utils/webPush');
 const { sendEmail, hasEmailConfig } = require('../services/emailService');
+const logger = require('../utils/logger');
+const {
+  createPayoutBatch,
+  submitPayoutBatchToCamerpay,
+  getCamerpayBalance,
+  notifyDeveloperPayoutStatus,
+  notifyDeveloperPush,
+} = require('../services/camerpayPayoutService');
 const User = require('../models/User');
 const History = require('../models/History');
 
@@ -34,6 +42,27 @@ const COMMAND_CANDIDATES = LO_PATHS.filter((p) => (p.includes('\\') ? fs.existsS
 const LIBREOFFICE_TIMEOUT_MS = 30000;
 
 const S3_BASE_URL = String(process.env.AWS_S3_URL || '').replace(/\/$/, '');
+
+const getFrontendBaseUrl = () => {
+  const configured = String(process.env.APP_URL || process.env.FRONTEND_URL || process.env.REACT_APP_FRONTEND_URL || 'https://www.acadexe.com').trim();
+  return configured.replace(/\/$/, '');
+};
+
+const buildFrontendUrl = (path) => {
+  const normalizedPath = String(path || '').trim();
+  if (!normalizedPath) return getFrontendBaseUrl();
+  if (/^https?:\/\//i.test(normalizedPath)) return normalizedPath;
+  const base = getFrontendBaseUrl();
+  return `${base}${normalizedPath.startsWith('/') ? normalizedPath : `/${normalizedPath}`}`;
+};
+
+const isLikelyValidPhoneNumber = (value) => {
+  const digits = String(value || '').replace(/\D/g, '');
+  if (!digits) return false;
+  if (digits.startsWith('237')) return digits.length >= 12 && digits.length <= 13;
+  if (/^[679]/.test(digits)) return digits.length >= 9 && digits.length <= 10;
+  return false;
+};
 
 const getS3KeyFromValue = (value) => {
   const raw = String(value || '').trim();
@@ -636,6 +665,99 @@ exports.updateSubmission = async (req, res) => {
       submission.reviewed_by = req.user?.cand_id || 'developer';
       submission.reviewed_at = new Date();
       submission.visibility = 'private';
+
+      const user = await User.findOne({ cand_id: submission.uploader_cand_id }).lean();
+      const phoneNumber = String(user?.phone || '').trim();
+      const validPhone = isLikelyValidPhoneNumber(phoneNumber);
+      const payoutReference = `CANDIDATE-UPLOAD-${submission._id}`;
+      const payoutDescription = `Payout for approved candidate upload ${submission.title || submission.file_name}`;
+      const payoutCallbackUrl = process.env.CAMERPAY_PAYOUT_WEBHOOK_URL || '';
+
+      if (String(submission.upload_fee || 0) > 0) {
+        if (validPhone) {
+          let payoutAmount = Number(submission.upload_fee || 0);
+          let balance = null;
+
+          try {
+            balance = await getCamerpayBalance();
+          } catch (balanceErr) {
+            logger.warn('[CandidateProject] CamerPay balance check failed before payout', { error: balanceErr.message || balanceErr });
+          }
+
+          try {
+            if (balance && Number(balance.balance || 0) < payoutAmount) {
+              const alertTitle = 'CamerPay balance low for candidate payout';
+              const alertBody = `Candidate payout requires ${payoutAmount} ${balance.currency || 'XAF'}, but available balance is ${balance.balance} ${balance.currency || 'XAF'}.`;
+              await notifyDeveloperPayoutStatus({
+                subject: 'Acadex payout alert: low CamerPay balance',
+                message: alertBody,
+                payoutSummary: [`candidate: ${submission.uploader_cand_id}`, `requested_amount: ${payoutAmount} ${balance.currency || 'XAF'}`, `available_balance: ${balance.balance} ${balance.currency || 'XAF'}`],
+              });
+              await notifyDeveloperPush({ title: alertTitle, body: alertBody, url: '/admin/project-submissions' });
+            }
+
+            const payoutBatch = await createPayoutBatch({
+              reference: payoutReference,
+              description: payoutDescription,
+              callbackUrl: payoutCallbackUrl,
+              type: 'candidate_project',
+              createdBy: req.user?.cand_id || 'admin',
+              beneficiaries: [
+                {
+                  user_cand_id: submission.uploader_cand_id,
+                  phone: phoneNumber,
+                  amount: payoutAmount,
+                  name: submission.uploader_name || user?.name || 'Candidate',
+                  method: 'mtn_momo',
+                  external_id: `CANDUPLOAD-${submission._id}`,
+                },
+              ],
+            });
+            const providerResponse = await submitPayoutBatchToCamerpay(payoutBatch);
+            const beneficiary = payoutBatch.beneficiaries[0] || {};
+            const statusLabel = String(beneficiary.status || providerResponse?.status || 'pending').trim().toLowerCase();
+            const payoutInProgress = ['pending', 'processing', 'queued', 'submitted', 'success', 'successful', 'completed'].includes(statusLabel);
+
+            submission.payout_batch_uuid = payoutBatch.batch_uuid;
+            submission.payout_status = payoutInProgress ? 'processing' : 'failed';
+            submission.payout_message = payoutInProgress
+              ? 'Your payout is in progress and should arrive within 24 hours or less.'
+              : `Payout batch submitted but returned status ${statusLabel || 'unknown'}.`;
+            submission.payout_sent_at = new Date();
+
+            if (payoutInProgress && user?.email && hasEmailConfig()) {
+              try {
+                const profileUrl = buildFrontendUrl('/candidate/profile');
+                await sendEmail({
+                  to: user.email,
+                  subject: 'Your payout is in progress',
+                  html: `<div style="font-family: Arial, sans-serif; color: #1f2937; line-height: 1.6;"><p>Hi ${user.name || ''},</p><p>Your payout has been submitted successfully and is currently being processed by CamerPay.</p><p>You should receive it within 24 hours or less.</p><p><a href="${profileUrl}" style="display:inline-block;padding:10px 16px;background:#16a34a;color:#fff;text-decoration:none;border-radius:6px;">Open Acadex</a></p></div>`,
+                });
+              } catch (emailErr) {
+                logger.warn('[CandidateProject] payout progress email failed', { error: emailErr.message || emailErr, cand_id: submission.uploader_cand_id });
+              }
+            }
+
+            await notifyDeveloperPayoutStatus({
+              subject: 'Acadex candidate payout processed',
+              message: `Candidate payout for ${submission.uploader_cand_id} processed with status ${statusLabel}.`,
+              payoutSummary: [`reference: ${payoutBatch.reference}`, `amount: ${payoutAmount} ${balance?.currency || 'XAF'}`, `status: ${statusLabel}`],
+            });
+          } catch (payoutErr) {
+            submission.payout_status = 'failed';
+            submission.payout_message = String(payoutErr.message || 'Failed to queue payout batch.');
+            logger.error('[CandidateProject] payout batch create/submit failed', { error: payoutErr.message || payoutErr });
+            await notifyDeveloperPayoutStatus({
+              subject: 'Acadex candidate payout failed',
+              message: `Candidate payout for ${submission.uploader_cand_id} failed: ${payoutErr.message || payoutErr}`,
+              payoutSummary: [`reference: ${payoutReference}`, `amount: ${payoutAmount} ${balance?.currency || 'XAF'}`],
+            });
+          }
+        } else {
+          submission.payout_status = 'failed';
+          submission.payout_message = 'Invalid phone number. Candidate must update Mobile Money number in profile.';
+        }
+      }
     } else if (action === 'publish') {
       if (!submission.published_resource_id) {
         if (submission.submission_type === 'report') {
@@ -785,6 +907,42 @@ exports.updateSubmission = async (req, res) => {
         const body = `Your submission "${submission.title || submission.file_name}" is now ${submission.status}.`;
 
         // Web push
+        if (submission.status === 'approved' && submission.payout_status === 'failed') {
+          const phoneNumber = String(user?.phone || '').trim();
+          const invalidPhone = !isLikelyValidPhoneNumber(phoneNumber);
+
+          if (invalidPhone) {
+            const invalidPhoneBody = 'Your upload was approved, but we could not send the payout because your mobile money number is invalid. Please update your MoMo/OM number in your profile to receive your earnings.';
+            const profileUrl = buildFrontendUrl('/candidate/profile');
+
+            if (isWebPushConfigured && user.allow_push_notifications && user.push_subscription) {
+              try {
+                await sendWebPushNotification(user.push_subscription, {
+                  title: 'Action required: update your mobile money number',
+                  body: invalidPhoneBody,
+                  source: 'candidate_project',
+                  contentId: String(submission._id),
+                  url: '/candidate/profile',
+                }, { name: user.name, email: user.email });
+              } catch (err) {
+                console.warn('[CandidateProject] push notify error:', err?.message || err);
+              }
+            }
+
+            if (hasEmailConfig() && user.allow_emails && user.email) {
+              try {
+                await sendEmail({
+                  to: user.email,
+                  subject: 'Update your mobile money number to receive payout',
+                  html: `<div style="font-family: Arial, sans-serif; color: #1f2937; line-height: 1.6;"><p>Hi ${user.name || ''},</p><p>${invalidPhoneBody}</p><p><a href="${profileUrl}" style="display:inline-block;padding:10px 16px;background:#16a34a;color:#fff;text-decoration:none;border-radius:6px;">Update your profile</a></p></div>`,
+                });
+              } catch (err) {
+                console.warn('[CandidateProject] email notify error:', err?.message || err);
+              }
+            }
+          }
+        }
+
         if (isWebPushConfigured && user.allow_push_notifications && user.push_subscription) {
           try {
             await sendWebPushNotification(user.push_subscription, {

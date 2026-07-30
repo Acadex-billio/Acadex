@@ -10,6 +10,7 @@ const adminReportController = require('../controllers/adminReportController');
 const adminPresentationController = require('../controllers/adminPresentationController');
 const adminCandidateController = require('../controllers/adminCandidateController');
 const candidateProjectController = require('../controllers/candidateProjectController');
+const payoutBatchController = require('../controllers/payoutBatchController');
 const adminAccessController = require('../controllers/adminAccessController');
 const platformPricingController = require('../controllers/platformPricingController');
 const internshipTopicController = require('../controllers/internshipTopicController');
@@ -124,6 +125,10 @@ router.get('/project-submissions/:id/draft', requireDeveloper, candidateProjectC
 router.get('/project-submissions/:id/preview', requireDeveloper, candidateProjectController.previewSubmissionFile);
 router.get('/project-submissions/pricing', requireDeveloper, candidateProjectController.listPricingForDeveloper);
 router.put('/project-submissions/pricing', requireDeveloper, candidateProjectController.updatePricing);
+
+router.get('/payout-batches', requireDeveloper, payoutBatchController.listPayoutBatches);
+router.get('/payout-batches/:batchUuid', requireDeveloper, payoutBatchController.getPayoutBatch);
+router.post('/payout-batches/:batchUuid/refresh', requireDeveloper, payoutBatchController.refreshPayoutBatchStatus);
 
 // Admin access grants
 router.get('/access-grants', requireDeveloper, adminAccessController.listGrants);

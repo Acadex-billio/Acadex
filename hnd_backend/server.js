@@ -4,8 +4,8 @@ const dotenv = require('dotenv');
 
 const rootEnvPath = path.resolve(__dirname, '..', '.env');
 dotenv.config({ path: rootEnvPath, quiet: true });
-// Load local .env without overriding actual runtime environment variables (Railway/Vercel)
-dotenv.config({ path: path.resolve(__dirname, '.env'), quiet: true, override: false });
+// Load local .env and allow it to override root defaults, while still preserving real runtime env vars.
+dotenv.config({ path: path.resolve(__dirname, '.env'), quiet: true, override: true });
 
 const logger = require('./utils/logger');
 
@@ -80,12 +80,28 @@ const corsDebugEnabled = String(process.env.CORS_DEBUG || '').trim().toLowerCase
 const startupDebugEnabled = String(process.env.STARTUP_DEBUG || '').trim().toLowerCase() === 'true';
 
 // Initialize database connection but do not let DB failures crash the whole process
-connectDB().catch((err) => {
-  logger.error('Database initialization failed', {
-    error: err?.message || err,
-    stack: err?.stack,
+const dbStartupPromise = connectDB()
+  .then(() => {
+    logger.info('Database connected; starting DB-dependent background services');
+    try {
+      startKeepalive();
+    } catch (err) {
+      logger.warn('Failed to start keepalive notifier', { error: err?.message || err });
+    }
+
+    try {
+      startPaymentReconciliationScheduler();
+    } catch (err) {
+      logger.warn('Failed to start payment reconciliation scheduler', { error: err?.message || err });
+    }
+  })
+  .catch((err) => {
+    logger.error('Database initialization failed', {
+      error: err?.message || err,
+      stack: err?.stack,
+    });
+    logger.warn('Skipping DB-dependent background services until database connection is available');
   });
-});
 
 // Initialize performance monitoring
 initPerformanceMonitoring();
@@ -518,18 +534,6 @@ app.use(globalErrorHandler);
 
 app.listen(port, () => {
   logger.info('Server started', { port, nodeEnv: process.env.NODE_ENV || 'development' });
-  try {
-    // Start keepalive notifier in background if configured
-    startKeepalive();
-  } catch (err) {
-    logger.warn('Failed to start keepalive notifier', { error: err.message });
-  }
-
-  try {
-    startPaymentReconciliationScheduler();
-  } catch (err) {
-    logger.warn('Failed to start payment reconciliation scheduler', { error: err.message });
-  }
 
   try {
     const workerEnabled = String(process.env.ENABLE_THUMBNAIL_WORKER || '').trim().toLowerCase() === 'true' || Boolean(process.env.REDIS_URL);

@@ -21,6 +21,13 @@ const {
   startCampayPayment,
   refreshCampayPaymentStatus,
 } = require('../services/paymentOrchestrationService');
+const {
+  createPayoutBatch,
+  submitPayoutBatchToCamerpay,
+  getCamerpayBalance,
+  notifyDeveloperPayoutStatus,
+  notifyDeveloperPush,
+} = require('../services/camerpayPayoutService');
 const paymentGrantService = require('../services/paymentGrantService');
 const {
   sanitizePromoCodeInput,
@@ -1787,12 +1794,114 @@ exports.runMonthlyPayout = async (req, res) => {
     });
 
     let total = 0;
+    const payoutBeneficiaries = [];
+
     for (const row of toPayout) {
-      row.paid_out = true;
-      row.paid_out_at = new Date();
-      row.paid_out_by = getCurrentUserId(req);
+      const lecturer = await User.findOne({ cand_id: row.lecturer_cand_id }).lean();
+      const phoneNumber = String(lecturer?.phone || '').trim();
+      const validPhone = phoneNumber.replace(/\D/g, '').length >= 9;
+
+      if (!validPhone) {
+        row.paid_out = false;
+        row.payment_status = 'failed';
+        row.paid_out_by = getCurrentUserId(req);
+        await row.save();
+        continue;
+      }
+
+      payoutBeneficiaries.push({
+        user_cand_id: row.lecturer_cand_id,
+        phone: phoneNumber,
+        amount: Number(row.lecturer_share || 0),
+        name: lecturer?.name || `Lecturer ${row.lecturer_cand_id}`,
+        method: 'mtn_momo',
+        external_id: `LECTURER-${row._id}`,
+      });
       total += Number(row.lecturer_share || 0);
-      await row.save();
+    }
+
+    let payoutBatch = null;
+    let balance = null;
+
+    if (payoutBeneficiaries.length) {
+      const totalPayoutAmount = payoutBeneficiaries.reduce((acc, item) => acc + Number(item.amount || 0), 0);
+      try {
+        balance = await getCamerpayBalance();
+      } catch (balanceErr) {
+        logger.warn('[Lecturer] CamerPay balance check failed before payout', { error: balanceErr.message || balanceErr });
+      }
+
+      if (balance && Number(balance.balance || 0) < totalPayoutAmount) {
+        const alertTitle = 'CamerPay balance low for monthly lecturer payout';
+        const alertBody = `Batch needs ${totalPayoutAmount} ${balance.currency || 'XAF'}, but available balance is ${balance.balance} ${balance.currency || 'XAF'}.`;
+        await notifyDeveloperPayoutStatus({
+          subject: 'Acadex payout alert: low CamerPay balance',
+          message: alertBody,
+          payoutSummary: [`total_batch_amount: ${totalPayoutAmount} ${balance.currency || 'XAF'}`, `available_balance: ${balance.balance} ${balance.currency || 'XAF'}`],
+        });
+        await notifyDeveloperPush({ title: alertTitle, body: alertBody, url: '/admin/payouts' });
+      }
+
+      try {
+        payoutBatch = await createPayoutBatch({
+          reference: `LECTURER-PAYOUT-${year}-${String(month).padStart(2, '0')}`,
+          description: `Monthly lecturer payouts for ${year}-${String(month).padStart(2,'0')}`,
+          callbackUrl: process.env.CAMERPAY_PAYOUT_CALLBACK_URL || process.env.CAMERPAY_CALLBACK_URL || '',
+          type: 'lecturer_monthly',
+          createdBy: req.user?.cand_id || 'admin',
+          beneficiaries: payoutBeneficiaries,
+        });
+
+        const providerResponse = await submitPayoutBatchToCamerpay(payoutBatch);
+        const successLines = [];
+        const failedLines = [];
+
+        payoutBatch.beneficiaries.forEach((beneficiary) => {
+          const line = `${beneficiary.external_id}: ${beneficiary.status} (${beneficiary.amount} ${balance?.currency || 'XAF'})`;
+          if (beneficiary.status === 'completed' || beneficiary.status === 'successful' || beneficiary.status === 'processed') {
+            successLines.push(line);
+          } else {
+            failedLines.push(line);
+          }
+        });
+
+        const summaryLines = [
+          `batch_uuid: ${payoutBatch.batch_uuid}`,
+          `reference: ${payoutBatch.reference}`,
+          `total_amount: ${payoutBatch.total_amount}`,
+          `status: ${payoutBatch.status}`,
+          ...successLines,
+          ...failedLines,
+        ];
+
+        await notifyDeveloperPayoutStatus({
+          subject: 'Acadex lecturer payout executed',
+          message: `Lecturer monthly payout executed with ${successLines.length} successful and ${failedLines.length} failed items.`,
+          payoutSummary: summaryLines,
+        });
+        await notifyDeveloperPush({
+          title: 'Lecturer payout processed',
+          body: `Batch ${payoutBatch.reference} processed: ${successLines.length} successful, ${failedLines.length} failed.`,
+          url: '/admin/payouts',
+        });
+      } catch (payoutErr) {
+        logger.error('[Lecturer] payout batch creation or submit failed', { error: payoutErr.message || payoutErr });
+
+        await notifyDeveloperPayoutStatus({
+          subject: 'Acadex lecturer payout failed',
+          message: `Failed to create or submit lecturer payout batch: ${payoutErr.message || payoutErr}`,
+          payoutSummary: [`total_batch_amount: ${Number(totalPayoutAmount).toFixed(2)} ${balance?.currency || 'XAF'}`],
+        });
+      }
+    }
+
+    for (const row of toPayout) {
+      if (row.payment_status === 'paid' && payoutBatch) {
+        row.paid_out = true;
+        row.paid_out_at = new Date();
+        row.paid_out_by = getCurrentUserId(req);
+        await row.save();
+      }
     }
 
     return res.json({

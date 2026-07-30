@@ -9,6 +9,7 @@ const ChatRoom = require('../models/ChatRoom');
 const ChatMessage = require('../models/ChatMessage');
 const ChatMembership = require('../models/ChatMembership');
 const PaymentTransaction = require('../models/PaymentTransaction');
+const PayoutBatch = require('../models/PayoutBatch');
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -534,10 +535,17 @@ exports.getPaymentAnalytics = async (req, res) => {
       else if (method_label === 'om') bucket.om += amount;
     });
 
+    const payoutSummary = await PayoutBatch.aggregate([
+      { $match: { status: { $in: ['processing', 'completed', 'failed'] } } },
+      { $group: { _id: null, total_payout: { $sum: '$total_amount' } } },
+    ]);
+    const totalPayout = Number(payoutSummary[0]?.total_payout || 0);
+
     return res.json({
       success: true,
       analytics: {
         total_revenue: totalRevenue,
+        total_payout: totalPayout,
         labels,
         subscription_revenue: monthKeys.map((key) => buckets[key].subscription),
         material_revenue: monthKeys.map((key) => buckets[key].materials),
