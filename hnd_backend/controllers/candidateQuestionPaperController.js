@@ -160,6 +160,7 @@ exports.getQuestionPapers = async (req, res) => {
       more_info: p.more_info,
       study_links: parseStudyLinks(p.more_info),
       subscription_access: p.subscription_access || null,
+      material_price: Number(p.subscription_access?.paygo_download_price ?? p.material_price ?? 0) || null,
       departments: (p.departments || []).map((d) => ({
         dpt_id: (d && d._id ? d._id : d)?.toString?.() ?? String(d),
         dpt_name: (typeof d === 'object' && d?.department_name) || '',

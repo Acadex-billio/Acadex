@@ -282,7 +282,7 @@ exports.getGuides = async (req, res) => {
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limit)
-        .select('title writer_names writer_email createdAt description pages file_path program departments is_guide')
+        .select('title writer_names writer_email createdAt description pages file_path program departments is_guide material_price subscription_access')
         .populate('departments', 'department_name')
         .lean(),
       Report.countDocuments(accessQuery),
@@ -294,6 +294,7 @@ exports.getGuides = async (req, res) => {
         report_id: g._id,
         upload_date: g.createdAt,
         program: String(g.program || 'HND').toUpperCase(),
+        material_price: g.material_price ?? g.subscription_access?.paygo_download_price ?? null,
         departments: (Array.isArray(g.departments)
           ? g.departments.map((d) => ({ dpt_id: d._id?.toString?.() || String(d), dpt_name: d.department_name || '' }))
           : []),

@@ -1,13 +1,14 @@
 import React, { useEffect, useState, useMemo, useCallback } from "react";
 import styles from "../Astyles/viewReport.module.css";
 import { getErrorMessage } from "../utility/getErrorMessage";
-import { FaFileWord, FaFilePdf, FaCalendarAlt, FaBuilding, FaClock, FaRegFileAlt, FaSearch, FaRegChartBar } from "react-icons/fa";
+import { FaFileWord, FaFilePdf, FaCalendarAlt, FaBuilding, FaClock, FaRegFileAlt, FaSearch, FaRegChartBar, FaEllipsisV } from "react-icons/fa";
 import api from "../services/api";
 import GraduationCapLoader from "./GraduationCapLoader";
 import { useLocation, useNavigate } from "react-router-dom";
 import SecurePdfPreview from "./SecurePdfPreview";
 import { showToast } from "../utility/ToastNotification";
 import PaymentActionModal from "./PaymentActionModal";
+import { useAuth } from "../context/AuthContext";
 
 // Remove axios defaults since we're using api service
 // axios.defaults.withCredentials = true;
@@ -15,6 +16,7 @@ import PaymentActionModal from "./PaymentActionModal";
 const ViewReport = () => {
   const location = useLocation();
   const navigate = useNavigate();
+  const { user: authUser } = useAuth();
   const [reports, setReports] = useState([]);
   const [search, setSearch] = useState("");
   const [filterCategory, setFilterCategory] = useState('');
@@ -117,6 +119,30 @@ const ViewReport = () => {
   }, [reports, search, filterCategory]);
 
   const extractFileName = useCallback((file) => file?.replace(/\\/g, "/").split("/").pop(), []);
+
+  const normalizePlan = (plan) => String(plan || 'basic').toLowerCase();
+
+  const formatPageLabel = (value) => {
+    if (value === null || value === undefined || value === '') return null;
+    const parsed = Number(value);
+    if (Number.isFinite(parsed) && parsed > 0) {
+      return `${parsed} ${parsed === 1 ? 'page' : 'pages'}`;
+    }
+    const text = String(value).trim();
+    return text ? text : null;
+  };
+
+  const getDownloadPriceMeta = (item, plan) => {
+    const normalizedPlan = normalizePlan(plan);
+    const fallbackPrice = Number(item?.material_price ?? item?.subscription_access?.paygo_download_price ?? 0);
+    if (['full-package', 'pro'].includes(normalizedPlan)) {
+      return 'Included with your plan';
+    }
+    if (Number.isFinite(fallbackPrice) && fallbackPrice > 0) {
+      return `Download ${fallbackPrice.toLocaleString()} XAF`;
+    }
+    return 'Download price available soon';
+  };
 
   const formatTimeAgo = (timestamp) => {
     const date = new Date(timestamp);
@@ -430,61 +456,68 @@ const ViewReport = () => {
         ) : (
           filteredReports.map((r) => (
             <div key={r.report_id} className={styles.card}>
-              <div className={styles.cardRow}>
-                <div className={styles.cardSummary}>
-                  <div className={styles.iconBlock}>
-                    {r.file_path?.endsWith('.pdf') ? (
-                      <FaFilePdf className={styles.fileIcon} />
-                    ) : (
-                      <FaFileWord className={styles.fileIcon} />
-                    )}
-                  </div>
-                  <div className={styles.cardContent}>
-                    <div className={styles.badgeRow}>
-                      <div className={styles.cardBadge}>Report</div>
-                    </div>
-                    <div className={styles.titleRow}>
-                      <h3 className={styles.title}>{r.title}</h3>
-                      {isLongTopic(r.title) && (
-                        <button type="button" className={styles.readAllLink} onClick={() => openTopicPopup(r)}>
-                          Read All
-                        </button>
-                      )}
-                    </div>
-                    <div className={styles.infoRow}>
-                      <span className={styles.chip}><FaCalendarAlt className={styles.chipIcon} /> {new Date(r.upload_date).getFullYear()}</span>
-                      <span className={styles.chip}><FaBuilding className={styles.chipIcon} /> {(r.departments || [])[0]?.dpt_name || r.audience || 'General'}</span>
-                      <span className={styles.chip}><FaRegFileAlt className={styles.chipIcon} /> {r.pages || 'N/A'} pages</span>
-                      <span className={styles.chip}><FaClock className={styles.chipIcon} /> {formatTimeAgo(r.upload_date)}</span>
-                    </div>
-                    <div className={styles.meta}>
-                      {r.writer_names || 'Unknown author'}
-                      {r.writer_email ? ` • ${r.writer_email}` : ''}
-                    </div>
-                  </div>
-                </div>
+              <div className={styles.headerRow}>
+                <div className={styles.cardBadge}>Report</div>
+                <button
+                  type="button"
+                  className={styles.menuButton}
+                  onClick={() => linkMenu.open && linkMenu.id === r.report_id ? closeLinkMenu() : openLinkMenu(r)}
+                  title="View related links"
+                >
+                  <FaEllipsisV />
+                </button>
+              </div>
 
-                <div className={styles.actionGroup}>
-                  <button
-                    type="button"
-                    className={styles.menuButton}
-                    onClick={() => linkMenu.open && linkMenu.id === r.report_id ? closeLinkMenu() : openLinkMenu(r)}
-                  >
-                    ⋯
-                  </button>
-                  <button className={`${styles.textAction} ${styles.primaryAction}`} onClick={() => handlePreview(r)}>Preview</button>
-                  <button className={`${styles.textAction} ${styles.primaryAction}`} onClick={() => handleDownload(r)}>Download</button>
-                  <button className={`${styles.textAction}`} onClick={async () => {
-                    try {
-                      const payload = { resourceType: 'report', filename: r.file_path, resourceId: r.report_id };
-                      const { data } = await api.post('/candidate/reports/save', payload);
-                      showToast(data?.message || 'Saved to My Downloads', 'success');
-                    } catch (err) {
-                      const errMsg = (err?.response?.data && err.response.data.message) || err.message || 'Failed to save';
-                      showToast(errMsg, 'error');
-                    }
-                  }}>Save</button>
+              <div className={styles.previewThumbnail}>
+                <div className={styles.thumbnailPlaceholder}>
+                  <div className={styles.thumbnailAccent} />
+                  <div className={styles.thumbnailContent}>
+                    {r.file_path?.endsWith('.pdf') ? (
+                      <FaFilePdf className={styles.thumbnailIcon} />
+                    ) : (
+                      <FaFileWord className={styles.thumbnailIcon} />
+                    )}
+                    <span className={styles.thumbnailLabel}>Study resource</span>
+                  </div>
                 </div>
+              </div>
+
+              <div className={styles.titleRow}>
+                <h3 className={styles.cardTitle}>{r.title}</h3>
+                {isLongTopic(r.title) && (
+                  <button type="button" className={styles.readAllLink} onClick={() => openTopicPopup(r)}>
+                    Read all
+                  </button>
+                )}
+              </div>
+
+              <div className={styles.presenterRow}>
+                <FaBuilding className={styles.presenterIcon} />
+                <span className={styles.presenterName}>{(r.departments || [])[0]?.dpt_name || r.audience || 'General'}</span>
+              </div>
+
+              <div className={styles.metadataRow}>
+                <span className={styles.metaChip}><FaCalendarAlt className={styles.metaIcon} /> {new Date(r.upload_date).getFullYear()}</span>
+                {formatPageLabel(r.pages) ? (
+                  <span className={styles.metaChip}><FaRegFileAlt className={styles.metaIcon} /> {formatPageLabel(r.pages)}</span>
+                ) : null}
+                <span className={styles.metaChip}><FaClock className={styles.metaIcon} /> {formatTimeAgo(r.upload_date)}</span>
+              </div>
+
+              <div className={styles.metadataRow2}>
+                <span className={styles.priceTag}>
+                  <span className={styles.priceValue}>{getDownloadPriceMeta(r, authUser?.subscription?.plan)}</span>
+                </span>
+              </div>
+
+              <div className={styles.actions}>
+                <button className={styles.previewBtn} onClick={() => handlePreview(r)}>Preview</button>
+                <button className={styles.downloadBtn} onClick={() => handleDownload(r)}>Download</button>
+              </div>
+
+              <div className={styles.meta}>
+                {r.writer_names || 'Unknown author'}
+                {r.writer_email ? ` • ${r.writer_email}` : ''}
               </div>
 
               {linkMenu.open && linkMenu.id === r.report_id && (

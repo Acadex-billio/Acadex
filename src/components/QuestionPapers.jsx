@@ -7,7 +7,8 @@ import SecurePdfPreview from "./SecurePdfPreview";
 import PaymentActionModal from "./PaymentActionModal";
 import { showToast } from "../utility/ToastNotification";
 import { useNavigate, useParams } from "react-router-dom";
-import { FaFilePdf, FaCalendarAlt, FaBuilding, FaClock, FaRegFileAlt, FaSearch, FaRegChartBar } from "react-icons/fa";
+import { FaFilePdf, FaCalendarAlt, FaBuilding, FaClock, FaRegFileAlt, FaSearch, FaRegChartBar, FaEllipsisV } from "react-icons/fa";
+import { useAuth } from "../context/AuthContext";
 
 const PAPER_TYPE_LABELS = {
   hnd: 'HND Papers',
@@ -21,6 +22,7 @@ const VALID_PAPER_TYPES = ['hnd', 'ca', 'exam', 'mock'];
 const QuestionPapers = () => {
   const navigate = useNavigate();
   const { paperType } = useParams();
+  const { user: authUser } = useAuth();
   const normalizedPaperType = VALID_PAPER_TYPES.includes(String(paperType || '').trim().toLowerCase())
     ? String(paperType).trim().toLowerCase()
     : 'hnd';
@@ -46,6 +48,30 @@ const QuestionPapers = () => {
   const closeTopicPopup = () => setTopicPopup({ open: false, id: null, topic: '' });
 
   const isLongTopic = (text) => String(text || '').trim().length > 80;
+
+  const normalizePlan = (plan) => String(plan || 'basic').toLowerCase();
+
+  const formatPageLabel = (value) => {
+    if (value === null || value === undefined || value === '') return null;
+    const parsed = Number(value);
+    if (Number.isFinite(parsed) && parsed > 0) {
+      return `${parsed} ${parsed === 1 ? 'page' : 'pages'}`;
+    }
+    const text = String(value).trim();
+    return text ? text : null;
+  };
+
+  const getDownloadPriceMeta = (item, plan) => {
+    const normalizedPlan = normalizePlan(plan);
+    const fallbackPrice = Number(item?.material_price ?? item?.subscription_access?.paygo_download_price ?? 0);
+    if (['full-package', 'pro'].includes(normalizedPlan)) {
+      return 'Included with your plan';
+    }
+    if (Number.isFinite(fallbackPrice) && fallbackPrice > 0) {
+      return `Download ${fallbackPrice.toLocaleString()} XAF`;
+    }
+    return 'Download price available soon';
+  };
 
   useEffect(() => {
     // JWT handles credentials automatically
@@ -465,40 +491,59 @@ const QuestionPapers = () => {
         ) : (
           filteredPapers.map((p) => (
             <div key={p.qp_id} className={styles.paperCard}>
-              <div className={styles.cardRow}>
-                <div className={styles.cardSummary}>
-                  <div className={styles.iconBlock}>
-                    <FaFilePdf className={styles.fileIcon} />
-                  </div>
-                  <div className={styles.cardContent}>
-                    <div className={styles.titleRow}>
-                      <h3 className={styles.title}>{p.paper_title}</h3>
-                      {isLongTopic(p.paper_title) && (
-                        <button type="button" className={styles.readAllLink} onClick={() => openTopicPopup(p)}>
-                          Read All
-                        </button>
-                      )}
-                    </div>
-                    <div className={styles.infoRow}>
-                      <span className={styles.chip}><FaCalendarAlt className={styles.chipIcon} /> Year {p.hnd_year}</span>
-                      <span className={styles.chip}><FaBuilding className={styles.chipIcon} /> {p.departments.map((d) => d.dpt_name).join(', ') || 'General'}</span>
-                      <span className={styles.chip}><FaRegFileAlt className={styles.chipIcon} /> Pages: N/A</span>
-                      <span className={styles.chip}><FaClock className={styles.chipIcon} /> {formatTimeAgo(p.upload_date)}</span>
-                    </div>
-                  </div>
-                </div>
+              <div className={styles.headerRow}>
+                <div className={styles.cardBadge}>Question Paper</div>
+                <button
+                  type="button"
+                  className={styles.menuButton}
+                  onClick={() => linkMenu.open && linkMenu.id === p.qp_id ? closeLinkMenu() : openLinkMenu(p)}
+                  title="View related links"
+                >
+                  <FaEllipsisV />
+                </button>
+              </div>
 
-                <div className={styles.actionGroup}>
-                  <button
-                    type="button"
-                    className={styles.menuButton}
-                    onClick={() => linkMenu.open && linkMenu.id === p.qp_id ? closeLinkMenu() : openLinkMenu(p)}
-                  >
-                    ⋯
-                  </button>
-                  <button className={`${styles.textAction} ${styles.primaryAction}`} onClick={() => handlePreview(p)}>Preview</button>
-                  <button className={`${styles.textAction} ${styles.primaryAction}`} onClick={() => handleDownload(p)}>Download</button>
+              <div className={styles.previewThumbnail}>
+                <div className={styles.thumbnailPlaceholder}>
+                  <div className={styles.thumbnailAccent} />
+                  <div className={styles.thumbnailContent}>
+                    <FaFilePdf className={styles.thumbnailIcon} />
+                    <span className={styles.thumbnailLabel}>Past practice set</span>
+                  </div>
                 </div>
+              </div>
+
+              <div className={styles.titleRow}>
+                <h3 className={styles.cardTitle}>{p.paper_title}</h3>
+                {isLongTopic(p.paper_title) && (
+                  <button type="button" className={styles.readAllLink} onClick={() => openTopicPopup(p)}>
+                    Read all
+                  </button>
+                )}
+              </div>
+
+              <div className={styles.presenterRow}>
+                <FaBuilding className={styles.presenterIcon} />
+                <span className={styles.presenterName}>{p.departments.map((d) => d.dpt_name).join(', ') || 'General'}</span>
+              </div>
+
+              <div className={styles.metadataRow}>
+                <span className={styles.metaChip}><FaCalendarAlt className={styles.metaIcon} /> {p.hnd_year}</span>
+                {formatPageLabel(p.pages) ? (
+                  <span className={styles.metaChip}><FaRegFileAlt className={styles.metaIcon} /> {formatPageLabel(p.pages)}</span>
+                ) : null}
+                <span className={styles.metaChip}><FaClock className={styles.metaIcon} /> {formatTimeAgo(p.upload_date)}</span>
+              </div>
+
+              <div className={styles.metadataRow2}>
+                <span className={styles.priceTag}>
+                  <span className={styles.priceValue}>{getDownloadPriceMeta(p, authUser?.subscription?.plan)}</span>
+                </span>
+              </div>
+
+              <div className={styles.actions}>
+                <button className={styles.previewBtn} onClick={() => handlePreview(p)}>Preview</button>
+                <button className={styles.downloadBtn} onClick={() => handleDownload(p)}>Download</button>
               </div>
 
               {linkMenu.open && linkMenu.id === p.qp_id && (

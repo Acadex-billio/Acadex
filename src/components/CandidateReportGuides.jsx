@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import styles from '../Astyles/viewReport.module.css';
 import api from '../services/api';
-import { FaFilePdf, FaCalendarAlt, FaBuilding, FaClock } from 'react-icons/fa';
+import { FaFilePdf, FaCalendarAlt, FaBuilding, FaClock, FaRegFileAlt, FaEllipsisV } from 'react-icons/fa';
 import { showToast } from '../utility/ToastNotification';
 import SecurePdfPreview from './SecurePdfPreview';
 import GraduationCapLoader from './GraduationCapLoader';
+import { useAuth } from '../context/AuthContext';
 
 const formatTimeAgo = (timestamp) => {
   const date = new Date(timestamp);
@@ -21,6 +22,7 @@ const formatTimeAgo = (timestamp) => {
 };
 
 const CandidateReportGuides = () => {
+  const { user: authUser } = useAuth();
   const [guides, setGuides] = useState([]);
   const [loading, setLoading] = useState(false);
   const [previewUrl, setPreviewUrl] = useState(null);
@@ -56,6 +58,30 @@ const CandidateReportGuides = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const normalizePlan = (plan) => String(plan || 'basic').toLowerCase();
+
+  const formatPageLabel = (value) => {
+    if (value === null || value === undefined || value === '') return null;
+    const parsed = Number(value);
+    if (Number.isFinite(parsed) && parsed > 0) {
+      return `${parsed} ${parsed === 1 ? 'page' : 'pages'}`;
+    }
+    const text = String(value).trim();
+    return text ? text : null;
+  };
+
+  const getDownloadPriceMeta = (item, plan) => {
+    const normalizedPlan = normalizePlan(plan);
+    const fallbackPrice = Number(item?.material_price ?? item?.subscription_access?.paygo_download_price ?? 0);
+    if (['full-package', 'pro'].includes(normalizedPlan)) {
+      return 'Included with your plan';
+    }
+    if (Number.isFinite(fallbackPrice) && fallbackPrice > 0) {
+      return `Download ${fallbackPrice.toLocaleString()} XAF`;
+    }
+    return 'Free guide';
   };
 
   const downloadGuide = async (guide) => {
@@ -94,34 +120,52 @@ const CandidateReportGuides = () => {
         ) : (
           guides.map((g) => (
             <div key={g.report_id} className={styles.card}>
-              <div className={styles.cardRow}>
-                <div className={styles.cardSummary}>
-                  <div className={styles.iconBlock}>
-                    <FaFilePdf className={styles.fileIcon} />
-                  </div>
-                  <div className={styles.cardContent}>
-                    <div className={styles.badgeRow}>
-                      <div className={styles.cardBadge}>Report Writing Guide</div>
-                    </div>
-                    <div className={styles.titleRow}>
-                      <h3 className={styles.title}>{`REPORT WRITING GUIDE FOR ${((g.departments||[])[0]?.dpt_name || g.program || '').toUpperCase()}`}</h3>
-                    </div>
-                    <div className={styles.infoRow}>
-                      <span className={styles.chip}><FaCalendarAlt className={styles.chipIcon} /> {g.program}</span>
-                      <span className={styles.chip}><FaBuilding className={styles.chipIcon} /> {(g.departments || [])[0]?.dpt_name || 'General'}</span>
-                      <span className={styles.chip}><FaClock className={styles.chipIcon} /> {formatTimeAgo(g.upload_date)}</span>
-                    </div>
-                    <div className={styles.meta}>
-                      {g.writer_names || 'Acadex'}
-                    </div>
-                  </div>
-                </div>
+              <div className={styles.headerRow}>
+                <div className={styles.cardBadge}>Report Writing Guide</div>
+                <button type="button" className={styles.menuButton} title="Guide actions">
+                  <FaEllipsisV />
+                </button>
+              </div>
 
-                <div className={styles.actionGroup}>
-                  <button className={styles.textAction} onClick={() => openPreview(g)}>View</button>
-                  <button className={styles.textAction} onClick={() => downloadGuide(g)}>Download</button>
+              <div className={styles.previewThumbnail}>
+                <div className={styles.thumbnailPlaceholder}>
+                  <div className={styles.thumbnailAccent} />
+                  <div className={styles.thumbnailContent}>
+                    <FaFilePdf className={styles.thumbnailIcon} />
+                    <span className={styles.thumbnailLabel}>Study guide</span>
+                  </div>
                 </div>
               </div>
+
+              <div className={styles.titleRow}>
+                <h3 className={styles.cardTitle}>{`REPORT WRITING GUIDE FOR ${((g.departments||[])[0]?.dpt_name || g.program || '').toUpperCase()}`}</h3>
+              </div>
+
+              <div className={styles.presenterRow}>
+                <FaBuilding className={styles.presenterIcon} />
+                <span className={styles.presenterName}>{(g.departments || [])[0]?.dpt_name || 'General'}</span>
+              </div>
+
+              <div className={styles.metadataRow}>
+                <span className={styles.metaChip}><FaCalendarAlt className={styles.metaIcon} /> {g.program}</span>
+                {formatPageLabel(g.pages) ? (
+                  <span className={styles.metaChip}><FaRegFileAlt className={styles.metaIcon} /> {formatPageLabel(g.pages)}</span>
+                ) : null}
+                <span className={styles.metaChip}><FaClock className={styles.metaIcon} /> {formatTimeAgo(g.upload_date)}</span>
+              </div>
+
+              <div className={styles.metadataRow2}>
+                <span className={styles.priceTag}>
+                  <span className={styles.priceValue}>{getDownloadPriceMeta(g, authUser?.subscription?.plan)}</span>
+                </span>
+              </div>
+
+              <div className={styles.actions}>
+                <button className={styles.previewBtn} onClick={() => openPreview(g)}>View</button>
+                <button className={styles.downloadBtn} onClick={() => downloadGuide(g)}>Download</button>
+              </div>
+
+              <div className={styles.meta}>{g.writer_names || 'Acadex'}</div>
             </div>
           ))
         )}
