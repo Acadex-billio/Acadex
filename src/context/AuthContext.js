@@ -9,7 +9,7 @@ import api from '../services/api';
 import { triggerPushPrompt } from '../services/pushNotifications';
 
 const ACTIVITY_STORAGE_KEY = 'acadex_last_activity_at';
-const INACTIVITY_WINDOW_MS = 24 * 60 * 60 * 1000;
+const INACTIVITY_WINDOW_MS = 72 * 60 * 60 * 1000;
 
 const isVerboseLoggingEnabled =
   String(process.env.REACT_APP_DEBUG_LOGS || '').trim().toLowerCase() === 'true';
@@ -138,7 +138,7 @@ export const AuthProvider = ({ children }) => {
           localStorage.removeItem('userName');
           localStorage.removeItem('isAdmin');
           if (typeof window.showToast === 'function') {
-            window.showToast('You were logged out after 24 hours of inactivity. Please log in again.', 'warning');
+            window.showToast('You were logged out after 72 hours of inactivity. Please log in again.', 'warning');
           }
           dispatch({
             type: AUTH_ACTIONS.LOGOUT

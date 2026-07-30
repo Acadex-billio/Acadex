@@ -39,6 +39,8 @@ const PaymentActionModal = ({
   const [promoCode, setPromoCode] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [statusText, setStatusText] = useState('');
+  const [retryAvailable, setRetryAvailable] = useState(false);
+  const [pendingPaymentReference, setPendingPaymentReference] = useState('');
 
   useEffect(() => {
     if (isOpen) {
@@ -47,6 +49,8 @@ const PaymentActionModal = ({
       setPromoCode('');
       setSubmitting(false);
       setStatusText('');
+      setRetryAvailable(false);
+      setPendingPaymentReference('');
     }
   }, [defaultPhoneNumber, isOpen]);
 
@@ -75,9 +79,15 @@ const PaymentActionModal = ({
       try {
         const { data } = await api.get(`/candidate/payments/${encodeURIComponent(transactionId)}/status`);
         const status = String(data?.payment?.status || '').toLowerCase();
-        if (status === 'successful') return data;
-        if (['failed', 'cancelled', 'expired'].includes(status)) {
-          const err = new Error(`Payment ${status}.`);
+        const providerStatus = String(data?.payment?.provider_status || '').toLowerCase();
+        const combinedStatus = status || providerStatus || '';
+
+        if (combinedStatus === 'successful' || combinedStatus === 'paid' || combinedStatus === 'approved') {
+          return data;
+        }
+
+        if (['failed', 'cancelled', 'expired', 'rejected', 'declined'].includes(combinedStatus)) {
+          const err = new Error(`Payment ${combinedStatus}.`);
           err.paymentData = data;
           throw err;
         }
@@ -86,7 +96,12 @@ const PaymentActionModal = ({
         setStatusText(nextStatus);
       } catch (err) {
         if (attempt < 14) {
-          setStatusText(PAYMENT_PROGRESS_SEQUENCE[Math.min(attempt + 4, PAYMENT_PROGRESS_SEQUENCE.length - 1)]);
+          const currentAttempt = attempt + 1;
+          if (currentAttempt >= 3) {
+            setStatusText(PAYMENT_PROGRESS_SEQUENCE[4]);
+          } else {
+            setStatusText(PAYMENT_PROGRESS_SEQUENCE[3]);
+          }
           await wait(3000);
           continue;
         }
@@ -100,6 +115,51 @@ const PaymentActionModal = ({
     throw err;
   };
 
+  const isRetryableError = (err) => {
+    const status = Number(err?.statusCode || err?.response?.status || 0);
+    const code = String(err?.code || '').toUpperCase();
+    const message = String(err?.message || '').toLowerCase();
+    return status === 408 || status === 504 || code === 'ECONNABORTED' || code === 'ERR_NETWORK' || message.includes('timed out') || message.includes('network');
+  };
+
+  const resumePaymentCheck = async (transactionId) => {
+    if (!transactionId) return;
+
+    setRetryAvailable(false);
+    setSubmitting(true);
+    setStatusText('Retrying payment check...');
+
+    try {
+      const finalResult = await pollStatus(transactionId);
+      const finalPayment = (finalResult?.payment || {}) || {};
+      const finalPaymentStatus = String(finalPayment.status || finalPayment.provider_status || '').toLowerCase();
+      if (!['successful', 'paid', 'approved'].includes(finalPaymentStatus)) {
+        throw new Error(`Payment ${finalPaymentStatus || 'failed'}.`);
+      }
+
+      setStatusText(PAYMENT_PROGRESS_SEQUENCE[PAYMENT_PROGRESS_SEQUENCE.length - 1]);
+      const materialNotice = finalPayment?.purpose_type === 'material_access'
+        ? ` Material access unlocked for ${finalPayment.material_name || 'material'} (Duration: ${finalPayment.access_minutes || 60} minutes).`
+        : '';
+      showToast(`Payment confirmed successfully.${materialNotice}`, 'success');
+      await onSuccess?.(finalResult);
+      onClose?.();
+    } catch (err) {
+      if (isRetryableError(err)) {
+        setRetryAvailable(true);
+        setStatusText('Connection Timed out. Please check Your internet connection and try again');
+        showToast('Connection Timed out. Please check Your internet connection and try again', 'warning');
+        return;
+      }
+      showToast(getErrorMessage(err, 'Payment failed.'), 'error');
+    } finally {
+      if (!retryAvailable) {
+        setSubmitting(false);
+        setStatusText('');
+      }
+    }
+  };
+
   const handleSubmit = async () => {
     const cleanPhone = phoneNumber.replace(/\D/g, '').slice(0, 9);
     if (cleanPhone.length !== 9) {
@@ -109,6 +169,8 @@ const PaymentActionModal = ({
 
     const normalizedPromoCode = String(promoCode || '').trim().toUpperCase();
     setSubmitting(true);
+    setRetryAvailable(false);
+    setPendingPaymentReference('');
     setStatusText(PAYMENT_PROGRESS_SEQUENCE[0]);
 
     try {
@@ -127,16 +189,26 @@ const PaymentActionModal = ({
       if (!paymentRef) {
         throw new Error('Payment could not be initialized.');
       }
+      setPendingPaymentReference(paymentRef);
 
       let finalResult = startResult;
       const normalizedStatus = String(payment.status || '').toLowerCase();
-      if (normalizedStatus !== 'successful') {
+      const providerStatus = String(payment.provider_status || '').toLowerCase();
+      const combinedStatus = normalizedStatus || providerStatus || '';
+      const isAlreadySuccessful = ['successful', 'paid', 'approved'].includes(combinedStatus);
+
+      if (!isAlreadySuccessful) {
         setStatusText(PAYMENT_PROGRESS_SEQUENCE[3]);
         finalResult = await pollStatus(paymentRef);
       }
 
+      const finalPayment = (finalResult?.payment || payment) || {};
+      const finalPaymentStatus = String(finalPayment.status || finalPayment.provider_status || '').toLowerCase();
+      if (!['successful', 'paid', 'approved'].includes(finalPaymentStatus)) {
+        throw new Error(`Payment ${finalPaymentStatus || 'failed'}.`);
+      }
+
       setStatusText(PAYMENT_PROGRESS_SEQUENCE[PAYMENT_PROGRESS_SEQUENCE.length - 1]);
-      const finalPayment = finalResult?.payment || payment;
       const materialNotice = finalPayment?.purpose_type === 'material_access'
         ? ` Material access unlocked for ${finalPayment.material_name || 'material'} (Duration: ${finalPayment.access_minutes || 60} minutes).`
         : '';
@@ -144,10 +216,18 @@ const PaymentActionModal = ({
       await onSuccess?.(finalResult);
       onClose?.();
     } catch (err) {
+      if (isRetryableError(err)) {
+        setRetryAvailable(true);
+        setStatusText('Connection Timed out. Please check Your internet connection and try again');
+        showToast('Connection Timed out. Please check Your internet connection and try again', 'warning');
+        return;
+      }
       showToast(getErrorMessage(err, 'Payment failed.'), 'error');
     } finally {
-      setSubmitting(false);
-      setStatusText('');
+      if (!retryAvailable) {
+        setSubmitting(false);
+        setStatusText('');
+      }
     }
   };
 
@@ -350,6 +430,26 @@ const PaymentActionModal = ({
         />
 
         {!submitting && statusText ? <div style={{ marginTop: 12, color: '#0e5f84', fontSize: 14 }}>{statusText}</div> : null}
+
+        {retryAvailable && pendingPaymentReference ? (
+          <div style={{ marginTop: 14, display: 'flex', justifyContent: 'flex-end' }}>
+            <button
+              type="button"
+              onClick={() => resumePaymentCheck(pendingPaymentReference)}
+              style={{
+                border: '1px solid #0e5f84',
+                background: '#ffffff',
+                color: '#0e5f84',
+                borderRadius: 999,
+                padding: '10px 16px',
+                fontWeight: 700,
+                cursor: 'pointer',
+              }}
+            >
+              Retry payment check
+            </button>
+          </div>
+        ) : null}
 
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12, marginTop: 24 }}>
           <button

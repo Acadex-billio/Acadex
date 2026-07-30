@@ -20,12 +20,12 @@ function buildCamerpayInvoiceReference({ purposeType, purposeCode, resourceType,
     }
   }
 
-  if (normalizedPurposeType === 'tutorship_booking' || normalizedPurposeCode === 'lecturer_booking_payment') {
-    return '#acadex-tutorship-booking';
+  if (normalizedPurposeCode === 'lecturer_booking_invite_access' || normalizedPurposeType === 'conference_access') {
+    return '#acadex-conference-access';
   }
 
-  if (normalizedPurposeType === 'tutorship_booking' || normalizedPurposeCode === 'lecturer_booking_invite_access') {
-    return '#acadex-conference-access';
+  if (normalizedPurposeType === 'tutorship_booking' || normalizedPurposeCode === 'lecturer_booking_payment') {
+    return '#acadex-tutorship-booking';
   }
 
   return fallbackReference ? String(fallbackReference).trim() : '#acadex-payment';

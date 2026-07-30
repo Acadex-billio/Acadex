@@ -16,3 +16,8 @@ test('builds an Acadex reference for presentation previews', () => {
   const ref = buildCamerpayInvoiceReference({ purposeType: 'material_access', resourceType: 'presentation', action: 'preview' });
   assert.equal(ref, '#acadex-presentation-preview');
 });
+
+test('builds an Acadex reference for conference access invites', () => {
+  const ref = buildCamerpayInvoiceReference({ purposeType: 'tutorship_booking', purposeCode: 'lecturer_booking_invite_access' });
+  assert.equal(ref, '#acadex-conference-access');
+});

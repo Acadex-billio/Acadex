@@ -42,6 +42,7 @@ const isTimeoutError = (error) => {
   const message = String(error?.message || '').toLowerCase();
   return (
     error?.code === 'ECONNABORTED' ||
+    error?.code === 'ERR_NETWORK' ||
     message.includes('timeout') ||
     error?.response?.status === 408 ||
     error?.response?.status === 504
@@ -67,6 +68,57 @@ const logoutAndRedirect = (message) => {
     window.showToast(message || 'Your session has expired. Please log in again.', 'error');
   }
   window.location.replace(getLoginRedirectPath());
+};
+
+const emitValidationEvent = (error) => {
+  if (typeof window === 'undefined' || !window.dispatchEvent) return;
+  const payload = error?.response?.data || error?.normalized || {};
+  window.dispatchEvent(new CustomEvent('api-validation-error', {
+    detail: {
+      status: error?.response?.status || 400,
+      message: payload?.message || 'Please review the highlighted fields and try again.',
+      errors: payload?.errors || payload?.details || null,
+    },
+  }));
+};
+
+const showApiErrorToast = (error, fallbackMessage = 'Something went wrong. Please try again.') => {
+  if (typeof window.showToast !== 'function') return;
+  const status = error?.response?.status || error?.statusCode || 0;
+  const payload = error?.response?.data || {};
+  const message = payload?.message || error?.message || fallbackMessage;
+
+  if (status === 401) {
+    window.showToast('Your Session has Expire, Please Login Again to Get Authenticated', 'error');
+    return;
+  }
+
+  if (status === 400) {
+    window.showToast(message || 'Please review the highlighted fields and try again.', 'warning');
+    return;
+  }
+
+  if (status === 403) {
+    window.showToast('You Don\'t have the permission to perform this action', 'warning');
+    return;
+  }
+
+  if (status === 404) {
+    window.showToast('The requested page was not found.', 'warning');
+    return;
+  }
+
+  if (status === 500) {
+    window.showToast('Something Went Wrong On Our Server, Please try again in a moment', 'error');
+    return;
+  }
+
+  if (isTimeoutError(error)) {
+    window.showToast('Connection Timed out. Please check Your internet connection and try again', 'warning');
+    return;
+  }
+
+  window.showToast(message || fallbackMessage, 'error');
 };
 
 // Base API configuration - prioritize localhost in development
@@ -155,52 +207,68 @@ api.interceptors.response.use(
       logDebug('[API] 401 Unauthorized detected at', error.config?.url);
 
       const url = error.config?.url || '';
-      // Never auto-clear token on login endpoint 401 (invalid credentials call)
       if (url.includes('/auth/login')) {
         return Promise.reject(error);
       }
 
       try {
         if (url.includes('/auth/me')) {
-          // Avoid recursion and immediate re-check for /auth/me failures
-          logoutAndRedirect('Your session has expired. Please log in again.');
+          logoutAndRedirect('Your Session has Expire, Please Login Again to Get Authenticated');
           return Promise.reject(error);
         }
 
-        // Verify token still valid with /auth/me before logout; no interceptors on authCheckApi
         const check = await performAuthCheck();
 
         if (check?.data?.authenticated) {
           logDebug('[API] Token valid via /auth/me; skipping logout');
-          if (typeof window.showToast === 'function') {
-            window.showToast('Access denied for this resource. Please contact the administrator.', 'warning');
-          }
+          showApiErrorToast(error, 'Access denied for this resource. Please contact the administrator.');
           return Promise.reject(error);
         }
       } catch (meError) {
         if (meError.response?.status === 401) {
           logDebug('[API] /auth/me returned 401, clearing auth state');
-          logoutAndRedirect('Your session has expired. Please log in again.');
+          logoutAndRedirect('Your Session has Expire, Please Login Again to Get Authenticated');
         } else if (meError.response?.status === 429) {
           logDebug('[API] /auth/me rate limited; leaving token intact');
-          if (typeof window.showToast === 'function') {
-            window.showToast('Too many auth checks too quickly; please wait a few seconds.', 'warning');
-          }
+          showApiErrorToast(error, 'Too many auth checks too quickly; please wait a few seconds.');
         } else if (isTimeoutError(meError)) {
-          logDebug('[API] /auth/me timed out, forcing login');
-          logoutAndRedirect('Session validation timed out. Please log in again.');
+          logDebug('[API] /auth/me timed out; showing retryable network guidance');
+          showApiErrorToast(error, 'Connection Timed out. Please check Your internet connection and try again');
         } else {
           logDebug('[API] /auth/me check failed without 401; leaving token intact');
         }
       }
 
-      // do not auto-logout for single 401 until /auth/me confirms token invalid
+      return Promise.reject(error);
+    }
+
+    if (error.response?.status === 400) {
+      emitValidationEvent(error);
+      showApiErrorToast(error, 'Please review the highlighted fields and try again.');
+      return Promise.reject(error);
+    }
+
+    if (error.response?.status === 403) {
+      showApiErrorToast(error);
+      return Promise.reject(error);
+    }
+
+    if (error.response?.status === 404) {
+      showApiErrorToast(error, 'The requested page was not found.');
+      if (typeof window.location !== 'undefined' && typeof window.location.assign === 'function') {
+        window.location.assign('/404');
+      }
+      return Promise.reject(error);
+    }
+
+    if (error.response?.status === 500) {
+      showApiErrorToast(error);
       return Promise.reject(error);
     }
 
     if (isTimeoutError(error)) {
-      logDebug('[API] Request timed out, forcing login redirect');
-      logoutAndRedirect('Request timed out. Please log in again.');
+      logDebug('[API] Request timed out; showing network guidance without redirect');
+      showApiErrorToast(error, 'Connection Timed out. Please check Your internet connection and try again');
       return Promise.reject(error);
     }
 

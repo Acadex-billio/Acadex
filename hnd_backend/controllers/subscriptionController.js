@@ -530,6 +530,7 @@ exports.startMaterialCheckout = async (req, res) => {
         coupon_expires_at: pricing.coupon?.expires_at || null,
         idempotency_key: idempotencyKey || null,
       },
+      paymentMethod: 'momo',
     });
 
     return res.json({ success: true, payment: buildPaymentSummary(transaction) });

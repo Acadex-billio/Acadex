@@ -1,4 +1,4 @@
-import React, { Suspense, lazy } from 'react';
+import React, { Suspense, lazy, useEffect, useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import i18n, { resolveLanguageForUser } from './i18n';
 import ToastNotification, { showToast } from './utility/ToastNotification';
@@ -149,152 +149,211 @@ const KeepaliveToast = () => {
   return null;
 };
 
-const App = () => (
-  <ErrorBoundary>
-    <LoadingProvider>
-      <AuthProvider>
-        <LanguageBootstrap />
-        <Router>
-          <ToastNotification />
-          <KeepaliveToast />
-          <LoaderOverlay />
-          <PushNotificationPromptModal />
-          <RouteLoadingListener />
-          <Suspense fallback={<GraduationCapLoader fullscreen size={160} label="Loading..." />}>
-            <Routes>
-              <Route path="/" element={<Home />} />
-              <Route path="/login" element={<Login />} />
-              <Route path="/register" element={<Registration />} />
-              <Route path="/reset-password" element={<ResetPassword onClose={() => {}} />} />
-              <Route path="/documentation" element={<Documentation />} />
-              <Route path="/terms-of-service" element={<TermsOfService />} />
-              <Route path="/privacy-policy" element={<PrivacyPolicy />} />
-              <Route path="/load" element={<GraduationCapLoader fullscreen label="Loading materials…" />} />
-              <Route path="/ai" element={<ProtectedRoute><AIAssistant /></ProtectedRoute>} />
+const App = () => {
+  const [validationBanner, setValidationBanner] = useState(null);
 
-              {/* Admin Shell - Protected with Admin Check */}
-              <Route path="/admin" element={
-                <ProtectedRoute>
-                  <AdminRoute>
-                    <AdminShell />
-                  </AdminRoute>
-                </ProtectedRoute>
-              }>
-                <Route index element={<AdminDashboard />} />
-                <Route path="manage-users" element={<ManageCandidates fixedRole="candidate" title="Candidate Management" />} />
-                <Route path="manage-users/candidates" element={<ManageCandidates fixedRole="candidate" title="Candidate Management" />} />
-                <Route path="manage-users/lecturers" element={<ManageCandidates fixedRole="lecturer" title="Lecturer Management" />} />
-                <Route path="manage-users/admins" element={<ProtectedRoute><DeveloperRoute><ManageUsers /></DeveloperRoute></ProtectedRoute>} />
-                <Route path="manage-candidates" element={<Navigate to="/admin/manage-users/candidates" replace />} />
-                <Route path="manage-billing" element={<ProtectedRoute><DeveloperRoute><ManageBilling /></DeveloperRoute></ProtectedRoute>} />
-                <Route path="purchase-history" element={<ProtectedRoute><DeveloperRoute><PurchaseHistory /></DeveloperRoute></ProtectedRoute>} />
-                <Route path="access-grant-history" element={<ProtectedRoute><DeveloperRoute><AccessGrantHistory /></DeveloperRoute></ProtectedRoute>} />
-                <Route path="permission-verification" element={<ProtectedRoute><DeveloperRoute><PermissionVerification /></DeveloperRoute></ProtectedRoute>} />
-                <Route path="manage-admins" element={<Navigate to="/admin/manage-users" replace />} />
-                <Route path="departments" element={<Department />} />
-                <Route path="reports" element={<ReportUpload />} />
-                <Route path="reports/writing-guide" element={<ReportWritingGuide />} />
-                <Route path="reports/publish-results" element={<AdminPublishResults />} />
-                <Route path="faqs" element={<AdminFAQs />} />
-                <Route path="presentations" element={<UploadPresentation />} />
-                <Route path="question-papers" element={<QuestionUpload />} />
-                <Route path="chat" element={<GroupChat mode="admin" />} />
-                <Route path="history" element={<AdminHistory />} />
-                <Route path="feedback" element={<AdminFeedback />} />
-                <Route path="activity" element={<AdminActivity />} />
-                <Route path="announcements" element={<AdminAnnouncements />} />
-                <Route path="internship-topics" element={<AdminInternshipTopics />} />
-                <Route path="lecturers" element={<ProtectedRoute><DeveloperRoute><LecturerAdminPanel /></DeveloperRoute></ProtectedRoute>} />
-                <Route path="ads" element={<ProtectedRoute><DeveloperRoute><AdsManager /></DeveloperRoute></ProtectedRoute>} />
-                <Route path="ads/:adId/performance" element={<ProtectedRoute><DeveloperRoute><AdPerformanceReport /></DeveloperRoute></ProtectedRoute>} />
-                <Route path="study-mode-materials" element={<ProtectedRoute><DeveloperRoute><StudyModeMaterials /></DeveloperRoute></ProtectedRoute>} />
-                <Route path="project-submissions" element={<ProtectedRoute><DeveloperRoute><DeveloperProjectSubmissions /></DeveloperRoute></ProtectedRoute>} />
-                <Route path="pricing" element={<ProtectedRoute><DeveloperRoute><DeveloperPricing /></DeveloperRoute></ProtectedRoute>} />
-                <Route path="ai-assistant" element={<AIAssistant />} />
-                <Route path="profile" element={<Profile />} />
-                <Route path="settings" element={<Settings />} />
-                <Route path="custom-alert" element={<ProtectedRoute><DeveloperRoute><DeveloperCustomAlert /></DeveloperRoute></ProtectedRoute>} />
-              </Route>
+  useEffect(() => {
+    const handleValidationError = (event) => {
+      const detail = event?.detail || {};
+      setValidationBanner({
+        message: detail.message || 'Please review the highlighted fields and try again.',
+        errors: detail.errors || null,
+      });
+      if (typeof showToast === 'function') {
+        showToast(detail.message || 'Please review the highlighted fields and try again.', 'warning');
+      }
+    };
 
-              <Route path="/candidate/restricted" element={<ProtectedRoute><CandidateAccountStatus /></ProtectedRoute>} />
-              <Route path="/candidate/internship-topics" element={<CandidateInternshipTopics />} />
-              <Route path="/candidate/internship-topics/preview/:topicId" element={<InternshipTopicDetail previewMode />} />
-              <Route path="/candidate/internship-topics/:topicId" element={<InternshipTopicDetail />} />
-              <Route path="/lecturer/pending" element={<ProtectedRoute><LecturerPendingApproval /></ProtectedRoute>} />
+    window.addEventListener('api-validation-error', handleValidationError);
+    return () => {
+      window.removeEventListener('api-validation-error', handleValidationError);
+    };
+  }, []);
 
-              {/* Candidate Shell - Protected */}
-              <Route path="/candidate" element={
-                <ProtectedRoute>
-                  <CandidateShell />
-                </ProtectedRoute>
-              }>
-                <Route index element={<CandidateDashboard />} />
-                <Route path="question-papers" element={<Navigate to="/candidate/question-papers/hnd" replace />} />
-                <Route path="question-papers/:paperType" element={<QuestionPapers />} />
-                <Route path="reports" element={<ViewReports />} />
-                <Route path="reports/guides" element={<CandidateReportGuides />} />
-                <Route path="faqs" element={<CandidateFAQs />} />
-                <Route path="reports/faqs" element={<Navigate to="/candidate/faqs" replace />} />
-                <Route path="results" element={<AdminPublishResults />} />
-                <Route path="presentations" element={<ViewPresentation />} />
-                <Route path="announcements" element={<Announcements />} />
-                <Route path="internship-topics" element={<CandidateInternshipTopics />} />
-                <Route path="internship-topics/:topicId" element={<InternshipTopicDetail />} />
-                <Route path="history" element={<MyDownloads />} />
-                <Route path="chat" element={<GroupChat mode="candidate" />} />
-                <Route path="feedback" element={<CandidateFeedback />} />
-                <Route path="activity" element={<CandidateActivity />} />
-                <Route path="ai-assistant" element={<AIAssistant />} />
-                <Route path="profile" element={<Profile />} />
-                <Route path="subscription" element={<CandidateSubscriptions />} />
-                <Route path="earn-money" element={<CandidateEarnMoney />} />
-                <Route path="lecturers" element={<CandidateLecturers />} />
-                <Route path="tutorship-bookings" element={<CandidateTutorshipBookings />} />
-                <Route path="settings" element={<Settings />} />
-                <Route path="account-status" element={<Navigate to="/candidate/restricted" replace />} />
-              </Route>
+  return (
+    <ErrorBoundary>
+      <LoadingProvider>
+        <AuthProvider>
+          <LanguageBootstrap />
+          <Router>
+            <ToastNotification />
+            <KeepaliveToast />
+            <LoaderOverlay />
+            <PushNotificationPromptModal />
+            <RouteLoadingListener />
+            <Suspense fallback={<GraduationCapLoader fullscreen size={160} label="Loading..." />}>
+              {validationBanner ? (
+                <div
+                  style={{
+                    margin: '12px 16px 0',
+                    border: '1px solid #f59e0b',
+                    background: '#fff7ed',
+                    color: '#9a2c00',
+                    borderRadius: 12,
+                    padding: '12px 14px',
+                    fontSize: 14,
+                    boxShadow: '0 8px 24px rgba(15, 23, 42, 0.08)',
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
+                    <div>
+                      <div style={{ fontWeight: 700, marginBottom: 4 }}>Please review the form</div>
+                      <div>{validationBanner.message}</div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setValidationBanner(null)}
+                      style={{
+                        border: 'none',
+                        background: 'transparent',
+                        color: '#9a2c00',
+                        fontSize: 18,
+                        cursor: 'pointer',
+                        lineHeight: 1,
+                      }}
+                      aria-label="Dismiss validation warning"
+                    >
+                      ×
+                    </button>
+                  </div>
+                </div>
+              ) : null}
 
-              <Route path="/lecturer" element={
-                <ProtectedRoute>
-                  <LecturerRoute>
-                    <LecturerShell />
-                  </LecturerRoute>
-                </ProtectedRoute>
-              }>
-                <Route index element={<LecturerDashboard />} />
-                <Route path="profile-verification" element={<LecturerProfileVerification />} />
-                <Route path="bookings" element={<LecturerBookings />} />
-                <Route path="earnings" element={<LecturerEarnings />} />
-                <Route path="chat" element={<LecturerChatGate />} />
-                <Route path="history" element={<History />} />
-                <Route path="ai-assistant" element={<AIAssistant />} />
-                <Route path="profile" element={<Profile />} />
-                <Route path="settings" element={<Settings />} />
-              </Route>
+              <Routes>
+                <Route path="/" element={<Home />} />
+                <Route path="/login" element={<Login />} />
+                <Route path="/register" element={<Registration />} />
+                <Route path="/reset-password" element={<ResetPassword onClose={() => {}} />} />
+                <Route path="/documentation" element={<Documentation />} />
+                <Route path="/terms-of-service" element={<TermsOfService />} />
+                <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+                <Route path="/load" element={<GraduationCapLoader fullscreen label="Loading materials…" />} />
+                <Route path="/ai" element={<ProtectedRoute><AIAssistant /></ProtectedRoute>} />
 
-              {/* Legacy route redirects */}
-              <Route path="/admindash" element={<Navigate to="/admin" replace />} />
-              <Route path="/dept" element={<Navigate to="/admin/departments" replace />} />
-              <Route path="/upreport" element={<Navigate to="/admin/reports" replace />} />
-              <Route path="/upresentation" element={<Navigate to="/admin/presentations" replace />} />
-              <Route path="/question" element={<Navigate to="/admin/question-papers" replace />} />
-              <Route path="/candash" element={<Navigate to="/candidate" replace />} />
-              <Route path="/questionpapers" element={<Navigate to="/candidate/question-papers" replace />} />
-              <Route path="/viewreports" element={<Navigate to="/candidate/reports" replace />} />
-              <Route path="/viewpresentation" element={<Navigate to="/candidate/presentations" replace />} />
-              <Route path="/notifications" element={<Navigate to="/candidate/announcements" replace />} />
-              <Route path="/candidate/notifications" element={<Navigate to="/candidate/announcements" replace />} />
-              <Route path="/viewhistory" element={<Navigate to="/candidate/history" replace />} />
-              <Route path="/groupchat" element={<Navigate to="/candidate/chat" replace />} />
-              <Route path="/can-profile" element={<Navigate to="/candidate/profile" replace />} />
-              <Route path="/payment/confirmation" element={<PaymentConfirmation />} />
-              <Route path="*" element={<PageNotFound />} />
-            </Routes>
-          </Suspense>
-        </Router>
-      </AuthProvider>
-    </LoadingProvider>
-  </ErrorBoundary>
-);
+                {/* Admin Shell - Protected with Admin Check */}
+                <Route path="/admin" element={
+                  <ProtectedRoute>
+                    <AdminRoute>
+                      <AdminShell />
+                    </AdminRoute>
+                  </ProtectedRoute>
+                }>
+                  <Route index element={<AdminDashboard />} />
+                  <Route path="manage-users" element={<ManageCandidates fixedRole="candidate" title="Candidate Management" />} />
+                  <Route path="manage-users/candidates" element={<ManageCandidates fixedRole="candidate" title="Candidate Management" />} />
+                  <Route path="manage-users/lecturers" element={<ManageCandidates fixedRole="lecturer" title="Lecturer Management" />} />
+                  <Route path="manage-users/admins" element={<ProtectedRoute><DeveloperRoute><ManageUsers /></DeveloperRoute></ProtectedRoute>} />
+                  <Route path="manage-candidates" element={<Navigate to="/admin/manage-users/candidates" replace />} />
+                  <Route path="manage-billing" element={<ProtectedRoute><DeveloperRoute><ManageBilling /></DeveloperRoute></ProtectedRoute>} />
+                  <Route path="purchase-history" element={<ProtectedRoute><DeveloperRoute><PurchaseHistory /></DeveloperRoute></ProtectedRoute>} />
+                  <Route path="access-grant-history" element={<ProtectedRoute><DeveloperRoute><AccessGrantHistory /></DeveloperRoute></ProtectedRoute>} />
+                  <Route path="permission-verification" element={<ProtectedRoute><DeveloperRoute><PermissionVerification /></DeveloperRoute></ProtectedRoute>} />
+                  <Route path="manage-admins" element={<Navigate to="/admin/manage-users" replace />} />
+                  <Route path="departments" element={<Department />} />
+                  <Route path="reports" element={<ReportUpload />} />
+                  <Route path="reports/writing-guide" element={<ReportWritingGuide />} />
+                  <Route path="reports/publish-results" element={<AdminPublishResults />} />
+                  <Route path="faqs" element={<AdminFAQs />} />
+                  <Route path="presentations" element={<UploadPresentation />} />
+                  <Route path="question-papers" element={<QuestionUpload />} />
+                  <Route path="chat" element={<GroupChat mode="admin" />} />
+                  <Route path="history" element={<AdminHistory />} />
+                  <Route path="feedback" element={<AdminFeedback />} />
+                  <Route path="activity" element={<AdminActivity />} />
+                  <Route path="announcements" element={<AdminAnnouncements />} />
+                  <Route path="internship-topics" element={<AdminInternshipTopics />} />
+                  <Route path="lecturers" element={<ProtectedRoute><DeveloperRoute><LecturerAdminPanel /></DeveloperRoute></ProtectedRoute>} />
+                  <Route path="ads" element={<ProtectedRoute><DeveloperRoute><AdsManager /></DeveloperRoute></ProtectedRoute>} />
+                  <Route path="ads/:adId/performance" element={<ProtectedRoute><DeveloperRoute><AdPerformanceReport /></DeveloperRoute></ProtectedRoute>} />
+                  <Route path="study-mode-materials" element={<ProtectedRoute><DeveloperRoute><StudyModeMaterials /></DeveloperRoute></ProtectedRoute>} />
+                  <Route path="project-submissions" element={<ProtectedRoute><DeveloperRoute><DeveloperProjectSubmissions /></DeveloperRoute></ProtectedRoute>} />
+                  <Route path="pricing" element={<ProtectedRoute><DeveloperRoute><DeveloperPricing /></DeveloperRoute></ProtectedRoute>} />
+                  <Route path="ai-assistant" element={<AIAssistant />} />
+                  <Route path="profile" element={<Profile />} />
+                  <Route path="settings" element={<Settings />} />
+                  <Route path="custom-alert" element={<ProtectedRoute><DeveloperRoute><DeveloperCustomAlert /></DeveloperRoute></ProtectedRoute>} />
+                </Route>
+
+                <Route path="/candidate/restricted" element={<ProtectedRoute><CandidateAccountStatus /></ProtectedRoute>} />
+                <Route path="/candidate/internship-topics" element={<CandidateInternshipTopics />} />
+                <Route path="/candidate/internship-topics/preview/:topicId" element={<InternshipTopicDetail previewMode />} />
+                <Route path="/candidate/internship-topics/:topicId" element={<InternshipTopicDetail />} />
+                <Route path="/lecturer/pending" element={<ProtectedRoute><LecturerPendingApproval /></ProtectedRoute>} />
+
+                {/* Candidate Shell - Protected */}
+                <Route path="/candidate" element={
+                  <ProtectedRoute>
+                    <CandidateShell />
+                  </ProtectedRoute>
+                }>
+                  <Route index element={<CandidateDashboard />} />
+                  <Route path="question-papers" element={<Navigate to="/candidate/question-papers/hnd" replace />} />
+                  <Route path="question-papers/:paperType" element={<QuestionPapers />} />
+                  <Route path="reports" element={<ViewReports />} />
+                  <Route path="reports/guides" element={<CandidateReportGuides />} />
+                  <Route path="faqs" element={<CandidateFAQs />} />
+                  <Route path="reports/faqs" element={<Navigate to="/candidate/faqs" replace />} />
+                  <Route path="results" element={<AdminPublishResults />} />
+                  <Route path="presentations" element={<ViewPresentation />} />
+                  <Route path="announcements" element={<Announcements />} />
+                  <Route path="internship-topics" element={<CandidateInternshipTopics />} />
+                  <Route path="internship-topics/:topicId" element={<InternshipTopicDetail />} />
+                  <Route path="history" element={<MyDownloads />} />
+                  <Route path="chat" element={<GroupChat mode="candidate" />} />
+                  <Route path="feedback" element={<CandidateFeedback />} />
+                  <Route path="activity" element={<CandidateActivity />} />
+                  <Route path="ai-assistant" element={<AIAssistant />} />
+                  <Route path="profile" element={<Profile />} />
+                  <Route path="subscription" element={<CandidateSubscriptions />} />
+                  <Route path="earn-money" element={<CandidateEarnMoney />} />
+                  <Route path="lecturers" element={<CandidateLecturers />} />
+                  <Route path="tutorship-bookings" element={<CandidateTutorshipBookings />} />
+                  <Route path="settings" element={<Settings />} />
+                  <Route path="account-status" element={<Navigate to="/candidate/restricted" replace />} />
+                </Route>
+
+                <Route path="/lecturer" element={
+                  <ProtectedRoute>
+                    <LecturerRoute>
+                      <LecturerShell />
+                    </LecturerRoute>
+                  </ProtectedRoute>
+                }>
+                  <Route index element={<LecturerDashboard />} />
+                  <Route path="profile-verification" element={<LecturerProfileVerification />} />
+                  <Route path="bookings" element={<LecturerBookings />} />
+                  <Route path="earnings" element={<LecturerEarnings />} />
+                  <Route path="chat" element={<LecturerChatGate />} />
+                  <Route path="history" element={<History />} />
+                  <Route path="ai-assistant" element={<AIAssistant />} />
+                  <Route path="profile" element={<Profile />} />
+                  <Route path="settings" element={<Settings />} />
+                </Route>
+
+                {/* Legacy route redirects */}
+                <Route path="/admindash" element={<Navigate to="/admin" replace />} />
+                <Route path="/dept" element={<Navigate to="/admin/departments" replace />} />
+                <Route path="/upreport" element={<Navigate to="/admin/reports" replace />} />
+                <Route path="/upresentation" element={<Navigate to="/admin/presentations" replace />} />
+                <Route path="/question" element={<Navigate to="/admin/question-papers" replace />} />
+                <Route path="/candash" element={<Navigate to="/candidate" replace />} />
+                <Route path="/questionpapers" element={<Navigate to="/candidate/question-papers" replace />} />
+                <Route path="/viewreports" element={<Navigate to="/candidate/reports" replace />} />
+                <Route path="/viewpresentation" element={<Navigate to="/candidate/presentations" replace />} />
+                <Route path="/notifications" element={<Navigate to="/candidate/announcements" replace />} />
+                <Route path="/candidate/notifications" element={<Navigate to="/candidate/announcements" replace />} />
+                <Route path="/viewhistory" element={<Navigate to="/candidate/history" replace />} />
+                <Route path="/groupchat" element={<Navigate to="/candidate/chat" replace />} />
+                <Route path="/can-profile" element={<Navigate to="/candidate/profile" replace />} />
+                <Route path="/payment/confirmation" element={<PaymentConfirmation />} />
+                <Route path="*" element={<PageNotFound />} />
+              </Routes>
+            </Suspense>
+          </Router>
+        </AuthProvider>
+      </LoadingProvider>
+    </ErrorBoundary>
+  );
+};
 
 export default App;

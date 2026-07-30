@@ -273,6 +273,7 @@ async function initiateCollectionPayment({
         currency: paymentCurrency,
         customer_phone: sanitizedPhone,
         providerMethod,
+        merchant_invoice_id: invoiceReference,
       });
 
       return {
@@ -283,7 +284,7 @@ async function initiateCollectionPayment({
         transactionId: providerReference,
         providerResponse: {
           simulated: true,
-          merchant_invoice_id: reference,
+          merchant_invoice_id: invoiceReference,
           payment_method: providerMethod,
           amount: Number(amount),
           currency: paymentCurrency,
@@ -343,13 +344,21 @@ async function initiateCollectionPayment({
       full_response: response,
     });
 
+    const normalizedProviderResponse = response && typeof response === 'object'
+      ? {
+          ...response,
+          merchant_invoice_id: response?.merchant_invoice_id || invoiceReference,
+          reference: response?.reference || invoiceReference,
+        }
+      : response;
+
     return {
       provider: 'camerpay',
       providerMode: getProviderMode(),
       providerReference,
       status: 'pending',
       transactionId: providerReference || null,
-      providerResponse: response,
+      providerResponse: normalizedProviderResponse,
     };
   } catch (err) {
     logger.error('CamerPay payment initiation failed', {
