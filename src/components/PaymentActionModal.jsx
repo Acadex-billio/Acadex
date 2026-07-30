@@ -5,6 +5,15 @@ import { getErrorMessage } from '../utility/getErrorMessage';
 
 const wait = (ms) => new Promise((resolve) => window.setTimeout(resolve, ms));
 
+const PAYMENT_PROGRESS_SEQUENCE = [
+  'Starting payment...',
+  'Simulating confirmation...',
+  'Processing payment...',
+  'Waiting for approval...',
+  'Still waiting for approval...',
+  'Approval received. Thank you!',
+];
+
 const PaymentActionModal = ({
   isOpen,
   title,
@@ -73,10 +82,11 @@ const PaymentActionModal = ({
           throw err;
         }
 
-        setStatusText(`Waiting approval${attempt < 14 ? '...' : ''}`);
+        const nextStatus = PAYMENT_PROGRESS_SEQUENCE[Math.min(attempt + 3, PAYMENT_PROGRESS_SEQUENCE.length - 1)];
+        setStatusText(nextStatus);
       } catch (err) {
         if (attempt < 14) {
-          setStatusText('Still waiting for approval...');
+          setStatusText(PAYMENT_PROGRESS_SEQUENCE[Math.min(attempt + 4, PAYMENT_PROGRESS_SEQUENCE.length - 1)]);
           await wait(3000);
           continue;
         }
@@ -99,7 +109,7 @@ const PaymentActionModal = ({
 
     const normalizedPromoCode = String(promoCode || '').trim().toUpperCase();
     setSubmitting(true);
-    setStatusText('Starting payment...');
+    setStatusText(PAYMENT_PROGRESS_SEQUENCE[0]);
 
     try {
       if (typeof onStartPayment !== 'function') {
@@ -121,11 +131,11 @@ const PaymentActionModal = ({
       let finalResult = startResult;
       const normalizedStatus = String(payment.status || '').toLowerCase();
       if (normalizedStatus !== 'successful') {
-        setStatusText('Waiting approval...');
+        setStatusText(PAYMENT_PROGRESS_SEQUENCE[3]);
         finalResult = await pollStatus(paymentRef);
       }
 
-      setStatusText('Payment completed. Redirecting...');
+      setStatusText(PAYMENT_PROGRESS_SEQUENCE[PAYMENT_PROGRESS_SEQUENCE.length - 1]);
       const finalPayment = finalResult?.payment || payment;
       const materialNotice = finalPayment?.purpose_type === 'material_access'
         ? ` Material access unlocked for ${finalPayment.material_name || 'material'} (Duration: ${finalPayment.access_minutes || 60} minutes).`
@@ -315,6 +325,9 @@ const PaymentActionModal = ({
             </div>
             <div style={{ marginTop: 6, color: '#587084', fontSize: 12 }}>
               Enter only the 9-digit number after +237.
+            </div>
+            <div style={{ marginTop: 10, color: '#0e5f84', fontSize: 13, lineHeight: 1.5 }}>
+              For MTN Mobile Money, wait a little for the confirmer to trigger. If it delays, dial <strong>*126*</strong> OM, <strong>*150*</strong>.
             </div>
 
         <label style={{ display: 'block', marginTop: 16, color: '#35536a', fontWeight: 600 }}>Promo/Referral code (optional)</label>

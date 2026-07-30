@@ -83,6 +83,10 @@ const startCampayPayment = async ({
       payeeNote,
       redirectUrl,
       paymentMethod,
+      purposeType: transaction.purpose_type,
+      purposeCode: transaction.purpose_code,
+      resourceType: transaction.resource_type,
+      action: transaction.metadata?.action,
     });
   } catch (err) {
     const normalized = normalizeCheckoutError(err, 'Failed to initialize payment request.');

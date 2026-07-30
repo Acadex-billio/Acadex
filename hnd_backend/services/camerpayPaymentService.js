@@ -4,6 +4,7 @@ const dotenv = require('dotenv');
 const logger = require('../utils/logger');
 const { PAYMENT_CURRENCY } = require('../constants/paymentConstants');
 const { validatePaymentAmountAndCurrency, validateTransactionReference } = require('./paymentValidationService');
+const { buildCamerpayInvoiceReference } = require('./camerpayReferenceBuilder');
 
 const rootEnvPath = path.resolve(__dirname, '..', '.env');
 dotenv.config({ path: rootEnvPath, quiet: true });
@@ -180,6 +181,10 @@ async function initiateCollectionPayment({
   payeeNote,
   redirectUrl,
   paymentMethod,
+  purposeType,
+  purposeCode,
+  resourceType,
+  action,
 }) {
   const sanitizedPhone = sanitizePhoneNumber(phoneNumber);
   const paymentCurrency = String(currency || CAMERPAY_CURRENCY).toUpperCase();
@@ -203,12 +208,19 @@ async function initiateCollectionPayment({
   let lastTriedUrl = null;
   try {
     const reference = validateTransactionReference(externalReference || externalId || crypto.randomUUID());
+    const invoiceReference = buildCamerpayInvoiceReference({
+      purposeType,
+      purposeCode,
+      resourceType,
+      action,
+      fallbackReference: reference,
+    });
     payload = {
       payment_method: providerMethod,
       amount: Number(amount),
       currency: paymentCurrency,
       customer_phone: sanitizedPhone,
-      merchant_invoice_id: reference,
+      merchant_invoice_id: invoiceReference,
       source: 'api',
     };
 
