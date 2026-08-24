@@ -46,6 +46,7 @@ const ReportUpload = () => {
   const [location, setLocation] = useState('');
   const [keywords, setKeywords] = useState('');
   const [pages, setPages] = useState('');
+  const [academicSession, setAcademicSession] = useState('');
   const [materialPrice, setMaterialPrice] = useState('');
   const [projectGithubUrl, setProjectGithubUrl] = useState('');
   const [reportDoc, setReportDoc] = useState(null);
@@ -261,6 +262,7 @@ const ReportUpload = () => {
     setLocation('');
     setKeywords('');
     setPages('');
+    setAcademicSession('');
     setMaterialPrice('');
     setProjectGithubUrl('');
     setReportDoc(null);
@@ -412,6 +414,7 @@ const ReportUpload = () => {
       fd.append('location', location.trim());
       fd.append('keywords', keywords.trim());
       fd.append('pages', String(pages));
+      fd.append('academic_session', academicSession.trim());
       fd.append('material_price', String(materialPrice).trim());
       fd.append('project_github_url', String(projectGithubUrl || '').trim());
       fd.append('program', program);
@@ -582,6 +585,11 @@ const ReportUpload = () => {
                 <label className={styles.label}>Writer Email <span>*</span></label>
                 <input type="email" value={writerEmail} onChange={(e) => setWriterEmail(e.target.value)} required />
               </div>
+            </div>
+
+            <div className={styles.field}>
+              <label className={styles.label}>Academic Session</label>
+              <input value={academicSession} onChange={(e) => setAcademicSession(e.target.value)} placeholder="e.g. 2025/2026" />
             </div>
 
             <div className={styles.field}>

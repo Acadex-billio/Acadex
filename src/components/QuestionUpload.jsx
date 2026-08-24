@@ -49,6 +49,7 @@ const QuestionUpload = () => {
   const [multiDepts, setMultiDepts] = useState([]);
   const [paperTitle, setPaperTitle] = useState('');
   const [hndYear, setHndYear] = useState('');
+  const [academicSession, setAcademicSession] = useState('');
   const [uploadedBy, setUploadedBy] = useState('');
   const [institutionName, setInstitutionName] = useState('');
   const [region, setRegion] = useState('');
@@ -174,6 +175,7 @@ const QuestionUpload = () => {
     setMultiDepts([]);
     setPaperTitle('');
     setHndYear('');
+    setAcademicSession('');
     setUploadedBy('');
     setPaperFile(null);
     setNumLinks(0);
@@ -226,6 +228,7 @@ const QuestionUpload = () => {
         dpt_ids: audience === AUDIENCE.MULTIPLE ? JSON.stringify(multiDepts) : undefined,
         paperTitle: paperTitle.trim(),
         hndYear: hndYear.trim(),
+        academic_session: academicSession.trim(),
         uploaded_by: uploadedBy.trim(),
         program,
         study_links: JSON.stringify(studyLinks.filter(Boolean)),
@@ -249,7 +252,7 @@ const QuestionUpload = () => {
     } finally {
       stopLoading();
     }
-  }, [activeId, audience, fetchPapers, hndYear, multiDepts, paperTitle, program, singleDept, startLoading, stopLoading, studyLinks, uploadedBy, paperType, institutionName, region, semester, institutionUrl]);
+  }, [activeId, academicSession, audience, fetchPapers, hndYear, multiDepts, paperTitle, program, singleDept, startLoading, stopLoading, studyLinks, uploadedBy, paperType, institutionName, region, semester, institutionUrl]);
 
   const openNotify = useCallback(
     (e) => {
@@ -301,6 +304,7 @@ const QuestionUpload = () => {
         if (audience === AUDIENCE.MULTIPLE) fd.append('dpt_ids', JSON.stringify(multiDepts));
         fd.append('paperTitle', paperTitle.trim());
         fd.append('hndYear', hndYear.trim());
+        fd.append('academic_session', academicSession.trim());
         if (paperType === 'hnd') fd.append('uploaded_by', uploadedBy.trim());
         fd.append('paper_type', paperType);
         if (paperType !== 'hnd') {
@@ -330,7 +334,7 @@ const QuestionUpload = () => {
         setNotifyModalOpen(false);
       }
     },
-    [audience, fetchPapers, hndYear, multiDepts, paperFile, paperTitle, program, singleDept, startLoading, stopLoading, studyLinks, uploadedBy, paperType, institutionName, region, semester, institutionUrl]
+    [academicSession, audience, fetchPapers, hndYear, multiDepts, paperFile, paperTitle, program, singleDept, startLoading, stopLoading, studyLinks, uploadedBy, paperType, institutionName, region, semester, institutionUrl]
   );
 
   const filteredPapers = useMemo(() => {
@@ -471,6 +475,11 @@ const QuestionUpload = () => {
                 HND Year <span>*</span>
               </label>
               <input type="text" value={hndYear} onChange={(e) => setHndYear(e.target.value)} required />
+            </div>
+
+            <div className={styles.field}>
+              <label>Academic Session</label>
+              <input type="text" value={academicSession} onChange={(e) => setAcademicSession(e.target.value)} placeholder="e.g. 2025/2026" />
             </div>
 
             {/* Paper Type Selector */}

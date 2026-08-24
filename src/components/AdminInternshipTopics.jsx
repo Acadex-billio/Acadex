@@ -27,6 +27,7 @@ const PHOSPHOR_ICON_OPTIONS = Object.entries(PhosphorIcons)
 
 const EMPTY_FORM = {
   title: '',
+  academic_session: '',
   topic_icon: 'Lightbulb',
   description: '',
   research_guide: '',
@@ -260,6 +261,8 @@ const AdminInternshipTopics = () => {
     try {
       const payload = {
         title: form.title.trim(),
+        academic_session: String(form.academic_session || '').trim(),
+        author_name: String(form.author_name || '').trim(),
         topic_icon: String(form.topic_icon || '').trim(),
         description: form.description.trim(),
         research_guide: form.research_guide.trim(),

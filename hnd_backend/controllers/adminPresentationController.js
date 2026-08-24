@@ -17,6 +17,14 @@ const { USER_PROGRAMS } = require('../constants/userConstants');
 const CandidateProjectSubmission = require('../models/CandidateProjectSubmission');
 const { enqueueLibreOfficeJob } = require('../services/libreOfficeQueue');
 const { isCloudConvertConfigured, convertPresentationToPdf } = require('../utils/cloudConvertClient');
+const {
+  hashBuffer,
+  normalizeIds,
+  normalizeSession,
+  buildDuplicateKey,
+  findMaterialDuplicate,
+  duplicateResponse,
+} = require('../utils/materialDuplicate');
 
 const ALLOWED_PROGRAMS = [
   USER_PROGRAMS.HND,
@@ -199,7 +207,7 @@ exports.getReports = async (req, res) => {
 
 exports.uploadPresentation = async (req, res) => {
   try {
-    const { report_id, title, presenter_name, presenter_email, material_price, project_github_url, from_submission_id, notify, program, audience, dpt_id, dpt_ids, location, pages, description } = req.body;
+    const { report_id, title, presenter_name, presenter_email, material_price, project_github_url, from_submission_id, notify, program, audience, dpt_id, dpt_ids, location, pages, description, academic_session } = req.body;
     const normalizedProgram = String(program || 'HND').trim().toUpperCase();
     if (!ALLOWED_PROGRAMS.includes(normalizedProgram)) {
       return res.status(400).json({ success: false, message: 'Invalid program selected.' });
@@ -254,6 +262,14 @@ exports.uploadPresentation = async (req, res) => {
         return res.status(400).json({ success: false, message: 'Linked report must belong to the chosen program.' });
       }
     }
+
+    const contentHash = hashBuffer(req.file?.buffer);
+    const duplicateKey = buildDuplicateKey([
+      'presentation', title, presenter_name, normalizedProgram, normalizeSession(academic_session),
+      normalizeIds(departmentIds), report_id || '',
+    ]);
+    const duplicate = await findMaterialDuplicate({ model: Presentation, duplicateKey, contentHash });
+    if (duplicate) return duplicateResponse(res, duplicate);
 
     let linkedSubmission = null;
     let file_path = '';
@@ -327,6 +343,9 @@ exports.uploadPresentation = async (req, res) => {
       pages: finalPages || null,
       material_price: parsedMaterialPrice,
       project_github_url: parsedProjectGitHubUrl,
+      academic_session: String(academic_session || '').trim() || null,
+      content_hash: contentHash || null,
+      duplicate_key: duplicateKey,
     });
 
     // Schedule background PDF conversion
@@ -420,7 +439,7 @@ exports.listPresentations = async (req, res) => {
 exports.updatePresentation = async (req, res) => {
   try {
     const { id } = req.params;
-    const { report_id, title, presenter_name, presenter_email, material_price, project_github_url, program, audience, dpt_id, dpt_ids, location, pages, description } = req.body;
+    const { report_id, title, presenter_name, presenter_email, material_price, project_github_url, program, audience, dpt_id, dpt_ids, location, pages, description, academic_session } = req.body;
     const normalizedProgram = String(program || 'HND').trim().toUpperCase();
     if (!ALLOWED_PROGRAMS.includes(normalizedProgram)) {
       return res.status(400).json({ success: false, message: 'Invalid program selected.' });
@@ -476,6 +495,18 @@ exports.updatePresentation = async (req, res) => {
     const pres = await Presentation.findById(id);
     if (!pres) return res.status(404).json({ success: false, message: 'Presentation not found.' });
 
+    const duplicateKey = buildDuplicateKey([
+      'presentation', title, presenter_name, normalizedProgram, normalizeSession(academic_session),
+      normalizeIds(departmentIds), report_id || '',
+    ]);
+    const duplicate = await findMaterialDuplicate({
+      model: Presentation,
+      duplicateKey,
+      contentHash: pres.content_hash,
+      excludeId: pres._id,
+    });
+    if (duplicate) return duplicateResponse(res, duplicate);
+
     pres.title = String(title).trim();
     pres.presenter_name = String(presenter_name).trim();
     pres.presenter_email = String(presenter_email).trim();
@@ -488,6 +519,8 @@ exports.updatePresentation = async (req, res) => {
     pres.project_github_url = parsedProjectGitHubUrl;
     pres.location = String(location || '').trim() || null;
     pres.pages = String(pages || '').trim() || null;
+    pres.academic_session = String(academic_session || '').trim() || null;
+    pres.duplicate_key = duplicateKey;
     await pres.save();
 
     return res.json({ success: true, message: 'Presentation updated successfully' });

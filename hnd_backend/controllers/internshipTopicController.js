@@ -1,5 +1,13 @@
 const InternshipTopic = require('../models/InternshipTopic');
 const Department = require('../models/Department');
+const {
+  normalizeIds,
+  normalizeSession,
+  normalizeText,
+  buildDuplicateKey,
+  findMaterialDuplicate,
+  duplicateResponse,
+} = require('../utils/materialDuplicate');
 
 const ALLOWED_PROGRAMS = ['HND', 'BTS', 'LICENCE', 'BACHELOR', 'MASTERS', 'MASTER'];
 
@@ -172,6 +180,8 @@ exports.createTopic = async (req, res) => {
     const toolsTechnology = String(req.body?.tools_technology || '').trim();
     const systemSolutions = String(req.body?.system_solutions || '').trim();
     const citations = parseCitations(req.body?.citations);
+    const academicSession = String(req.body?.academic_session || '').trim();
+    const author = String(req.body?.author_name || req.user?.name || req.user?.email || req.user?.cand_id || '').trim();
 
     if (!title || !description || !researchGuide) {
       return res.status(400).json({ success: false, message: 'Title, description, and research guide are required.' });
@@ -187,8 +197,19 @@ exports.createTopic = async (req, res) => {
       return res.status(400).json({ success: false, message: 'No valid departments found for the selected programs.' });
     }
 
+    const normalizedDepartmentIds = departments.map((d) => d._id);
+    const duplicateKey = buildDuplicateKey([
+      'internship-topic', title, author, program, normalizeSession(academicSession),
+      normalizeIds(normalizedDepartmentIds),
+    ]);
+    const duplicate = await findMaterialDuplicate({ model: InternshipTopic, duplicateKey });
+    if (duplicate) return duplicateResponse(res, duplicate);
+
     const doc = await InternshipTopic.create({
       title,
+      academic_session: academicSession || null,
+      normalized_author: normalizeText(author) || null,
+      duplicate_key: duplicateKey,
       topic_icon: topicIcon,
       description,
       research_guide: researchGuide,
@@ -197,7 +218,7 @@ exports.createTopic = async (req, res) => {
       system_solutions: systemSolutions,
       program,
       programs,
-      department_ids: departments.map((d) => d._id),
+      department_ids: normalizedDepartmentIds,
       keywords,
       citations,
       created_by: req.user?.cand_id || req.user?.email || null,
@@ -265,6 +286,8 @@ exports.updateTopic = async (req, res) => {
     const toolsTechnology = String(req.body?.tools_technology || topic.tools_technology || '').trim();
     const systemSolutions = String(req.body?.system_solutions || topic.system_solutions || '').trim();
     const citations = parseCitations(req.body?.citations || topic.citations.map((c) => c.text));
+    const academicSession = String(req.body?.academic_session ?? topic.academic_session ?? '').trim();
+    const author = String(req.body?.author_name || topic.normalized_author || topic.created_by || '').trim();
 
     if (!title || !description || !researchGuide) {
       return res.status(400).json({ success: false, message: 'Title, description, and research guide are required.' });
@@ -280,6 +303,14 @@ exports.updateTopic = async (req, res) => {
       return res.status(400).json({ success: false, message: 'No valid departments found for the selected programs.' });
     }
 
+    const normalizedDepartmentIds = departments.map((d) => d._id);
+    const duplicateKey = buildDuplicateKey([
+      'internship-topic', title, author, program, normalizeSession(academicSession),
+      normalizeIds(normalizedDepartmentIds),
+    ]);
+    const duplicate = await findMaterialDuplicate({ model: InternshipTopic, duplicateKey, excludeId: topic._id });
+    if (duplicate) return duplicateResponse(res, duplicate);
+
     topic.title = title;
     topic.topic_icon = topicIcon;
     topic.description = description;
@@ -289,7 +320,10 @@ exports.updateTopic = async (req, res) => {
     topic.system_solutions = systemSolutions;
     topic.program = program;
     topic.programs = programs.length ? programs : [program];
-    topic.department_ids = departments.map((d) => d._id);
+    topic.department_ids = normalizedDepartmentIds;
+    topic.academic_session = academicSession || null;
+    topic.normalized_author = normalizeText(author) || null;
+    topic.duplicate_key = duplicateKey;
     topic.keywords = keywords;
     topic.citations = citations;
 

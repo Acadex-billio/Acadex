@@ -28,6 +28,9 @@ const citationSchema = new mongoose.Schema(
 const internshipTopicSchema = new mongoose.Schema(
   {
     title: { type: String, required: true, trim: true },
+    academic_session: { type: String, trim: true, default: null },
+    duplicate_key: { type: String, trim: true, default: null, index: true },
+    normalized_author: { type: String, trim: true, default: null },
     topic_icon: { type: String, trim: true, default: '' },
     description: { type: String, required: true, trim: true },
     research_guide: { type: String, required: true, trim: true },

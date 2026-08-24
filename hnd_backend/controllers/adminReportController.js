@@ -13,6 +13,14 @@ const { sanitizeFilename } = require('../middlewares/requestValidation');
 const { sendBulkPushNotification, isWebPushConfigured } = require('../utils/webPush');
 const { USER_PROGRAMS } = require('../constants/userConstants');
 const CandidateProjectSubmission = require('../models/CandidateProjectSubmission');
+const {
+  hashBuffer,
+  normalizeIds,
+  normalizeSession,
+  buildDuplicateKey,
+  findMaterialDuplicate,
+  duplicateResponse,
+} = require('../utils/materialDuplicate');
 
 const ALLOWED_PROGRAMS = [
   USER_PROGRAMS.HND,
@@ -85,6 +93,7 @@ exports.uploadReport = async (req, res) => {
       from_submission_id,
       notify,
       program,
+      academic_session,
     } = req.body;
     const normalizedProgram = String(program || 'HND').trim().toUpperCase();
     if (!ALLOWED_PROGRAMS.includes(normalizedProgram)) {
@@ -139,6 +148,14 @@ exports.uploadReport = async (req, res) => {
         return res.status(400).json({ success: false, message: 'Selected departments must belong to the chosen program.' });
       }
     }
+
+    const contentHash = hashBuffer(req.file?.buffer);
+    const duplicateKey = buildDuplicateKey([
+      'report', title, writer_names, normalizedProgram, normalizeSession(academic_session),
+      normalizeIds(targetDeptIds), 'standard',
+    ]);
+    const duplicate = await findMaterialDuplicate({ model: Report, duplicateKey, contentHash });
+    if (duplicate) return duplicateResponse(res, duplicate);
 
     let filePath = '';
     let linkedSubmission = null;
@@ -212,6 +229,9 @@ exports.uploadReport = async (req, res) => {
       departments: targetDeptIds,
       material_price: parsedMaterialPrice,
       project_github_url: parsedProjectGitHubUrl,
+      academic_session: String(academic_session || '').trim() || null,
+      content_hash: contentHash || null,
+      duplicate_key: duplicateKey,
     });
 
     if (linkedSubmission) {
@@ -357,6 +377,7 @@ exports.uploadGuide = async (req, res) => {
       keywords,
       pages,
       program,
+      academic_session,
     } = req.body;
     const normalizedProgram = String(program || 'HND').trim().toUpperCase();
     if (!ALLOWED_PROGRAMS.includes(normalizedProgram)) {
@@ -378,6 +399,14 @@ exports.uploadGuide = async (req, res) => {
       }
       targetDeptIds = parsed;
     }
+
+    const contentHash = hashBuffer(req.file.buffer);
+    const duplicateKey = buildDuplicateKey([
+      'report', title, writer_names, normalizedProgram, normalizeSession(academic_session),
+      normalizeIds(targetDeptIds), 'guide',
+    ]);
+    const duplicate = await findMaterialDuplicate({ model: Report, duplicateKey, contentHash });
+    if (duplicate) return duplicateResponse(res, duplicate);
 
     // Upload file to S3
     let filePath = '';
@@ -402,6 +431,9 @@ exports.uploadGuide = async (req, res) => {
       audience,
       departments: targetDeptIds,
       is_guide: true,
+      academic_session: String(academic_session || '').trim() || null,
+      content_hash: contentHash || null,
+      duplicate_key: duplicateKey,
     });
 
     return res.json({ success: true, report_id: guide._id });
@@ -428,6 +460,7 @@ exports.updateReport = async (req, res) => {
       material_price,
       project_github_url,
       program,
+      academic_session,
     } = req.body;
     const normalizedProgram = String(program || 'HND').trim().toUpperCase();
     if (!ALLOWED_PROGRAMS.includes(normalizedProgram)) {
@@ -471,6 +504,18 @@ exports.updateReport = async (req, res) => {
     const report = await Report.findById(id);
     if (!report) return res.status(404).json({ success: false, message: 'Report not found.' });
 
+    const duplicateKey = buildDuplicateKey([
+      'report', title, writer_names, normalizedProgram, normalizeSession(academic_session),
+      normalizeIds(targetDeptIds), report.is_guide ? 'guide' : 'standard',
+    ]);
+    const duplicate = await findMaterialDuplicate({
+      model: Report,
+      duplicateKey,
+      contentHash: report.content_hash,
+      excludeId: report._id,
+    });
+    if (duplicate) return duplicateResponse(res, duplicate);
+
     report.title = String(title).trim();
     report.writer_names = String(writer_names).trim();
     report.writer_email = String(writer_email).trim();
@@ -483,6 +528,8 @@ exports.updateReport = async (req, res) => {
     report.departments = targetDeptIds;
     report.material_price = parsedMaterialPrice;
     report.project_github_url = parsedProjectGitHubUrl;
+    report.academic_session = String(academic_session || '').trim() || null;
+    report.duplicate_key = duplicateKey;
     await report.save();
 
     return res.json({ success: true, message: 'Report updated successfully' });

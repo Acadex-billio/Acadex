@@ -12,6 +12,14 @@ const { sendBulkBcc } = require('../services/emailService');
 const { sanitizeFilename } = require('../middlewares/requestValidation');
 const { sendBulkPushNotification, isWebPushConfigured } = require('../utils/webPush');
 const { USER_PROGRAMS } = require('../constants/userConstants');
+const {
+  hashBuffer,
+  normalizeIds,
+  normalizeSession,
+  buildDuplicateKey,
+  findMaterialDuplicate,
+  duplicateResponse,
+} = require('../utils/materialDuplicate');
 
 const ALLOWED_PROGRAMS = [
   USER_PROGRAMS.HND,
@@ -74,7 +82,7 @@ exports.getDepartments = async (req, res) => {
 
 exports.uploadPaper = async (req, res) => {
   try {
-    const { audience, dpt_id, dpt_ids, paperTitle, hndYear, uploaded_by, notify, program } = req.body;
+    const { audience, dpt_id, dpt_ids, paperTitle, hndYear, uploaded_by, notify, program, academic_session } = req.body;
     const paper_type = String(req.body.paper_type || 'hnd').toLowerCase();
     const institution_name = String(req.body.institution_name || '').trim();
     const region = String(req.body.region || '').trim();
@@ -129,6 +137,15 @@ exports.uploadPaper = async (req, res) => {
 
     const moreInfo = paper_type === 'hnd' ? coerceMoreInfo(req.body) : '';
 
+    const contentHash = hashBuffer(file.buffer);
+    const duplicateKey = buildDuplicateKey([
+      'question-paper', paper_type, paperTitle, uploaded_by || institution_name,
+      normalizedProgram, hndYear, normalizeSession(academic_session), institution_name,
+      region, semester, normalizeIds(targetDeptIds),
+    ]);
+    const duplicate = await findMaterialDuplicate({ model: QuestionPaper, duplicateKey, contentHash });
+    if (duplicate) return duplicateResponse(res, duplicate);
+
     let paperFilePath = file.filename;
     try {
       console.log('[QuestionPaper] Attempting S3 upload:', {
@@ -172,6 +189,9 @@ exports.uploadPaper = async (req, res) => {
       region: region || '',
       semester: semester || '',
       institution_url: institution_url || '',
+      academic_session: String(academic_session || '').trim() || null,
+      content_hash: contentHash || null,
+      duplicate_key: duplicateKey,
     });
 
     let emailReport = { attempted: 0, sent: 0, failed: 0 };
@@ -313,7 +333,7 @@ exports.downloadPaper = async (req, res) => {
 exports.updatePaper = async (req, res) => {
   try {
     const { id } = req.params;
-    const { audience, dpt_id, dpt_ids, paperTitle, hndYear, uploaded_by, more_info, study_links, program } = req.body;
+    const { audience, dpt_id, dpt_ids, paperTitle, hndYear, uploaded_by, more_info, study_links, program, academic_session } = req.body;
     const paper_type = String(req.body.paper_type || 'hnd').toLowerCase();
     const institution_name = String(req.body.institution_name || '').trim();
     const region = String(req.body.region || '').trim();
@@ -361,6 +381,19 @@ exports.updatePaper = async (req, res) => {
     const paper = await QuestionPaper.findById(id);
     if (!paper) return res.status(404).json({ success: false, message: 'Question paper not found.' });
 
+    const duplicateKey = buildDuplicateKey([
+      'question-paper', paper_type, paperTitle, uploaded_by || institution_name,
+      normalizedProgram, hndYear, normalizeSession(academic_session), institution_name,
+      region, semester, normalizeIds(targetDeptIds),
+    ]);
+    const duplicate = await findMaterialDuplicate({
+      model: QuestionPaper,
+      duplicateKey,
+      contentHash: paper.content_hash,
+      excludeId: paper._id,
+    });
+    if (duplicate) return duplicateResponse(res, duplicate);
+
     paper.course_title = String(paperTitle).trim();
     paper.hnd_year = String(hndYear).trim();
     paper.uploaded_by = (uploaded_by || '').trim();
@@ -373,6 +406,8 @@ exports.updatePaper = async (req, res) => {
     paper.region = region || '';
     paper.semester = semester || '';
     paper.institution_url = institution_url || '';
+    paper.academic_session = String(academic_session || '').trim() || null;
+    paper.duplicate_key = duplicateKey;
     await paper.save();
 
     return res.json({ success: true, message: 'Question paper updated successfully' });

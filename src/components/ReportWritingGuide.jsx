@@ -25,6 +25,7 @@ const ReportWritingGuide = () => {
   const [dptId, setDptId] = useState('');
   const [dptIds, setDptIds] = useState([]);
   const [guideFile, setGuideFile] = useState(null);
+  const [academicSession, setAcademicSession] = useState('');
   const [uploadProgress, setUploadProgress] = useState(0);
   const [guides, setGuides] = useState([]);
   const [search, setSearch] = useState('');
@@ -181,6 +182,7 @@ const ReportWritingGuide = () => {
       fd.append('location', 'Acadex Guide');
       fd.append('keywords', 'guide,report,writing');
       fd.append('pages', '1');
+      fd.append('academic_session', academicSession.trim());
       fd.append('guideFile', guideFile);
 
       const res = await api.post('/admin/upload-guide', fd, {
@@ -295,6 +297,11 @@ const ReportWritingGuide = () => {
                 </div>
               </div>
             )}
+
+            <div className={styles.field}>
+              <label className={styles.label}>Academic Session</label>
+              <input value={academicSession} onChange={(e) => setAcademicSession(e.target.value)} placeholder="e.g. 2025/2026" />
+            </div>
 
             <div className={styles.field}>
               <label className={styles.label}>Guide Document (PDF only) <span>*</span></label>
