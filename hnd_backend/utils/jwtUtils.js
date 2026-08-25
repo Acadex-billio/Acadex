@@ -61,7 +61,7 @@ const createJwtPayload = (user) => ({
   name: user.name || 'Guest',
   dpt_id: user.dpt_id || null,
   role: user.role || 'candidate',
-  is_admin: user.role === 'admin' || user.role === 'developer' || user.role === 'superadmin',
+  is_admin: user.role === 'admin' || user.role === 'developer',
   program: String(user.program || 'HND').toUpperCase(),
   preferred_language: String(user.preferred_language || 'en').toLowerCase(),
   account_status: user.account_status || 'active',
@@ -207,7 +207,7 @@ const requireAuth = async (req, res, next) => {
  * @returns {boolean} True if user is admin
  */
 const isAdmin = (req) => {
-  return req.user && (req.user.role === 'admin' || req.user.role === 'developer' || req.user.role === 'superadmin' || req.user.is_admin === true);
+  return req.user && (req.user.role === 'admin' || req.user.role === 'developer' || req.user.is_admin === true);
 };
 
 /**

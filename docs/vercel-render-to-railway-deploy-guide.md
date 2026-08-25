@@ -28,6 +28,7 @@ Do not try to deploy the backend from the repo root. Deploy the backend from the
 Set these in Vercel Project Settings -> Environment Variables:
 
 - REACT_APP_API_URL=https://<your-railway-backend-url>/api
+- REACT_APP_VAPID_PUBLIC_KEY=<public VAPID key matching the backend>
 - REACT_APP_DEBUG_LOGS=false
 
 If the frontend is still pointing at Render URLs, update them before the first redeploy.

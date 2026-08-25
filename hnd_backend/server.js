@@ -62,7 +62,6 @@ const aiToolsRoutes = require('./Routes/aiToolsRoutes');
 const announcementRoutes = require('./Routes/announcementRoutes');
 const webSearchRoutes = require('./Routes/webSearchRoutes');
 const s3TestRoutes = require('./Routes/s3TestRoutes');
-const ragRoutes = require('./Routes/ragRoutes');
 const aiChatRoutes = require('./Routes/aiChatRoutes');
 const lecturerRoutes = require('./Routes/lecturerRoutes');
 const adRoutes = require('./Routes/adRoutes');
@@ -71,7 +70,6 @@ const developerRoutes = require('./Routes/developerRoutes');
 const concoursRoutes = require('./Routes/concoursRoutes');
 const publicRoutes = require('./Routes/publicRoutes');
 const { getLibreOfficeQueueStats } = require('./services/libreOfficeQueue');
-const { startKeepalive } = require('./services/keepaliveNotifier');
 const { startPaymentReconciliationScheduler } = require('./services/paymentReconciliationScheduler');
 const { mountVersionCompatibleRoute } = require('./utils/versionRouter');
 
@@ -84,12 +82,6 @@ const startupDebugEnabled = String(process.env.STARTUP_DEBUG || '').trim().toLow
 const dbStartupPromise = connectDB()
   .then(() => {
     logger.info('Database connected; starting DB-dependent background services');
-    try {
-      startKeepalive();
-    } catch (err) {
-      logger.warn('Failed to start keepalive notifier', { error: err?.message || err });
-    }
-
     try {
       startPaymentReconciliationScheduler();
     } catch (err) {
@@ -416,7 +408,6 @@ mountVersionCompatibleRoute(app, '/api/chat', chatRoutes);
 mountVersionCompatibleRoute(app, '/api/ai-tools', aiToolsRoutes);
 mountVersionCompatibleRoute(app, '/api/announcements', announcementRoutes);
 mountVersionCompatibleRoute(app, '/api/web-search', webSearchRoutes);
-mountVersionCompatibleRoute(app, '/api/rag', ragRoutes);
 mountVersionCompatibleRoute(app, '/api/ai', aiChatRoutes);
 mountVersionCompatibleRoute(app, '/api/lecturers', lecturerRoutes);
 mountVersionCompatibleRoute(app, '/api/ads', adRoutes);

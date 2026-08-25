@@ -35,7 +35,7 @@ const AdminShell = () => {
       try {
         if (cancelled) return;
 
-        const userIsAdmin = user?.is_admin === true || userRole === 'admin' || userRole === 'superadmin' || userRole === 'developer';
+        const userIsAdmin = user?.is_admin === true || userRole === 'admin' || userRole === 'developer';
 
         if (!isAuthenticated || !userIsAdmin) {
           navigate('/login', { replace: true });

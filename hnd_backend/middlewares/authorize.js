@@ -5,7 +5,6 @@ const roleRank = {
   lecturer: 2,
   admin: 3,
   developer: 4,
-  superadmin: 5,
 };
 
 const hasMinimumRole = (userRole, minimumRole) => {

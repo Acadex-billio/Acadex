@@ -42,19 +42,19 @@ function httpReq(method, path, token, body) {
 }
 
 async function run() {
-  // Connect to DB to find a real developer/superadmin (auth middleware does a DB lookup)
+  // Connect to DB to find a real developer account (auth middleware does a DB lookup)
   console.log('Connecting to MongoDB Atlas...');
   await mongoose.connect(MONGODB_URI);
   console.log('Connected.\n');
 
   const User = require('./models/User');
   const adminUser = await User.findOne(
-    { role: { $in: ['developer', 'superadmin'] }, account_status: 'active' },
+    { role: 'developer', account_status: 'active' },
     'cand_id email name role dpt_id account_status'
   ).lean();
 
   if (!adminUser) {
-    console.error('No developer/superadmin user found in DB.');
+    console.error('No developer user found in DB.');
     process.exit(1);
   }
   console.log('Using DB user:', adminUser.email, '| role:', adminUser.role, '| cand_id:', adminUser.cand_id, '\n');

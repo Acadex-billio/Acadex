@@ -50,7 +50,7 @@ router.get('/internship-topics', internshipTopicController.listCandidateTopics);
 router.get('/internship-topics/:topicId', validate({ params: schemas.ids.topicIdParam }), internshipTopicController.getCandidateTopicDetail);
 
 router.use(requireAuth);
-router.use(requireAnyRole(['candidate', 'admin', 'developer', 'superadmin']));
+router.use(requireAnyRole(['candidate', 'admin', 'developer']));
 
 router.get('/dashboard', dashboardController.getDashboard);
 

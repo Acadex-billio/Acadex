@@ -18,7 +18,7 @@ exports.debugAdmin = async (req, res) => {
     const adminUsers = users.filter(user => {
       const emailLower = user.email.toLowerCase();
       const envAdmin = adminEmails.includes(emailLower);
-      const roleAdmin = user.role === 'admin';
+      const roleAdmin = user.role === 'admin' || user.role === 'developer';
       return envAdmin || roleAdmin;
     });
 

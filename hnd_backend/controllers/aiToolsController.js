@@ -288,7 +288,7 @@ exports.getSummary = async (_req, res) => {
     ] = await Promise.all([
       User.countDocuments(),
       User.countDocuments({ role: 'candidate' }),
-      User.countDocuments({ role: { $in: ['admin', 'superadmin'] } }),
+      User.countDocuments({ role: { $in: ['admin', 'developer'] } }),
       Department.countDocuments(),
       QuestionPaper.countDocuments(),
       Report.countDocuments(),

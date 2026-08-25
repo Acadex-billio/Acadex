@@ -54,7 +54,7 @@ router.get('/bookings/:bookingId/messages', validate({ params: schemas.ids.booki
 router.post('/bookings/:bookingId/messages', validate({ params: schemas.ids.bookingIdParam, body: schemas.lecturer.message }), lecturerController.sendBookingMessage);
 router.post('/bookings/:bookingId/messages/simulate', validate({ params: schemas.ids.bookingIdParam }), lecturerController.simulateBookingConversation);
 router.post('/bookings/:bookingId/video/start', requireAnyRole(['lecturer']), validate({ params: schemas.ids.bookingIdParam }), lecturerController.startBookingConference);
-router.get('/bookings/:bookingId/video/access', requireAnyRole(['candidate', 'lecturer', 'admin', 'developer', 'superadmin']), validate({ params: schemas.ids.bookingIdParam }), lecturerController.getBookingConferenceAccess);
+router.get('/bookings/:bookingId/video/access', requireAnyRole(['candidate', 'lecturer', 'admin', 'developer']), validate({ params: schemas.ids.bookingIdParam }), lecturerController.getBookingConferenceAccess);
 router.get('/bookings/:bookingId/video/invites/search', validate({ params: schemas.ids.bookingIdParam }), lecturerController.searchConferenceInviteCandidates);
 router.post('/bookings/:bookingId/video/invites', validate({ params: schemas.ids.bookingIdParam, body: schemas.lecturer.inviteMany }), lecturerController.inviteConferenceParticipants);
 router.post('/bookings/:bookingId/video/invites/respond', requireAnyRole(['candidate']), validate({ params: schemas.ids.bookingIdParam, body: schemas.lecturer.inviteRespond }), lecturerController.respondConferenceInvite);

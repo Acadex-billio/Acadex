@@ -4,7 +4,7 @@ const jwt = require('jsonwebtoken');
 mongoose.connect(process.env.MONGODB_URI).then(async () => {
   const User = require('./models/User');
   const u = await User.findOne(
-    { role: { $in: ['developer', 'superadmin'] }, account_status: 'active' },
+    { role: 'developer', account_status: 'active' },
     'cand_id email name role dpt_id account_status'
   ).lean();
   await mongoose.disconnect();

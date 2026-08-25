@@ -100,7 +100,7 @@ const requireAuth = async (req, res, next) => {
     }
 
     const role = String(req.session.user.role || '').toLowerCase();
-    const isAdmin = role === 'admin' || req.session.user.is_admin === true;
+    const isAdmin = role === 'admin' || role === 'developer' || req.session.user.is_admin === true;
     if (isAdmin) return next();
 
     const candId = String(req.session.user.cand_id || '').trim();

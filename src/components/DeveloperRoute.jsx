@@ -27,7 +27,7 @@ const DeveloperRoute = ({ children }) => {
   }
 
   const role = String(user?.role || '').toLowerCase();
-  if (!['developer', 'superadmin'].includes(role)) {
+  if (role !== 'developer') {
     showToast('Developer access required', 'error');
     return <Navigate to="/admin" replace />;
   }

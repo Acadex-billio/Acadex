@@ -24,6 +24,8 @@ export const canUsePushNotifications = () => {
   );
 };
 
+export const isPushConfigured = () => Boolean(String(process.env.REACT_APP_VAPID_PUBLIC_KEY || '').trim());
+
 export const getPushPermissionStatus = () => {
   if (!canUsePushNotifications()) {
     return { permission: 'unsupported', isGranted: false };

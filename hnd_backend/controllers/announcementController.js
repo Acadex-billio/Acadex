@@ -379,7 +379,7 @@ exports.downloadAttachment = async (req, res) => {
     // Get user ID from JWT token
     const candId = req.user?.cand_id;
     const role = String(req.user?.role || '').toLowerCase();
-    const isAdmin = role === 'admin' || req.user?.is_admin === true;
+    const isAdmin = role === 'admin' || role === 'developer' || req.user?.is_admin === true;
     if (!candId && !isAdmin) {
       return res.status(401).json({ success: false, message: 'Not authenticated' });
     }

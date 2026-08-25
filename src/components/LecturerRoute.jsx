@@ -20,7 +20,7 @@ const LecturerRoute = ({ children }) => {
 
   const role = String(user?.role || '').toLowerCase();
   if (role !== 'lecturer') {
-    if (user?.is_admin || ['admin', 'developer', 'superadmin'].includes(role)) {
+    if (user?.is_admin || ['admin', 'developer'].includes(role)) {
       return <Navigate to="/admin" replace />;
     }
     return <Navigate to="/candidate" replace />;

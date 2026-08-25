@@ -39,11 +39,11 @@ const AdminRoute = ({ children }) => {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  // CRITICAL: Redirect to candidate dashboard if not admin/superadmin/developer
+  // CRITICAL: Redirect to candidate dashboard if not admin/developer
   const userRole = String(user?.role || '').toLowerCase();
-  const isAdminOrSuperAdmin = user?.is_admin === true || userRole === 'admin' || userRole === 'superadmin' || userRole === 'developer';
+  const isAdminRole = user?.is_admin === true || userRole === 'admin' || userRole === 'developer';
 
-  if (!isAdminOrSuperAdmin) {
+  if (!isAdminRole) {
     showToast('Admin access required', 'error');
     return <Navigate to="/candidate" replace />;
   }

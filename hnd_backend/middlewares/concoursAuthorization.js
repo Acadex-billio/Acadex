@@ -3,7 +3,7 @@ const Concours = require('../models/Concours');
 const ConcoursAssignment = require('../models/ConcoursAssignment');
 
 const role = (req) => String(req.user?.role || '').toLowerCase();
-const isDeveloper = (req) => ['developer', 'superadmin'].includes(role(req));
+const isDeveloper = (req) => role(req) === 'developer';
 const isPartner = (req) => role(req) === 'concour_partner';
 
 const requireConcoursRole = (allowedRoles) => (req, res, next) => {

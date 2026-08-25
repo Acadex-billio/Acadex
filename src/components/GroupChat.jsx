@@ -109,7 +109,7 @@ const GroupChat = ({ mode = 'candidate' }) => {
   const selfCandId = String(self?.cand_id || '');
   const isAdminSelf = useMemo(() => {
     const role = String(self?.role || '').toLowerCase();
-    return Boolean(self?.is_admin) || role === 'admin' || role === 'superadmin' || role === 'developer';
+    return Boolean(self?.is_admin) || role === 'admin' || role === 'developer';
   }, [self]);
   const adminMode = mode === 'admin' || isAdminSelf;
   const showGroupSections = adminMode || !isMobileView || mobileSection === 'groups';

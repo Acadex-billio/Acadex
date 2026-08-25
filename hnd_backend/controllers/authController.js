@@ -252,28 +252,22 @@ exports.login = async (req, res) => {
       });
     }
 
-    // Check admin / superadmin emails from environment
+    // Check admin emails from environment
     const adminEmails = process.env.ADMIN_EMAILS ? 
       process.env.ADMIN_EMAILS.split(',').map(e => e.trim().toLowerCase()) : [];
-    const superAdminEmails = process.env.SUPERADMIN_EMAILS ?
-      process.env.SUPERADMIN_EMAILS.split(',').map(e => e.trim().toLowerCase()) : [];
     const emailLower = String(user.email || '').toLowerCase();
 
-    const envSuperAdmin = superAdminEmails.length > 0 && superAdminEmails.includes(emailLower);
     const envAdmin = adminEmails.length > 0 && adminEmails.includes(emailLower);
 
-    let role = user.role ? String(user.role).toLowerCase() : (envSuperAdmin ? 'superadmin' : envAdmin ? 'admin' : 'candidate');
-    if (envSuperAdmin) role = 'superadmin';
-    else if (envAdmin && role !== 'superadmin') role = 'admin';
+      let role = user.role ? String(user.role).toLowerCase() : (envAdmin ? 'developer' : 'candidate');
 
-    const isAdmin = role === 'admin' || role === 'developer' || role === 'superadmin';
+    const isAdmin = role === 'admin' || role === 'developer';
 
     logger.debug('auth.login.role_determination', {
       databaseRole: user.role,
       finalRole: role,
       isAdmin: isAdmin,
       envAdmin,
-      envSuperAdmin,
       cand_id: user.cand_id
     });
 

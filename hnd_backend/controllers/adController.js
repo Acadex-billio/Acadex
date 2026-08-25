@@ -120,7 +120,7 @@ exports.listActive = async (req, res) => {
       }
     }
     if (role === 'lecturer') applicableTags.push('lecturer');
-    if (role === 'admin' || role === 'superadmin') applicableTags.push('admin');
+    if (role === 'admin' || role === 'developer') applicableTags.push('admin');
     if (role === 'developer') applicableTags.push('developer');
 
     const ads = await Ad.find({

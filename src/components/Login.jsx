@@ -40,7 +40,7 @@ const Login = () => {
         // Navigate based on user role
         const user = result.user;
         const role = String(user.role || '').toLowerCase();
-        const isAdmin = role ? (role === 'admin' || role === 'superadmin' || role === 'developer') : Boolean(user.is_admin);
+        const isAdmin = role ? (role === 'admin' || role === 'developer') : Boolean(user.is_admin);
         const isLecturer = role === 'lecturer';
         const isConcoursPartner = role === 'concour_partner';
 

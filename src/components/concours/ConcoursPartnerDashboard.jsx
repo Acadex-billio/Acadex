@@ -54,9 +54,32 @@ export default function ConcoursPartnerDashboard() {
 
     setPaying(true);
     try {
-      await api.post('/concours/partner/payment/checkout', { paymentMethod: 'momo' });
-      setShowPaymentModal(false);
+      const response = await api.post('/concours/partner/payment/checkout', { paymentMethod: 'momo' });
+      const initialStatus = response.data?.payment?.status;
+      if (initialStatus === 'failed' || initialStatus === 'cancelled' || initialStatus === 'expired') {
+        throw new Error('The payment request was not accepted. Please try again.');
+      }
+
+      showToast('Payment request started. Approve it on your phone.', 'info');
+      const deadline = Date.now() + 2 * 60 * 1000;
+      let paymentStatus = initialStatus || 'pending';
+      while (Date.now() < deadline && paymentStatus === 'pending') {
+        await new Promise((resolve) => setTimeout(resolve, 3000));
+        const statusResponse = await api.get('/concours/partner/payment/status');
+        paymentStatus = statusResponse.data?.payment?.status || 'pending';
+        if (statusResponse.data?.partnershipStatus === 'active' || paymentStatus === 'successful') {
+          setShowPaymentModal(false);
+          await load();
+          showToast('Partnership payment confirmed.', 'success');
+          return;
+        }
+        if (['failed', 'cancelled', 'expired'].includes(paymentStatus)) {
+          throw new Error('The payment was not completed. Please try again.');
+        }
+      }
+
       await load();
+      showToast('Payment is still pending. Approve it on your phone, then refresh this page.', 'warning');
     } catch (err) {
       showToast(getErrorMessage(err, 'Unable to start payment. Please try again.'), 'error');
     } finally {

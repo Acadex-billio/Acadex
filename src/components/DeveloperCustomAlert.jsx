@@ -228,7 +228,7 @@ const DeveloperCustomAlert = () => {
       const sent = res.data?.result?.sent || 0;
       const failed = res.data?.result?.failed || 0;
       
-      showToast(`✅ Email sent successfully! Attempted: ${attempted}, Delivered: ${sent}, Failed: ${failed}`, 'success');
+      showToast(`${failed ? 'Email partially accepted' : 'Email batches accepted'}: Selected ${attempted}, accepted ${sent}, failed ${failed}. Delivery may take time.`, failed ? 'warning' : 'success');
       
       // Reset form
       setSubject('');
@@ -238,6 +238,11 @@ const DeveloperCustomAlert = () => {
       setSelectedPrograms([]);
       setConfirmModal({ isOpen: false, type: null, recipientCount: 0 });
     } catch (err) {
+      const partialResult = err?.response?.data;
+      if (partialResult?.result && partialResult.failed > 0) {
+        showToast(`Email partially accepted: Selected ${partialResult.attempted || 0}, accepted ${partialResult.accepted || 0}, failed ${partialResult.failed}.`, 'warning');
+        return;
+      }
       const errorMsg = err?.response?.data?.message || getErrorMessage(err, 'Failed to send email');
       showToast(errorMsg, 'error');
       console.error('Email send error:', err);

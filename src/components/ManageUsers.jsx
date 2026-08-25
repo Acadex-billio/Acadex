@@ -34,7 +34,7 @@ const ManageUsers = () => {
   }, [loadUsers]);
 
   const adminAccounts = useMemo(
-    () => users.filter((u) => ['admin', 'developer', 'superadmin'].includes(String(u.role || '').toLowerCase())),
+    () => users.filter((u) => ['admin', 'developer'].includes(String(u.role || '').toLowerCase())),
     [users]
   );
 
@@ -140,7 +140,7 @@ const ManageUsers = () => {
                 <div className={styles.rowSubtitle}>{details.email ? `Email: ${details.email}` : ''}</div>
                 <div className={styles.rowSubtitle}>{details.phone ? `Phone: ${details.phone}` : ''}</div>
 
-                {String(details.role || '').toLowerCase() !== 'superadmin' && String(details.role || '').toLowerCase() !== 'developer' ? (
+                {String(details.role || '').toLowerCase() !== 'developer' ? (
                   <div className={styles.row} style={{ marginTop: 12, gap: 10 }}>
                     {String(details.role || '').toLowerCase() === 'admin' ? (
                       <button type="button" className={styles.dangerBtn} onClick={() => updateRole(details.cand_id, 'candidate')} disabled={saving}>Demote to Candidate</button>

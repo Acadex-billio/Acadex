@@ -205,7 +205,7 @@ export default function ConcoursFormBuilder({ concoursId, initialForm = {} }) {
             {saving ? 'Saving...' : 'Save Form'}
           </button>
         )}
-        {fields.length > 0 && ['developer', 'superadmin'].includes(String(user?.role || '').toLowerCase()) && (
+        {fields.length > 0 && ['developer'].includes(String(user?.role || '').toLowerCase()) && (
           <button type="button" className={styles.formSaveBtn} onClick={publishForm} disabled={saving || publishing}>
             {publishing ? 'Publishing...' : 'Publish Form'}
           </button>

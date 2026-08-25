@@ -13,7 +13,7 @@ if (isConfigured) {
   console.warn('[WebPush] VAPID keys are missing; push delivery is disabled.');
 }
 
-const sendWebPushNotification = async (subscription, payload, userContext = {}) => {
+const sendWebPushNotification = async (subscription, payload, userContext = {}, options = {}) => {
   if (!isConfigured) return { sent: false, reason: 'not_configured' };
   if (!subscription || !subscription.endpoint) return { sent: false, reason: 'invalid_subscription' };
 
@@ -29,6 +29,14 @@ const sendWebPushNotification = async (subscription, payload, userContext = {}) 
       endpoint: subscription?.endpoint?.substring(0, 80),
       userContext,
     });
+
+    if (options.reportFailure === false) {
+      return {
+        sent: false,
+        reason,
+        error: message,
+      };
+    }
 
     try {
       const transporter = nodemailer.createTransport({
@@ -84,21 +92,25 @@ const sendBulkPushNotification = async (users, contentType, title, body, url, co
     tag: `${contentType}-${contentId || Date.now()}`,
   };
 
-  for (const user of users) {
-    if (!user.push_subscription) continue;
+  const concurrency = Math.min(8, users.length);
+  let nextIndex = 0;
+  const sendNext = async () => {
+    while (nextIndex < users.length) {
+      const user = users[nextIndex++];
+      if (!user.push_subscription) continue;
 
-    const result = await sendWebPushNotification(user.push_subscription, payload, {
-      name: user.name,
-      email: user.email,
-      candId: user.cand_id,
-      role: user.role,
-    });
-    if (result.sent) {
-      sentCount++;
-    } else {
-      failedCount++;
+      const result = await sendWebPushNotification(user.push_subscription, payload, {
+        name: user.name,
+        email: user.email,
+        candId: user.cand_id,
+        role: user.role,
+      }, { reportFailure: false });
+      if (result.sent) sentCount++;
+      else failedCount++;
     }
-  }
+  };
+
+  await Promise.all(Array.from({ length: concurrency }, () => sendNext()));
 
   return { sent: sentCount, failed: failedCount };
 };

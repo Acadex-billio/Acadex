@@ -34,9 +34,6 @@ GROQ_API_KEY=replace-with-your-groq-api-key
 DEEPSEEK_BASE_URL=https://api.deepseek.ai/v1
 GROQ_BASE_URL=https://api.groq.ai/v1
 
-# Chroma Vector DB (RAG)
-CHROMA_URL=http://localhost:8000
-
 # MoMo Collection Payments
 MOMO_PROVIDER=mock
 MOMO_TARGET_ENVIRONMENT=sandbox
@@ -111,7 +108,6 @@ echo "PORT=5000" >> .env
 echo "EMAIL_USER=your-email@gmail.com" >> .env
 echo "EMAIL_PASS=your-gmail-app-password" >> .env
 echo "CORS_ORIGIN=http://localhost:3000" >> .env
-echo "CHROMA_URL=http://localhost:8000" >> .env
 
 # 4. Install dependencies
 npm install

@@ -94,7 +94,7 @@ function normalizeDocUrlInput(value) {
 
 const getCurrentUserId = (req) => String(req.user?.cand_id || '').trim();
 const getCurrentRole = (req) => String(req.user?.role || '').trim().toLowerCase();
-const isDeveloperLike = (role) => ['developer', 'superadmin'].includes(role);
+const isDeveloperLike = (role) => role === 'developer';
 
 const buildPublicLecturer = (user, profile) => ({
   cand_id: user.cand_id,

@@ -240,7 +240,7 @@ exports.markComplaintsReviewed = async (req, res) => {
   }
 };
 
-// Superadmin functions
+// Developer-level user administration functions
 exports.listAllUsers = async (req, res) => {
   try {
     const q = String(req.query.q || '').trim().slice(0, 100);
@@ -253,7 +253,7 @@ exports.listAllUsers = async (req, res) => {
 
     const query = {};
     if (['HND', 'BTS', 'LECTURER', 'BACHELOR', 'MASTERS', 'LICENCE', 'MASTER'].includes(program)) query.program = program;
-    if (['candidate', 'lecturer', 'admin', 'developer', 'superadmin'].includes(role)) query.role = role;
+    if (['candidate', 'lecturer', 'admin', 'developer'].includes(role)) query.role = role;
     if (['active', 'pending_approval', 'suspended', 'blocked'].includes(status)) query.account_status = status;
     if (q) {
       const escapedQ = q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -309,19 +309,16 @@ exports.updateUserRole = async (req, res) => {
     const actorRole = String(req.user?.role || '').toLowerCase();
 
     if (!candId) return res.status(400).json({ success: false, message: 'candId is required' });
-    if (!['candidate', 'lecturer', 'admin', 'developer', 'superadmin'].includes(role)) {
-      return res.status(400).json({ success: false, message: 'Invalid role. Must be candidate, lecturer, admin, developer, or superadmin' });
+    if (!['candidate', 'lecturer', 'admin', 'developer'].includes(role)) {
+      return res.status(400).json({ success: false, message: 'Invalid role. Must be candidate, lecturer, admin, or developer' });
     }
 
     // Check role assignment permissions
-    // - superadmin: can assign any role
-    // - developer: can assign admin or candidate roles
+    // - developer: can assign any supported role
     // - everyone else: can only assign candidate role
     let hasPermission = false;
-    if (actorRole === 'superadmin') {
-      hasPermission = true; // superadmin can assign any role
-    } else if (actorRole === 'developer') {
-      hasPermission = ['admin', 'candidate'].includes(role); // developer can assign admin or candidate
+    if (actorRole === 'developer') {
+      hasPermission = true;
     } else {
       hasPermission = (role === 'candidate'); // others can only assign candidate
     }
@@ -332,14 +329,6 @@ exports.updateUserRole = async (req, res) => {
 
     const user = await User.findOne({ cand_id: candId });
     if (!user) return res.status(404).json({ success: false, message: 'User not found' });
-
-    // Prevent demoting the last superadmin
-    if (user.role === 'superadmin' && role !== 'superadmin') {
-      const superadminCount = await User.countDocuments({ role: 'superadmin' });
-      if (superadminCount <= 1) {
-        return res.status(400).json({ success: false, message: 'Cannot demote the last superadmin' });
-      }
-    }
 
     const previousRole = String(user.role || 'candidate');
     user.role = role;
@@ -441,13 +430,6 @@ exports.blockUser = async (req, res) => {
     const user = await User.findOne({ cand_id: candId });
     if (!user) return res.status(404).json({ success: false, message: 'User not found' });
 
-    // Prevent blocking the last superadmin
-    if (user.role === 'superadmin') {
-      const superadminCount = await User.countDocuments({ role: 'superadmin', account_status: 'active' });
-      if (superadminCount <= 1) {
-        return res.status(400).json({ success: false, message: 'Cannot block the last active superadmin' });
-      }
-    }
 
     user.account_status = 'blocked';
     user.block = {

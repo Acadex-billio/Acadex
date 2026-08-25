@@ -8,7 +8,6 @@ const root = path.resolve(__dirname, '..');
 const criticalFiles = [
   'server.js',
   'Routes/authRoutes.js',
-  'Routes/ragRoutes.js',
   'Routes/adminRoutes.js',
   'Routes/candidateRoutes.js',
   'controllers/reportController.js',

@@ -30,7 +30,7 @@ const chatUpload = multer({
 });
 
 router.use(requireAuth);
-router.use(requireAnyRole(['candidate', 'lecturer', 'admin', 'developer', 'superadmin']));
+router.use(requireAnyRole(['candidate', 'lecturer', 'admin', 'developer']));
 
 router.post('/bootstrap', chatController.bootstrap);
 router.get('/users/search', validate({ query: schemas.chat.querySearch }), chatController.searchUsers);

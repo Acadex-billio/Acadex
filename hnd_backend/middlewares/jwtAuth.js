@@ -218,7 +218,7 @@ const requireDeveloper = async (req, res, next) => {
   }
 
   const role = String(req.user.role || '').toLowerCase();
-  if (role !== 'developer' && role !== 'superadmin') {
+  if (role !== 'developer') {
     return res.status(403).json({ success: false, message: 'Developer access required' });
   }
 
@@ -253,31 +253,4 @@ const requireSelfOrAdmin = (paramName = 'cand_id') => {
   };
 };
 
-const requireSuperAdmin = async (req, res, next) => {
-  if (!req.user) {
-    return res.status(401).json({ success: false, message: 'Authentication required' });
-  }
-
-  // Check superadmin role from JWT
-  if (req.user.role !== 'superadmin') {
-    return res.status(403).json({ success: false, message: 'Superadmin access required' });
-  }
-
-  // Verify superadmin account is active
-  try {
-    const superUser = await User.findOne({ cand_id: req.user.cand_id })
-      .select('account_status')
-      .lean();
-    
-    if (!superUser || superUser.account_status !== 'active') {
-      return res.status(403).json({ success: false, message: 'Superadmin account not active' });
-    }
-  } catch (err) {
-    console.error('[SuperAdmin Auth] Database lookup failed:', err);
-    return res.status(500).json({ success: false, message: 'Superadmin verification failed' });
-  }
-
-  next();
-};
-
-module.exports = { requireAuth, requireAdmin, requireDeveloper, requireSuperAdmin, requireSelfOrAdmin };
+module.exports = { requireAuth, requireAdmin, requireDeveloper, requireSelfOrAdmin };

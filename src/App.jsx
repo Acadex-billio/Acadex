@@ -129,37 +129,6 @@ const LanguageBootstrap = () => {
   return null;
 };
 
-const KeepaliveToast = () => {
-  const { user } = useAuth();
-
-  React.useEffect(() => {
-    if (!user?.role || user.role !== 'developer') return undefined;
-
-    let cancelled = false;
-    const pingBackend = async () => {
-      try {
-        const response = await fetch('/api/health');
-        if (cancelled) return;
-        if (response.ok) {
-          showToast('Your Backend is alive', 'info');
-        }
-      } catch (_err) {
-        if (cancelled) return;
-        showToast('Backend keepalive failed', 'warning');
-      }
-    };
-
-    pingBackend();
-    const interval = setInterval(pingBackend, 3 * 60 * 1000);
-    return () => {
-      cancelled = true;
-      clearInterval(interval);
-    };
-  }, [user]);
-
-  return null;
-};
-
 const App = () => {
   const [validationBanner, setValidationBanner] = useState(null);
 
@@ -188,7 +157,6 @@ const App = () => {
           <LanguageBootstrap />
           <Router>
             <ToastNotification />
-            <KeepaliveToast />
             <LoaderOverlay />
             <PushNotificationPromptModal />
             <RouteLoadingListener />

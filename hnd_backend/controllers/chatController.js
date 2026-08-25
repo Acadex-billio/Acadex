@@ -162,7 +162,7 @@ function normalizeCandId(v) {
 
 function isAdminUser(user) {
   const role = String(user?.role || '').toLowerCase();
-  return Boolean(user?.is_admin) || role === 'admin' || role === 'superadmin' || role === 'developer';
+  return Boolean(user?.is_admin) || role === 'admin' || role === 'developer';
 }
 
 function getUserProgram(user) {

@@ -2,10 +2,9 @@
 
 /**
  * AI Chat Controller (OpenAI-based)
- * Simplified flow: Query → Embed → Search Knowledge Base → GPT-4o Chat
+ * Provider-agnostic chat flow with route-aware context, web lookup, and attachments.
  */
 
-const { queryKnowledge } = require('../services/ragService');
 const { searchTavily } = require('../services/tavilyService');
 const { getRouteAwareContext } = require('../services/hndAssistantContextService');
 const {
@@ -243,37 +242,12 @@ const chatStream = async (req, res) => {
           : 'Loading... preparing your response.',
     });
 
-    // 1. Query the RAG knowledge base for context.
-    // If OpenAI embeddings are unavailable or quota-limited, continue without RAG context.
-    pushEvent({
-      status:
-        languageRaw === 'fr'
-          ? 'Analyse de la demande... recherche du contexte HND.'
-          : 'Analyzing request... retrieving HND context.',
-    });
-
-    let ragResult = { answer: '' };
-    try {
-      ragResult = await queryKnowledge(effectiveMessage, 5);
-    } catch (ragErr) {
-      console.warn('[AI Chat] RAG embeddings failed, continuing without HND context:', ragErr.message);
-      if (/quota|429|billing|OPENAI_API_KEY|not configured/i.test(String(ragErr.message || ''))) {
-        pushEvent({
-          status:
-            languageRaw === 'fr'
-              ? 'Le service de recherche de contexte HND est temporairement indisponible.'
-              : 'HND context lookup is temporarily unavailable.',
-        });
-      }
-    }
-
-    const ragContext = ragResult.answer ? `${ragResult.answer}\n\n` : '';
     const routeAwareContext = await getRouteAwareContext({ routePath: currentRoute, strictMode: strictHndMode });
 
     // 1b. Optionally pull web context only when explicitly useful.
     let webContext = '';
     let webSources = [];
-    const allowWebLookup = !ragContext && shouldUseWebLookup(effectiveMessage);
+    const allowWebLookup = shouldUseWebLookup(effectiveMessage);
     if (allowWebLookup) {
       try {
         pushEvent({
@@ -301,7 +275,7 @@ const chatStream = async (req, res) => {
           .join('\n\n')
       : '';
 
-    const combinedContext = `${ragContext}${webContext}${attachmentContext ? `\n\n${attachmentContext}` : ''}`.trim();
+    const combinedContext = `${webContext}${attachmentContext ? `\n\n${attachmentContext}` : ''}`.trim();
     const finalContext = `${routeAwareContext ? `${routeAwareContext}\n\n` : ''}${combinedContext}`.trim();
 
     const preferredModel = normalizeProviderSelection(
@@ -402,22 +376,10 @@ const chatStream = async (req, res) => {
       }
 
       const fallbackLines = [];
-      const ragFallback = String(ragResult?.answer || '').trim();
-
       if (includeSources && userRequestedSources(effectiveMessage) && webSources.length) {
         fallbackLines.push('I could not use the language model right now, but here are relevant real-time sources:');
         const sourceLines = webSources.slice(0, 3).map((s, i) => `${i + 1}. ${s.title || s.link} (${s.link})`);
         fallbackLines.push(...sourceLines);
-      }
-
-      if (!fallbackLines.length && ragFallback) {
-        if (languageRaw === 'fr') {
-          fallbackLines.push('Le modele IA est indisponible pour le moment, mais voici le contexte Acadex le plus pertinent que j\'ai trouve :');
-          fallbackLines.push(ragFallback.slice(0, 1800));
-        } else {
-          fallbackLines.push('The AI model is currently unavailable, but here is the most relevant Acadex context I found:');
-          fallbackLines.push(ragFallback.slice(0, 1800));
-        }
       }
 
       if (!fallbackLines.length && quotaLikeError) {
@@ -560,7 +522,6 @@ const health = async (_req, res) => {
       success: true,
       ...status,
       tavilyConfigured: Boolean(process.env.TAVILY_API_KEY),
-      embeddingModel: 'text-embedding-3-small',
     });
   } catch (err) {
     console.error('[AI Health] Error:', err.message);

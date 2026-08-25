@@ -18,7 +18,7 @@ const couponController = require('../controllers/couponController');
 const adminBillingController = require('../controllers/adminBillingController');
 const faqController = require('../controllers/faqController');
 const { validateDocumentUpload } = require('../middlewares/uploadValidation');
-const { requireAuth, requireAdmin, requireDeveloper, requireSuperAdmin } = require('../middlewares/jwtAuth');
+const { requireAuth, requireAdmin, requireDeveloper } = require('../middlewares/jwtAuth');
 const { validate, schemas } = require('../middlewares/validateRequest');
 
 // Enforce JWT auth first, then role checks
@@ -152,16 +152,16 @@ router.post('/faqs', faqController.create);
 router.put('/faqs/:id', validate({ params: schemas.ids.mongoIdParam }), faqController.update);
 router.delete('/faqs/:id', validate({ params: schemas.ids.mongoIdParam }), faqController.remove);
 
-// Superadmin routes
+// Developer-level user administration routes
 router.get('/users', adminCandidateController.listAllUsers);
 router.put('/users/:candId/role', requireDeveloper, validate({ params: schemas.ids.candIdParam }), adminCandidateController.updateUserRole);
 router.put('/users/:candId/program', validate({ params: schemas.ids.candIdParam }), adminCandidateController.updateUserProgram);
 router.post('/users/program-update-campaign', adminCandidateController.startProgramUpdateCampaign);
 router.put('/candidates/:candId/program', validate({ params: schemas.ids.candIdParam }), adminCandidateController.updateUserProgram);
 router.post('/candidates/program-update-campaign', adminCandidateController.startProgramUpdateCampaign);
-router.put('/users/:candId/suspend', requireSuperAdmin, validate({ params: schemas.ids.candIdParam }), adminCandidateController.suspendUser);
-router.put('/users/:candId/block', requireSuperAdmin, validate({ params: schemas.ids.candIdParam }), adminCandidateController.blockUser);
-router.put('/users/:candId/reactivate', requireSuperAdmin, validate({ params: schemas.ids.candIdParam }), adminCandidateController.reactivateUser);
+router.put('/users/:candId/suspend', requireDeveloper, validate({ params: schemas.ids.candIdParam }), adminCandidateController.suspendUser);
+router.put('/users/:candId/block', requireDeveloper, validate({ params: schemas.ids.candIdParam }), adminCandidateController.blockUser);
+router.put('/users/:candId/reactivate', requireDeveloper, validate({ params: schemas.ids.candIdParam }), adminCandidateController.reactivateUser);
 
 // Billing / subscription management (developer only)
 router.get('/billing/subscriptions', requireDeveloper, adminCandidateController.listSubscriptions);

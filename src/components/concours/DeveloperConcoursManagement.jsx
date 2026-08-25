@@ -75,7 +75,7 @@ export default function DeveloperConcoursManagement() {
     (!partnerId || String(row.partnerId) === partnerId)
     && (!query || `${row.title} ${row.organizationName}`.toLowerCase().includes(query.toLowerCase()))
   ));
-  const canPublish = ['developer', 'superadmin'].includes(String(user?.role || '').toLowerCase());
+  const canPublish = ['developer'].includes(String(user?.role || '').toLowerCase());
 
   return (
     <div className={styles.page}>

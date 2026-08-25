@@ -3,7 +3,6 @@ const USER_ROLES = Object.freeze({
   LECTURER: 'lecturer',
   ADMIN: 'admin',
   DEVELOPER: 'developer',
-  SUPERADMIN: 'superadmin',
   CONCOUR_PARTNER: 'concour_partner',
 });
 

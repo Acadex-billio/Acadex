@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import {
   canUsePushNotifications,
   getPushPermissionStatus,
+  isPushConfigured,
   registerAndSubscribePush,
   reportPushFailure,
   requestPushPermission,
@@ -24,7 +25,7 @@ const PushNotificationPromptModal = () => {
 
       const status = getPushPermissionStatus();
       const storageEnabled = String(localStorage.getItem('allowPushNotifications') || '').toLowerCase() === 'true';
-      const shouldShow = canUsePushNotifications() && (status.permission !== 'granted' || !storageEnabled);
+      const shouldShow = isPushConfigured() && canUsePushNotifications() && (status.permission !== 'granted' || !storageEnabled);
 
       if (shouldShow) {
         setPermissionState(status.permission);

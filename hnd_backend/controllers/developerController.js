@@ -61,19 +61,21 @@ exports.sendEmailAlert = async (req, res) => {
 
     // explicit user ids provided
     if ((!emails || emails.length === 0) && Array.isArray(userIds) && userIds.length) {
-      const usersById = await User.find({ _id: { $in: userIds } }).select('email').lean();
+      const usersById = await User.find({ _id: { $in: userIds }, account_status: 'active', allow_emails: true }).select('email').lean();
       emails = usersById.map((u) => u.email).filter(Boolean);
     }
 
     // fallback to filter-based selection
     if ((!emails || emails.length === 0)) {
       const query = buildQueryFromFilters({ departments, programs, inactivityMonths });
-      const users = await User.find(query).select('email name').lean();
+      const users = await User.find({ ...query, allow_emails: true }).select('email name').lean();
       emails = users.map((u) => u.email).filter(Boolean);
     }
 
     const result = await sendBulkBcc(emails.map((e) => ({ email: e })), subject, text, 50);
-    return res.json({ success: true, result, attempted: emails.length });
+    const accepted = result.sent;
+    const success = result.failed === 0;
+    return res.status(success ? 200 : 207).json({ success, result, attempted: emails.length, accepted, failed: result.failed, message: success ? 'Email batches accepted by the provider' : 'Some email batches were rejected by the provider' });
   } catch (err) {
     logger.error('Developer sendEmailAlert error', { error: err.message });
     return res.status(500).json({ success: false, message: 'Failed to send email alert' });
