@@ -4,6 +4,7 @@ const USER_ROLES = Object.freeze({
   ADMIN: 'admin',
   DEVELOPER: 'developer',
   SUPERADMIN: 'superadmin',
+  CONCOUR_PARTNER: 'concour_partner',
 });
 
 const ACCOUNT_STATUSES = Object.freeze({

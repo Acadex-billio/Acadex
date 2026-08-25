@@ -1,0 +1,866 @@
+/* Concours Partner Dashboard & Shared Styles */
+
+/* === Loading States === */
+.loading {
+  padding: 32px;
+  text-align: center;
+  color: var(--muted, #64748b);
+  font-size: 1rem;
+}
+
+/* === Partnership Status Card === */
+.partnershipCard {
+  max-width: 640px;
+  margin: 12vh auto;
+  padding: 40px 32px;
+  background: var(--surface, #fff);
+  border-radius: 16px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.12);
+  text-align: center;
+}
+
+.partnershipTitle {
+  font-size: clamp(1.6rem, 4vw, 2rem);
+  font-weight: 800;
+  color: var(--text, #132238);
+  margin-bottom: 20px;
+}
+
+.partnershipStatus {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin-bottom: 24px;
+  font-size: 1.1rem;
+}
+
+.partnershipStatusLabel {
+  color: var(--muted, #64748b);
+  font-weight: 600;
+}
+
+.partnershipStatusValue {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px;
+  background: rgba(63, 145, 70, 0.12);
+  color: var(--primary, #3f9146);
+  border-radius: 999px;
+  font-weight: 800;
+  text-transform: capitalize;
+}
+
+.partnershipMessage {
+  margin: 20px 0 32px;
+  color: var(--muted, #64748b);
+  line-height: 1.6;
+  font-size: 1rem;
+}
+
+.partnershipActions {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.partnershipButton {
+  padding: 12px 24px;
+  border: 0;
+  border-radius: 12px;
+  background: var(--primary, #3f9146);
+  color: #fff;
+  font-weight: 800;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: center;
+}
+
+.partnershipButton:hover:not(:disabled) {
+  background: var(--primary-dark, #2d6a33);
+  box-shadow: 0 8px 20px rgba(63, 145, 70, 0.3);
+}
+
+.partnershipButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.paymentModalBackdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(19, 34, 56, 0.45);
+}
+
+.paymentModal {
+  width: min(100%, 460px);
+  padding: 28px;
+  border-radius: 16px;
+  background: var(--surface, #fff);
+  box-shadow: 0 20px 60px rgba(19, 34, 56, 0.25);
+  text-align: left;
+  box-sizing: border-box;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.concoursEditorBackdrop {
+  align-items: flex-start;
+  overflow-y: auto;
+  padding: 24px 20px;
+}
+
+.concoursEditorModal {
+  max-height: calc(100vh - 48px);
+}
+
+.paymentModal h2 {
+  margin: 0 0 8px;
+  color: var(--text, #132238);
+}
+
+.paymentModal p {
+  margin: 0 0 20px;
+  color: var(--muted, #64748b);
+  line-height: 1.5;
+}
+
+.paymentAmount {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px;
+  border-radius: 12px;
+  background: rgba(63, 145, 70, 0.1);
+  color: var(--muted, #64748b);
+}
+
+.paymentAmount strong {
+  color: var(--primary, #3f9146);
+  font-size: 1.25rem;
+}
+
+.paymentModalActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 24px;
+}
+
+.paymentCancelButton {
+  padding: 12px 18px;
+  border: 1px solid var(--border, #dbe3ea);
+  border-radius: 10px;
+  background: transparent;
+  color: var(--text, #132238);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.lockedMessage {
+  padding: 20px;
+  background: rgba(233, 30, 99, 0.08);
+  color: #b0003a;
+  border-radius: 12px;
+  font-weight: 600;
+}
+
+/* === Partner Overview / Dashboard === */
+.overview {
+  padding: 28px 8px 36px;
+  max-width: 1180px;
+  margin: 0 auto;
+}
+
+.overviewTitle {
+  font-size: clamp(1.8rem, 4vw, 2.2rem);
+  font-weight: 800;
+  color: var(--text, #132238);
+  margin-bottom: 28px;
+}
+
+.metricsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.metricCard {
+  padding: 20px;
+  background: var(--surface, #fff);
+  border-radius: 12px;
+  border: 1px solid var(--border, #dbe3ea);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+  transition: all 0.2s ease;
+}
+
+.metricCard:hover {
+  border-color: var(--primary, #3f9146);
+  box-shadow: 0 8px 20px rgba(63, 145, 70, 0.12);
+}
+
+.metricLabel {
+  display: block;
+  color: var(--muted, #64748b);
+  font-size: 0.9rem;
+  font-weight: 600;
+  margin-bottom: 8px;
+  text-transform: capitalize;
+}
+
+.metricValue {
+  display: block;
+  font-size: 2rem;
+  font-weight: 800;
+  color: var(--text, #132238);
+}
+
+/* === Concours Management === */
+.concoursList {
+  padding: 28px 8px 36px;
+  max-width: 1180px;
+  margin: 0 auto;
+}
+
+.concoursListHeader {
+  margin-bottom: 24px;
+}
+
+.concoursListTitle {
+  font-size: clamp(1.6rem, 4vw, 2rem);
+  font-weight: 800;
+  color: var(--text, #132238);
+  margin-bottom: 12px;
+}
+
+.concoursListSubtitle {
+  color: var(--muted, #64748b);
+  font-size: 0.95rem;
+  margin: 0;
+}
+
+.concoursCreateBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 11px 18px;
+  margin-bottom: 24px;
+  border: 0;
+  border-radius: 10px;
+  background: var(--primary, #3f9146);
+  color: #fff;
+  font-weight: 800;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.concoursCreateBtn:hover {
+  background: var(--primary-dark, #2d6a33);
+  box-shadow: 0 8px 20px rgba(63, 145, 70, 0.3);
+}
+
+.concoursItem {
+  margin-bottom: 16px;
+  padding: 20px;
+  border: 1px solid var(--border, #dbe3ea);
+  border-radius: 12px;
+  background: var(--surface, #fff);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+  transition: all 0.2s ease;
+}
+
+.concoursItem:hover {
+  border-color: var(--primary, #3f9146);
+  box-shadow: 0 8px 20px rgba(63, 145, 70, 0.12);
+}
+
+.concoursItemTitle {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: var(--text, #132238);
+  margin-bottom: 12px;
+}
+
+.concoursItemMeta {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 14px;
+  font-size: 0.9rem;
+  color: var(--muted, #64748b);
+}
+
+.concoursItemStatus {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(63, 145, 70, 0.12);
+  color: var(--primary, #3f9146);
+  font-weight: 700;
+  font-size: 0.8rem;
+  text-transform: capitalize;
+}
+
+.concoursItemActions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 16px;
+}
+
+.concoursEditLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 9px 14px;
+  border: 1px solid var(--primary, #3f9146);
+  border-radius: 10px;
+  background: transparent;
+  color: var(--primary, #3f9146);
+  font-weight: 700;
+  font-size: 0.9rem;
+  text-decoration: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.concoursEditLink:hover {
+  background: rgba(63, 145, 70, 0.12);
+}
+
+.emptyState {
+  padding: 40px 24px;
+  text-align: center;
+  border: 2px dashed var(--border, #dbe3ea);
+  border-radius: 14px;
+  color: var(--muted, #64748b);
+}
+
+.emptyStateTitle {
+  font-weight: 700;
+  font-size: 1rem;
+  margin-bottom: 8px;
+}
+
+.emptyStateMessage {
+  font-size: 0.9rem;
+  margin: 0;
+}
+
+/* === Applications List === */
+.applicationsList {
+  padding: 28px 8px 36px;
+  max-width: 1180px;
+  margin: 0 auto;
+}
+
+.applicationsHeader {
+  margin-bottom: 28px;
+}
+
+.applicationsTitle {
+  font-size: clamp(1.8rem, 4vw, 2.2rem);
+  font-weight: 800;
+  color: var(--text, #132238);
+  margin-bottom: 12px;
+}
+
+.applicationsSubtitle {
+  color: var(--muted, #64748b);
+  font-size: 0.95rem;
+  margin: 0;
+}
+
+.applicationsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 16px;
+}
+
+.applicationCard {
+  padding: 20px;
+  background: var(--surface, #fff);
+  border: 1px solid var(--border, #dbe3ea);
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+  transition: all 0.2s ease;
+  display: flex;
+  flex-direction: column;
+}
+
+.applicationCard:hover {
+  border-color: var(--primary, #3f9146);
+  box-shadow: 0 8px 20px rgba(63, 145, 70, 0.12);
+}
+
+.applicationStatus {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  width: fit-content;
+  padding: 5px 10px;
+  border-radius: 999px;
+  background: rgba(63, 145, 70, 0.12);
+  color: var(--primary, #3f9146);
+  font-weight: 700;
+  font-size: 0.75rem;
+  text-transform: capitalize;
+  margin-bottom: 12px;
+}
+
+.applicationCandidate {
+  font-weight: 700;
+  color: var(--text, #132238);
+  font-size: 1.1rem;
+  margin-bottom: 8px;
+}
+
+.applicationConcours {
+  color: var(--muted, #64748b);
+  font-size: 0.9rem;
+  margin-bottom: 12px;
+}
+
+.applicationDate {
+  color: var(--muted, #64748b);
+  font-size: 0.85rem;
+}
+
+.applicationActions {
+  display: flex;
+  gap: 8px;
+  margin-top: auto;
+  padding-top: 12px;
+  border-top: 1px solid var(--border, #dbe3ea);
+}
+
+.applicationFilters {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(180px, 240px);
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.applicationFilters .formFieldInput,
+.applicationFilters .formFieldSelect {
+  margin: 0;
+}
+
+.applicationDetailsModal {
+  max-height: calc(100vh - 40px);
+  overflow-y: auto;
+}
+
+.applicationProfileGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin: 18px 0 24px;
+}
+
+.applicationProfileGrid div {
+  display: grid;
+  gap: 4px;
+  padding: 12px;
+  border-radius: 8px;
+  background: var(--bg, #f8fafc);
+}
+
+.applicationProfileGrid strong,
+.applicationProfileGrid span {
+  color: var(--text, #132238);
+  font-size: .88rem;
+}
+
+.applicationProfileGrid strong {
+  color: var(--muted, #64748b);
+  font-size: .75rem;
+  text-transform: uppercase;
+}
+
+.applicationDetailsModal h3 {
+  margin: 22px 0 10px;
+  color: var(--text, #132238);
+}
+
+.answerList {
+  display: grid;
+  gap: 8px;
+}
+
+.answerRow,
+.documentLink {
+  display: grid;
+  gap: 5px;
+  padding: 11px 12px;
+  border: 1px solid var(--border, #dbe3ea);
+  border-radius: 8px;
+  color: var(--text, #132238);
+  text-decoration: none;
+  word-break: break-word;
+}
+
+.answerRow strong {
+  color: var(--muted, #64748b);
+  font-size: .75rem;
+}
+
+.documentLink:hover {
+  border-color: var(--primary, #3f9146);
+  color: var(--primary, #3f9146);
+}
+
+.applicationActionBtn {
+  flex: 1;
+  padding: 8px 12px;
+  border: 1px solid var(--border, #dbe3ea);
+  border-radius: 8px;
+  background: var(--surface, #fff);
+  color: var(--text, #132238);
+  font-weight: 600;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.applicationActionBtn:hover {
+  background: rgba(63, 145, 70, 0.08);
+  border-color: var(--primary, #3f9146);
+  color: var(--primary, #3f9146);
+}
+
+/* === Form Builder === */
+.formBuilder {
+  padding: 28px 8px 36px;
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.formBuilderHeader {
+  margin-bottom: 28px;
+}
+
+.formBuilderTitle {
+  font-size: 1.8rem;
+  font-weight: 800;
+  color: var(--text, #132238);
+  margin-bottom: 8px;
+}
+
+.formBuilderDescription {
+  color: var(--muted, #64748b);
+  font-size: 0.95rem;
+  margin: 0;
+}
+
+.formFieldContainer {
+  margin-bottom: 20px;
+  padding: 20px;
+  border: 1px solid var(--border, #dbe3ea);
+  border-radius: 12px;
+  background: var(--surface, #fff);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+}
+
+.formFieldActions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-bottom: 16px;
+}
+
+.formFieldActionBtn {
+  padding: 7px 12px;
+  border: 1px solid var(--border, #dbe3ea);
+  border-radius: 8px;
+  background: var(--surface, #fff);
+  color: var(--text, #132238);
+  font-weight: 600;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.formFieldActionBtn:hover {
+  background: rgba(63, 145, 70, 0.08);
+  border-color: var(--primary, #3f9146);
+}
+
+.formField {
+  display: grid;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+
+.formFieldLabel {
+  color: var(--muted, #64748b);
+  font-weight: 700;
+  font-size: 0.9rem;
+}
+
+.formFieldInput,
+.formFieldSelect,
+.formFieldTextarea {
+  padding: 10px 12px;
+  border: 1px solid var(--border, #dbe3ea);
+  border-radius: 8px;
+  background: var(--surface, #fff);
+  color: var(--text, #132238);
+  font-family: inherit;
+  font-size: 0.95rem;
+  transition: all 0.2s ease;
+}
+
+.formFieldInput:disabled,
+.formFieldSelect:disabled,
+.formFieldTextarea:disabled {
+  background: var(--bg, #f8fafc);
+  color: var(--muted, #64748b);
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.formFieldInput:focus,
+.formFieldSelect:focus,
+.formFieldTextarea:focus {
+  outline: none;
+  border-color: var(--primary, #3f9146);
+  box-shadow: 0 0 0 3px rgba(63, 145, 70, 0.1);
+}
+
+.formFieldTextarea {
+  resize: vertical;
+  min-height: 100px;
+  padding: 12px;
+  border: 1px solid var(--border, #dbe3ea);
+  border-radius: 8px;
+  background: var(--surface, #fff);
+  color: var(--text, #132238);
+  font-family: 'Monaco', 'Courier New', monospace;
+  font-size: 0.9rem;
+  line-height: 1.4;
+  transition: all 0.2s ease;
+}
+
+.formFieldCheckbox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 0;
+}
+
+.formFieldCheckboxInput {
+  cursor: pointer;
+}
+
+.formBuilderActions {
+  display: flex;
+  gap: 12px;
+  margin-top: 28px;
+  flex-wrap: wrap;
+}
+
+.formAddFieldBtn {
+  padding: 12px 18px;
+  border: 2px dashed var(--border, #dbe3ea);
+  border-radius: 10px;
+  background: transparent;
+  color: var(--primary, #3f9146);
+  font-weight: 800;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.formAddFieldBtn:hover {
+  border-color: var(--primary, #3f9146);
+  background: rgba(63, 145, 70, 0.08);
+}
+
+.formSaveBtn {
+  padding: 12px 18px;
+  border: 0;
+  border-radius: 10px;
+  background: var(--primary, #3f9146);
+  color: #fff;
+  font-weight: 800;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.formSaveBtn:hover:not(:disabled) {
+  background: var(--primary-dark, #2d6a33);
+  box-shadow: 0 8px 20px rgba(63, 145, 70, 0.3);
+}
+
+.formSaveBtn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.formMessage {
+  padding: 12px 16px;
+  margin-top: 16px;
+  border-radius: 8px;
+  background: rgba(63, 145, 70, 0.08);
+  color: var(--primary, #3f9146);
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+/* === Icon Button (used in shells) === */
+.iconBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border: 1px solid var(--border, #dbe3ea);
+  border-radius: 10px;
+  background: transparent;
+  color: var(--text, #132238);
+  font-size: 1rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.iconBtn:hover {
+  background: rgba(63, 145, 70, 0.08);
+  border-color: var(--primary, #3f9146);
+  color: var(--primary, #3f9146);
+}
+
+.brand {
+  font-weight: 700;
+  font-size: 1rem;
+  color: var(--text, #132238);
+  flex: 1;
+  text-align: center;
+}
+
+/* === Responsive Design === */
+@media (max-width: 768px) {
+  .partnershipCard {
+    margin: 8vh auto;
+    padding: 24px 20px;
+  }
+
+  .partnershipTitle {
+    font-size: 1.4rem;
+  }
+
+  .overview,
+  .concoursList,
+  .applicationsList,
+  .formBuilder {
+    padding: 20px 8px 28px;
+  }
+
+  .metricsGrid {
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 12px;
+  }
+
+  .metricCard {
+    padding: 16px;
+  }
+
+  .metricValue {
+    font-size: 1.6rem;
+  }
+
+  .applicationsGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .applicationFilters,
+  .applicationProfileGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .formFieldContainer {
+    padding: 16px;
+  }
+
+  .formBuilderActions {
+    flex-direction: column;
+  }
+
+  .formSaveBtn,
+  .formAddFieldBtn,
+  .concoursCreateBtn,
+  .partnershipButton {
+    width: 100%;
+  }
+}
+
+@media (max-width: 480px) {
+  .partnershipCard {
+    margin: 4vh auto;
+    padding: 20px 16px;
+  }
+
+  .partnershipTitle {
+    font-size: 1.3rem;
+  }
+
+  .partnershipMessage {
+    font-size: 0.9rem;
+  }
+
+  .overview,
+  .concoursList,
+  .applicationsList,
+  .formBuilder {
+    padding: 16px 4px 24px;
+  }
+
+  .overviewTitle,
+  .concoursListTitle,
+  .applicationsTitle,
+  .formBuilderTitle {
+    font-size: 1.3rem;
+  }
+
+  .metricsGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .metricCard {
+    padding: 14px;
+  }
+
+  .metricLabel {
+    font-size: 0.8rem;
+  }
+
+  .metricValue {
+    font-size: 1.3rem;
+  }
+
+  .concoursItem,
+  .formFieldContainer {
+    padding: 14px;
+  }
+
+  .concoursItemTitle {
+    font-size: 1rem;
+  }
+
+  .applicationActionBtn {
+    font-size: 0.75rem;
+    padding: 6px 10px;
+  }
+}

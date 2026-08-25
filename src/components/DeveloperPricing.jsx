@@ -15,7 +15,9 @@ const DeveloperPricing = () => {
     try {
       const res = await api.get('/admin/pricing');
       if (!res.data?.success) throw new Error(res.data?.message || 'Failed to load pricing');
-      setPricing(res.data.pricing || {});
+      // Ensure all nested structures exist to prevent undefined errors
+      const pricingData = res.data.pricing || {};
+      setPricing(pricingData);
       setPublishedAt(res.data.published_at || null);
     } catch (err) {
       showToast(getErrorMessage(err, 'Unable to load pricing settings.'), 'error');
@@ -32,8 +34,13 @@ const DeveloperPricing = () => {
       const keys = path.split('.');
       let cursor = next;
       for (let i = 0; i < keys.length - 1; i += 1) {
-        cursor[keys[i]] = { ...(cursor[keys[i]] || {}) };
-        cursor = cursor[keys[i]];
+        const key = keys[i];
+        if (!cursor[key] || typeof cursor[key] !== 'object') {
+          cursor[key] = {};
+        } else {
+          cursor[key] = { ...cursor[key] };
+        }
+        cursor = cursor[key];
       }
       cursor[keys[keys.length - 1]] = value;
       return next;
@@ -46,6 +53,7 @@ const DeveloperPricing = () => {
       const res = await api.put('/admin/pricing', { pricing });
       if (!res.data?.success) throw new Error(res.data?.message || 'Failed to save pricing');
       showToast('Pricing settings saved.', 'success');
+      // Reload pricing from server to ensure data consistency
       await loadPricing();
     } catch (err) {
       showToast(getErrorMessage(err, 'Unable to save pricing settings.'), 'error');
@@ -68,6 +76,16 @@ const DeveloperPricing = () => {
     }
   };
 
+  const getNestedValue = (obj, path, fallback = 0) => {
+    const keys = path.split('.');
+    let cursor = obj;
+    for (const key of keys) {
+      cursor = cursor?.[key];
+      if (cursor === undefined) return fallback;
+    }
+    return cursor !== undefined ? cursor : fallback;
+  };
+
   if (!pricing) return <div className={styles.loading}>Loading pricing settings...</div>;
 
   return (
@@ -80,11 +98,19 @@ const DeveloperPricing = () => {
 
       <div className={styles.grid}>
       <section className={styles.section}>
+        <h3 className={styles.sectionTitle}>Concours Partnership</h3>
+        <div className={styles.row}>
+          <label className={styles.label}>Yearly Partnership Fee (XAF)</label>
+          <input className={styles.input} type="number" min="0" step="0.01" value={toCurrencyString(getNestedValue(pricing, 'concours_partnership.amount'))} onChange={(e) => setField('concours_partnership.amount', Number(e.target.value || 0))} />
+        </div>
+      </section>
+
+      <section className={styles.section}>
         <h3 className={styles.sectionTitle}>Plans</h3>
         {['basic', 'pro', 'paygo', 'full-package'].map((plan) => (
           <div key={plan} className={styles.row}>
             <label className={styles.label}>{plan === 'full-package' ? 'FULL PACKAGE' : plan.toUpperCase()} Plan Price (XAF)</label>
-            <input className={styles.input} type="number" min="0" step="0.01" value={toCurrencyString(pricing?.plans?.[plan]?.price)} onChange={(e) => setField(`plans.${plan}.price`, Number(e.target.value || 0))} />
+            <input className={styles.input} type="number" min="0" step="0.01" value={toCurrencyString(getNestedValue(pricing, `plans.${plan}.price`))} onChange={(e) => setField(`plans.${plan}.price`, Number(e.target.value || 0))} />
           </div>
         ))}
       </section>
@@ -96,19 +122,19 @@ const DeveloperPricing = () => {
             <div className={styles.subTitle}>{material.replace('_', ' ').toUpperCase()}</div>
             <div className={styles.row}>
               <label className={styles.label}>Basic Preview Price</label>
-              <input className={styles.input} type="number" min="0" step="0.01" value={toCurrencyString(pricing?.materials?.[material]?.basic_full_preview_price)} onChange={(e) => setField(`materials.${material}.basic_full_preview_price`, Number(e.target.value || 0))} />
+              <input className={styles.input} type="number" min="0" step="0.01" value={toCurrencyString(getNestedValue(pricing, `materials.${material}.basic_full_preview_price`))} onChange={(e) => setField(`materials.${material}.basic_full_preview_price`, Number(e.target.value || 0))} />
             </div>
             <div className={styles.row}>
               <label className={styles.label}>Basic Download Price</label>
-              <input className={styles.input} type="number" min="0" step="0.01" value={toCurrencyString(pricing?.materials?.[material]?.basic_download_price)} onChange={(e) => setField(`materials.${material}.basic_download_price`, Number(e.target.value || 0))} />
+              <input className={styles.input} type="number" min="0" step="0.01" value={toCurrencyString(getNestedValue(pricing, `materials.${material}.basic_download_price`))} onChange={(e) => setField(`materials.${material}.basic_download_price`, Number(e.target.value || 0))} />
             </div>
             <div className={styles.row}>
               <label className={styles.label}>PAYGO Full Preview Price</label>
-              <input className={styles.input} type="number" min="0" step="0.01" value={toCurrencyString(pricing?.materials?.[material]?.paygo_full_preview_price)} onChange={(e) => setField(`materials.${material}.paygo_full_preview_price`, Number(e.target.value || 0))} />
+              <input className={styles.input} type="number" min="0" step="0.01" value={toCurrencyString(getNestedValue(pricing, `materials.${material}.paygo_full_preview_price`))} onChange={(e) => setField(`materials.${material}.paygo_full_preview_price`, Number(e.target.value || 0))} />
             </div>
             <div className={styles.row}>
               <label className={styles.label}>PAYGO Download Price</label>
-              <input className={styles.input} type="number" min="0" step="0.01" value={toCurrencyString(pricing?.materials?.[material]?.paygo_download_price)} onChange={(e) => setField(`materials.${material}.paygo_download_price`, Number(e.target.value || 0))} />
+              <input className={styles.input} type="number" min="0" step="0.01" value={toCurrencyString(getNestedValue(pricing, `materials.${material}.paygo_download_price`))} onChange={(e) => setField(`materials.${material}.paygo_download_price`, Number(e.target.value || 0))} />
             </div>
           </React.Fragment>
         ))}
@@ -122,7 +148,7 @@ const DeveloperPricing = () => {
             {['basic', 'pro', 'paygo', 'full-package'].map((plan) => (
               <div key={`${action}-${plan}`} className={styles.row}>
                 <label className={styles.label}>{plan === 'full-package' ? 'FULL PACKAGE' : plan.toUpperCase()}</label>
-                <input className={styles.input} type="number" min="0" step="0.01" value={toCurrencyString(pricing?.center?.[action]?.[plan]?.amount)} onChange={(e) => setField(`center.${action}.${plan}.amount`, Number(e.target.value || 0))} />
+                <input className={styles.input} type="number" min="0" step="0.01" value={toCurrencyString(getNestedValue(pricing, `center.${action}.${plan}.amount`))} onChange={(e) => setField(`center.${action}.${plan}.amount`, Number(e.target.value || 0))} />
               </div>
             ))}
           </React.Fragment>
@@ -133,7 +159,7 @@ const DeveloperPricing = () => {
         <h3 className={styles.sectionTitle}>AI Study Mode</h3>
         <div className={styles.row}>
           <label className={styles.label}>Session Price (XAF)</label>
-          <input className={styles.input} type="number" min="0" step="0.01" value={toCurrencyString(pricing?.ai_study_mode?.session_price)} onChange={(e) => setField('ai_study_mode.session_price', Number(e.target.value || 0))} />
+          <input className={styles.input} type="number" min="0" step="0.01" value={toCurrencyString(getNestedValue(pricing, 'ai_study_mode.session_price'))} onChange={(e) => setField('ai_study_mode.session_price', Number(e.target.value || 0))} />
         </div>
       </section>
 
@@ -142,7 +168,7 @@ const DeveloperPricing = () => {
         {['HND', 'BACHELOR', 'MASTERS', 'LICENCE', 'MASTER', 'BTS'].map((program) => (
           <div key={program} className={styles.row}>
             <label className={styles.label}>{program}</label>
-            <input className={styles.input} type="number" min="0" step="0.01" value={toCurrencyString(pricing?.candidate_project_upload?.[program])} onChange={(e) => setField(`candidate_project_upload.${program}`, Number(e.target.value || 0))} />
+            <input className={styles.input} type="number" min="0" step="0.01" value={toCurrencyString(getNestedValue(pricing, `candidate_project_upload.${program}`))} onChange={(e) => setField(`candidate_project_upload.${program}`, Number(e.target.value || 0))} />
           </div>
         ))}
       </section>

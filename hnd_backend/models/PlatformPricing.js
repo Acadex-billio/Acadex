@@ -63,6 +63,11 @@ const platformPricingSchema = new mongoose.Schema(
       session_price: { type: Number, default: 0, min: 0 },
       currency: { type: String, default: 'XAF', trim: true },
     },
+    concours_partnership: {
+      amount: { type: Number, default: 0, min: 0 },
+      currency: { type: String, default: 'XAF', trim: true },
+      duration_days: { type: Number, default: 365, min: 1 },
+    },
     candidate_project_upload: {
       HND: { type: Number, default: 0, min: 0 },
       BACHELOR: { type: Number, default: 0, min: 0 },

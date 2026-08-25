@@ -78,6 +78,17 @@ const DeveloperPricing = lazy(() => import('./components/DeveloperPricing'));
 const PurchaseHistory = lazy(() => import('./components/PurchaseHistory'));
 const AccessGrantHistory = lazy(() => import('./components/AccessGrantHistory'));
 const PermissionVerification = lazy(() => import('./components/PermissionVerification'));
+const CandidateConcoursHub = lazy(() => import('./components/concours/CandidateConcoursHub'));
+const ConcoursDetails = lazy(() => import('./components/concours/ConcoursDetails'));
+const MyConcoursApplications = lazy(() => import('./components/concours/MyConcoursApplications'));
+const ConcoursPartnerShell = lazy(() => import('./components/concours/ConcoursPartnerShell'));
+const ConcoursPartnerDashboard = lazy(() => import('./components/concours/ConcoursPartnerDashboard'));
+const ConcoursPartnerApplications = lazy(() => import('./components/concours/ConcoursPartnerApplications'));
+const ConcoursPartnerManagement = lazy(() => import('./components/concours/ConcoursPartnerManagement'));
+const ConcoursPartnerProfile = lazy(() => import('./components/concours/ConcoursPartnerProfile'));
+const ConcoursFormBuilder = lazy(() => import('./components/concours/ConcoursFormBuilder'));
+const DeveloperConcoursPartners = lazy(() => import('./components/concours/DeveloperConcoursPartners'));
+const DeveloperConcoursManagement = lazy(() => import('./components/concours/DeveloperConcoursManagement'));
 
 const RouteLoadingListener = () => {
   const location = useLocation();
@@ -243,6 +254,7 @@ const App = () => {
                   <Route path="manage-users/candidates" element={<ManageCandidates fixedRole="candidate" title="Candidate Management" />} />
                   <Route path="manage-users/lecturers" element={<ManageCandidates fixedRole="lecturer" title="Lecturer Management" />} />
                   <Route path="manage-users/admins" element={<ProtectedRoute><DeveloperRoute><ManageUsers /></DeveloperRoute></ProtectedRoute>} />
+                  <Route path="manage-users/concours-partners" element={<ProtectedRoute><DeveloperRoute><DeveloperConcoursPartners /></DeveloperRoute></ProtectedRoute>} />
                   <Route path="manage-candidates" element={<Navigate to="/admin/manage-users/candidates" replace />} />
                   <Route path="manage-billing" element={<ProtectedRoute><DeveloperRoute><ManageBilling /></DeveloperRoute></ProtectedRoute>} />
                   <Route path="purchase-history" element={<ProtectedRoute><DeveloperRoute><PurchaseHistory /></DeveloperRoute></ProtectedRoute>} />
@@ -272,6 +284,9 @@ const App = () => {
                   <Route path="profile" element={<Profile />} />
                   <Route path="settings" element={<Settings />} />
                   <Route path="custom-alert" element={<ProtectedRoute><DeveloperRoute><DeveloperCustomAlert /></DeveloperRoute></ProtectedRoute>} />
+                  <Route path="concours/partners" element={<ProtectedRoute><DeveloperRoute><DeveloperConcoursPartners /></DeveloperRoute></ProtectedRoute>} />
+                  <Route path="concours" element={<ProtectedRoute><DeveloperRoute><DeveloperConcoursManagement /></DeveloperRoute></ProtectedRoute>} />
+                  <Route path="concours/:id/form" element={<ProtectedRoute><DeveloperRoute><ConcoursFormBuilder /></DeveloperRoute></ProtectedRoute>} />
                 </Route>
 
                 <Route path="/candidate/restricted" element={<ProtectedRoute><CandidateAccountStatus /></ProtectedRoute>} />
@@ -309,7 +324,19 @@ const App = () => {
                   <Route path="lecturers" element={<CandidateLecturers />} />
                   <Route path="tutorship-bookings" element={<CandidateTutorshipBookings />} />
                   <Route path="settings" element={<Settings />} />
+                  <Route path="concours" element={<CandidateConcoursHub />} />
+                  <Route path="concours/:id" element={<ConcoursDetails />} />
+                  <Route path="concours/applications" element={<MyConcoursApplications />} />
                   <Route path="account-status" element={<Navigate to="/candidate/restricted" replace />} />
+                </Route>
+
+                <Route path="/partner" element={<ProtectedRoute><ConcoursPartnerShell /></ProtectedRoute>}>
+                  <Route index element={<ConcoursPartnerDashboard />} />
+                  <Route path="concours" element={<ConcoursPartnerManagement />} />
+                  <Route path="concours/manage" element={<ConcoursPartnerManagement />} />
+                  <Route path="concours/:id/form" element={<ConcoursFormBuilder />} />
+                  <Route path="applications" element={<ConcoursPartnerApplications />} />
+                  <Route path="profile" element={<ConcoursPartnerProfile />} />
                 </Route>
 
                 <Route path="/lecturer" element={

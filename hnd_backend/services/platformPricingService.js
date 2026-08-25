@@ -27,6 +27,7 @@ const DEFAULTS = {
     question_paper: { basic_preview_pages: 1, paygo_preview_pages: 3, basic_full_preview_price: 0, basic_download_price: 0, paygo_full_preview_price: 0, paygo_download_price: 0, paygo_access_minutes: 60, full_package_preview_limit: 10, full_package_download_limit: 5 },
   },
   ai_study_mode: { session_price: 0, currency: 'XAF' },
+  concours_partnership: { amount: 0, currency: 'XAF', durationDays: 365 },
   candidate_project_upload: { HND: 0, BACHELOR: 0, MASTERS: 0, LICENCE: 0, MASTER: 0, BTS: 0 },
 };
 
@@ -165,6 +166,11 @@ async function getPricingSnapshot() {
     aiStudyMode: {
       session_price: toNumber(doc?.ai_study_mode?.session_price, DEFAULTS.ai_study_mode.session_price),
       currency: String(doc?.ai_study_mode?.currency || DEFAULTS.ai_study_mode.currency),
+    },
+    concoursPartnership: {
+      amount: toNumber(doc?.concours_partnership?.amount, DEFAULTS.concours_partnership.amount),
+      currency: String(doc?.concours_partnership?.currency || DEFAULTS.concours_partnership.currency),
+      durationDays: Math.max(1, Number(doc?.concours_partnership?.duration_days || DEFAULTS.concours_partnership.durationDays)),
     },
   };
 }

@@ -192,6 +192,7 @@ const CandidateShell = () => {
       { to: '/candidate/earn-money', label: 'Earn Money', icon: FaDollarSign },
       { to: '/candidate/internship-topics', label: t('nav.internshipTopics'), icon: FaLightbulb },
       { to: '/candidate/tutorship-bookings', label: 'Tutorship Bookings', icon: FaComments, badge: bookingAlertCount },
+      { to: '/candidate/concours', label: 'Concours', icon: FaClipboardList },
     ],
     [announcementCount, bookingAlertCount, t]
   );

@@ -8,6 +8,8 @@ const PaymentAccessGrant = require('../models/PaymentAccessGrant');
 const PaymentTransaction = require('../models/PaymentTransaction');
 const History = require('../models/History');
 const { sendEmail } = require('../services/emailService');
+const logger = require('../utils/logger');
+const ConcoursAuditLog = require('../models/ConcoursAuditLog');
 
 const PLAN_DURATION_MS = 90 * 24 * 60 * 60 * 1000;
 const DEFAULT_ACCESS_MINUTES = 60;
@@ -294,6 +296,26 @@ async function applySuccessfulPayment(transaction) {
 
   if (String(finalTx.status || '').toLowerCase() !== 'successful') {
     return finalTx;
+  }
+
+  if (finalTx.purpose_type === 'concours_partnership') {
+    const partner = await User.findOne({ cand_id: finalTx.user_cand_id, role: 'concour_partner' });
+    if (partner && String(partner.partnership?.payment_transaction_id || '') !== String(finalTx._id)) {
+      const now = new Date();
+      const currentExpiry = partner.partnership?.expires_at && new Date(partner.partnership.expires_at) > now
+        ? new Date(partner.partnership.expires_at)
+        : now;
+      const durationDays = Math.max(1, Number(finalTx.metadata?.duration_days || 365));
+      partner.partnership.status = 'active';
+      partner.partnership.start_at = partner.partnership.start_at || now;
+      partner.partnership.expires_at = new Date(currentExpiry.getTime() + durationDays * 86400000);
+      partner.partnership.amount_paid = finalTx.amount;
+      partner.partnership.currency = finalTx.currency;
+      partner.partnership.payment_transaction_id = finalTx._id;
+      await partner.save();
+      await ConcoursAuditLog.create({ event: 'partnership.payment.completed', actorId: 'payment-provider', partnerId: partner._id, transactionId: finalTx._id, metadata: { amount: finalTx.amount, currency: finalTx.currency } });
+      logger.info('concours.partnership.activated', { partner_id: partner.cand_id, transaction_id: String(finalTx._id) });
+    }
   }
 
   if (finalTx.purpose_type === 'subscription') {

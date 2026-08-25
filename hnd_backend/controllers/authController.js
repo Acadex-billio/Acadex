@@ -312,6 +312,7 @@ exports.login = async (req, res) => {
       preferred_language: String(user.preferred_language || getDefaultLanguageForProgram(user.program || 'HND')).toLowerCase(),
       account_status: accountStatus,
       subscription: await buildSubscriptionResponse(user.subscription),
+      partnership: user.partnership || null,
     };
 
     logger.info('auth.login.success', {
@@ -361,7 +362,7 @@ exports.me = async (req, res) => {
   try {
     const candId = req.user.cand_id;
     if (candId) {
-      const u = await User.findOne({ cand_id: candId }).select('account_status program preferred_language name role is_admin dpt_id subscription').lean();
+      const u = await User.findOne({ cand_id: candId }).select('account_status program preferred_language name role is_admin dpt_id subscription partnership').lean();
       if (u?.account_status) req.user.account_status = u.account_status;
       if (u?.program) req.user.program = String(u.program).toUpperCase();
       if (u?.preferred_language) req.user.preferred_language = String(u.preferred_language).toLowerCase();
@@ -369,6 +370,7 @@ exports.me = async (req, res) => {
       if (u?.role) req.user.role = u.role;
       if (u?.dpt_id) req.user.dpt_id = u.dpt_id;
       if (u?.subscription) req.user.subscription = await buildSubscriptionResponse(u.subscription);
+      if (u?.partnership) req.user.partnership = u.partnership;
     }
   } catch (_) {
     // Ignore database errors, just return the token data

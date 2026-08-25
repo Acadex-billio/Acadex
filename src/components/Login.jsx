@@ -42,8 +42,11 @@ const Login = () => {
         const role = String(user.role || '').toLowerCase();
         const isAdmin = role ? (role === 'admin' || role === 'superadmin' || role === 'developer') : Boolean(user.is_admin);
         const isLecturer = role === 'lecturer';
+        const isConcoursPartner = role === 'concour_partner';
 
-        if (isAdmin) {
+        if (isConcoursPartner) {
+          navigate('/partner');
+        } else if (isAdmin) {
           navigate('/admin');
         } else if (isLecturer) {
           navigate('/lecturer');

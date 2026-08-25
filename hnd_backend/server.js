@@ -68,6 +68,7 @@ const lecturerRoutes = require('./Routes/lecturerRoutes');
 const adRoutes = require('./Routes/adRoutes');
 const materialAccessRoutes = require('./Routes/materialAccessRoutes');
 const developerRoutes = require('./Routes/developerRoutes');
+const concoursRoutes = require('./Routes/concoursRoutes');
 const publicRoutes = require('./Routes/publicRoutes');
 const { getLibreOfficeQueueStats } = require('./services/libreOfficeQueue');
 const { startKeepalive } = require('./services/keepaliveNotifier');
@@ -421,6 +422,7 @@ mountVersionCompatibleRoute(app, '/api/lecturers', lecturerRoutes);
 mountVersionCompatibleRoute(app, '/api/ads', adRoutes);
 mountVersionCompatibleRoute(app, '/api/material-access', materialAccessRoutes);
 mountVersionCompatibleRoute(app, '/api/developer', developerRoutes);
+mountVersionCompatibleRoute(app, '/api/concours', concoursRoutes);
 
 // Dev-only routes (enabled locally or when DEBUG_ROUTES_ENABLED=true)
 if (allowDebugRoutes) {
