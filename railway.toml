@@ -1,0 +1,8 @@
+[build]
+builder = "NIXPACKS"
+buildCommand = "cd hnd_backend && npm ci --omit=dev"
+
+[deploy]
+startCommand = "cd hnd_backend && npm start"
+healthcheckPath = "/api/health"
+restartPolicyType = "ON_FAILURE"
