@@ -41,8 +41,8 @@
     "yaml": "^2.9.0"
   },
   "scripts": {
-    "start": "react-scripts start --no-source-map",
-    "build": "react-scripts build --no-source-map",
+    "start": "node --max-old-space-size=4096 node_modules/react-scripts/bin/react-scripts.js start --no-source-map",
+    "build": "node --max-old-space-size=4096 node_modules/react-scripts/bin/react-scripts.js build --no-source-map",
     "test": "react-scripts test",
     "eject": "react-scripts eject"
   },
