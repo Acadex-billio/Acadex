@@ -25,7 +25,7 @@ import AdDisplay from '../AdDisplay';
 const LecturerShell = () => {
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const { startLoading, stopLoading } = useLoading();
   const [chatUnreadCount, setChatUnreadCount] = useState(0);
 
@@ -64,9 +64,7 @@ const LecturerShell = () => {
   const onLogout = async () => {
     startLoading();
     try {
-      await api.post('/auth/logout');
-    } catch (_) {
-      // no-op
+      await logout();
     } finally {
       navigate('/login');
       setTimeout(() => stopLoading(), 350);

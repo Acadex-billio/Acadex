@@ -10,6 +10,7 @@ import { getErrorMessage } from '../utility/getErrorMessage';
 import { useLoading } from '../context/LoadingContext';
 import { useAuth } from '../context/AuthContext';
 import GraduationCapLoader from './GraduationCapLoader';
+import ConfirmDialog from './ConfirmDialog';
 import { useTranslation } from 'react-i18next';
 
 const AUDIENCE = {
@@ -59,6 +60,7 @@ const QuestionUpload = () => {
   const [numLinks, setNumLinks] = useState(0);
   const [studyLinks, setStudyLinks] = useState([]);
   const [notifyModalOpen, setNotifyModalOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState(null);
   const notifyRef = useRef(null);
 
   // loading context
@@ -274,14 +276,22 @@ const QuestionUpload = () => {
     if (e) e.stopPropagation();
     const id = p?.qp_id || p?._id;
     if (!id) return;
-    const ok = window.confirm(`Delete question paper "${p.paper_title}"? This will remove the uploaded file too.`);
-    if (!ok) return;
+    setDeleteTarget({
+      id,
+      title: 'Delete this question paper?',
+      message: `This will permanently remove "${p.paper_title}" and delete the uploaded file too.`,
+      confirmText: 'Delete paper',
+    });
+  };
+
+  const confirmDeleteQuestionPaper = async () => {
+    if (!deleteTarget?.id) return;
     try {
       startLoading();
-      const { data } = await api.delete(`/admin/question-papers/${id}`);
+      const { data } = await api.delete(`/admin/question-papers/${deleteTarget.id}`);
       if (data?.success) {
         showToast(data?.message || 'Question paper deleted.', 'success');
-        if (String(activeId) === String(id)) clearForm();
+        if (String(activeId) === String(deleteTarget.id)) clearForm();
         await fetchPapers();
       } else {
         showToast(data?.message || 'Delete failed', 'error');
@@ -290,6 +300,7 @@ const QuestionUpload = () => {
       showToast(getErrorMessage(err, 'Delete failed. Please try again.'), 'error');
     } finally {
       stopLoading();
+      setDeleteTarget(null);
     }
   };
 

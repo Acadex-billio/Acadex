@@ -5,7 +5,7 @@
 Create a `.env` file in the backend directory with the following variables:
 
 ```bash
-# Database Confi.guration
+# Database Configuration
 MONGODB_URI=mongodb://localhost:27017/hnd_platform
 MONGO_MAX_POOL_SIZE=80
 MONGO_MIN_POOL_SIZE=10
@@ -14,15 +14,15 @@ MONGO_CONNECT_TIMEOUT_MS=10000
 MONGO_SOCKET_TIMEOUT_MS=45000
 MONGO_MAX_IDLE_TIME_MS=60000
 
-# Session Security (CRITICAL - Generate secure secret)
+# Token and Session Security (CRITICAL - Generate secure secrets)
+JWT_SECRET=replace-with-a-long-random-jwt-secret
 SESSION_SECRET=your-256-bit-secret-key-here
 
 # Server Configuration
 PORT=5000
 
-# Email Configuration (for notifications)
-EMAIL_USER=your-email@gmail.com
-EMAIL_PASS=your-gmail-app-password
+# Email Configuration (primary service)
+RESEND_API_KEY=replace-with-your-resend-api-key
 
 # CORS Configuration
 CORS_ORIGIN=http://localhost:3000
@@ -31,8 +31,8 @@ CORS_ORIGIN=http://localhost:3000
 AI_FEATURES_ENABLED=true
 DEEPSEEK_API_KEY=replace-with-your-deepseek-api-key
 GROQ_API_KEY=replace-with-your-groq-api-key
-DEEPSEEK_BASE_URL=https://api.deepseek.ai/v1
-GROQ_BASE_URL=https://api.groq.ai/v1
+DEEPSEEK_BASE_URL=https://api.deepseek.com/v1
+GROQ_BASE_URL=https://api.groq.com/openai/v1
 
 # MoMo Collection Payments
 MOMO_PROVIDER=mock
@@ -105,8 +105,7 @@ echo "SESSION_SECRET=$SESSION_SECRET" >> .env
 # 3. Add other required variables
 echo "MONGODB_URI=mongodb://localhost:27017/hnd_platform" >> .env
 echo "PORT=5000" >> .env
-echo "EMAIL_USER=your-email@gmail.com" >> .env
-echo "EMAIL_PASS=your-gmail-app-password" >> .env
+echo "RESEND_API_KEY=replace-with-your-resend-api-key" >> .env
 echo "CORS_ORIGIN=http://localhost:3000" >> .env
 
 # 4. Install dependencies
@@ -121,7 +120,7 @@ npm start
 - **NEVER commit `.env` file to version control**
 - **Use different secrets for development vs production**
 - **Rotate SESSION_SECRET regularly** (recommended every 90 days)
-- **Use app passwords for email, not main passwords**
+- **Use provider keys for email, not personal account passwords**
 - **Enable 2FA on email accounts**
 
 ## 🚨 Production Deployment
@@ -130,7 +129,7 @@ For production, ensure:
 
 1. **Use strong, unique SESSION_SECRET** (64+ characters)
 2. **Set production MONGODB_URI** with authentication
-3. **Configure production EMAIL_USER/PASS**
+3. **Configure production RESEND_API_KEY**
 4. **Set CORS_ORIGIN to production domain**
 5. **Use HTTPS in production**
 
@@ -141,8 +140,7 @@ For production, ensure:
 MONGODB_URI=mongodb://localhost:27017/hnd_platform_dev
 SESSION_SECRET=dev-secret-key-change-in-production
 PORT=5000
-EMAIL_USER=dev@example.com
-EMAIL_PASS=dev-app-password
+RESEND_API_KEY=dev-resend-api-key
 CORS_ORIGIN=http://localhost:3000
 ```
 
@@ -151,8 +149,7 @@ CORS_ORIGIN=http://localhost:3000
 MONGODB_URI=mongodb://username:password@cluster.mongodb.net/hnd_platform_prod
 SESSION_SECRET=prod-super-secure-64-character-secret-key
 PORT=5000
-EMAIL_USER=production@example.com
-EMAIL_PASS=prod-app-password
+RESEND_API_KEY=production-resend-api-key
 CORS_ORIGIN=https://yourdomain.com
 ```
 

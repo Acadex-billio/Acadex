@@ -4,7 +4,8 @@
  */
 
 const User = require('../models/User');
-const { jwtAuthMiddleware, isAdmin, isSelfOrAdmin } = require('../utils/jwtUtils');
+const { jwtAuthMiddleware } = require('../utils/jwtUtils');
+const { isAdminRole, isDeveloperRole } = require('./authorize');
 const logger = require('../utils/logger');
 
 const authDebugEnabled = String(process.env.AUTH_DEBUG || '').trim().toLowerCase() === 'true';
@@ -177,7 +178,7 @@ const requireAdmin = async (req, res, next) => {
   }
 
   // Check admin role from JWT
-  if (!isAdmin(req)) {
+  if (!isAdminRole(req.user)) {
     return res.status(403).json({ success: false, message: 'Admin access required' });
   }
 
@@ -217,8 +218,7 @@ const requireDeveloper = async (req, res, next) => {
     return res.status(401).json({ success: false, message: 'Authentication required' });
   }
 
-  const role = String(req.user.role || '').toLowerCase();
-  if (role !== 'developer') {
+  if (!isDeveloperRole(req.user)) {
     return res.status(403).json({ success: false, message: 'Developer access required' });
   }
 
@@ -247,7 +247,7 @@ const requireSelfOrAdmin = (paramName = 'cand_id') => {
     const candId = req.params?.[paramName];
     if (candId && String(candId) === String(req.user.cand_id)) return next();
 
-    if (isAdmin(req)) return next();
+    if (isAdminRole(req.user)) return next();
 
     return res.status(403).json({ success: false, message: 'Forbidden' });
   };

@@ -3,6 +3,7 @@ import api from '../services/api';
 import { showToast } from '../utility/ToastNotification';
 import { getErrorMessage } from '../utility/getErrorMessage';
 import styles from '../Astyles/DeveloperProjectSubmissions.module.css';
+import ConfirmDialog from './ConfirmDialog';
 import SecurePdfPreview from './SecurePdfPreview';
 import { useNavigate } from 'react-router-dom';
 
@@ -27,6 +28,7 @@ const DeveloperProjectSubmissions = () => {
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [previewTitle, setPreviewTitle] = useState('Submission Preview');
+  const [deleteTarget, setDeleteTarget] = useState(null);
 
   const stats = useMemo(() => {
     const summary = { total: items.length, pending: 0, approved: 0, rejected: 0 };
@@ -59,8 +61,13 @@ const DeveloperProjectSubmissions = () => {
     const action = actionById[id] || 'approve';
     const note = noteById[id] || '';
     if (action === 'delete') {
-      const confirmed = window.confirm('Delete this rejected submission permanently?');
-      if (!confirmed) return;
+      setDeleteTarget({
+        id,
+        title: 'Delete rejected submission?',
+        message: 'This permanently deletes the rejected submission and cannot be undone.',
+        confirmText: 'Delete submission',
+      });
+      return;
     }
 
     try {
@@ -91,6 +98,27 @@ const DeveloperProjectSubmissions = () => {
       showToast(getErrorMessage(err, 'Unable to update this submission.'), 'error');
     } finally {
       setActioningId(null);
+    }
+  };
+
+  const confirmDeleteSubmission = async () => {
+    if (!deleteTarget?.id) return;
+
+    try {
+      setActioningId(deleteTarget.id);
+      const res = await api.put(`/admin/project-submissions/${deleteTarget.id}`, {
+        action: 'delete',
+        note: noteById[deleteTarget.id] || '',
+      });
+      if (!res.data?.success) throw new Error(res.data?.message || 'Update failed');
+      showToast('Submission deleted successfully.', 'success');
+      setDeleteTarget(null);
+      await load();
+    } catch (err) {
+      showToast(getErrorMessage(err, 'Unable to update this submission.'), 'error');
+    } finally {
+      setActioningId(null);
+      setDeleteTarget(null);
     }
   };
 
@@ -226,6 +254,15 @@ const DeveloperProjectSubmissions = () => {
           </div>
         </div>
       )}
+
+      <ConfirmDialog
+        open={Boolean(deleteTarget)}
+        title={deleteTarget?.title || 'Delete this item?'}
+        message={deleteTarget?.message || 'This action cannot be undone.'}
+        confirmText={deleteTarget?.confirmText || 'Delete'}
+        onConfirm={confirmDeleteSubmission}
+        onCancel={() => setDeleteTarget(null)}
+      />
     </div>
   );
 };

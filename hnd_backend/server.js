@@ -72,6 +72,7 @@ const publicRoutes = require('./Routes/publicRoutes');
 const { getLibreOfficeQueueStats } = require('./services/libreOfficeQueue');
 const { startPaymentReconciliationScheduler } = require('./services/paymentReconciliationScheduler');
 const { mountVersionCompatibleRoute } = require('./utils/versionRouter');
+const { csrfProtection } = require('./middlewares/csrfProtection');
 
 const app = express();
 const port = process.env.PORT || 5000;
@@ -122,7 +123,7 @@ const isHostedDeployment = Boolean(
   process.env.FLY_APP_NAME
 );
 const isProduction = String(process.env.NODE_ENV || '').toLowerCase() === 'production' && isHostedDeployment;
-const allowDebugRoutes = String(process.env.DEBUG_ROUTES_ENABLED || 'true').trim().toLowerCase() === 'true' || !isProduction;
+const allowDebugRoutes = String(process.env.DEBUG_ROUTES_ENABLED || '').trim().toLowerCase() === 'true';
 const isAiFeaturesEnabled = String(process.env.AI_FEATURES_ENABLED || 'true').trim().toLowerCase() !== 'false';
 
 const getServiceReadiness = () => {
@@ -253,7 +254,7 @@ app.use(
     },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Cache-Control', 'Accept'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Cache-Control', 'Accept', 'X-CSRF-Token'],
     exposedHeaders: ['X-Total-Count', 'X-Preview-Page-Limit', 'X-Allow-Copy', 'X-Subscription-Plan'],
     maxAge: 86400, // 24 hours
   })
@@ -297,6 +298,8 @@ app.use((req, res, next) => {
   }
   next();
 });
+
+app.use('/api', csrfProtection);
 const sessionSecret = process.env.SESSION_SECRET;
 const jwtSecret = process.env.JWT_SECRET;
 
@@ -525,7 +528,7 @@ app.get('/api/v1/health', healthHandler);
 
 app.use(globalErrorHandler);
 
-app.listen(port, () => {
+app.listen(port, '0.0.0.0', () => {
   logger.info('Server started', { port, nodeEnv: process.env.NODE_ENV || 'development' });
 
   try {

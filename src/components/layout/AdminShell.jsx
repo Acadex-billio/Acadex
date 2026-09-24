@@ -25,7 +25,7 @@ const AdminShell = () => {
   const navigate = useNavigate();
   const { startLoading, stopLoading } = useLoading();
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const { user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated, logout } = useAuth();
   const userRole = String(user?.role || '').toLowerCase();
   const isDeveloper = userRole === 'developer';
 
@@ -214,13 +214,8 @@ const AdminShell = () => {
   const onLogout = async () => {
     startLoading();
     try {
-      await api.post('/auth/logout');
-    } catch (_) {
+      await logout();
     } finally {
-      localStorage.removeItem('userId');
-      localStorage.removeItem('userEmail');
-      localStorage.removeItem('userName');
-      localStorage.removeItem('isAdmin');
       navigate('/login');
       setTimeout(() => stopLoading(), 450);
     }

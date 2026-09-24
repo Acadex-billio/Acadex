@@ -3,6 +3,7 @@ import axios from 'axios';
 import api from '../services/api';
 import authService from '../services/authService';
 import styles from '../Astyles/ManageBilling.module.css';
+import ConfirmDialog from './ConfirmDialog';
 import GraduationCapLoader from './GraduationCapLoader';
 import { showToast } from '../utility/ToastNotification';
 import { getErrorMessage } from '../utility/getErrorMessage';
@@ -29,6 +30,7 @@ const BillingCoupons = () => {
   const [couponSaving, setCouponSaving] = useState(false);
   const [couponModalOpen, setCouponModalOpen] = useState(false);
   const [couponEditCode, setCouponEditCode] = useState('');
+  const [deleteCouponTarget, setDeleteCouponTarget] = useState(null);
   const [couponForm, setCouponForm] = useState({
     code: '',
     name: '',
@@ -187,13 +189,26 @@ const BillingCoupons = () => {
   };
 
   const deleteCoupon = async (coupon) => {
-    if (!window.confirm(`Delete coupon ${coupon.code}? This revokes related access.`)) return;
+    if (!coupon?.code) return;
+    setDeleteCouponTarget({
+      code: coupon.code,
+      title: `Delete coupon ${coupon.code}?`,
+      message: 'This revokes the coupon and any related material access that depended on it.',
+      confirmText: 'Delete coupon',
+    });
+  };
+
+  const confirmDeleteCoupon = async () => {
+    if (!deleteCouponTarget?.code) return;
     try {
-      await callBillingApi('delete', `/admin/billing/coupons/${encodeURIComponent(coupon.code)}`);
+      await callBillingApi('delete', `/admin/billing/coupons/${encodeURIComponent(deleteCouponTarget.code)}`);
       showToast('Coupon deleted.', 'success');
+      setDeleteCouponTarget(null);
       loadCoupons();
     } catch (err) {
       showToast(getErrorMessage(err, 'Failed to delete coupon'), 'error');
+    } finally {
+      setDeleteCouponTarget(null);
     }
   };
 
@@ -376,6 +391,15 @@ const BillingCoupons = () => {
           </div>
         </div>
       )}
+
+      <ConfirmDialog
+        open={Boolean(deleteCouponTarget)}
+        title={deleteCouponTarget?.title || 'Delete this item?'}
+        message={deleteCouponTarget?.message || 'This action cannot be undone.'}
+        confirmText={deleteCouponTarget?.confirmText || 'Delete'}
+        onConfirm={confirmDeleteCoupon}
+        onCancel={() => setDeleteCouponTarget(null)}
+      />
     </div>
   );
 };

@@ -7,6 +7,7 @@ import { showToast } from '../utility/ToastNotification';
 import { getErrorMessage } from '../utility/getErrorMessage';
 import { useLoading } from '../context/LoadingContext';
 import { useAuth } from '../context/AuthContext';
+import ConfirmDialog from './ConfirmDialog';
 import GraduationCapLoader from './GraduationCapLoader';
 
 const FIELD_CONFIG = [
@@ -35,6 +36,7 @@ const Department = () => {
   const [activeId, setActiveId] = useState(null);
   const [search, setSearch] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState(null);
   const [pageIndex, setPageIndex] = useState(0);
 
   const fetchDepartments = useCallback(async () => {
@@ -113,19 +115,28 @@ const Department = () => {
   const handleDelete = async (dept) => {
     const id = dept?.dpt_id || dept?._id;
     if (!id) return;
-    const ok = window.confirm(`Delete department "${dept.department_name}"? This cannot be undone.`);
-    if (!ok) return;
+    setDeleteTarget({
+      id,
+      title: 'Delete department?',
+      message: `This will permanently remove "${dept.department_name}" and cannot be undone.`,
+      confirmText: 'Delete department',
+    });
+  };
+
+  const confirmDeleteDepartment = async () => {
+    if (!deleteTarget?.id) return;
 
     try {
       startLoading();
-      const res = await api.delete(`/admin/departments/${id}`);
+      const res = await api.delete(`/admin/departments/${deleteTarget.id}`);
       showToast(res.data?.message || 'Department deleted.', 'success');
-      if (String(activeId) === String(id)) clearForm();
+      if (String(activeId) === String(deleteTarget.id)) clearForm();
       await fetchDepartments();
     } catch (err) {
       showToast(getErrorMessage(err, 'Failed to delete department.'), 'error');
     } finally {
       stopLoading();
+      setDeleteTarget(null);
     }
   };
 
@@ -335,6 +346,15 @@ const Department = () => {
           )}
         </section>
       </div>
+
+      <ConfirmDialog
+        open={Boolean(deleteTarget)}
+        title={deleteTarget?.title || 'Delete this item?'}
+        message={deleteTarget?.message || 'This action cannot be undone.'}
+        confirmText={deleteTarget?.confirmText || 'Delete'}
+        onConfirm={confirmDeleteDepartment}
+        onCancel={() => setDeleteTarget(null)}
+      />
     </div>
   );
 };

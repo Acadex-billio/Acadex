@@ -113,7 +113,7 @@ export const AuthProvider = ({ children }) => {
 
   // Check for existing token on app start
   useEffect(() => {
-    const initializeAuth = () => {
+    const initializeAuth = async () => {
       const token = authService.getToken();
       const user = authService.getCurrentUser();
       
@@ -153,6 +153,20 @@ export const AuthProvider = ({ children }) => {
           payload: { token, user }
         });
       } else {
+        try {
+          const response = await api.get('/auth/me');
+          if (response.data?.authenticated && response.data?.user) {
+            dispatch({
+              type: AUTH_ACTIONS.LOGIN_SUCCESS,
+              payload: { token: null, user: response.data.user },
+            });
+            localStorage.setItem(ACTIVITY_STORAGE_KEY, String(Date.now()));
+            return;
+          }
+        } catch (_) {
+          // Continue with a signed-out state when no valid cookie session exists.
+        }
+
         logDebug('[Auth Context] No valid token found, clearing auth state');
         // Clear all auth data
         authService.removeToken();
@@ -176,15 +190,13 @@ export const AuthProvider = ({ children }) => {
 
     try {
       const response = await api.post('/auth/login', { email, password });
-      
-      const { token, user } = response.data;
-      
-      if (token && user) {
-        authService.setToken(token);
-        
+
+      const { user } = response.data;
+
+      if (user) {
         dispatch({
           type: AUTH_ACTIONS.LOGIN_SUCCESS,
-          payload: { token, user }
+          payload: { token: null, user }
         });
 
         localStorage.setItem(ACTIVITY_STORAGE_KEY, String(Date.now()));
@@ -225,18 +237,20 @@ export const AuthProvider = ({ children }) => {
   };
 
   // Logout action
-  const logout = () => {
-    authService.removeToken();
-    dispatch({
-      type: AUTH_ACTIONS.LOGOUT
-    });
-    
-    // Clear localStorage
-    localStorage.removeItem('userId');
-    localStorage.removeItem('userEmail');
-    localStorage.removeItem('userName');
-    localStorage.removeItem('isAdmin');
-    localStorage.removeItem(ACTIVITY_STORAGE_KEY);
+  const logout = async () => {
+    try {
+      await api.post('/auth/logout');
+    } catch (_) {
+      // Clear local state even when the server session is unavailable.
+    } finally {
+      authService.removeToken();
+      dispatch({ type: AUTH_ACTIONS.LOGOUT });
+      localStorage.removeItem('userId');
+      localStorage.removeItem('userEmail');
+      localStorage.removeItem('userName');
+      localStorage.removeItem('isAdmin');
+      localStorage.removeItem(ACTIVITY_STORAGE_KEY);
+    }
   };
 
   useEffect(() => {
@@ -261,7 +275,7 @@ export const AuthProvider = ({ children }) => {
       if (now - lastActivityAt > INACTIVITY_WINDOW_MS) {
         logout();
         if (typeof window.showToast === 'function') {
-          window.showToast('You were logged out after 24 hours of inactivity. Please log in again.', 'warning');
+          window.showToast('You were logged out after 72 hours of inactivity. Please log in again.', 'warning');
         }
       }
     };

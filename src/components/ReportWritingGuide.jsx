@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import api from '../services/api';
 import styles from '../Astyles/reportUpload.module.css';
 import crudStyles from '../Astyles/AdminCrudTwoCol.module.css';
+import ConfirmDialog from './ConfirmDialog';
 import { showToast } from '../utility/ToastNotification';
 import { getErrorMessage } from '../utility/getErrorMessage';
 import { useLoading } from '../context/LoadingContext';
@@ -141,14 +142,24 @@ const ReportWritingGuide = () => {
   };
 
   const deleteGuide = async (id) => {
-    if (!window.confirm('Delete this guide? This action cannot be undone.')) return;
+    if (!id) return;
+    setDeleteTarget({
+      id,
+      title: 'Delete this guide?',
+      message: 'This action removes the guide permanently and cannot be undone.',
+      confirmText: 'Delete guide',
+    });
+  };
+
+  const confirmDeleteGuide = async () => {
+    if (!deleteTarget?.id) return;
     try {
       startLoading();
-      const res = await api.delete(`/admin/reports/${id}`);
+      const res = await api.delete(`/admin/reports/${deleteTarget.id}`);
       if (res.data?.success) {
         showToast('Guide deleted successfully', 'success');
-        setGuides((prev) => (Array.isArray(prev) ? prev.filter((g) => String(g.report_id || g._id) !== String(id)) : []));
-        if (String(activeGuideId) === String(id)) setActiveGuideId(null);
+        setGuides((prev) => (Array.isArray(prev) ? prev.filter((g) => String(g.report_id || g._id) !== String(deleteTarget.id)) : []));
+        if (String(activeGuideId) === String(deleteTarget.id)) setActiveGuideId(null);
       } else {
         showToast(res.data?.message || 'Failed to delete guide', 'error');
       }
@@ -156,6 +167,7 @@ const ReportWritingGuide = () => {
       showToast(getErrorMessage(err, 'Failed to delete guide.'), 'error');
     } finally {
       stopLoading();
+      setDeleteTarget(null);
     }
   };
 
@@ -412,6 +424,15 @@ const ReportWritingGuide = () => {
           </div>
         </section>
       </div>
+
+      <ConfirmDialog
+        open={Boolean(deleteTarget)}
+        title={deleteTarget?.title || 'Delete this item?'}
+        message={deleteTarget?.message || 'This action cannot be undone.'}
+        confirmText={deleteTarget?.confirmText || 'Delete'}
+        onConfirm={confirmDeleteGuide}
+        onCancel={() => setDeleteTarget(null)}
+      />
     </div>
   );
 };

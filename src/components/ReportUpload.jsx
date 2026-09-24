@@ -8,6 +8,7 @@ import { getErrorMessage } from '../utility/getErrorMessage';
 import { useLoading } from '../context/LoadingContext';
 import { useAuth } from '../context/AuthContext';
 import GraduationCapLoader from './GraduationCapLoader';
+import ConfirmDialog from './ConfirmDialog';
 import { useTranslation } from 'react-i18next';
 import { useLocation, useNavigate } from 'react-router-dom';
 
@@ -52,6 +53,7 @@ const ReportUpload = () => {
   const [reportDoc, setReportDoc] = useState(null);
 
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState(null);
   const [uploadProgress, setUploadProgress] = useState(0);
   const confirmRef = useRef(null);
   const [fromSubmissionId, setFromSubmissionId] = useState('');
@@ -339,14 +341,22 @@ const ReportUpload = () => {
     if (e) e.stopPropagation();
     const id = r?.report_id || r?._id;
     if (!id) return;
-    const ok = window.confirm(`Delete report "${r.title}"? This will remove the uploaded file too.`);
-    if (!ok) return;
+    setDeleteTarget({
+      id,
+      title: 'Delete this report?',
+      message: `This will permanently remove "${r.title}" and delete the uploaded file too.`,
+      confirmText: 'Delete report',
+    });
+  };
+
+  const confirmDeleteReport = async () => {
+    if (!deleteTarget?.id) return;
     try {
       startLoading();
-      const res = await api.delete(`/admin/reports/${id}`);
+      const res = await api.delete(`/admin/reports/${deleteTarget.id}`);
       if (res.data?.success) {
         showToast(res.data?.message || 'Report deleted.', 'success');
-        if (String(activeId) === String(id)) clearForm();
+        if (String(activeId) === String(deleteTarget.id)) clearForm();
         await fetchReports();
       } else {
         showToast(res.data?.message || 'Delete failed.', 'error');
@@ -355,6 +365,7 @@ const ReportUpload = () => {
       showToast(getErrorMessage(err, 'Failed to delete report.'), 'error');
     } finally {
       stopLoading();
+      setDeleteTarget(null);
     }
   };
 

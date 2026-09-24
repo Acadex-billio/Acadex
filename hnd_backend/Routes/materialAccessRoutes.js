@@ -3,7 +3,6 @@ const router = express.Router();
 const mongoose = require('mongoose');
 const { requireAuth } = require('../middlewares/jwtAuth');
 const materialAccessService = require('../services/materialAccessService');
-const paymentCallbackService = require('../services/paymentCallbackService');
 const User = require('../models/User');
 const { getMaterialAccessInfo } = require('../middlewares/materialAccessMiddleware');
 
@@ -259,22 +258,10 @@ router.post('/revoke', requireAuth, async (req, res) => {
  * Body: { transactionId, userId, materialId, materialType, accessType, amount, reference }
  */
 router.post('/payment-callback', async (req, res) => {
-  try {
-    const paymentData = req.body;
-
-    const result = await paymentCallbackService.handlePaymentSuccess(
-      paymentData
-    );
-
-    return res.json(result);
-  } catch (error) {
-    console.error('Error in payment callback:', error);
-    return res.status(500).json({
-      success: false,
-      message: 'Error processing payment callback',
-      error: error.message,
-    });
-  }
+  return res.status(410).json({
+    success: false,
+    message: 'This payment callback is no longer supported. Use the signed CamerPay webhook endpoint.',
+  });
 });
 
 /**
@@ -282,20 +269,10 @@ router.post('/payment-callback', async (req, res) => {
  * Get payment and access status
  */
 router.get('/payment-status/:transactionId', requireAuth, async (req, res) => {
-  try {
-    const { transactionId } = req.params;
-
-    const status = await paymentCallbackService.getPaymentStatus(transactionId);
-
-    return res.json(status);
-  } catch (error) {
-    console.error('Error fetching payment status:', error);
-    return res.status(500).json({
-      success: false,
-      message: 'Error fetching payment status',
-      error: error.message,
-    });
-  }
+  return res.status(410).json({
+    success: false,
+    message: 'This payment status endpoint is no longer supported. Use the candidate payment status endpoint.',
+  });
 });
 
 module.exports = router;

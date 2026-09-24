@@ -4,10 +4,10 @@ const paymentAccessGrantSchema = new mongoose.Schema(
   {
     user_cand_id: { type: String, required: true, trim: true, index: true },
     grant_code: { type: String, required: true, trim: true, index: true },
-    resource_type: { type: String, enum: ['report', 'presentation', 'question_paper'], required: true, index: true },
-    resource_id: { type: String, required: true, trim: true, index: true },
-    transaction_id: { type: mongoose.Schema.Types.ObjectId, ref: 'PaymentTransaction', required: true, index: true },
-    amount: { type: Number, required: true, min: 0 },
+    resource_type: { type: String, enum: ['report', 'presentation', 'question_paper', 'center', 'ai_mode'], required: true, index: true },
+    resource_id: { type: String, default: '', trim: true, index: true },
+    transaction_id: { type: mongoose.Schema.Types.ObjectId, ref: 'PaymentTransaction', default: null, index: true },
+    amount: { type: Number, default: 0, min: 0 },
     currency: { type: String, default: 'XAF', trim: true },
     status: { type: String, enum: ['active', 'expired', 'revoked'], default: 'active', index: true },
     granted_at: { type: Date, default: Date.now },
@@ -20,7 +20,7 @@ const paymentAccessGrantSchema = new mongoose.Schema(
 paymentAccessGrantSchema.index({ user_cand_id: 1, grant_code: 1, resource_id: 1, status: 1 });
 paymentAccessGrantSchema.index(
   { user_cand_id: 1, transaction_id: 1, grant_code: 1, resource_id: 1 },
-  { unique: true }
+  { unique: true, sparse: true }
 );
 
 module.exports = mongoose.model('PaymentAccessGrant', paymentAccessGrantSchema);

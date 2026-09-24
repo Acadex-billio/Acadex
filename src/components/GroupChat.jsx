@@ -6,6 +6,7 @@ import api from '../services/api';
 import { showToast } from '../utility/ToastNotification';
 import { getErrorMessage } from '../utility/getErrorMessage';
 import styles from '../Astyles/groupchat.module.css';
+import ConfirmDialog from './ConfirmDialog';
 import PaymentActionModal from './PaymentActionModal';
 import { maskCandidateId } from '../utility/maskCandidateId';
 
@@ -87,6 +88,7 @@ const GroupChat = ({ mode = 'candidate' }) => {
   const [expandedImageUrl, setExpandedImageUrl] = useState(null);
   const [selectMode, setSelectMode] = useState(false);
   const [selectedMessages, setSelectedMessages] = useState(new Set());
+  const [deleteMessageTarget, setDeleteMessageTarget] = useState(null);
   const [showReactionPicker, setShowReactionPicker] = useState(null);
   const [paymentRequest, setPaymentRequest] = useState(null);
   const [isMobileView, setIsMobileView] = useState(() => window.innerWidth <= 980);
@@ -914,18 +916,31 @@ const GroupChat = ({ mode = 'candidate' }) => {
   };
 
   const onDeleteMessage = async (messageId) => {
-    if (!window.confirm('Delete this message?')) return;
+    if (!messageId) return;
+    setDeleteMessageTarget({
+      id: messageId,
+      title: 'Delete this message?',
+      message: 'This action removes the message permanently and cannot be undone.',
+      confirmText: 'Delete message',
+      multi: false,
+    });
+  };
+
+  const confirmDeleteMessage = async () => {
+    if (!deleteMessageTarget?.id) return;
     try {
-      await api.delete(`/chat/rooms/${encodeURIComponent(activeRoomId)}/messages/${encodeURIComponent(messageId)}`);
-      setMessages((prev) => prev.filter((m) => String(m._id) !== String(messageId)));
+      await api.delete(`/chat/rooms/${encodeURIComponent(activeRoomId)}/messages/${encodeURIComponent(deleteMessageTarget.id)}`);
+      setMessages((prev) => prev.filter((m) => String(m._id) !== String(deleteMessageTarget.id)));
       setSelectedMessages((prev) => {
         const next = new Set(prev);
-        next.delete(String(messageId));
+        next.delete(String(deleteMessageTarget.id));
         return next;
       });
       showToast('Message deleted', 'success');
     } catch (err) {
       showToast(getErrorMessage(err, 'Failed to delete message'), 'error');
+    } finally {
+      setDeleteMessageTarget(null);
     }
   };
 
@@ -944,7 +959,17 @@ const GroupChat = ({ mode = 'candidate' }) => {
 
   const onDeleteSelectedMessages = async () => {
     if (!selectedMessages.size) return;
-    if (!window.confirm(`Delete ${selectedMessages.size} message(s)?`)) return;
+    setDeleteMessageTarget({
+      id: null,
+      title: 'Delete selected messages?',
+      message: `This will permanently delete ${selectedMessages.size} selected message(s).`,
+      confirmText: 'Delete messages',
+      multi: true,
+    });
+  };
+
+  const confirmDeleteSelectedMessages = async () => {
+    if (!selectedMessages.size) return;
     let successCount = 0;
     for (const messageId of selectedMessages) {
       try {
@@ -954,6 +979,7 @@ const GroupChat = ({ mode = 'candidate' }) => {
         // continue
       }
     }
+    setDeleteMessageTarget(null);
     if (successCount > 0) {
       setMessages((prev) =>
         prev.filter((m) => !selectedMessages.has(String(m._id)))
@@ -977,574 +1003,576 @@ const GroupChat = ({ mode = 'candidate' }) => {
   }
 
   return (
-    <div className={styles.chatPage}>
-      <div className={styles.layout}>
-        {showChatListPanel && (
-        <aside className={styles.sidebar}>
-          <div className={styles.card}>
-            <div className={styles.chatTitleRow}>
-              <div className={styles.cardTitle} style={{ marginBottom: 0 }}>
-                {adminMode ? 'All Admin Chat' : 'Chats'}
-              </div>
-              {!adminMode && (
-                <button
-                  type="button"
-                  className={styles.iconBtn}
-                  onClick={() => setShowCreateCenter(true)}
-                  title="Create Center"
-                  aria-label="Create Center"
-                >
-                  +
-                </button>
-              )}
-            </div>
-
-            {!adminMode && isMobileView && (
-              <div className={styles.mobileTabs}>
-                <button
-                  type="button"
-                  className={`${styles.mobileTabBtn} ${mobileSection === 'chats' ? styles.mobileTabBtnActive : ''}`}
-                  onClick={() => setMobileSection('chats')}
-                >
-                  Chats
-                </button>
-                <button
-                  type="button"
-                  className={`${styles.mobileTabBtn} ${mobileSection === 'groups' ? styles.mobileTabBtnActive : ''}`}
-                  onClick={() => setMobileSection('groups')}
-                >
-                  Communities
-                </button>
-              </div>
-            )}
-
-            {!adminMode && showGroupSections && (
-              <>
-                <div className={styles.sectionTitle}>General</div>
-                {grouped.general.map((r) => (
-                  <div key={r.room_id} className={styles.roomRowSingle}>
+    <>
+      <div className={styles.chatPage}>
+        <div className={styles.layout}>
+          {showChatListPanel && (
+            <aside className={styles.sidebar}>
+              <div className={styles.card}>
+                <div className={styles.chatTitleRow}>
+                  <div className={styles.cardTitle} style={{ marginBottom: 0 }}>
+                    {adminMode ? 'All Admin Chat' : 'Chats'}
+                  </div>
+                  {!adminMode && (
                     <button
                       type="button"
-                      className={`${styles.roomBtn} ${String(activeRoomId) === String(r.room_id) ? styles.roomBtnActive : ''}`}
-                      onClick={() => {
-                        setShowMore(false);
-                        setShowSearch(false);
-                        setSearchQuery('');
-                        setActiveRoomId(String(r.room_id));
-                        if (isMobileView) setMobilePanel('chat');
-                      }}
+                      className={styles.iconBtn}
+                      onClick={() => setShowCreateCenter(true)}
+                      title="Create Center"
+                      aria-label="Create Center"
                     >
-                      <span className={styles.roomName}>{roomLabel(r, selfCandId)}</span>
-                      {badgeText(r.unread_count) && <span className={styles.badge}>{badgeText(r.unread_count)}</span>}
-                    </button>
-                  </div>
-                ))}
-              </>
-            )}
-
-            {showGroupSections && grouped.admin.length > 0 && <div className={styles.sectionTitle}>{adminMode ? 'All Admin Chat' : 'Admin'}</div>}
-            {showGroupSections && grouped.admin.map((r) => (
-              <div key={r.room_id} className={styles.roomRowSingle}>
-                <button
-                  type="button"
-                  className={`${styles.roomBtn} ${String(activeRoomId) === String(r.room_id) ? styles.roomBtnActive : ''}`}
-                  onClick={() => {
-                    setShowMore(false);
-                    setShowSearch(false);
-                    setSearchQuery('');
-                    setActiveRoomId(String(r.room_id));
-                    if (isMobileView) setMobilePanel('chat');
-                  }}
-                >
-                  <span className={styles.roomName}>{roomLabel(r, selfCandId)}</span>
-                  {badgeText(r.unread_count) && <span className={styles.badge}>{badgeText(r.unread_count)}</span>}
-                </button>
-              </div>
-            ))}
-
-            {!adminMode && showGroupSections && (
-              <>
-                <div className={styles.sectionTitle}>Department</div>
-                {grouped.dept.map((r) => (
-                  <div key={r.room_id} className={styles.roomRowSingle}>
-                    <button
-                      type="button"
-                      className={`${styles.roomBtn} ${String(activeRoomId) === String(r.room_id) ? styles.roomBtnActive : ''}`}
-                      onClick={() => {
-                        setShowMore(false);
-                        setShowSearch(false);
-                        setSearchQuery('');
-                        setActiveRoomId(String(r.room_id));
-                        if (isMobileView) setMobilePanel('chat');
-                      }}
-                    >
-                      <span className={styles.roomName}>{roomLabel(r, selfCandId)}</span>
-                      {badgeText(r.unread_count) && <span className={styles.badge}>{badgeText(r.unread_count)}</span>}
-                    </button>
-                  </div>
-                ))}
-
-                <div className={styles.sectionTitle}>Center</div>
-                {pendingInvites.length > 0 && (
-                  <div className={styles.morePanel}>
-                    <div className={styles.moreTitle}>Invites</div>
-                    {pendingInvites.slice(0, 4).map((inv) => (
-                      <div key={inv.invite_id} className={styles.moreRow}>
-                        <span className={styles.moreValue}>
-                          {inv.room_name} {inv.from_name ? `• from ${inv.from_name}` : ''}
-                        </span>
-                        <span className={styles.moreValue}>
-                          <button type="button" className={styles.primaryBtn} onClick={() => onRespondInvite(inv.invite_id, 'accept')}>
-                            Accept
-                          </button>
-                          <button type="button" className={styles.smallBtnDanger} onClick={() => onRespondInvite(inv.invite_id, 'reject')}>
-                            Reject
-                          </button>
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-                {grouped.center.map((r) => (
-                  <div key={r.room_id} className={styles.roomRowSingle}>
-                    <button
-                      type="button"
-                      className={`${styles.roomBtn} ${String(activeRoomId) === String(r.room_id) ? styles.roomBtnActive : ''}`}
-                      onClick={() => {
-                        setShowMore(false);
-                        setShowSearch(false);
-                        setSearchQuery('');
-                        setActiveRoomId(String(r.room_id));
-                        if (isMobileView) setMobilePanel('chat');
-                      }}
-                    >
-                      <span className={styles.roomName}>{roomLabel(r, selfCandId)}</span>
-                      {badgeText(r.unread_count) && <span className={styles.badge}>{badgeText(r.unread_count)}</span>}
-                    </button>
-                  </div>
-                ))}
-              </>
-            )}
-
-            {showPersonalSection && (
-              <>
-                <div className={styles.sectionTitle}>Personal</div>
-                <input
-                  className={styles.searchInput}
-                  value={userSearch}
-                  onChange={(e) => setUserSearch(e.target.value)}
-                  placeholder="Search users by name / ID"
-                />
-                {searchingUsers && <div className={styles.mutedText}>Searching…</div>}
-                {userResults.slice(0, 6).map((u) => (
-                  <button key={u.cand_id} type="button" className={styles.userResultBtn} onClick={() => onStartDm(u.cand_id)}>
-                    <span className={styles.userResultName}>{u.name || maskCandidateId(u.cand_id)}</span>
-                    <span className={styles.userResultId}>{maskCandidateId(u.cand_id)}</span>
-                  </button>
-                ))}
-                {grouped.dm.map((r) => (
-                  <div key={r.room_id} className={styles.roomRowSingle}>
-                    <button
-                      type="button"
-                      className={`${styles.roomBtn} ${String(activeRoomId) === String(r.room_id) ? styles.roomBtnActive : ''}`}
-                      onClick={() => {
-                        setShowMore(false);
-                        setShowSearch(false);
-                        setSearchQuery('');
-                        setActiveRoomId(String(r.room_id));
-                        if (isMobileView) setMobilePanel('chat');
-                      }}
-                    >
-                      <span className={styles.roomName}>{roomLabel(r, selfCandId)}</span>
-                      {badgeText(r.unread_count) && <span className={styles.badge}>{badgeText(r.unread_count)}</span>}
-                    </button>
-                  </div>
-                ))}
-              </>
-            )}
-          </div>
-        </aside>
-        )}
-
-        {showChatRoomPanel && (
-        <section className={styles.chatPanel}>
-          <div className={styles.card}>
-            <div className={styles.chatHeaderRow}>
-              <div>
-                {isMobileView && (
-                  <button
-                    type="button"
-                    className={`${styles.iconBtn} ${styles.mobileBackBtn}`}
-                    onClick={() => setMobilePanel('list')}
-                    aria-label="Back to chats"
-                    title="Back to chats"
-                  >
-                    <FaArrowLeft />
-                  </button>
-                )}
-                <div className={styles.cardTitle}>{activeRoom ? roomLabel(activeRoom, selfCandId) : 'Chat'}</div>
-                {activeRoom && (
-                  <div className={styles.mutedText}>
-                    {activeRoom.member_count ? `${activeRoom.member_count} members` : ''}
-                  </div>
-                )}
-              </div>
-
-              {activeRoom && (
-                <div className={styles.headerActions}>
-                  <button
-                    type="button"
-                    className={`${styles.iconBtn} ${selectMode ? styles.iconBtnActive : ''}`}
-                    onClick={() => {
-                      setSelectMode((v) => !v);
-                      if (selectMode) setSelectedMessages(new Set());
-                    }}
-                    aria-label="Select messages"
-                    title="Select messages"
-                  >
-                    <FaCheckSquare />
-                  </button>
-                  {selectMode && selectedMessages.size > 0 && (
-                    <button
-                      type="button"
-                      className={styles.deleteSelectedBtn}
-                      onClick={onDeleteSelectedMessages}
-                      aria-label={`Delete ${selectedMessages.size} message(s)`}
-                      title={`Delete ${selectedMessages.size} message(s)`}
-                    >
-                      <FaTrash /> Delete ({selectedMessages.size})
+                      +
                     </button>
                   )}
-                  <button
-                    type="button"
-                    className={styles.iconBtn}
-                    onClick={() => {
-                      setShowMore(false);
-                      setShowSearch((v) => !v);
-                      if (showSearch) setSearchQuery('');
-                    }}
-                    aria-label="Search"
-                  >
-                    {showSearch ? <FaTimes /> : <FaSearch />}
-                  </button>
-                  <button
-                    type="button"
-                    className={styles.iconBtn}
-                    onClick={() => {
-                      setShowSearch(false);
-                      setSearchQuery('');
-                      setShowMore((v) => !v);
-                    }}
-                    aria-label="More"
-                  >
-                    <FaEllipsisV />
-                  </button>
                 </div>
-              )}
-            </div>
 
-            {activeRoom && showSearch && (
-              <div className={styles.searchBar}>
-                <input
-                  className={styles.searchInput}
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Search messages in this chat"
-                />
-                {searchQuery && <div className={styles.mutedText}>{filteredMessages.length} result(s)</div>}
-              </div>
-            )}
-
-            <div className={styles.messagesWrap}>
-              {filteredMessages.filter(m => !m.deleted_at).map((m) => {
-                const mine = String(m.sender_cand_id) === selfCandId;
-                const time = m.createdAt ? new Date(m.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
-                const isImage = isImageAttachment(m);
-                const hasAttachment = Boolean(m.attachment_url);
-                const statusState = String(m.status?.state || 'sent');
-                const isSelected = selectedMessages.has(String(m._id));
-                const canDeleteSelf = mine && m.createdAt && (Date.now() - new Date(m.createdAt).getTime()) / 1000 <= 60;
-                const canDelete = canDeleteSelf || isAdminSelf;
-                return (
-                  <div key={m._id} className={`${styles.bubbleRow} ${mine ? styles.bubbleRowSelf : ''} ${isSelected ? styles.bubbleRowSelected : ''}`}>
-                    {selectMode && (
-                      <button
-                        type="button"
-                        className={styles.selectCheckbox}
-                        onClick={() => onToggleSelectMessage(m._id)}
-                        aria-label={`Select message ${m._id}`}
-                      >
-                        {isSelected ? <FaCheckSquare /> : <FaSquare />}
-                      </button>
-                    )}
-                    <div
-                      ref={(node) => {
-                        if (node) messageRefs.current.set(String(m._id), node);
-                        else messageRefs.current.delete(String(m._id));
-                      }}
-                      className={`${styles.bubble} ${mine ? styles.bubbleSelf : styles.bubbleOther} ${highlightedMessageId === String(m._id) ? styles.bubbleHighlight : ''}`}
-                    >
-                      <div className={styles.bubbleMeta}>
-                        <span className={styles.bubbleSender}>{mine ? 'You' : m.sender_name || maskCandidateId(m.sender_cand_id)}</span>
-                        <span className={styles.bubbleTimeWrap}>
-                          <span className={styles.bubbleTime}>{time}</span>
-                          {mine && (
-                            <span className={`${styles.tick} ${statusState === 'read' ? styles.tickRead : ''}`} title={statusState}>
-                              {statusState === 'sending' ? <span className={styles.tickPending}>...</span> : statusState === 'sent' ? <FaCheck /> : <FaCheckDouble />}
-                            </span>
-                          )}
-                        </span>
-                      </div>
-
-                      {m.reply_to && (
-                        <button
-                          type="button"
-                          className={styles.replyBlock}
-                          onClick={() => jumpToMessage(m.reply_to?._id)}
-                        >
-                          <span className={styles.replyAuthor}>{String(m.reply_to.sender_name || 'Message')}</span>
-                          <span className={styles.replyText}>
-                            {String(m.reply_to.text || m.reply_to.attachment_name || '').slice(0, 90) || 'Attachment'}
-                          </span>
-                        </button>
-                      )}
-
-                      {m.text ? <div className={styles.bubbleText}>{m.text}</div> : null}
-
-                      {hasAttachment && isImage && (
-                        <div className={styles.attachmentWrap}>
-                          {attachmentObjectUrls[String(m._id)] ? (
-                            <div className={styles.attachmentImageStack}>
-                              {attachmentThumbUrls[String(m._id)] && !loadedAttachmentIds[String(m._id)] ? (
-                                <img
-                                  src={attachmentThumbUrls[String(m._id)]}
-                                  alt="thumbnail"
-                                  className={`${styles.attachmentImage} ${styles.attachmentImageThumb}`}
-                                />
-                              ) : null}
-                              <img
-                                src={attachmentObjectUrls[String(m._id)]}
-                                alt={m.attachment_name || 'attachment'}
-                                className={`${styles.attachmentImage} ${loadedAttachmentIds[String(m._id)] ? styles.attachmentImageSharp : styles.attachmentImageBlur}`}
-                                onLoad={() => setLoadedAttachmentIds((prev) => ({ ...prev, [String(m._id)]: true }))}
-                                onClick={() => setExpandedImageUrl(attachmentObjectUrls[String(m._id)])}
-                                style={{ cursor: 'pointer' }}
-                                title="Click to expand"
-                              />
-                            </div>
-                          ) : loadingAttachmentIds[String(m._id)] ? (
-                            <div className={styles.attachmentLoading}>Loading material...</div>
-                          ) : failedAttachmentIds[String(m._id)] ? (
-                            <a className={styles.attachmentLink} href={m.attachment_url} target="_blank" rel="noreferrer">
-                              <span className={styles.attachmentFile}>Open image: {m.attachment_name || 'image'}</span>
-                            </a>
-                          ) : (
-                            <div className={styles.attachmentLoading}>Loading material...</div>
-                          )}
-                        </div>
-                      )}
-
-                      {hasAttachment && !isImage && (
-                        <a className={styles.attachmentLink} href={m.attachment_url} target="_blank" rel="noreferrer">
-                          <span className={styles.attachmentFile}>Open attachment: {m.attachment_name || 'file'}</span>
-                        </a>
-                      )}
-
-                      {m.reactions && Array.isArray(m.reactions) && m.reactions.length > 0 && (
-                        <div className={styles.reactionsWrap}>
-                          {m.reactions.map((reaction, idx) => (
-                            <button
-                              key={idx}
-                              type="button"
-                              className={styles.reactionBubble}
-                              onClick={() => onAddReaction(m._id, reaction.emoji)}
-                              title={`Reacted by: ${reaction.users.map((id) => maskCandidateId(id)).join(', ')}`}
-                            >
-                              <span>{reaction.emoji}</span>
-                              {reaction.users.length > 1 && <span className={styles.reactionCount}>{reaction.users.length}</span>}
-                            </button>
-                          ))}
-                          <button
-                            type="button"
-                            className={styles.addReactionBtn}
-                            onClick={() => setShowReactionPicker(String(m._id))}
-                            title="Add reaction"
-                          >
-                            <FaSmile />
-                          </button>
-                        </div>
-                      )}
-
-                      {(!m.reactions || m.reactions.length === 0) && (
-                        <div className={styles.reactionsWrap}>
-                          <button
-                            type="button"
-                            className={styles.addReactionBtn}
-                            onClick={() => setShowReactionPicker(String(m._id))}
-                            title="Add reaction"
-                          >
-                            <FaSmile />
-                          </button>
-                        </div>
-                      )}
-
-                      {showReactionPicker === String(m._id) && (
-                        <div className={styles.reactionPickerWrap}>
-                          <Picker
-                            data={data}
-                            onEmojiSelect={(e) => onAddReaction(m._id, e.native)}
-                            theme="light"
-                            navPosition="top"
-                            perLine={8}
-                            maxFrequentRows={1}
-                          />
-                        </div>
-                      )}
-
-                      <div className={styles.bubbleActions}>
-                        <button type="button" className={styles.replyBtn} onClick={() => setReplyingTo(m)}>
-                          Reply
-                        </button>
-                        {canDelete && (
-                          <button
-                            type="button"
-                            className={styles.deleteBtn}
-                            onClick={() => onDeleteMessage(m._id)}
-                            title="Delete message"
-                          >
-                            <FaTrash />
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-              <div ref={messagesEndRef} />
-            </div>
-
-            {replyingTo && (
-              <div className={styles.replyingBar}>
-                <div className={styles.replyingText}>
-                  Replying to {String(replyingTo.sender_name || maskCandidateId(replyingTo.sender_cand_id) || 'message')}: {String(replyingTo.text || replyingTo.attachment_name || '').slice(0, 90) || 'Attachment'}
-                </div>
-                <button type="button" className={styles.replyCancelBtn} onClick={() => setReplyingTo(null)}>
-                  <FaTimes />
-                </button>
-              </div>
-            )}
-
-            <div className={styles.composer}>
-              <div className={styles.composerInputWrap} ref={emojiWrapRef}>
-                <input
-                  ref={attachmentInputRef}
-                  type="file"
-                  accept="application/pdf,image/jpeg,image/png,image/webp,image/gif"
-                  style={{ display: 'none' }}
-                  onChange={(e) => {
-                    const file = e.target.files?.[0] || null;
-                    if (!file) return;
-                    if (file.size > 10 * 1024 * 1024) {
-                      showToast('Attachment must be 10MB or less.', 'warning');
-                      e.target.value = '';
-                      return;
-                    }
-                    setSelectedAttachment(file);
-                    e.target.value = '';
-                  }}
-                />
-                <input
-                  className={styles.composerInput}
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  placeholder="Type a message…"
-                  disabled={!canType}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' && mentionResults.length && mentionQuery) {
-                      e.preventDefault();
-                      onSelectMention(mentionResults[0]);
-                      return;
-                    }
-                    if (e.key === 'Enter') onSend();
-                  }}
-                />
-
-                <button
-                  type="button"
-                  className={styles.attachBtn}
-                  onClick={() => attachmentInputRef.current?.click()}
-                  disabled={!canType}
-                  title="Attach file"
-                  aria-label="Attach file"
-                >
-                  <FaPaperclip />
-                </button>
-
-                <button
-                  type="button"
-                  className={styles.emojiBtn}
-                  onClick={() => setShowEmoji((v) => !v)}
-                  disabled={!canType}
-                  title="Emoji"
-                  aria-label="Emoji"
-                >
-                  <FaRegSmile />
-                </button>
-
-                {showEmoji && (
-                  <div className={styles.emojiPickerPopover}>
-                    <Picker
-                      data={data}
-                      onEmojiSelect={(e) => {
-                        const native = e?.native || '';
-                        if (!native) return;
-                        setInput((prev) => `${prev}${native}`);
-                        setShowEmoji(false);
-                      }}
-                      theme="light"
-                      previewPosition="none"
-                    />
-                  </div>
-                )}
-
-                {mentionResults.length > 0 && (
-                  <div className={styles.mentionDropdown}>
-                    {mentionResults.map((member) => (
-                      <button
-                        key={member.cand_id}
-                        type="button"
-                        className={styles.mentionOption}
-                        onClick={() => onSelectMention(member)}
-                      >
-                        <span>{member.name || member.cand_id}</span>
-                        <span className={styles.mentionMeta}>{member.cand_id}</span>
-                      </button>
-                    ))}
-                  </div>
-                )}
-
-                {selectedAttachment && (
-                  <div className={styles.attachmentChip}>
-                    <span>{selectedAttachment.name}</span>
+                {!adminMode && isMobileView && (
+                  <div className={styles.mobileTabs}>
                     <button
                       type="button"
-                      className={styles.chipClose}
-                      onClick={() => setSelectedAttachment(null)}
-                      aria-label="Remove attachment"
+                      className={`${styles.mobileTabBtn} ${mobileSection === 'chats' ? styles.mobileTabBtnActive : ''}`}
+                      onClick={() => setMobileSection('chats')}
                     >
+                      Chats
+                    </button>
+                    <button
+                      type="button"
+                      className={`${styles.mobileTabBtn} ${mobileSection === 'groups' ? styles.mobileTabBtnActive : ''}`}
+                      onClick={() => setMobileSection('groups')}
+                    >
+                      Communities
+                    </button>
+                  </div>
+                )}
+
+                {!adminMode && showGroupSections && (
+                  <>
+                    <div className={styles.sectionTitle}>General</div>
+                    {grouped.general.map((r) => (
+                      <div key={r.room_id} className={styles.roomRowSingle}>
+                        <button
+                          type="button"
+                          className={`${styles.roomBtn} ${String(activeRoomId) === String(r.room_id) ? styles.roomBtnActive : ''}`}
+                          onClick={() => {
+                            setShowMore(false);
+                            setShowSearch(false);
+                            setSearchQuery('');
+                            setActiveRoomId(String(r.room_id));
+                            if (isMobileView) setMobilePanel('chat');
+                          }}
+                        >
+                          <span className={styles.roomName}>{roomLabel(r, selfCandId)}</span>
+                          {badgeText(r.unread_count) && <span className={styles.badge}>{badgeText(r.unread_count)}</span>}
+                        </button>
+                      </div>
+                    ))}
+                  </>
+                )}
+
+                {showGroupSections && grouped.admin.length > 0 && <div className={styles.sectionTitle}>{adminMode ? 'All Admin Chat' : 'Admin'}</div>}
+                {showGroupSections && grouped.admin.map((r) => (
+                  <div key={r.room_id} className={styles.roomRowSingle}>
+                    <button
+                      type="button"
+                      className={`${styles.roomBtn} ${String(activeRoomId) === String(r.room_id) ? styles.roomBtnActive : ''}`}
+                      onClick={() => {
+                        setShowMore(false);
+                        setShowSearch(false);
+                        setSearchQuery('');
+                        setActiveRoomId(String(r.room_id));
+                        if (isMobileView) setMobilePanel('chat');
+                      }}
+                    >
+                      <span className={styles.roomName}>{roomLabel(r, selfCandId)}</span>
+                      {badgeText(r.unread_count) && <span className={styles.badge}>{badgeText(r.unread_count)}</span>}
+                    </button>
+                  </div>
+                ))}
+
+                {!adminMode && showGroupSections && (
+                  <>
+                    <div className={styles.sectionTitle}>Department</div>
+                    {grouped.dept.map((r) => (
+                      <div key={r.room_id} className={styles.roomRowSingle}>
+                        <button
+                          type="button"
+                          className={`${styles.roomBtn} ${String(activeRoomId) === String(r.room_id) ? styles.roomBtnActive : ''}`}
+                          onClick={() => {
+                            setShowMore(false);
+                            setShowSearch(false);
+                            setSearchQuery('');
+                            setActiveRoomId(String(r.room_id));
+                            if (isMobileView) setMobilePanel('chat');
+                          }}
+                        >
+                          <span className={styles.roomName}>{roomLabel(r, selfCandId)}</span>
+                          {badgeText(r.unread_count) && <span className={styles.badge}>{badgeText(r.unread_count)}</span>}
+                        </button>
+                      </div>
+                    ))}
+
+                    <div className={styles.sectionTitle}>Center</div>
+                    {pendingInvites.length > 0 && (
+                      <div className={styles.morePanel}>
+                        <div className={styles.moreTitle}>Invites</div>
+                        {pendingInvites.slice(0, 4).map((inv) => (
+                          <div key={inv.invite_id} className={styles.moreRow}>
+                            <span className={styles.moreValue}>
+                              {inv.room_name} {inv.from_name ? `• from ${inv.from_name}` : ''}
+                            </span>
+                            <span className={styles.moreValue}>
+                              <button type="button" className={styles.primaryBtn} onClick={() => onRespondInvite(inv.invite_id, 'accept')}>
+                                Accept
+                              </button>
+                              <button type="button" className={styles.smallBtnDanger} onClick={() => onRespondInvite(inv.invite_id, 'reject')}>
+                                Reject
+                              </button>
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {grouped.center.map((r) => (
+                      <div key={r.room_id} className={styles.roomRowSingle}>
+                        <button
+                          type="button"
+                          className={`${styles.roomBtn} ${String(activeRoomId) === String(r.room_id) ? styles.roomBtnActive : ''}`}
+                          onClick={() => {
+                            setShowMore(false);
+                            setShowSearch(false);
+                            setSearchQuery('');
+                            setActiveRoomId(String(r.room_id));
+                            if (isMobileView) setMobilePanel('chat');
+                          }}
+                        >
+                          <span className={styles.roomName}>{roomLabel(r, selfCandId)}</span>
+                          {badgeText(r.unread_count) && <span className={styles.badge}>{badgeText(r.unread_count)}</span>}
+                        </button>
+                      </div>
+                    ))}
+                  </>
+                )}
+
+                {showPersonalSection && (
+                  <>
+                    <div className={styles.sectionTitle}>Personal</div>
+                    <input
+                      className={styles.searchInput}
+                      value={userSearch}
+                      onChange={(e) => setUserSearch(e.target.value)}
+                      placeholder="Search users by name / ID"
+                    />
+                    {searchingUsers && <div className={styles.mutedText}>Searching…</div>}
+                    {userResults.slice(0, 6).map((u) => (
+                      <button key={u.cand_id} type="button" className={styles.userResultBtn} onClick={() => onStartDm(u.cand_id)}>
+                        <span className={styles.userResultName}>{u.name || maskCandidateId(u.cand_id)}</span>
+                        <span className={styles.userResultId}>{maskCandidateId(u.cand_id)}</span>
+                      </button>
+                    ))}
+                    {grouped.dm.map((r) => (
+                      <div key={r.room_id} className={styles.roomRowSingle}>
+                        <button
+                          type="button"
+                          className={`${styles.roomBtn} ${String(activeRoomId) === String(r.room_id) ? styles.roomBtnActive : ''}`}
+                          onClick={() => {
+                            setShowMore(false);
+                            setShowSearch(false);
+                            setSearchQuery('');
+                            setActiveRoomId(String(r.room_id));
+                            if (isMobileView) setMobilePanel('chat');
+                          }}
+                        >
+                          <span className={styles.roomName}>{roomLabel(r, selfCandId)}</span>
+                          {badgeText(r.unread_count) && <span className={styles.badge}>{badgeText(r.unread_count)}</span>}
+                        </button>
+                      </div>
+                    ))}
+                  </>
+                )}
+              </div>
+            </aside>
+          )}
+
+          {showChatRoomPanel && (
+            <section className={styles.chatPanel}>
+              <div className={styles.card}>
+                <div className={styles.chatHeaderRow}>
+                  <div>
+                    {isMobileView && (
+                      <button
+                        type="button"
+                        className={`${styles.iconBtn} ${styles.mobileBackBtn}`}
+                        onClick={() => setMobilePanel('list')}
+                        aria-label="Back to chats"
+                        title="Back to chats"
+                      >
+                        <FaArrowLeft />
+                      </button>
+                    )}
+                    <div className={styles.cardTitle}>{activeRoom ? roomLabel(activeRoom, selfCandId) : 'Chat'}</div>
+                    {activeRoom && (
+                      <div className={styles.mutedText}>
+                        {activeRoom.member_count ? `${activeRoom.member_count} members` : ''}
+                      </div>
+                    )}
+                  </div>
+
+                  {activeRoom && (
+                    <div className={styles.headerActions}>
+                      <button
+                        type="button"
+                        className={`${styles.iconBtn} ${selectMode ? styles.iconBtnActive : ''}`}
+                        onClick={() => {
+                          setSelectMode((v) => !v);
+                          if (selectMode) setSelectedMessages(new Set());
+                        }}
+                        aria-label="Select messages"
+                        title="Select messages"
+                      >
+                        <FaCheckSquare />
+                      </button>
+                      {selectMode && selectedMessages.size > 0 && (
+                        <button
+                          type="button"
+                          className={styles.deleteSelectedBtn}
+                          onClick={onDeleteSelectedMessages}
+                          aria-label={`Delete ${selectedMessages.size} message(s)`}
+                          title={`Delete ${selectedMessages.size} message(s)`}
+                        >
+                          <FaTrash /> Delete ({selectedMessages.size})
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        className={styles.iconBtn}
+                        onClick={() => {
+                          setShowMore(false);
+                          setShowSearch((v) => !v);
+                          if (showSearch) setSearchQuery('');
+                        }}
+                        aria-label="Search"
+                      >
+                        {showSearch ? <FaTimes /> : <FaSearch />}
+                      </button>
+                      <button
+                        type="button"
+                        className={styles.iconBtn}
+                        onClick={() => {
+                          setShowSearch(false);
+                          setSearchQuery('');
+                          setShowMore((v) => !v);
+                        }}
+                        aria-label="More"
+                      >
+                        <FaEllipsisV />
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {activeRoom && showSearch && (
+                  <div className={styles.searchBar}>
+                    <input
+                      className={styles.searchInput}
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      placeholder="Search messages in this chat"
+                    />
+                    {searchQuery && <div className={styles.mutedText}>{filteredMessages.length} result(s)</div>}
+                  </div>
+                )}
+
+                <div className={styles.messagesWrap}>
+                  {filteredMessages.filter((m) => !m.deleted_at).map((m) => {
+                    const mine = String(m.sender_cand_id) === selfCandId;
+                    const time = m.createdAt ? new Date(m.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
+                    const isImage = isImageAttachment(m);
+                    const hasAttachment = Boolean(m.attachment_url);
+                    const statusState = String(m.status?.state || 'sent');
+                    const isSelected = selectedMessages.has(String(m._id));
+                    const canDeleteSelf = mine && m.createdAt && (Date.now() - new Date(m.createdAt).getTime()) / 1000 <= 60;
+                    const canDelete = canDeleteSelf || isAdminSelf;
+                    return (
+                      <div key={m._id} className={`${styles.bubbleRow} ${mine ? styles.bubbleRowSelf : ''} ${isSelected ? styles.bubbleRowSelected : ''}`}>
+                        {selectMode && (
+                          <button
+                            type="button"
+                            className={styles.selectCheckbox}
+                            onClick={() => onToggleSelectMessage(m._id)}
+                            aria-label={`Select message ${m._id}`}
+                          >
+                            {isSelected ? <FaCheckSquare /> : <FaSquare />}
+                          </button>
+                        )}
+                        <div
+                          ref={(node) => {
+                            if (node) messageRefs.current.set(String(m._id), node);
+                            else messageRefs.current.delete(String(m._id));
+                          }}
+                          className={`${styles.bubble} ${mine ? styles.bubbleSelf : styles.bubbleOther} ${highlightedMessageId === String(m._id) ? styles.bubbleHighlight : ''}`}
+                        >
+                          <div className={styles.bubbleMeta}>
+                            <span className={styles.bubbleSender}>{mine ? 'You' : m.sender_name || maskCandidateId(m.sender_cand_id)}</span>
+                            <span className={styles.bubbleTimeWrap}>
+                              <span className={styles.bubbleTime}>{time}</span>
+                              {mine && (
+                                <span className={`${styles.tick} ${statusState === 'read' ? styles.tickRead : ''}`} title={statusState}>
+                                  {statusState === 'sending' ? <span className={styles.tickPending}>...</span> : statusState === 'sent' ? <FaCheck /> : <FaCheckDouble />}
+                                </span>
+                              )}
+                            </span>
+                          </div>
+
+                          {m.reply_to && (
+                            <button
+                              type="button"
+                              className={styles.replyBlock}
+                              onClick={() => jumpToMessage(m.reply_to?._id)}
+                            >
+                              <span className={styles.replyAuthor}>{String(m.reply_to.sender_name || 'Message')}</span>
+                              <span className={styles.replyText}>
+                                {String(m.reply_to.text || m.reply_to.attachment_name || '').slice(0, 90) || 'Attachment'}
+                              </span>
+                            </button>
+                          )}
+
+                          {m.text ? <div className={styles.bubbleText}>{m.text}</div> : null}
+
+                          {hasAttachment && isImage && (
+                            <div className={styles.attachmentWrap}>
+                              {attachmentObjectUrls[String(m._id)] ? (
+                                <div className={styles.attachmentImageStack}>
+                                  {attachmentThumbUrls[String(m._id)] && !loadedAttachmentIds[String(m._id)] ? (
+                                    <img
+                                      src={attachmentThumbUrls[String(m._id)]}
+                                      alt="thumbnail"
+                                      className={`${styles.attachmentImage} ${styles.attachmentImageThumb}`}
+                                    />
+                                  ) : null}
+                                  <img
+                                    src={attachmentObjectUrls[String(m._id)]}
+                                    alt={m.attachment_name || 'attachment'}
+                                    className={`${styles.attachmentImage} ${loadedAttachmentIds[String(m._id)] ? styles.attachmentImageSharp : styles.attachmentImageBlur}`}
+                                    onLoad={() => setLoadedAttachmentIds((prev) => ({ ...prev, [String(m._id)]: true }))}
+                                    onClick={() => setExpandedImageUrl(attachmentObjectUrls[String(m._id)])}
+                                    style={{ cursor: 'pointer' }}
+                                    title="Click to expand"
+                                  />
+                                </div>
+                              ) : loadingAttachmentIds[String(m._id)] ? (
+                                <div className={styles.attachmentLoading}>Loading material...</div>
+                              ) : failedAttachmentIds[String(m._id)] ? (
+                                <a className={styles.attachmentLink} href={m.attachment_url} target="_blank" rel="noreferrer">
+                                  <span className={styles.attachmentFile}>Open image: {m.attachment_name || 'image'}</span>
+                                </a>
+                              ) : (
+                                <div className={styles.attachmentLoading}>Loading material...</div>
+                              )}
+                            </div>
+                          )}
+
+                          {hasAttachment && !isImage && (
+                            <a className={styles.attachmentLink} href={m.attachment_url} target="_blank" rel="noreferrer">
+                              <span className={styles.attachmentFile}>Open attachment: {m.attachment_name || 'file'}</span>
+                            </a>
+                          )}
+
+                          {m.reactions && Array.isArray(m.reactions) && m.reactions.length > 0 && (
+                            <div className={styles.reactionsWrap}>
+                              {m.reactions.map((reaction, idx) => (
+                                <button
+                                  key={idx}
+                                  type="button"
+                                  className={styles.reactionBubble}
+                                  onClick={() => onAddReaction(m._id, reaction.emoji)}
+                                  title={`Reacted by: ${reaction.users.map((id) => maskCandidateId(id)).join(', ')}`}
+                                >
+                                  <span>{reaction.emoji}</span>
+                                  {reaction.users.length > 1 && <span className={styles.reactionCount}>{reaction.users.length}</span>}
+                                </button>
+                              ))}
+                              <button
+                                type="button"
+                                className={styles.addReactionBtn}
+                                onClick={() => setShowReactionPicker(String(m._id))}
+                                title="Add reaction"
+                              >
+                                <FaSmile />
+                              </button>
+                            </div>
+                          )}
+
+                          {(!m.reactions || m.reactions.length === 0) && (
+                            <div className={styles.reactionsWrap}>
+                              <button
+                                type="button"
+                                className={styles.addReactionBtn}
+                                onClick={() => setShowReactionPicker(String(m._id))}
+                                title="Add reaction"
+                              >
+                                <FaSmile />
+                              </button>
+                            </div>
+                          )}
+
+                          {showReactionPicker === String(m._id) && (
+                            <div className={styles.reactionPickerWrap}>
+                              <Picker
+                                data={data}
+                                onEmojiSelect={(e) => onAddReaction(m._id, e.native)}
+                                theme="light"
+                                navPosition="top"
+                                perLine={8}
+                                maxFrequentRows={1}
+                              />
+                            </div>
+                          )}
+
+                          <div className={styles.bubbleActions}>
+                            <button type="button" className={styles.replyBtn} onClick={() => setReplyingTo(m)}>
+                              Reply
+                            </button>
+                            {canDelete && (
+                              <button
+                                type="button"
+                                className={styles.deleteBtn}
+                                onClick={() => onDeleteMessage(m._id)}
+                                title="Delete message"
+                              >
+                                <FaTrash />
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                  <div ref={messagesEndRef} />
+                </div>
+
+                {replyingTo && (
+                  <div className={styles.replyingBar}>
+                    <div className={styles.replyingText}>
+                      Replying to {String(replyingTo.sender_name || maskCandidateId(replyingTo.sender_cand_id) || 'message')}: {String(replyingTo.text || replyingTo.attachment_name || '').slice(0, 90) || 'Attachment'}
+                    </div>
+                    <button type="button" className={styles.replyCancelBtn} onClick={() => setReplyingTo(null)}>
                       <FaTimes />
                     </button>
                   </div>
                 )}
+
+                <div className={styles.composer}>
+                  <div className={styles.composerInputWrap} ref={emojiWrapRef}>
+                    <input
+                      ref={attachmentInputRef}
+                      type="file"
+                      accept="application/pdf,image/jpeg,image/png,image/webp,image/gif"
+                      style={{ display: 'none' }}
+                      onChange={(e) => {
+                        const file = e.target.files?.[0] || null;
+                        if (!file) return;
+                        if (file.size > 10 * 1024 * 1024) {
+                          showToast('Attachment must be 10MB or less.', 'warning');
+                          e.target.value = '';
+                          return;
+                        }
+                        setSelectedAttachment(file);
+                        e.target.value = '';
+                      }}
+                    />
+                    <input
+                      className={styles.composerInput}
+                      value={input}
+                      onChange={(e) => setInput(e.target.value)}
+                      placeholder="Type a message…"
+                      disabled={!canType}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && mentionResults.length && mentionQuery) {
+                          e.preventDefault();
+                          onSelectMention(mentionResults[0]);
+                          return;
+                        }
+                        if (e.key === 'Enter') onSend();
+                      }}
+                    />
+
+                    <button
+                      type="button"
+                      className={styles.attachBtn}
+                      onClick={() => attachmentInputRef.current?.click()}
+                      disabled={!canType}
+                      title="Attach file"
+                      aria-label="Attach file"
+                    >
+                      <FaPaperclip />
+                    </button>
+
+                    <button
+                      type="button"
+                      className={styles.emojiBtn}
+                      onClick={() => setShowEmoji((v) => !v)}
+                      disabled={!canType}
+                      title="Emoji"
+                      aria-label="Emoji"
+                    >
+                      <FaRegSmile />
+                    </button>
+
+                    {showEmoji && (
+                      <div className={styles.emojiPickerPopover}>
+                        <Picker
+                          data={data}
+                          onEmojiSelect={(e) => {
+                            const native = e?.native || '';
+                            if (!native) return;
+                            setInput((prev) => `${prev}${native}`);
+                            setShowEmoji(false);
+                          }}
+                          theme="light"
+                          previewPosition="none"
+                        />
+                      </div>
+                    )}
+
+                    {mentionResults.length > 0 && (
+                      <div className={styles.mentionDropdown}>
+                        {mentionResults.map((member) => (
+                          <button
+                            key={member.cand_id}
+                            type="button"
+                            className={styles.mentionOption}
+                            onClick={() => onSelectMention(member)}
+                          >
+                            <span>{member.name || member.cand_id}</span>
+                            <span className={styles.mentionMeta}>{member.cand_id}</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+
+                    {selectedAttachment && (
+                      <div className={styles.attachmentChip}>
+                        <span>{selectedAttachment.name}</span>
+                        <button
+                          type="button"
+                          className={styles.chipClose}
+                          onClick={() => setSelectedAttachment(null)}
+                          aria-label="Remove attachment"
+                        >
+                          <FaTimes />
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                  <button type="button" className={styles.sendBtn} onClick={onSend} disabled={!canType}>
+                    <FaPaperPlane />
+                  </button>
+                </div>
+                {!canType && <div className={styles.mutedText} style={{ marginTop: 8 }}>You cannot send messages in this chat.</div>}
               </div>
-              <button type="button" className={styles.sendBtn} onClick={onSend} disabled={!canType}>
-                <FaPaperPlane />
-              </button>
-            </div>
-            {!canType && <div className={styles.mutedText} style={{ marginTop: 8 }}>You cannot send messages in this chat.</div>}
-          </div>
-        </section>
-        )}
+            </section>
+          )}
+        </div>
       </div>
 
       {!adminMode && showCreateCenter && (
@@ -1708,21 +1736,21 @@ const GroupChat = ({ mode = 'candidate' }) => {
               </div>
             )}
 
-      {expandedImageUrl && (
-        <div className={styles.imageModal} onClick={() => setExpandedImageUrl(null)}>
-          <div className={styles.imageModalContent} onClick={(e) => e.stopPropagation()}>
-            <button
-              type="button"
-              className={styles.imageModalClose}
-              onClick={() => setExpandedImageUrl(null)}
-              aria-label="Close"
-            >
-              <FaTimes />
-            </button>
-            <img src={expandedImageUrl} alt="expanded" className={styles.imageModalImage} />
-          </div>
-        </div>
-      )}
+            {expandedImageUrl && (
+              <div className={styles.imageModal} onClick={() => setExpandedImageUrl(null)}>
+                <div className={styles.imageModalContent} onClick={(e) => e.stopPropagation()}>
+                  <button
+                    type="button"
+                    className={styles.imageModalClose}
+                    onClick={() => setExpandedImageUrl(null)}
+                    aria-label="Close"
+                  >
+                    <FaTimes />
+                  </button>
+                  <img src={expandedImageUrl} alt="expanded" className={styles.imageModalImage} />
+                </div>
+              </div>
+            )}
           </div>
         </>
       )}
@@ -1740,7 +1768,16 @@ const GroupChat = ({ mode = 'candidate' }) => {
           setPaymentRequest(null);
         }}
       />
-    </div>
+
+      <ConfirmDialog
+        open={Boolean(deleteMessageTarget)}
+        title={deleteMessageTarget?.title || 'Delete this item?'}
+        message={deleteMessageTarget?.message || 'This action cannot be undone.'}
+        confirmText={deleteMessageTarget?.confirmText || 'Delete'}
+        onConfirm={deleteMessageTarget?.multi ? confirmDeleteSelectedMessages : confirmDeleteMessage}
+        onCancel={() => setDeleteMessageTarget(null)}
+      />
+    </>
   );
 };
 

@@ -3,6 +3,7 @@ import axios from 'axios';
 import api from '../services/api';
 import authService from '../services/authService';
 import styles from '../Astyles/ManageBilling.module.css';
+import ConfirmDialog from './ConfirmDialog';
 import GraduationCapLoader from './GraduationCapLoader';
 import { showToast } from '../utility/ToastNotification';
 import { getErrorMessage } from '../utility/getErrorMessage';
@@ -37,6 +38,7 @@ const BillingPlans = () => {
   const [statusFilter, setStatusFilter] = useState('');
   const [search, setSearch] = useState('');
   const [editTarget, setEditTarget] = useState(null);
+  const [cancelTarget, setCancelTarget] = useState(null);
   const [editForm, setEditForm] = useState({ plan: '', status: '', expires_at: '' });
 
   const load = useCallback(async () => {
@@ -154,14 +156,13 @@ const BillingPlans = () => {
       showToast('Billing cancel actions are unavailable until the backend billing routes are deployed.', 'warning');
       return;
     }
-    if (!window.confirm(`Cancel subscription for ${sub.name} (${maskCandidateId(sub.cand_id)})?`)) return;
-    try {
-      await callBillingApi('delete', `/admin/billing/subscriptions/${encodeURIComponent(sub.cand_id)}`);
-      showToast('Subscription cancelled', 'success');
-      load();
-    } catch (err) {
-      showToast(getErrorMessage(err, 'Failed to cancel subscription'), 'error');
-    }
+    if (!sub?.cand_id) return;
+    setCancelTarget({
+      sub,
+      title: 'Cancel subscription?',
+      message: `This will cancel the subscription for ${sub.name} (${maskCandidateId(sub.cand_id)}). This action cannot be undone.`,
+      confirmText: 'Cancel subscription',
+    });
   };
 
   return (
@@ -344,6 +345,27 @@ const BillingPlans = () => {
           </div>
         </div>
       )}
+
+      <ConfirmDialog
+        open={Boolean(cancelTarget)}
+        title={cancelTarget?.title || 'Confirm action'}
+        message={cancelTarget?.message || 'This action cannot be undone.'}
+        confirmText={cancelTarget?.confirmText || 'Confirm'}
+        onConfirm={async () => {
+          if (!cancelTarget?.sub?.cand_id) return;
+          try {
+            await callBillingApi('delete', `/admin/billing/subscriptions/${encodeURIComponent(cancelTarget.sub.cand_id)}`);
+            showToast('Subscription cancelled', 'success');
+            setCancelTarget(null);
+            load();
+          } catch (err) {
+            showToast(getErrorMessage(err, 'Failed to cancel subscription'), 'error');
+          } finally {
+            setCancelTarget(null);
+          }
+        }}
+        onCancel={() => setCancelTarget(null)}
+      />
     </div>
   );
 };

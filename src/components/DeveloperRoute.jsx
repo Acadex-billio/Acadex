@@ -2,6 +2,7 @@ import React from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { showToast } from '../utility/ToastNotification';
+import { isDeveloperUser } from '../utility/rolePolicy';
 
 const DeveloperRoute = ({ children }) => {
   const { isAuthenticated, user, loading } = useAuth();
@@ -26,8 +27,7 @@ const DeveloperRoute = ({ children }) => {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  const role = String(user?.role || '').toLowerCase();
-  if (role !== 'developer') {
+  if (!isDeveloperUser(user) || String(user?.account_status || 'active') !== 'active') {
     showToast('Developer access required', 'error');
     return <Navigate to="/admin" replace />;
   }

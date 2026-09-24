@@ -63,14 +63,10 @@ const QuestionPapers = () => {
 
   const getDownloadPriceMeta = (item, plan) => {
     const normalizedPlan = normalizePlan(plan);
-    const fallbackPrice = Number(item?.material_price ?? item?.subscription_access?.paygo_download_price ?? 0);
     if (['full-package', 'pro'].includes(normalizedPlan)) {
       return 'Included with your plan';
     }
-    if (Number.isFinite(fallbackPrice) && fallbackPrice > 0) {
-      return `Download ${fallbackPrice.toLocaleString()} XAF`;
-    }
-    return 'Download price available soon';
+    return 'Download price shown at checkout';
   };
 
   useEffect(() => {
@@ -213,7 +209,7 @@ const QuestionPapers = () => {
     description: requirement?.message || (action === 'download'
       ? 'PAYGO requires a separate payment before you can download this question paper.'
       : 'PAYGO requires a separate payment before you can preview every page of this question paper.'),
-    amount: requirement?.amount || (action === 'download' ? 150 : 100),
+    amount: requirement?.amount ?? null,
     currency: requirement?.currency || 'XAF',
     onStartPayment: async ({ phoneNumber, paymentMethod = 'momo', promoCode = '' }) => {
       const { data } = await api.post('/candidate/payments/materials/checkout', {
@@ -234,7 +230,11 @@ const QuestionPapers = () => {
   });
 
   const handlePaymentRequired = (paper, action, requirement) => {
-    const amount = Number(requirement?.amount || (action === 'download' ? 150 : 100));
+    const amount = Number(requirement?.amount);
+    if (!Number.isFinite(amount) || amount < 0) {
+      showToast('Pricing is temporarily unavailable. Please try again later.', 'warning');
+      return;
+    }
     const currency = requirement?.currency || 'XAF';
     const actionText = action === 'download' ? 'download' : 'preview';
 

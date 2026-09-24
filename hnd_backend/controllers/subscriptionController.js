@@ -5,11 +5,7 @@ const Presentation = require('../models/Presentation');
 const QuestionPaper = require('../models/QuestionPaper');
 const ChatRoom = require('../models/ChatRoom');
 const PaymentTransaction = require('../models/PaymentTransaction');
-const PaymentAccessGrant = require('../models/PaymentAccessGrant');
-const materialAccessService = require('../services/materialAccessService');
 const paymentGrantService = require('../services/paymentGrantService');
-const paymentCallbackService = require('../services/paymentCallbackService');
-const History = require('../models/History');
 const { getPlanDefinitions, getPlanDefinition, getCenterPricing } = require('../utils/subscriptionCatalog');
 const {
   resolveSubscription,
@@ -28,10 +24,8 @@ const logger = require('../utils/logger');
 const {
   validatePaymentAmountAndCurrency,
   validateTransactionReference,
-  validateAccessMinutes,
 } = require('../services/paymentValidationService');
 
-const PLAN_DURATION_MS = 90 * 24 * 60 * 60 * 1000;
 const MANUAL_PAYMENT_RECIPIENT_NUMBER = '678507737';
 const MANUAL_PAYMENT_RECIPIENT_NAME = 'TEBEI NOEL FORKANG';
 
@@ -120,117 +114,6 @@ async function loadCandidate(candId) {
   }
 
   return user;
-}
-
-async function grantMaterialAccess(transaction) {
-  const accessMinutes = validateAccessMinutes(transaction.metadata?.access_minutes || 60);
-  const expiresAt = new Date(Date.now() + (accessMinutes * 60 * 1000));
-  const grantCode = String(transaction.purpose_code || '').trim();
-  await PaymentAccessGrant.findOneAndUpdate(
-    {
-      user_cand_id: transaction.user_cand_id,
-      transaction_id: transaction._id,
-      grant_code: grantCode,
-      resource_id: String(transaction.resource_id),
-    },
-    {
-      $setOnInsert: {
-        user_cand_id: transaction.user_cand_id,
-        grant_code: grantCode,
-        resource_type: transaction.resource_type,
-        resource_id: String(transaction.resource_id),
-        transaction_id: transaction._id,
-        amount: transaction.amount,
-        currency: transaction.currency,
-        status: 'active',
-        granted_at: new Date(),
-        expires_at: expiresAt,
-        metadata: {
-          description: transaction.description,
-        },
-      },
-    },
-    { upsert: true, new: true }
-  );
-}
-
-async function applySuccessfulPayment(transaction) {
-  if (transaction.status === 'successful' && transaction.completed_at) return transaction;
-
-  const finalizedTransaction = await PaymentTransaction.findOneAndUpdate(
-    {
-      _id: transaction._id,
-      status: { $ne: 'successful' },
-    },
-    {
-      $set: {
-        status: 'successful',
-        completed_at: new Date(),
-      },
-    },
-    { new: true }
-  );
-
-  if (!finalizedTransaction) {
-    return transaction;
-  }
-
-  transaction.status = 'successful';
-  transaction.completed_at = finalizedTransaction.completed_at;
-
-  if (transaction.purpose_type === 'subscription') {
-    const nextPlan = String(transaction.purpose_code || '').replace(/^plan_/, '') || 'paygo';
-    await User.updateOne(
-      { cand_id: transaction.user_cand_id },
-      {
-        $set: {
-          subscription: {
-            plan: nextPlan,
-            status: 'active',
-            activated_at: new Date(),
-            expires_at: new Date(Date.now() + PLAN_DURATION_MS),
-            last_payment_at: new Date(),
-            phone_number: transaction.phone_number,
-            source_transaction_id: transaction._id,
-          },
-        },
-      }
-    );
-  }
-
-  if (transaction.purpose_type === 'material_access') {
-    const existingGrant = await PaymentAccessGrant.findOne({
-      transaction_id: transaction._id,
-      user_cand_id: transaction.user_cand_id,
-      grant_code: transaction.purpose_code,
-      resource_id: String(transaction.resource_id),
-    }).lean();
-    if (!existingGrant) {
-      await grantMaterialAccess(transaction);
-    }
-
-    logger.info('subscription.material_payment.success', {
-      transaction_id: String(transaction._id),
-      user_cand_id: String(transaction.user_cand_id),
-      resource_type: String(transaction.resource_type || ''),
-      resource_id: String(transaction.resource_id || ''),
-      access_minutes: Number(transaction.metadata?.access_minutes || 60),
-    });
-  }
-
-  try {
-    const materialScope = transaction.purpose_type === 'material_access'
-      ? ` [resource:${transaction.resource_type}:${transaction.resource_id} duration:${Number(transaction.metadata?.access_minutes || 60)}m]`
-      : '';
-    await History.create({
-      user_id: transaction.user_cand_id,
-      content_type: 'payment',
-      content_title: `${transaction.description}${materialScope}`,
-      action: transaction.purpose_code,
-    });
-  } catch (_) {}
-
-  return transaction;
 }
 
 async function createTransaction({ candId, phoneNumber, purposeType, purposeCode, resourceType, resourceId, amount, currency, description, metadata, paymentMethod }) {

@@ -147,8 +147,8 @@ const PaymentActionModal = ({
     } catch (err) {
       if (isRetryableError(err)) {
         setRetryAvailable(true);
-        setStatusText('Connection Timed out. Please check Your internet connection and try again');
-        showToast('Connection Timed out. Please check Your internet connection and try again', 'warning');
+        setStatusText('The connection timed out. Check your internet connection and try again.');
+        showToast('The connection timed out. Check your internet connection and try again.', 'warning');
         return;
       }
       showToast(getErrorMessage(err, 'Payment failed.'), 'error');
@@ -218,8 +218,8 @@ const PaymentActionModal = ({
     } catch (err) {
       if (isRetryableError(err)) {
         setRetryAvailable(true);
-        setStatusText('Connection Timed out. Please check Your internet connection and try again');
-        showToast('Connection Timed out. Please check Your internet connection and try again', 'warning');
+        setStatusText('The connection timed out. Check your internet connection and try again.');
+        showToast('The connection timed out. Check your internet connection and try again.', 'warning');
         return;
       }
       showToast(getErrorMessage(err, 'Payment failed.'), 'error');

@@ -14,6 +14,13 @@ const logDebug = (...args) => {
   }
 };
 
+const getCookieValue = (name) => {
+  if (typeof document === 'undefined') return '';
+  const prefix = `${name}=`;
+  const cookie = document.cookie.split(';').map((part) => part.trim()).find((part) => part.startsWith(prefix));
+  return cookie ? decodeURIComponent(cookie.slice(prefix.length)) : '';
+};
+
 const normalizeApiError = (error) => {
   const status = error?.response?.status || 0;
   const payload = error?.response?.data || {};
@@ -89,7 +96,7 @@ const showApiErrorToast = (error, fallbackMessage = 'Something went wrong. Pleas
   const message = payload?.message || error?.message || fallbackMessage;
 
   if (status === 401) {
-    window.showToast('Your Session has Expire, Please Login Again to Get Authenticated', 'error');
+    window.showToast('Your session has expired. Please log in again.', 'error');
     return;
   }
 
@@ -99,7 +106,7 @@ const showApiErrorToast = (error, fallbackMessage = 'Something went wrong. Pleas
   }
 
   if (status === 403) {
-    window.showToast('You Don\'t have the permission to perform this action', 'warning');
+    window.showToast('You do not have permission to perform this action.', 'warning');
     return;
   }
 
@@ -109,12 +116,12 @@ const showApiErrorToast = (error, fallbackMessage = 'Something went wrong. Pleas
   }
 
   if (status === 500) {
-    window.showToast('Something Went Wrong On Our Server, Please try again in a moment', 'error');
+    window.showToast('Something went wrong on the server. Please try again in a moment.', 'error');
     return;
   }
 
   if (isTimeoutError(error)) {
-    window.showToast('Connection Timed out. Please check Your internet connection and try again', 'warning');
+    window.showToast('The connection timed out. Check your internet connection and try again.', 'warning');
     return;
   }
 
@@ -136,11 +143,17 @@ logDebug('[API] Is Localhost:', isLocalhost);
 const api = axios.create({
   baseURL: API_BASE_URL,
   timeout: 30000,
+  withCredentials: true,
 });
 
 // Request interceptor - Add JWT token to all requests
 api.interceptors.request.use(
   (config) => {
+    const method = String(config.method || 'get').toUpperCase();
+    const csrfToken = getCookieValue('csrf_token');
+    if (csrfToken && !['GET', 'HEAD', 'OPTIONS'].includes(method)) {
+      config.headers['X-CSRF-Token'] = csrfToken;
+    }
     const token = authService.getToken();
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
@@ -166,9 +179,25 @@ api.interceptors.request.use(
 const authCheckApi = axios.create({
   baseURL: API_BASE_URL,
   timeout: 30000,
+  withCredentials: true,
+});
+
+const authRefreshApi = axios.create({
+  baseURL: API_BASE_URL,
+  timeout: 30000,
+  withCredentials: true,
 });
 
 let authCheckPromise = null;
+let authRefreshPromise = null;
+
+const refreshAuthSession = async () => {
+  if (authRefreshPromise) return authRefreshPromise;
+  authRefreshPromise = authRefreshApi.post('/auth/refresh').finally(() => {
+    authRefreshPromise = null;
+  });
+  return authRefreshPromise;
+};
 
 const performAuthCheck = async () => {
   if (authCheckPromise) return authCheckPromise;
@@ -213,8 +242,14 @@ api.interceptors.response.use(
 
       try {
         if (url.includes('/auth/me')) {
-          logoutAndRedirect('Your Session has Expire, Please Login Again to Get Authenticated');
+          logoutAndRedirect('Your session has expired. Please log in again.');
           return Promise.reject(error);
+        }
+
+        if (!url.includes('/auth/refresh') && !error.config?._authRefreshRetried) {
+          await refreshAuthSession();
+          error.config._authRefreshRetried = true;
+          return api.request(error.config);
         }
 
         const check = await performAuthCheck();
@@ -227,13 +262,13 @@ api.interceptors.response.use(
       } catch (meError) {
         if (meError.response?.status === 401) {
           logDebug('[API] /auth/me returned 401, clearing auth state');
-          logoutAndRedirect('Your Session has Expire, Please Login Again to Get Authenticated');
+          logoutAndRedirect('Your session has expired. Please log in again.');
         } else if (meError.response?.status === 429) {
           logDebug('[API] /auth/me rate limited; leaving token intact');
           showApiErrorToast(error, 'Too many auth checks too quickly; please wait a few seconds.');
         } else if (isTimeoutError(meError)) {
           logDebug('[API] /auth/me timed out; showing retryable network guidance');
-          showApiErrorToast(error, 'Connection Timed out. Please check Your internet connection and try again');
+          showApiErrorToast(error, 'The connection timed out. Check your internet connection and try again.');
         } else {
           logDebug('[API] /auth/me check failed without 401; leaving token intact');
         }
@@ -268,7 +303,7 @@ api.interceptors.response.use(
 
     if (isTimeoutError(error)) {
       logDebug('[API] Request timed out; showing network guidance without redirect');
-      showApiErrorToast(error, 'Connection Timed out. Please check Your internet connection and try again');
+      showApiErrorToast(error, 'The connection timed out. Check your internet connection and try again.');
       return Promise.reject(error);
     }
 

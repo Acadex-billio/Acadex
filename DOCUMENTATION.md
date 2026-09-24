@@ -1,424 +1,120 @@
-# Acadex - System Documentation
+# Acadex Documentation
 
-## Table of Contents
-1. [System Overview](#system-overview)
-2. [Architecture](#architecture)
-3. [MongoDB Documentation](#mongodb-documentation)
-4. [API Reference](#api-reference)
-5. [Security](#security)
-6. [Environment Variables](#environment-variables)
-7. [Setup & Installation](#setup--installation)
-8. [Frontend Structure](#frontend-structure)
+This is the canonical documentation for the repository, reconciled with the source tree on 2026-09-24. When a specialized or historical note disagrees with this file or the code, the code and this file win.
 
----
+## Repository Shape
 
-## System Overview
+| Area | Location | Runtime |
+| --- | --- | --- |
+| Frontend | `src/` | React 18.3.1, React Router 7, Create React App |
+| Backend | `hnd_backend/` | Node.js 20, Express 4.18, Mongoose 9 |
+| Database | `MONGODB_URI` | MongoDB |
+| Storage | AWS S3 when configured | `@aws-sdk/client-s3` |
+| Email | `RESEND_API_KEY` | Resend |
+| Payments | CamerPay plus optional MoMo service code | CamerPay is the active readiness provider |
+| Realtime/video | Socket.IO and LiveKit | Backend/frontend environment configuration |
 
-The **Acadex** is a full-stack educational management system for Higher National Diploma (HND) and Brevet de Technicien Supérieur (BTS) students. It provides:
+## Local Development
 
-- **Candidate features:** Access to question papers, reports, presentations, internship topics, profile management, group chat, personal chats, video confrencing
-- **Admin features:** Upload materials, manage departments, view analytics, broadcast notifications, manage billings, manage ads
-- **Authentication:** Registration, login, password reset with email verification
-
-### Technology Stack
-
-| Layer       | Technology                    |
-|------------|-------------------------------|
-| Frontend   | React 19, React Router, Axios |
-| Backend    | Node.js, Express 5            |
-| Database   | MongoDB (Mongoose)            |
-| File Storage | Local (uploads/) s3 from AWS           |
-| Email      | Resend (Gmail)            |
-
----
-
-## Architecture
-
-### Backend Structure
-
-```
-hnd_backend/
-├── config/
-│   └── database.js          # MongoDB connection
-├── controllers/             # Business logic
-│   ├── authController.js
-│   ├── dashboardController.js
-│   ├── profileController.js
-│   ├── reportController.js
-│   ├── presentationController.js
-│   ├── historyController.js
-│   ├── departmentController.js
-│   ├── questionPaperController.js
-│   ├── adminReportController.js
-│   └── adminPresentationController.js
-├── models/                  # Mongoose schemas
-│   ├── User.js
-│   ├── Department.js
-│   ├── QuestionPaper.js
-│   ├── Report.js
-│   ├── Presentation.js
-│   └── History.js
-├── routes/
-│   ├── authRoutes.js
-│   ├── candidateRoutes.js
-│   └── adminRoutes.js
-├── services/
-│   └── emailService.js      # Email with retry logic
-├── middlewares/
-│   ├── uploadValidation.js  # File type/size validation
-│   └── requestValidation.js # Sanitization
-├── server.js
-└── uploads/                 # File storage
-    ├── papers/
-    ├── reports/
-    ├── presentations/
-    └── profile/
-```
-
----
-
-## MongoDB Documentation
-
-### Database: `hnd_platform`
-
-All collections are managed by Mongoose. The database name is configurable via `MONGODB_URI`.
-
-### Collections & Schemas
-
-#### 1. **users**
-
-Stores candidate/admin user accounts.
-
-| Field            | Type     | Required | Index | Description                    |
-|------------------|----------|----------|-------|--------------------------------|
-| cand_id          | String   | Yes      | Unique| Candidate ID (e.g. CAND00001)  |
-| name             | String   | Yes      | -     | Full name                      |
-| email            | String   | Yes      | Unique| Email (lowercase)              |
-| phone            | String   | No       | -     | Phone number                   |
-| password         | String   | Yes      | -     | Bcrypt hash (select: false)    |
-| address          | String   | No       | -     | Physical address               |
-| profile_picture  | String   | No       | -     | URL path to image              |
-| dpt_id           | ObjectId | Yes      | Index | Reference to departments       |
-| createdAt        | Date     | Auto     | -     | Timestamp                      |
-| updatedAt        | Date     | Auto     | -     | Timestamp                      |
-
-**Indexes:**
-- `email`: 1
-- `dpt_id`: 1
-
----
-
-#### 2. **departments**
-
-Academic departments.
-
-| Field            | Type   | Required | Index   | Description              |
-|------------------|--------|----------|---------|--------------------------|
-| department_name  | String | Yes      | Index   | Department name          |
-| abbreviation     | String | Yes      | Unique  | Short code (e.g. CSE)    |
-| motto            | String | No       | -       | Department motto         |
-| faculty          | String | No       | -       | Faculty name             |
-| description      | String | No       | -       | Description              |
-| createdAt        | Date   | Auto     | -       | Timestamp                |
-| updatedAt        | Date   | Auto     | -       | Timestamp                |
-
-**Indexes:**
-- `department_name`: 1
-- `abbreviation`: 1 (unique)
-
----
-
-#### 3. **questionpapers**
-
-Question papers with embedded department references.
-
-| Field       | Type     | Required | Index  | Description                   |
-|-------------|----------|----------|--------|-------------------------------|
-| course_title| String   | Yes      | Text   | Paper title                   |
-| hnd_year    | String   | Yes      | Index  | Academic year (e.g. 2024)     |
-| paper_file  | String   | Yes      | -      | Filename in uploads/papers/   |
-| uploaded_by | String   | Yes      | -      | Admin name/email              |
-| audience    | String   | No       | -      | GENERAL, SINGLE, MULTIPLE     |
-| more_info   | String   | No       | -      | Additional info/study links   |
-| departments | [ObjectId] | No    | Index  | Ref to Department (embedded)  |
-| createdAt   | Date     | Auto     | Index  | Timestamp                     |
-| updatedAt   | Date     | Auto     | -      | Timestamp                     |
-
-**Indexes:**
-- `course_title`: text
-- `hnd_year`: 1
-- `departments`: 1
-- `createdAt`: -1
-
-**Audience values:**
-- `GENERAL`: All departments (departments array empty)
-- `SINGLE`: One department
-- `MULTIPLE`: Multiple departments
-
----
-
-#### 4. **reports**
-
-Reports with embedded department references.
-
-| Field              | Type       | Required | Index | Description              |
-|--------------------|------------|----------|-------|--------------------------|
-| title              | String     | Yes      | Text  | Report title             |
-| writer_names       | String     | Yes      | -     | Author names             |
-| writer_email       | String     | Yes      | -     | Author email             |
-| keywords           | String     | No       | -     | Keywords                 |
-| description        | String     | No       | -     | Description              |
-| location           | String     | No       | -     | Geographic focus         |
-| pages              | String     | No       | -     | Page count               |
-| file_path          | String     | Yes      | -     | Filename in uploads/     |
-| audience           | String     | No       | -     | GENERAL, SINGLE, MULTIPLE|
-| notify_candidates  | Boolean    | No       | -     | Email notification sent  |
-| departments        | [ObjectId] | No       | Index | Ref to Department        |
-| createdAt          | Date       | Auto     | Index | Timestamp                |
-| updatedAt          | Date       | Auto     | -     | Timestamp                |
-
-**Indexes:**
-- `title`: text
-- `departments`: 1
-- `createdAt`: -1
-
----
-
-#### 5. **presentations**
-
-PowerPoint presentations (optionally linked to reports).
-
-| Field           | Type     | Required | Index | Description                |
-|-----------------|----------|----------|-------|----------------------------|
-| title           | String   | Yes      | Text  | Presentation title         |
-| presenter_name  | String   | Yes      | -     | Presenter name             |
-| presenter_email | String   | Yes      | -     | Presenter email            |
-| file_path       | String   | Yes      | -     | Filename in uploads/       |
-| report_id       | ObjectId | No       | Index | Reference to Report        |
-| createdAt       | Date     | Auto     | Index | Timestamp                  |
-| updatedAt       | Date     | Auto     | -     | Timestamp                  |
-
-**Indexes:**
-- `title`: text
-- `report_id`: 1
-- `createdAt`: -1
-
----
-
-#### 6. **histories**
-
-User activity logs.
-
-| Field        | Type   | Required | Index | Description     |
-|--------------|--------|----------|-------|-----------------|
-| user_id      | String | Yes      | Index | cand_id         |
-| content_type | String | Yes      | -     | e.g. paper, report |
-| content_title| String | Yes      | -     | Item title      |
-| action       | String | Yes      | -     | e.g. view, download |
-| createdAt    | Date   | Auto     | Index | Timestamp       |
-
-**Indexes:**
-- `user_id`: 1
-- `createdAt`: -1
-
----
-
-### Entity Relationships
-
-```
-Department (1) ─────────< User (N)        [users.dpt_id → departments._id]
-Department (N) ─────────< QuestionPaper   [questionpapers.departments → departments._id]
-Department (N) ─────────< Report          [reports.departments → departments._id]
-Report (1) ─────────────< Presentation (N) [presentations.report_id → reports._id]
-User ───────────────────< History (N)     [histories.user_id → users.cand_id]
-```
-
-### Query Examples
-
-**Find question papers for a department:**
-```javascript
-QuestionPaper.find({ 
-  $or: [ 
-    { audience: 'GENERAL' }, 
-    { departments: departmentObjectId } 
-  ] 
-});
-```
-
-**Find reports by department with pagination:**
-```javascript
-Report.find({ departments: deptId })
-  .sort({ createdAt: -1 })
-  .skip((page - 1) * limit)
-  .limit(limit)
-  .select('title writer_names file_path')
-  .lean();
-```
-
----
-
-## API Reference
-
-### Base URL
-`http://localhost:5000` (or `REACT_APP_API_URL`)
-
-### Auth
-
-| Method | Endpoint                | Description              |
-|--------|-------------------------|--------------------------|
-| POST   | /api/auth/register      | Register new user        |
-| POST   | /api/auth/login         | Login                    |
-| POST   | /api/auth/reset-password| Request reset code       |
-| POST   | /api/auth/update-password| Update with code        |
-
-### Candidate
-
-| Method | Endpoint                              | Description           |
-|--------|---------------------------------------|-----------------------|
-| GET    | /api/candidate/dashboard?userId=      | Dashboard data        |
-| GET    | /api/candidate/profile/:cand_id       | Get profile           |
-| PUT    | /api/candidate/profile/update/:cand_id| Update profile        |
-| PUT    | /api/candidate/profile/update-password/:cand_id | Change password |
-| POST   | /api/candidate/profile/upload-picture/:cand_id  | Upload avatar   |
-| GET    | /api/candidate/reports?page=&limit=   | List reports          |
-| GET    | /api/candidate/reports/file/:filename | Download report       |
-| GET    | /api/candidate/reports/preview/:filename | Preview report     |
-| GET    | /api/candidate/presentations?page=&limit= | List presentations |
-| GET    | /api/candidate/presentations/file/:filename | Download presentation |
-| GET    | /api/candidate/presentations/preview/:filename | Preview presentation |
-| POST   | /api/candidate/history/add            | Add history entry     |
-| GET    | /api/candidate/history/:user_id       | Get user history      |
-
-### Admin
-
-| Method | Endpoint                   | Description                |
-|--------|----------------------------|----------------------------|
-| GET    | /api/admin/departments     | List departments           |
-| GET    | /api/admin/departments/overview | Department analytics |
-| POST   | /api/admin/departments     | Create department          |
-| GET    | /api/admin/get-question-papers | List question papers   |
-| POST   | /api/admin/upload-paper    | Upload question paper      |
-| GET    | /api/admin/download-paper/:filename | Download paper     |
-| POST   | /api/admin/upload-report   | Upload report              |
-| GET    | /api/admin/reports         | List reports (for dropdown)|
-| POST   | /api/admin/upload-presentation | Upload presentation    |
-
----
-
-## Security
-
-- **Helmet:** Security HTTP headers
-- **Rate Limiting:** 100 requests / 15 min per IP on /api/*
-- **CORS:** Configurable origin
-- **File Validation:** Allowed types (pdf, doc, docx, ppt, pptx for docs; jpeg, jpg, png for profile). Max 15MB (docs), 5MB (images)
-- **Directory Traversal:** Filename sanitization
-- **Environment:** Secrets in .env, never committed
-
----
-
-## Environment Variables
-
-### Backend (.env in hnd_backend/)
-
-| Variable      | Description                    | Example                          |
-|---------------|--------------------------------|----------------------------------|
-| PORT          | Server port                    | 5000                             |
-| MONGODB_URI   | MongoDB connection string      | mongodb://localhost:27017/hnd_platform |
-| CORS_ORIGIN   | Allowed frontend origin        | http://localhost:3000            |
-| EMAIL_USER    | Gmail for nodemailer           | your@gmail.com                   |
-| EMAIL_PASS    | Gmail app password             | xxxx-xxxx-xxxx-xxxx              |
-
-### Frontend (.env in project root)
-
-| Variable            | Description         | Example                    |
-|---------------------|---------------------|----------------------------|
-| REACT_APP_API_URL   | Backend API base URL| http://localhost:5000      |
-
----
-
-## Setup & Installation
-
-### Prerequisites
-- Node.js 18+
-- MongoDB (local or Atlas)
-- Gmail account (for email features)
-
-### 1. Clone and install dependencies
+Prerequisites: Node.js 20, npm, and a reachable MongoDB instance.
 
 ```bash
-# Frontend
 npm install
-
-# Backend
 cd hnd_backend
 npm install
+npm run dev
 ```
 
-### 2. Environment setup
+In a second terminal from the repository root:
 
 ```bash
-# Backend
-cd hnd_backend
-cp .env.example .env
-# Edit .env with your values
-
-# Frontend (optional - defaults to localhost:5000)
-cp .env.example .env
-# Set REACT_APP_API_URL if needed
-```
-
-### 3. Start MongoDB
-Ensure MongoDB is running on `localhost:27017` (or your MONGODB_URI).
-
-### 4. Run the application
-
-```bash
-# Terminal 1 - Backend
-cd hnd_backend
-npm start
-
-# Terminal 2 - Frontend
 npm start
 ```
 
-### 5. Seed data (optional)
-Create at least one department via the Admin panel (`/dept`) before registering users.
+Frontend: `http://localhost:3000`  Backend: `http://localhost:5000`
 
----
+Backend scripts: `npm run dev`, `npm start`, `npm test` (`smoke:code`), `npm run smoke:integration`, `npm run smoke:payments`, and `npm run test:ci`. Frontend scripts: `npm start`, `npm run build`, and `npm test`.
 
-## Frontend Structure
+## Backend Runtime
 
-```
-src/
-├── config/
-│   └── api.js              # API_BASE_URL
-├── components/
-│   ├── AdminDashboard.jsx
-│   ├── CandidateDashboard.jsx
-│   ├── CandProfile.jsx
-│   ├── Department.jsx
-│   ├── ErrorBoundary.jsx
-│   ├── GroupChat.jsx
-│   ├── Home.jsx
-│   ├── Login.jsx
-│   ├── QuestionPapers.jsx
-│   ├── QuestionUpload.jsx
-│   ├── Registration.jsx
-│   ├── ReportUpload.jsx
-│   ├── ResetPassword.jsx
-│   ├── UploadPresentation.jsx
-│   ├── UploadReport.jsx
-│   ├── ViewPresentation.jsx
-│   └── ViewReports.jsx
-├── context/
-│   └── LoadingContext.jsx
-├── utility/
-│   ├── ToastNotification.jsx
-│   ├── apiClient.js
-│   └── useLocalStorage.jsx
-├── Astyles/                # CSS modules
-├── App.jsx
-└── index.js
-```
+The entry point is `hnd_backend/server.js`. It loads environment variables, connects to MongoDB, installs security/request middleware, mounts routes, serves `/uploads`, exposes health checks, and starts the optional thumbnail worker.
 
-All API calls use `API_BASE_URL` from `src/config/api.js`, which reads `REACT_APP_API_URL` or defaults to `http://localhost:5000`.
+Mounted API groups:
+
+| Prefix | Responsibility |
+| --- | --- |
+| `/api/auth` | registration, login, current user, logout, password reset |
+| `/api/candidate` | candidate dashboard, profile, materials, history, account and project workflows |
+| `/api/admin` | administration, uploads, billing, candidate and presentation management |
+| `/api/chat` | rooms, messages, membership, invites, direct-message blocks |
+| `/api/ai-tools`, `/api/ai` | AI tools, chat, study sessions |
+| `/api/announcements` | candidate and admin announcements |
+| `/api/web-search` | authenticated web search |
+| `/api/lecturers` | lecturer profiles, bookings and earnings |
+| `/api/ads` | authenticated ad management and tracking |
+| `/api/material-access` | paid material access and payment status |
+| `/api/developer` | developer-only tools and projects |
+| `/api/concours` | concours applications and partner workflows |
+| `/api/payment`, `/api` | public payment/webhook compatibility routes |
+
+The version router provides compatible `/api/v1` paths for supported routes. `GET /api/health` and `/api/v1/health` report database and service readiness; a disconnected database returns HTTP 503. `/` redirects to `https://www.acadexe.com/`.
+
+## Authentication
+
+Mounted route files use `hnd_backend/middlewares/jwtAuth.js`. Login issues access/refresh JWT tokens and the middleware populates `req.user`. `express-session` and a Mongo-backed session store are also configured for compatibility and session-related flows. Documentation describing the backend as session-only is stale.
+
+Main guards are `requireAuth`, `requireAdmin`, `requireDeveloper`, and `requireSelfOrAdmin`. Account status and role checks are enforced by middleware and controllers.
+
+## Frontend Navigation
+
+Routes are defined in `src/App.jsx` and grouped into public, candidate, admin, lecturer, developer, and concours-partner workflows. Key families include `/`, `/login`, `/register`, `/reset-password`, `/candidate/*`, `/admin/*`, lecturer routes, payment/study routes, and concours routes.
+
+`src/config/api.js` uses the current host on port 5000 for localhost. Deployed builds use `REACT_APP_API_URL`, normalized to end in `/api`; the built-in non-local fallback is only a placeholder and must be replaced.
+
+## Data, Files, and Integrations
+
+Models in `hnd_backend/models/` cover users, departments, academic materials, history, chat, announcements, billing, material access, projects, lecturers, ads, and concours workflows. Uploaded files are served from `/uploads` and may also be stored in S3. Office previews use the conversion queue when available.
+
+Core environment variables are `PORT`, `NODE_ENV`, `CORS_ORIGIN`, `MONGODB_URI`, `JWT_SECRET`, `SESSION_SECRET`, `RESEND_API_KEY`, CamerPay settings, AWS settings, AI provider keys, LiveKit settings, `REACT_APP_API_URL`, and `REACT_APP_VAPID_PUBLIC_KEY`. Use `hnd_backend/ENV_EXAMPLE.md` for placeholders only.
+
+`DEBUG_ROUTES_ENABLED` controls development storage test routes. Set it explicitly to `false` in production.
+
+## Deployment
+
+The repository has separate frontend and backend deployment boundaries. Vercel plus a separately deployed `hnd_backend` service is supported, but the source tree does not prove which provider is currently live. Configure the backend service root as `hnd_backend`, set production variables, and verify `/` and `/api/health`.
+
+Before production deployment: rotate exposed credentials; set the real `CORS_ORIGIN`; disable debug routes; confirm MongoDB, S3, Resend, CamerPay, AI, and LiveKit readiness as needed; then test login, a protected endpoint, an upload/download flow, and payment status/webhooks.
+
+## Documentation Inventory
+
+There are **21 Markdown files**: 10 at the repository root and 11 under `docs/` or `hnd_backend/`.
+
+| File | Role |
+| --- | --- |
+| `README.md` | Entry-point quick start |
+| `00_START_HERE.md` | Handoff and deployment pointer |
+| `DOCUMENTATION.md` | **Canonical source of truth** |
+| `AUDIENCE_FEATURE_SUMMARY.md` | Presentation audience feature note |
+| `CAMPAY_MIGRATION.md` | Historical payment migration note |
+| `CONCOURS_PARTNER_STYLING.md` | Concours partner UI note |
+| `CREDENTIAL_ROTATION_GUIDE.md` | Credential rotation procedure |
+| `CUSTOM_ALERT_ENHANCEMENTS.md` | Alert feature note |
+| `DEPLOYMENT_AUDIT_VERIFIED_2026-04-28.md` | Historical deployment audit |
+| `INTEGRATION_EXAMPLES.md` | Integration examples |
+| `PAYGO_MATERIAL_ACCESS_GUIDE.md` | Material access/payment guide |
+| `docs/api-reference.md` | Detailed API reference |
+| `docs/backend-architecture.md` | Backend architecture detail |
+| `docs/frontend-navigation-knowledge-base.md` | Frontend assistant navigation reference |
+| `docs/frontend-system-guide.md` | Frontend system detail |
+| `docs/HND_PLATFORM_REPORT_CH1_CH5.md` | Product/reporting document |
+| `docs/load-test-runbook.md` | Performance runbook |
+| `docs/repo-cleanup-plan.md` | Maintenance plan |
+| `docs/vercel-render-to-railway-deploy-guide.md` | Provider-specific deployment guide |
+| `hnd_backend/ENV_EXAMPLE.md` | Backend environment template |
+| `hnd_backend/README.md` | Backend entry-point pointer |
+
+Feature notes and procedures can remain separate, but current architecture, routes, environment, and deployment facts belong here first. The old API/architecture documents contain known stale claims and should be treated as secondary until updated.
+
+## Security Notice
+
+The working-tree backend `.env` contains live-looking database, cloud, payment, AI, email, JWT/session, and push credentials. Treat them as compromised: revoke and replace every exposed credential, update deployment variables, and redeploy. Never put real secret values in Markdown.

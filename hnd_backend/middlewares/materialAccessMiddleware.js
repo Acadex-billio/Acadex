@@ -4,6 +4,7 @@ const materialAccessService = require('../services/materialAccessService');
 const Report = require('../models/Report');
 const Presentation = require('../models/Presentation');
 const QuestionPaper = require('../models/QuestionPaper');
+const { getMaterialAccessSummary } = require('../utils/subscriptionUtils');
 
 function getRouteMaterialIdentifier(req) {
   if (req.params.id) return req.params.id;
@@ -116,10 +117,25 @@ function checkMaterialAccess(materialType, accessType = 'preview') {
       );
 
       if (!hasAccess) {
-        return res.status(403).json({
+        const materialTypeKey = materialType === 'questionPaper' ? 'question_paper' : materialType;
+        const materialModel = materialType === 'report' ? Report : materialType === 'presentation' ? Presentation : QuestionPaper;
+        const material = await materialModel.findById(materialId).lean().catch(() => null);
+        const accessSummary = material
+          ? await getMaterialAccessSummary({
+              user: req.user,
+              materialType: materialTypeKey,
+              resourceId: materialId,
+              doc: material,
+            }).catch(() => null)
+          : null;
+        const paymentRequirement = accessSummary?.payment_required?.[accessType] || null;
+
+        return res.status(paymentRequirement ? 402 : 403).json({
           success: false,
+          code: paymentRequirement ? 'PAYMENT_REQUIRED' : 'ACCESS_DENIED',
           message: `You don't have access to ${accessType} this ${materialType}. Please pay to ${accessType}.`,
           remainingTime: -1,
+          ...(paymentRequirement ? { payment_requirement: { ...paymentRequirement, resource_type: materialTypeKey, resource_id: String(materialId) } } : {}),
         });
       }
 

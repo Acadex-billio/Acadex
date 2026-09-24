@@ -8,6 +8,7 @@ import React from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { showToast } from '../utility/ToastNotification';
+import { isAdminUser } from '../utility/rolePolicy';
 
 const AdminRoute = ({ children }) => {
   const { isAuthenticated, user, loading } = useAuth();
@@ -40,10 +41,7 @@ const AdminRoute = ({ children }) => {
   }
 
   // CRITICAL: Redirect to candidate dashboard if not admin/developer
-  const userRole = String(user?.role || '').toLowerCase();
-  const isAdminRole = user?.is_admin === true || userRole === 'admin' || userRole === 'developer';
-
-  if (!isAdminRole) {
+  if (!isAdminUser(user)) {
     showToast('Admin access required', 'error');
     return <Navigate to="/candidate" replace />;
   }

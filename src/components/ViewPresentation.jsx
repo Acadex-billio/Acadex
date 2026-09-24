@@ -347,7 +347,11 @@ const ViewPresentation = () => {
   const openPaymentModal = (config) => setPaymentRequest(config);
 
   const handlePaymentRequired = (presentation, action, requirement) => {
-    const amount = Number(requirement?.amount ?? presentation.material_price ?? (action === 'download' ? 150 : 100));
+    const amount = Number(requirement?.amount);
+    if (!Number.isFinite(amount) || amount < 0) {
+      showToast('Pricing is temporarily unavailable. Please try again later.', 'warning');
+      return;
+    }
     const currency = requirement?.currency || 'XAF';
     const actionText = action === 'download' ? 'download' : 'preview';
 
@@ -380,7 +384,7 @@ const ViewPresentation = () => {
     description: requirement?.message || (action === 'download'
       ? 'A payment is required before you can download this presentation.'
       : 'A payment is required before you can preview every page of this presentation.'),
-    amount: requirement?.amount ?? presentation.material_price ?? (action === 'download' ? 150 : 100),
+    amount: requirement?.amount ?? null,
     currency: requirement?.currency || 'XAF',
     onStartPayment: async ({ phoneNumber, paymentMethod = 'momo', promoCode = '' }) => {
       const { data } = await api.post('/candidate/payments/materials/checkout', {

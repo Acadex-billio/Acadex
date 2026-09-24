@@ -34,7 +34,7 @@ const CandidateShell = () => {
   const [bookingAlertCount, setBookingAlertCount] = useState(0);
   const [chatUnreadCount, setChatUnreadCount] = useState(0);
   const accountMenuRef = useRef(null);
-  const { user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated, logout } = useAuth();
 
   useEffect(() => {
     let cancelled = false;
@@ -245,13 +245,8 @@ const CandidateShell = () => {
   const onLogout = async () => {
     startLoading();
     try {
-      await api.post('/auth/logout');
-    } catch (_) {
+      await logout();
     } finally {
-      localStorage.removeItem('userId');
-      localStorage.removeItem('userEmail');
-      localStorage.removeItem('userName');
-      localStorage.removeItem('isAdmin');
       navigate('/login');
       setTimeout(() => stopLoading(), 450);
     }

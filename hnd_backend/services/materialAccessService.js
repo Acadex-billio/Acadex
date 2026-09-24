@@ -1,7 +1,33 @@
 const MaterialAccess = require('../models/MaterialAccess');
+const PaymentAccessGrant = require('../models/PaymentAccessGrant');
 const QuestionPaper = require('../models/QuestionPaper');
 const Report = require('../models/Report');
 const Presentation = require('../models/Presentation');
+
+const normalizeGrantType = (materialType) => {
+  const value = String(materialType || '').trim().toLowerCase();
+  if (value === 'questionpaper' || value === 'question_paper' || value === 'paper') return 'question_paper';
+  if (value === 'chat_room' || value === 'chatroom') return 'center';
+  return value;
+};
+
+const normalizeAccessType = (accessType) => String(accessType || 'preview').trim().toLowerCase() === 'download' ? 'download' : 'preview';
+
+const resolveCandidateId = async (userId) => {
+  const raw = String(userId || '').trim();
+  if (!raw) return null;
+  const user = mongoose.Types.ObjectId.isValid(raw)
+    ? await User.findById(raw).select('cand_id').lean()
+    : await User.findOne({ cand_id: raw }).select('cand_id').lean();
+  return user?.cand_id || null;
+};
+
+const buildGrantCode = (materialType, accessType) => {
+  const type = normalizeGrantType(materialType);
+  return type === 'report' || type === 'presentation' || type === 'question_paper'
+    ? `${type}_${normalizeAccessType(accessType) === 'download' ? 'download' : 'preview_full'}`
+    : `${type}_${normalizeAccessType(accessType)}`;
+};
 
 /**
  * Grant material access to a user for preview or download
@@ -21,22 +47,45 @@ async function grantMaterialAccess(
   expiresAtOverride = null
 ) {
   try {
-    // Create new access grant
     const grantedAt = new Date();
-    const expiresAt = expiresAtOverride || new Date(grantedAt.getTime() + 60 * 60 * 1000); // 1 hour
+    const expiresAt = expiresAtOverride || new Date(grantedAt.getTime() + 60 * 60 * 1000);
+    const candidateId = await resolveCandidateId(userId);
+    if (!candidateId) throw new Error('Candidate not found for access grant');
 
-    const materialAccess = new MaterialAccess({
-      userId,
-      materialId,
-      materialType,
-      accessType,
-      grantedAt,
-      expiresAt,
-      paymentTransactionId,
-    });
+    const resourceType = normalizeGrantType(materialType);
+    const resourceId = String(materialId || '').trim();
+    const grant = await PaymentAccessGrant.findOneAndUpdate(
+      {
+        user_cand_id: candidateId,
+        grant_code: buildGrantCode(resourceType, accessType),
+        resource_id: resourceId,
+        transaction_id: paymentTransactionId || null,
+      },
+      {
+        $set: {
+          user_cand_id: candidateId,
+          grant_code: buildGrantCode(resourceType, accessType),
+          resource_type: resourceType,
+          resource_id: resourceId,
+          transaction_id: paymentTransactionId || null,
+          amount: 0,
+          status: 'active',
+          granted_at: grantedAt,
+          expires_at: expiresAt,
+          metadata: { source: paymentTransactionId ? 'payment' : 'admin_or_download' },
+        },
+        $setOnInsert: { currency: 'XAF' },
+      },
+      { upsert: true, new: true }
+    ).lean();
 
-    await materialAccess.save();
-    return materialAccess;
+    return {
+      ...grant,
+      materialId: resourceId,
+      materialType: resourceType === 'question_paper' ? 'questionPaper' : resourceType,
+      accessType: normalizeAccessType(accessType),
+      paymentTransactionId: grant.transaction_id,
+    };
   } catch (error) {
     console.error('Error granting material access:', error);
     throw error;
@@ -86,6 +135,20 @@ async function resolveMaterialDocument(materialType, identifier) {
 
 async function hasActiveAccess(userId, materialId, materialType, accessType) {
   try {
+    const candidateId = await resolveCandidateId(userId);
+    const resourceType = normalizeGrantType(materialType);
+    const resourceId = String(materialId || '').trim();
+    if (candidateId) {
+      const canonicalGrant = await PaymentAccessGrant.findOne({
+        user_cand_id: candidateId,
+        grant_code: buildGrantCode(resourceType, accessType),
+        resource_id: resourceId,
+        status: 'active',
+        expires_at: { $gt: new Date() },
+      }).lean();
+      if (canonicalGrant) return true;
+    }
+
     // Normalize userId: allow passing cand_id (e.g., "CAND00006") or ObjectId/_id.
     let resolvedUserId = userId;
     try {
@@ -206,12 +269,25 @@ async function hasActiveAccess(userId, materialId, materialType, accessType) {
  */
 async function getUserActiveAccesses(userId) {
   try {
-    const accesses = await MaterialAccess.find({
+    const candidateId = await resolveCandidateId(userId);
+    const canonical = candidateId ? await PaymentAccessGrant.find({
+      user_cand_id: candidateId,
+      status: 'active',
+      expires_at: { $gt: new Date() },
+    }).lean() : [];
+    const accesses = canonical.map((grant) => ({
+      ...grant,
+      materialId: grant.resource_id,
+      materialType: grant.resource_type === 'question_paper' ? 'questionPaper' : grant.resource_type,
+      accessType: grant.grant_code.endsWith('_download') ? 'download' : 'preview',
+      expiresAt: grant.expires_at,
+    }));
+    const legacy = await MaterialAccess.find({
       userId,
       expiresAt: { $gt: new Date() },
-    });
+    }).lean();
 
-    return accesses;
+    return [...accesses, ...legacy];
   } catch (error) {
     console.error('Error fetching user accesses:', error);
     return [];
@@ -227,6 +303,28 @@ async function getUserActiveAccesses(userId) {
  */
 async function getActiveAccessForMaterial(userId, materialId, materialType) {
   try {
+    const candidateId = await resolveCandidateId(userId);
+    const resourceType = normalizeGrantType(materialType);
+    const resourceId = String(materialId || '').trim();
+    if (candidateId) {
+      const canonical = await PaymentAccessGrant.findOne({
+        user_cand_id: candidateId,
+        resource_type: resourceType,
+        resource_id: resourceId,
+        status: 'active',
+        expires_at: { $gt: new Date() },
+      }).lean();
+      if (canonical) {
+        return {
+          ...canonical,
+          materialId: canonical.resource_id,
+          materialType: resourceType === 'question_paper' ? 'questionPaper' : resourceType,
+          accessType: canonical.grant_code.endsWith('_download') ? 'download' : 'preview',
+          expiresAt: canonical.expires_at,
+        };
+      }
+    }
+
     const normalizedMaterialId = String(materialId || '').trim();
     const possibleMaterialIds = [];
     if (normalizedMaterialId) {
@@ -261,6 +359,9 @@ async function getActiveAccessForMaterial(userId, materialId, materialType) {
  */
 async function getRemainingAccessTime(userId, materialId, materialType) {
   try {
+    const canonical = await getActiveAccessForMaterial(userId, materialId, materialType);
+    if (canonical?.expiresAt) return Math.max(Math.ceil((new Date(canonical.expiresAt) - new Date()) / 1000), 0);
+
     // Normalize userId: accept cand_id strings (like "CAND00006") or ObjectId
     let resolvedUserId = userId;
     try {
@@ -309,6 +410,18 @@ async function getRemainingAccessTime(userId, materialId, materialType) {
  */
 async function revokeMaterialAccess(userId, materialId, materialType) {
   try {
+    const candidateId = await resolveCandidateId(userId);
+    const resourceType = normalizeGrantType(materialType);
+    const resourceId = String(materialId || '').trim();
+    if (candidateId) {
+      const canonical = await PaymentAccessGrant.findOneAndUpdate(
+        { user_cand_id: candidateId, resource_type: resourceType, resource_id: resourceId, status: 'active' },
+        { $set: { status: 'revoked', expires_at: new Date() } },
+        { new: true }
+      ).lean();
+      if (canonical) return canonical;
+    }
+
     const normalizedMaterialId = String(materialId || '').trim();
     const possibleMaterialIds = [];
     if (normalizedMaterialId) {
@@ -339,12 +452,12 @@ async function revokeMaterialAccess(userId, materialId, materialType) {
  */
 async function cleanupExpiredAccesses() {
   try {
+    const canonicalResult = await PaymentAccessGrant.deleteMany({ expires_at: { $lt: new Date() } });
     const result = await MaterialAccess.deleteMany({
       expiresAt: { $lt: new Date() },
     });
 
-    console.log(`Cleaned up ${result.deletedCount} expired material accesses`);
-    return result;
+    return { deletedCount: Number(canonicalResult.deletedCount || 0) + Number(result.deletedCount || 0) };
   } catch (error) {
     console.error('Error cleaning up expired accesses:', error);
     throw error;

@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import api from '../services/api';
 import { getErrorMessage } from '../utility/getErrorMessage';
 import styles from '../Astyles/adminAnnouncements.module.css';
+import ConfirmDialog from './ConfirmDialog';
 import { showToast } from '../utility/ToastNotification';
 
 const AdminAnnouncements = () => {
@@ -24,6 +25,7 @@ const AdminAnnouncements = () => {
   const [error, setError] = useState('');
   const [sent, setSent] = useState([]);
   const [loadingSent, setLoadingSent] = useState(true);
+  const [deleteTarget, setDeleteTarget] = useState(null);
 
   const faculties = useMemo(() => {
     const set = new Set(
@@ -153,15 +155,25 @@ const AdminAnnouncements = () => {
 
   const onDeleteAnnouncement = async (announcementId) => {
     if (!announcementId) return;
-    const ok = window.confirm('Delete this announcement? This action cannot be undone.');
-    if (!ok) return;
+    setDeleteTarget({
+      id: announcementId,
+      title: 'Delete this announcement?',
+      message: 'This action cannot be undone. The announcement will be removed immediately.',
+      confirmText: 'Delete announcement',
+    });
+  };
+
+  const confirmDeleteAnnouncement = async () => {
+    if (!deleteTarget?.id) return;
 
     try {
-      await api.delete(`/announcements/${encodeURIComponent(announcementId)}`);
-      setSent((prev) => prev.filter((a) => String(a.announcement_id) !== String(announcementId)));
+      await api.delete(`/announcements/${encodeURIComponent(deleteTarget.id)}`);
+      setSent((prev) => prev.filter((a) => String(a.announcement_id) !== String(deleteTarget.id)));
       showToast('Announcement deleted', 'success');
     } catch (err) {
       showToast(getErrorMessage(err, 'Failed to delete announcement'), 'error');
+    } finally {
+      setDeleteTarget(null);
     }
   };
 
@@ -318,6 +330,15 @@ const AdminAnnouncements = () => {
         ))}
         {!loadingSent && sent.length === 0 ? <div className={styles.help}>No announcements yet.</div> : null}
       </div>
+
+      <ConfirmDialog
+        open={Boolean(deleteTarget)}
+        title={deleteTarget?.title || 'Delete this item?'}
+        message={deleteTarget?.message || 'This action cannot be undone.'}
+        confirmText={deleteTarget?.confirmText || 'Delete'}
+        onConfirm={confirmDeleteAnnouncement}
+        onCancel={() => setDeleteTarget(null)}
+      />
     </div>
   );
 };

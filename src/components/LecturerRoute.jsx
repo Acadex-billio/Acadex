@@ -1,6 +1,7 @@
 import React from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { isAdminUser, isLecturerUser } from '../utility/rolePolicy';
 
 const LecturerRoute = ({ children }) => {
   const { isAuthenticated, user, loading } = useAuth();
@@ -18,9 +19,8 @@ const LecturerRoute = ({ children }) => {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  const role = String(user?.role || '').toLowerCase();
-  if (role !== 'lecturer') {
-    if (user?.is_admin || ['admin', 'developer'].includes(role)) {
+  if (!isLecturerUser(user)) {
+    if (isAdminUser(user)) {
       return <Navigate to="/admin" replace />;
     }
     return <Navigate to="/candidate" replace />;

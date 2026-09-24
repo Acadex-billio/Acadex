@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import api from '../services/api';
+import ConfirmDialog from './ConfirmDialog';
 import { showToast } from '../utility/ToastNotification';
 import { getErrorMessage } from '../utility/getErrorMessage';
 import SecurePdfPreview from './SecurePdfPreview';
@@ -14,6 +15,7 @@ const MyDownloads = () => {
   const [previewUrl, setPreviewUrl] = useState(null);
   const [previewFile, setPreviewFile] = useState(null);
   const [previewMeta, setPreviewMeta] = useState({ allowCopy: false, pageLimit: null, item: null });
+  const [deleteTarget, setDeleteTarget] = useState(null);
   const { user } = useAuth();
   const navigate = useNavigate();
 
@@ -88,15 +90,25 @@ const MyDownloads = () => {
 
   const handleDelete = async (item) => {
     if (!item || !item.id) return;
-    const confirmed = window.confirm(`Remove "${item.title || item.filename}" from My Downloads?`);
-    if (!confirmed) return;
+    setDeleteTarget({
+      item,
+      title: 'Remove from My Downloads?',
+      message: `This will remove "${item.title || item.filename}" from your saved files.`,
+      confirmText: 'Remove download',
+    });
+  };
+
+  const confirmDeleteDownload = async () => {
+    if (!deleteTarget?.item?.id) return;
 
     try {
-      await api.delete(`/candidate/downloads/${item.id}`);
-      setDownloads((prev) => prev.filter((d) => d.id !== item.id));
+      await api.delete(`/candidate/downloads/${deleteTarget.item.id}`);
+      setDownloads((prev) => prev.filter((d) => d.id !== deleteTarget.item.id));
       showToast('Download removed', 'success');
     } catch (err) {
       showToast(getErrorMessage(err, 'Failed to remove download'), 'error');
+    } finally {
+      setDeleteTarget(null);
     }
   };
 
@@ -140,72 +152,83 @@ const MyDownloads = () => {
   );
 
   return (
-    <div className={styles.container}>
-      <h2 className={styles.heading}>My Downloads</h2>
+    <>
+      <div className={styles.container}>
+        <h2 className={styles.heading}>My Downloads</h2>
 
-      <section className={styles.section}>
-        <h3 className={styles.sectionTitle}>Question Papers ({papers.length})</h3>
-        {papers.length === 0 ? (
-          <div className={styles.empty}>No saved question papers.</div>
-        ) : (
-          <div className={styles.grid}>
-            {papers.map((d) => renderItem(d, false, true))}
-          </div>
-        )}
-      </section>
-
-      <section className={styles.section}>
-        <h3 className={styles.sectionTitle}>Reports ({reports.length})</h3>
-        {reports.length === 0 ? (
-          <div className={styles.empty}>No saved reports.</div>
-        ) : (
-          <div className={styles.grid}>
-            {reports.map((d) => renderItem(d, false, true))}
-          </div>
-        )}
-      </section>
-
-      <section className={styles.section}>
-        <h3 className={styles.sectionTitle}>Presentations ({presentations.length})</h3>
-        {presentations.length === 0 ? (
-          <div className={styles.empty}>No saved presentations.</div>
-        ) : (
-          <div className={styles.grid}>
-            {presentations.map((d) => renderItem(d, false, true))}
-          </div>
-        )}
-      </section>
-
-      <section className={styles.section}>
-        <h3 className={styles.sectionTitle}>Internship Topics ({internships.length})</h3>
-        {internships.length === 0 ? (
-          <div className={styles.empty}>No saved topics.</div>
-        ) : (
-          <div className={styles.grid}>
-            {internships.map((d) => renderItem(d, false, true))}
-          </div>
-        )}
-      </section>
-
-      {/* Preview Modal */}
-      {previewFile && (
-        <div className={styles.modal} onClick={closePreview}>
-          <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
-            <div className={styles.modalHeader}>
-              <h3>{previewFile}</h3>
-              <button className={styles.closeBtn} onClick={closePreview}>✕</button>
+        <section className={styles.section}>
+          <h3 className={styles.sectionTitle}>Question Papers ({papers.length})</h3>
+          {papers.length === 0 ? (
+            <div className={styles.empty}>No saved question papers.</div>
+          ) : (
+            <div className={styles.grid}>
+              {papers.map((d) => renderItem(d, false, true))}
             </div>
-            {previewUrl && (
-              <SecurePdfPreview
-                fileUrl={previewUrl}
-                maxPages={previewMeta.pageLimit}
-                allowTextSelection={previewMeta.allowCopy}
-              />
-            )}
+          )}
+        </section>
+
+        <section className={styles.section}>
+          <h3 className={styles.sectionTitle}>Reports ({reports.length})</h3>
+          {reports.length === 0 ? (
+            <div className={styles.empty}>No saved reports.</div>
+          ) : (
+            <div className={styles.grid}>
+              {reports.map((d) => renderItem(d, false, true))}
+            </div>
+          )}
+        </section>
+
+        <section className={styles.section}>
+          <h3 className={styles.sectionTitle}>Presentations ({presentations.length})</h3>
+          {presentations.length === 0 ? (
+            <div className={styles.empty}>No saved presentations.</div>
+          ) : (
+            <div className={styles.grid}>
+              {presentations.map((d) => renderItem(d, false, true))}
+            </div>
+          )}
+        </section>
+
+        <section className={styles.section}>
+          <h3 className={styles.sectionTitle}>Internship Topics ({internships.length})</h3>
+          {internships.length === 0 ? (
+            <div className={styles.empty}>No saved topics.</div>
+          ) : (
+            <div className={styles.grid}>
+              {internships.map((d) => renderItem(d, false, true))}
+            </div>
+          )}
+        </section>
+
+        {/* Preview Modal */}
+        {previewFile && (
+          <div className={styles.modal} onClick={closePreview}>
+            <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
+              <div className={styles.modalHeader}>
+                <h3>{previewFile}</h3>
+                <button className={styles.closeBtn} onClick={closePreview}>✕</button>
+              </div>
+              {previewUrl && (
+                <SecurePdfPreview
+                  fileUrl={previewUrl}
+                  maxPages={previewMeta.pageLimit}
+                  allowTextSelection={previewMeta.allowCopy}
+                />
+              )}
+            </div>
           </div>
-        </div>
-      )}
-    </div>
+        )}
+      </div>
+
+      <ConfirmDialog
+        open={Boolean(deleteTarget)}
+        title={deleteTarget?.title || 'Remove this item?'}
+        message={deleteTarget?.message || 'This action cannot be undone.'}
+        confirmText={deleteTarget?.confirmText || 'Remove'}
+        onConfirm={confirmDeleteDownload}
+        onCancel={() => setDeleteTarget(null)}
+      />
+    </>
   );
 };
 

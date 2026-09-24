@@ -9,7 +9,13 @@ const History = require('../models/History');
 const Department = require('../models/Department');
 const VerificationCode = require('../models/VerificationCode');
 const { sendEmail } = require('../services/emailService');
-const { generateAccessToken, generateRefreshToken, jwtAuthMiddleware } = require('../utils/jwtUtils');
+const {
+  authenticateToken,
+  extractRefreshToken,
+  generateAccessToken,
+  generateRefreshToken,
+  jwtAuthMiddleware,
+} = require('../utils/jwtUtils');
 const { buildSubscriptionResponse } = require('../utils/subscriptionUtils');
 const logger = require('../utils/logger');
 const { isEnabled } = require('../services/featureFlagService');
@@ -373,8 +379,33 @@ exports.me = async (req, res) => {
   return res.status(200).json({ authenticated: true, user: req.user });
 };
 
+exports.refresh = async (req, res) => {
+  try {
+    const refreshToken = extractRefreshToken(req);
+    const tokenUser = await authenticateToken(refreshToken, 'refresh');
+    const user = await User.findOne({ cand_id: tokenUser.cand_id });
+
+    if (!user || String(user.account_status || 'active').toLowerCase() !== 'active') {
+      clearAuthCookies(res);
+      return res.status(401).json({ success: false, message: 'Refresh session is no longer valid' });
+    }
+
+    const accessToken = generateAccessToken(user);
+    const rotatedRefreshToken = generateRefreshToken(user);
+    res.cookie(AUTH_COOKIE_NAMES.ACCESS_TOKEN, accessToken, getCookieOptions(ACCESS_TOKEN_COOKIE_MAX_AGE));
+    res.cookie(AUTH_COOKIE_NAMES.REFRESH_TOKEN, rotatedRefreshToken, getCookieOptions(REFRESH_TOKEN_DEFAULT_MAX_AGE));
+
+    return res.json({ success: true, message: 'Session refreshed' });
+  } catch (error) {
+    clearAuthCookies(res);
+    return res.status(401).json({ success: false, message: 'Refresh session is no longer valid' });
+  }
+};
+
 exports.logout = async (req, res) => {
   try {
+    clearAuthCookies(res);
+
     // Extract token from Authorization header
     const authHeader = req.headers.authorization;
     const token = authHeader && authHeader.startsWith('Bearer ') 

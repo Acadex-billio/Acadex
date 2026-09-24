@@ -6,6 +6,7 @@ import { showToast } from '../utility/ToastNotification';
 import * as PhosphorIcons from 'phosphor-react';
 import { getErrorMessage } from '../utility/getErrorMessage';
 import styles from '../Astyles/internshipTopicsAdmin.module.css';
+import ConfirmDialog from './ConfirmDialog';
 import crudStyles from '../Astyles/AdminCrudTwoCol.module.css';
 
 const PROGRAM_OPTIONS = ['HND', 'BTS', 'LICENCE', 'BACHELOR', 'MASTERS', 'MASTER'];
@@ -54,6 +55,7 @@ const AdminInternshipTopics = () => {
   const [iconQuery, setIconQuery] = useState('');
   const [recentIcons, setRecentIcons] = useState([]);
   const [isIconModalOpen, setIsIconModalOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState(null);
   const [pageIndex, setPageIndex] = useState(0);
 
   const filteredDepartments = useMemo(() => {
@@ -318,20 +320,31 @@ const AdminInternshipTopics = () => {
   };
 
   const onDelete = async (topicId) => {
-    const ok = window.confirm('Delete this topic?');
-    if (!ok) return;
+    if (!topicId) return;
+    setDeleteTarget({
+      id: topicId,
+      title: 'Delete this topic?',
+      message: 'This action cannot be undone. The internship topic will be permanently removed.',
+      confirmText: 'Delete topic',
+    });
+  };
+
+  const confirmDeleteTopic = async () => {
+    if (!deleteTarget?.id) return;
 
     try {
-      await api.delete(`/admin/internship-topics/${encodeURIComponent(topicId)}`);
-      setTopics((prev) => prev.filter((topic) => String(topic.topic_id) !== String(topicId)));
+      await api.delete(`/admin/internship-topics/${encodeURIComponent(deleteTarget.id)}`);
+      setTopics((prev) => prev.filter((topic) => String(topic.topic_id) !== String(deleteTarget.id)));
       showToast('Topic deleted.', 'success');
 
-      if (String(editingId) === String(topicId)) {
+      if (String(editingId) === String(deleteTarget.id)) {
         setEditingId(null);
         setForm(EMPTY_FORM);
       }
     } catch (err) {
       showToast(getErrorMessage(err, 'Failed to delete topic.'), 'error');
+    } finally {
+      setDeleteTarget(null);
     }
   };
 
@@ -680,6 +693,15 @@ const AdminInternshipTopics = () => {
           </div>
         </section>
       </div>
+
+      <ConfirmDialog
+        open={Boolean(deleteTarget)}
+        title={deleteTarget?.title || 'Delete this item?'}
+        message={deleteTarget?.message || 'This action cannot be undone.'}
+        confirmText={deleteTarget?.confirmText || 'Delete'}
+        onConfirm={confirmDeleteTopic}
+        onCancel={() => setDeleteTarget(null)}
+      />
     </div>
   );
 };

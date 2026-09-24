@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import api from '../services/api';
+import ConfirmDialog from './ConfirmDialog';
 import styles from '../Astyles/lecturerPortal.module.css';
 import { showToast } from '../utility/ToastNotification';
 import { maskCandidateId } from '../utility/maskCandidateId';
@@ -37,6 +38,7 @@ const LecturerAdminPanel = () => {
   const [previewDoc, setPreviewDoc] = useState(null);
   const [previewAsFrame, setPreviewAsFrame] = useState(false);
   const [loadingDoc, setLoadingDoc] = useState('');
+  const [deleteDocTarget, setDeleteDocTarget] = useState(null);
   const [month, setMonth] = useState(now.getMonth() + 1);
   const [year, setYear] = useState(now.getFullYear());
   const blobUrlRef = useRef('');
@@ -97,13 +99,26 @@ const LecturerAdminPanel = () => {
   };
 
   const resetDoc = async (lecturerId, docType, label) => {
-    if (!window.confirm(`Reset "${label}" and ask the lecturer to re-upload? This cannot be undone.`)) return;
+    setDeleteDocTarget({
+      lecturerId,
+      docType,
+      label,
+      title: 'Reset this document?',
+      message: `This will reset "${label}" and ask the lecturer to re-upload it. This cannot be undone.`,
+      confirmText: 'Reset document',
+    });
+  };
+
+  const confirmResetDoc = async () => {
+    if (!deleteDocTarget?.lecturerId || !deleteDocTarget?.docType) return;
     try {
-      await api.post(`/lecturers/admin/${encodeURIComponent(lecturerId)}/doc-reset/${encodeURIComponent(docType)}`);
-      showToast(`${label} reset. Lecturer can now re-upload.`, 'success');
+      await api.post(`/lecturers/admin/${encodeURIComponent(deleteDocTarget.lecturerId)}/doc-reset/${encodeURIComponent(deleteDocTarget.docType)}`);
+      showToast(`${deleteDocTarget.label} reset. Lecturer can now re-upload.`, 'success');
       await loadPending();
     } catch (err) {
       showToast(err?.response?.data?.message || 'Unable to reset document', 'error');
+    } finally {
+      setDeleteDocTarget(null);
     }
   };
 
@@ -329,6 +344,15 @@ const LecturerAdminPanel = () => {
           </div>
         ))}
       </div>
+
+      <ConfirmDialog
+        open={Boolean(deleteDocTarget)}
+        title={deleteDocTarget?.title || 'Reset this document?'}
+        message={deleteDocTarget?.message || 'This action cannot be undone.'}
+        confirmText={deleteDocTarget?.confirmText || 'Reset document'}
+        onConfirm={confirmResetDoc}
+        onCancel={() => setDeleteDocTarget(null)}
+      />
     </div>
   );
 };

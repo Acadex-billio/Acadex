@@ -7,6 +7,7 @@ import { getErrorMessage } from '../utility/getErrorMessage';
 import { useLoading } from '../context/LoadingContext';
 import { useAuth } from '../context/AuthContext';
 import GraduationCapLoader from './GraduationCapLoader';
+import ConfirmDialog from './ConfirmDialog';
 import { useTranslation } from 'react-i18next';
 import SecurePdfPreview from './SecurePdfPreview';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -45,6 +46,7 @@ const UploadPresentation = () => {
   const [dptIds, setDptIds] = useState([]);
 
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState(null);
   const confirmRef = useRef(null);
 
   const [previewFile, setPreviewFile] = useState(null);
@@ -362,15 +364,22 @@ const UploadPresentation = () => {
     if (e) e.stopPropagation();
     const id = p?.presentation_id || p?._id;
     if (!id) return;
-    const ok = window.confirm(`Delete presentation "${p.title}"? This will remove the uploaded file too.`);
-    if (!ok) return;
+    setDeleteTarget({
+      id,
+      title: 'Delete this presentation?',
+      message: `This will permanently remove "${p.title}" and delete the uploaded file too.`,
+      confirmText: 'Delete presentation',
+    });
+  };
 
+  const confirmDeletePresentation = async () => {
+    if (!deleteTarget?.id) return;
     try {
       startLoading();
-      const res = await api.delete(`/admin/presentations/${id}`);
+      const res = await api.delete(`/admin/presentations/${deleteTarget.id}`);
       if (res.data?.success) {
         showToast(res.data?.message || 'Presentation deleted.', 'success');
-        if (String(activeId) === String(id)) clearForm();
+        if (String(activeId) === String(deleteTarget.id)) clearForm();
         await fetchPresentations();
       } else {
         showToast(res.data?.message || 'Delete failed', 'error');
@@ -379,6 +388,7 @@ const UploadPresentation = () => {
       showToast(getErrorMessage(err, 'Delete error occurred. Please try again.'), 'error');
     } finally {
       stopLoading();
+      setDeleteTarget(null);
     }
   };
 

@@ -134,14 +134,10 @@ const ViewReport = () => {
 
   const getDownloadPriceMeta = (item, plan) => {
     const normalizedPlan = normalizePlan(plan);
-    const fallbackPrice = Number(item?.material_price ?? item?.subscription_access?.paygo_download_price ?? 0);
     if (['full-package', 'pro'].includes(normalizedPlan)) {
       return 'Included with your plan';
     }
-    if (Number.isFinite(fallbackPrice) && fallbackPrice > 0) {
-      return `Download ${fallbackPrice.toLocaleString()} XAF`;
-    }
-    return 'Download price available soon';
+    return 'Download price shown at checkout';
   };
 
   const formatTimeAgo = (timestamp) => {
@@ -273,7 +269,7 @@ const ViewReport = () => {
     description: requirement?.message || (action === 'download'
       ? 'PAYGO requires a separate payment before you can download this report.'
       : 'PAYGO requires a separate payment before you can preview every page of this report.'),
-    amount: requirement?.amount || (action === 'download' ? 200 : 150),
+    amount: requirement?.amount ?? null,
     currency: requirement?.currency || 'XAF',
     onStartPayment: async ({ phoneNumber, paymentMethod = 'momo', promoCode = '' }) => {
       const { data } = await api.post('/candidate/payments/materials/checkout', {
@@ -294,7 +290,11 @@ const ViewReport = () => {
   });
 
   const handlePaymentRequired = (report, action, requirement) => {
-    const amount = Number(requirement?.amount || (action === 'download' ? 200 : 150));
+    const amount = Number(requirement?.amount);
+    if (!Number.isFinite(amount) || amount < 0) {
+      showToast('Pricing is temporarily unavailable. Please try again later.', 'warning');
+      return;
+    }
     const currency = requirement?.currency || 'XAF';
     const actionText = action === 'download' ? 'download' : 'preview';
 

@@ -40,6 +40,7 @@ router.post('/login',
 
 router.get('/departments', departmentController.getAllFormatted);
 router.get('/me', requireAuth, authController.me);
+router.post('/refresh', authController.refresh);
 router.post('/logout', createAuditTrail('auth.logout'), authController.logout);
 
 router.post('/reset-password', 

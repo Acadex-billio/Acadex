@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FaPlus, FaEdit, FaTrash, FaEye, FaEyeSlash, FaTimes, FaBullhorn } from 'react-icons/fa';
 import styles from '../Astyles/AdsManager.module.css';
+import ConfirmDialog from './ConfirmDialog';
 import api from '../services/api';
 import { showToast } from '../utility/ToastNotification';
 
@@ -206,6 +207,7 @@ const AdsManager = () => {
   const [saving, setSaving] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [editingId, setEditingId] = useState(null);
+  const [deleteTarget, setDeleteTarget] = useState(null);
   const [form, setForm] = useState(EMPTY_FORM);
   const [routeQuery, setRouteQuery] = useState('');
   const [customRoute, setCustomRoute] = useState('');
@@ -392,13 +394,26 @@ const AdsManager = () => {
   };
 
   const remove = async (ad) => {
-    if (!window.confirm(`Delete ad "${ad.title}"?`)) return;
+    if (!ad?._id) return;
+    setDeleteTarget({
+      id: ad._id,
+      title: 'Delete ad?',
+      message: `This will permanently remove "${ad.title}" and cannot be undone.`,
+      confirmText: 'Delete ad',
+    });
+  };
+
+  const confirmDeleteAd = async () => {
+    if (!deleteTarget?.id) return;
     try {
-      await api.delete(`/ads/${ad._id}`);
+      await api.delete(`/ads/${deleteTarget.id}`);
       showToast('Ad deleted', 'success');
+      setDeleteTarget(null);
       load();
     } catch {
       showToast('Failed to delete ad', 'error');
+    } finally {
+      setDeleteTarget(null);
     }
   };
 
@@ -692,6 +707,15 @@ const AdsManager = () => {
           </div>
         </div>
       )}
+
+      <ConfirmDialog
+        open={Boolean(deleteTarget)}
+        title={deleteTarget?.title || 'Delete this item?'}
+        message={deleteTarget?.message || 'This action cannot be undone.'}
+        confirmText={deleteTarget?.confirmText || 'Delete'}
+        onConfirm={confirmDeleteAd}
+        onCancel={() => setDeleteTarget(null)}
+      />
     </div>
   );
 };
