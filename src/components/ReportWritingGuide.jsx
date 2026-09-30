@@ -32,6 +32,7 @@ const ReportWritingGuide = () => {
   const [search, setSearch] = useState('');
   const [pageIndex, setPageIndex] = useState(0);
   const [activeGuideId, setActiveGuideId] = useState(null);
+  const [deleteTarget, setDeleteTarget] = useState(null);
 
   useEffect(() => {
     let ignore = false;

@@ -801,6 +801,15 @@ const ReportUpload = () => {
           </div>
         </div>
       )}
+
+      <ConfirmDialog
+        open={Boolean(deleteTarget)}
+        title={deleteTarget?.title || 'Delete this item?'}
+        message={deleteTarget?.message || 'This action cannot be undone.'}
+        confirmText={deleteTarget?.confirmText || 'Delete'}
+        onConfirm={confirmDeleteReport}
+        onCancel={() => setDeleteTarget(null)}
+      />
     </div>
   );
 };
