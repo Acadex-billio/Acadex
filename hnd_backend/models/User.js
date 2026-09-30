@@ -26,6 +26,12 @@ const subscriptionSchema = new mongoose.Schema(
     activated_at: { type: Date, default: Date.now },
     expires_at: { type: Date, default: null },
     last_payment_at: { type: Date, default: null },
+    last_reminder_state: {
+      type: String,
+      enum: ['none', '7_days', '3_days', '1_day', 'expired'],
+      default: 'none',
+    },
+    last_reminder_sent_at: { type: Date, default: null },
     phone_number: { type: String, default: null, trim: true },
     source_transaction_id: { type: mongoose.Schema.Types.ObjectId, ref: 'PaymentTransaction', default: null },
   },

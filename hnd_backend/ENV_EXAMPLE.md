@@ -33,6 +33,7 @@ DEEPSEEK_API_KEY=replace-with-your-deepseek-api-key
 GROQ_API_KEY=replace-with-your-groq-api-key
 DEEPSEEK_BASE_URL=https://api.deepseek.com/v1
 GROQ_BASE_URL=https://api.groq.com/openai/v1
+GROQ_MODEL=openai/gpt-oss-20b
 
 # MoMo Collection Payments
 MOMO_PROVIDER=mock

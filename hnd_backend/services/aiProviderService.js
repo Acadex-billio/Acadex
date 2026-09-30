@@ -10,7 +10,8 @@ const OPENAI_BASE_URL = String(process.env.OPENAI_BASE_URL || 'https://api.opena
 const DEEPSEEK_API_KEY = String(process.env.DEEPSEEK_API_KEY || '').trim();
 const DEEPSEEK_BASE_URL = String(process.env.DEEPSEEK_BASE_URL || 'https://api.deepseek.ai/v1').replace(/\/+$/, '');
 const GROQ_API_KEY = String(process.env.GROQ_API_KEY || '').trim();
-const GROQ_BASE_URL = String(process.env.GROQ_BASE_URL || 'https://api.groq.ai/v1').replace(/\/+$/, '');
+const GROQ_BASE_URL = String(process.env.GROQ_BASE_URL || 'https://api.groq.com/openai/v1').replace(/\/+$/, '');
+const GROQ_MODEL = String(process.env.GROQ_MODEL || 'openai/gpt-oss-20b').trim();
 
 const PROVIDER_LABELS = {
   auto: 'Auto (GPT → Deepseek → GROQ)',
@@ -63,7 +64,7 @@ const buildProviderResponse = async (provider, messages, options = {}) => {
   // Use provider-specific default models if not specified
   let targetModel = model;
   if (!targetModel) {
-    targetModel = provider === 'deepseek' ? 'deepseek-chat' : 'llama-3.1-8b-instant';
+    targetModel = provider === 'deepseek' ? 'deepseek-chat' : GROQ_MODEL;
   }
 
   const response = await fetch(`${baseUrl}/chat/completions`, {

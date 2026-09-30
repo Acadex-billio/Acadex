@@ -71,6 +71,7 @@ const concoursRoutes = require('./Routes/concoursRoutes');
 const publicRoutes = require('./Routes/publicRoutes');
 const { getLibreOfficeQueueStats } = require('./services/libreOfficeQueue');
 const { startPaymentReconciliationScheduler } = require('./services/paymentReconciliationScheduler');
+const { startSubscriptionReminderScheduler } = require('./services/subscriptionReminderScheduler');
 const { mountVersionCompatibleRoute } = require('./utils/versionRouter');
 const { csrfProtection } = require('./middlewares/csrfProtection');
 
@@ -85,8 +86,9 @@ const dbStartupPromise = connectDB()
     logger.info('Database connected; starting DB-dependent background services');
     try {
       startPaymentReconciliationScheduler();
+      startSubscriptionReminderScheduler();
     } catch (err) {
-      logger.warn('Failed to start payment reconciliation scheduler', { error: err?.message || err });
+      logger.warn('Failed to start background schedulers', { error: err?.message || err });
     }
   })
   .catch((err) => {

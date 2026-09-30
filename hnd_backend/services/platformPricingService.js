@@ -2,10 +2,38 @@ const PlatformPricing = require('../models/PlatformPricing');
 
 const DEFAULTS = {
   plans: {
-    basic: { code: 'basic', name: 'Basic Plan', price: 0, currency: 'XAF', durationDays: 3650, description: 'Free access with limited features.' },
-    pro: { code: 'pro', name: 'Pro Plan', price: 0, currency: 'XAF', durationDays: 90, description: 'Full access plan.' },
-    paygo: { code: 'paygo', name: 'PAYGO Plan', price: 0, currency: 'XAF', durationDays: 90, description: 'Usage-based premium plan.' },
-    'full-package': { code: 'full-package', name: 'Full Package Plan', price: 0, currency: 'XAF', durationDays: 90, description: 'Premium access with quota-based downloads and previews.' },
+    basic: {
+      code: 'basic',
+      name: 'Basic Plan',
+      price: 0,
+      currency: 'XAF',
+      durationDays: 3650,
+      description: 'Free preview access only. Every paid material action redirects to the upgrade flow.',
+    },
+    pro: {
+      code: 'pro',
+      name: 'Pro Plan',
+      price: 0,
+      currency: 'XAF',
+      durationDays: 90,
+      description: 'Unlimited access to all materials and platform features for the active validity period.',
+    },
+    paygo: {
+      code: 'paygo',
+      name: 'PAYGO Plan',
+      price: 0,
+      currency: 'XAF',
+      durationDays: 90,
+      description: 'Pay once for a validity window and then pay only for the material actions used inside it.',
+    },
+    'full-package': {
+      code: 'full-package',
+      name: 'Full Package Plan',
+      price: 0,
+      currency: 'XAF',
+      durationDays: 90,
+      description: 'Full access across every material and feature while the subscription remains valid.',
+    },
   },
   center: {
     create: {
@@ -22,9 +50,63 @@ const DEFAULTS = {
     },
   },
   materials: {
-    report: { basic_preview_pages: 1, paygo_preview_pages: 3, basic_full_preview_price: 0, basic_download_price: 0, paygo_full_preview_price: 0, paygo_download_price: 0, paygo_access_minutes: 60, full_package_preview_limit: 10, full_package_download_limit: 5 },
-    presentation: { basic_preview_pages: 1, paygo_preview_pages: 3, basic_full_preview_price: 0, basic_download_price: 0, paygo_full_preview_price: 0, paygo_download_price: 0, paygo_access_minutes: 60, full_package_preview_limit: 10, full_package_download_limit: 5 },
-    question_paper: { basic_preview_pages: 1, paygo_preview_pages: 3, basic_full_preview_price: 0, basic_download_price: 0, paygo_full_preview_price: 0, paygo_download_price: 0, paygo_access_minutes: 60, full_package_preview_limit: 10, full_package_download_limit: 5 },
+    report: {
+      basic_preview_pages: 3,
+      access_price: 0,
+      access_minutes: 60,
+      paygo_preview_pages: 3,
+      basic_full_preview_price: 0,
+      basic_download_price: 0,
+      paygo_full_preview_price: 0,
+      paygo_download_price: 0,
+      paygo_access_minutes: 60,
+      full_package_preview_limit: 10,
+      full_package_download_limit: 5,
+      plan_pricing: {
+        basic: { preview_pages: 3, preview_price: 0, download_price: 0, access_minutes: 60, free_access: false },
+        pro: { preview_pages: 3, preview_price: 0, download_price: 0, access_minutes: 60, free_access: false },
+        paygo: { preview_pages: 3, preview_price: 0, download_price: 0, access_minutes: 60, free_access: false },
+        'full-package': { preview_pages: 999, preview_price: 0, download_price: 0, access_minutes: 60, free_access: true },
+      },
+    },
+    presentation: {
+      basic_preview_pages: 3,
+      access_price: 0,
+      access_minutes: 60,
+      paygo_preview_pages: 3,
+      basic_full_preview_price: 0,
+      basic_download_price: 0,
+      paygo_full_preview_price: 0,
+      paygo_download_price: 0,
+      paygo_access_minutes: 60,
+      full_package_preview_limit: 10,
+      full_package_download_limit: 5,
+      plan_pricing: {
+        basic: { preview_pages: 3, preview_price: 0, download_price: 0, access_minutes: 60, free_access: false },
+        pro: { preview_pages: 3, preview_price: 0, download_price: 0, access_minutes: 60, free_access: false },
+        paygo: { preview_pages: 3, preview_price: 0, download_price: 0, access_minutes: 60, free_access: false },
+        'full-package': { preview_pages: 999, preview_price: 0, download_price: 0, access_minutes: 60, free_access: true },
+      },
+    },
+    question_paper: {
+      basic_preview_pages: 3,
+      access_price: 0,
+      access_minutes: 60,
+      paygo_preview_pages: 3,
+      basic_full_preview_price: 0,
+      basic_download_price: 0,
+      paygo_full_preview_price: 0,
+      paygo_download_price: 0,
+      paygo_access_minutes: 60,
+      full_package_preview_limit: 10,
+      full_package_download_limit: 5,
+      plan_pricing: {
+        basic: { preview_pages: 3, preview_price: 0, download_price: 0, access_minutes: 60, free_access: false },
+        pro: { preview_pages: 3, preview_price: 0, download_price: 0, access_minutes: 60, free_access: false },
+        paygo: { preview_pages: 3, preview_price: 0, download_price: 0, access_minutes: 60, free_access: false },
+        'full-package': { preview_pages: 999, preview_price: 0, download_price: 0, access_minutes: 60, free_access: true },
+      },
+    },
   },
   ai_study_mode: { session_price: 0, currency: 'XAF' },
   concours_partnership: { amount: 0, currency: 'XAF', durationDays: 365 },
@@ -53,8 +135,9 @@ function buildPlanDefinitions(doc) {
       currency: String(plans?.basic?.currency || DEFAULTS.plans.basic.currency),
       durationDays: Math.max(1, Number(plans?.basic?.duration_days || DEFAULTS.plans.basic.durationDays)),
       candidateRules: [
-        'Preview only the first page of reports, presentations, and question papers.',
-        'No downloading or copying from previews by default.',
+        'Preview is limited to the configured page count for each material.',
+        'No full preview, no download, no AI access, and no center create or join access.',
+        'Any paid material action sends the user to the upgrade flow.',
       ],
     },
     pro: {
@@ -63,7 +146,9 @@ function buildPlanDefinitions(doc) {
       currency: String(plans?.pro?.currency || DEFAULTS.plans.pro.currency),
       durationDays: Math.max(1, Number(plans?.pro?.duration_days || DEFAULTS.plans.pro.durationDays)),
       candidateRules: [
-        'Full previews and downloads when enabled by pricing rules.',
+        'Full access to all materials and platform features for the active validity period.',
+        'AI study mode, report access, and center actions are included.',
+        'When the validity ends, the account falls back to the Basic preview plan.',
       ],
     },
     paygo: {
@@ -72,7 +157,9 @@ function buildPlanDefinitions(doc) {
       currency: String(plans?.paygo?.currency || DEFAULTS.plans.paygo.currency),
       durationDays: Math.max(1, Number(plans?.paygo?.duration_days || DEFAULTS.plans.paygo.durationDays)),
       candidateRules: [
-        'Usage-based charges follow paygo pricing settings.',
+        'The user pays a chosen validity amount and then pays only for the material actions used inside it.',
+        'Each material can have its own price and time window for access.',
+        'When the validity window expires, the account falls back to Basic.',
       ],
     },
     'full-package': {
@@ -81,7 +168,9 @@ function buildPlanDefinitions(doc) {
       currency: String(plans?.['full-package']?.currency || DEFAULTS.plans['full-package'].currency),
       durationDays: Math.max(1, Number(plans?.['full-package']?.duration_days || DEFAULTS.plans['full-package'].durationDays)),
       candidateRules: [
-        'Full-package subscribers receive premium access with managed preview and download allowances.',
+        'All material access stays active throughout the validity period.',
+        'No additional material or center checkout is required while active.',
+        'The plan reverts to Basic automatically when validity ends.',
       ],
     },
   };
@@ -89,38 +178,66 @@ function buildPlanDefinitions(doc) {
 
 function buildMaterialDefaults(doc) {
   const materials = doc?.materials || {};
-  return {
+  const normalizeMaterialPlanPricing = (source, fallback) => {
+    const plans = source || {};
+    const result = {};
+    ['basic', 'pro', 'paygo', 'full-package'].forEach((plan) => {
+      const entry = plans[plan] || fallback[plan] || {};
+      const isFullPackage = plan === 'full-package';
+      result[plan] = {
+        preview_pages: Math.max(isFullPackage ? 999 : 0, Number(entry.preview_pages ?? entry.previewPageCount ?? fallback[plan]?.preview_pages ?? (isFullPackage ? 999 : 3))),
+        preview_price: toNumber(entry.preview_price ?? entry.previewPrice ?? fallback[plan]?.preview_price ?? 0),
+        download_price: toNumber(entry.download_price ?? entry.downloadPrice ?? fallback[plan]?.download_price ?? 0),
+        access_minutes: Math.max(1, Number(entry.access_minutes ?? entry.accessMinutes ?? fallback[plan]?.access_minutes ?? 60)),
+        free_access: Boolean(entry.free_access ?? fallback[plan]?.free_access ?? isFullPackage),
+      };
+    });
+    return result;
+  };
+
+  const materialTemplates = {
     report: {
       ...DEFAULTS.materials.report,
       ...materials.report,
+      access_price: toNumber(materials?.report?.access_price ?? materials?.report?.plan_pricing?.paygo?.preview_price, DEFAULTS.materials.report.access_price),
+      access_minutes: Math.max(1, Number(materials?.report?.access_minutes ?? materials?.report?.plan_pricing?.paygo?.access_minutes ?? DEFAULTS.materials.report.access_minutes)),
       full_package_preview_limit: toNumber(materials?.report?.full_package_preview_limit, DEFAULTS.materials.report.full_package_preview_limit),
       full_package_download_limit: toNumber(materials?.report?.full_package_download_limit, DEFAULTS.materials.report.full_package_download_limit),
       basic_full_preview_price: toNumber(materials?.report?.basic_full_preview_price, 0),
       basic_download_price: toNumber(materials?.report?.basic_download_price, 0),
       paygo_full_preview_price: toNumber(materials?.report?.paygo_full_preview_price, 0),
       paygo_download_price: toNumber(materials?.report?.paygo_download_price, 0),
+      plan_pricing: normalizeMaterialPlanPricing(materials?.report?.plan_pricing, DEFAULTS.materials.report.plan_pricing),
     },
     presentation: {
       ...DEFAULTS.materials.presentation,
       ...materials.presentation,
+      access_price: toNumber(materials?.presentation?.access_price ?? materials?.presentation?.plan_pricing?.paygo?.preview_price, DEFAULTS.materials.presentation.access_price),
+      access_minutes: Math.max(1, Number(materials?.presentation?.access_minutes ?? materials?.presentation?.plan_pricing?.paygo?.access_minutes ?? DEFAULTS.materials.presentation.access_minutes)),
       full_package_preview_limit: toNumber(materials?.presentation?.full_package_preview_limit, DEFAULTS.materials.presentation.full_package_preview_limit),
       full_package_download_limit: toNumber(materials?.presentation?.full_package_download_limit, DEFAULTS.materials.presentation.full_package_download_limit),
       basic_full_preview_price: toNumber(materials?.presentation?.basic_full_preview_price, 0),
       basic_download_price: toNumber(materials?.presentation?.basic_download_price, 0),
       paygo_full_preview_price: toNumber(materials?.presentation?.paygo_full_preview_price, 0),
       paygo_download_price: toNumber(materials?.presentation?.paygo_download_price, 0),
+      plan_pricing: normalizeMaterialPlanPricing(materials?.presentation?.plan_pricing, DEFAULTS.materials.presentation.plan_pricing),
     },
     question_paper: {
       ...DEFAULTS.materials.question_paper,
       ...materials.question_paper,
+      access_price: toNumber(materials?.question_paper?.access_price ?? materials?.question_paper?.plan_pricing?.paygo?.preview_price, DEFAULTS.materials.question_paper.access_price),
+      access_minutes: Math.max(1, Number(materials?.question_paper?.access_minutes ?? materials?.question_paper?.plan_pricing?.paygo?.access_minutes ?? DEFAULTS.materials.question_paper.access_minutes)),
       full_package_preview_limit: toNumber(materials?.question_paper?.full_package_preview_limit, DEFAULTS.materials.question_paper.full_package_preview_limit),
       full_package_download_limit: toNumber(materials?.question_paper?.full_package_download_limit, DEFAULTS.materials.question_paper.full_package_download_limit),
       basic_full_preview_price: toNumber(materials?.question_paper?.basic_full_preview_price, 0),
       basic_download_price: toNumber(materials?.question_paper?.basic_download_price, 0),
       paygo_full_preview_price: toNumber(materials?.question_paper?.paygo_full_preview_price, 0),
       paygo_download_price: toNumber(materials?.question_paper?.paygo_download_price, 0),
+      plan_pricing: normalizeMaterialPlanPricing(materials?.question_paper?.plan_pricing, DEFAULTS.materials.question_paper.plan_pricing),
     },
   };
+
+  return materialTemplates;
 }
 
 function buildCenterPricing(doc) {

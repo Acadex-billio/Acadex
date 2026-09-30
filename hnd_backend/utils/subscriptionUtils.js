@@ -13,9 +13,36 @@ function normalizeSubscription(raw) {
     activated_at: raw?.activated_at ? new Date(raw.activated_at) : null,
     expires_at: raw?.expires_at ? new Date(raw.expires_at) : null,
     last_payment_at: raw?.last_payment_at ? new Date(raw.last_payment_at) : null,
+    last_reminder_state: String(raw?.last_reminder_state || 'none').trim(),
+    last_reminder_sent_at: raw?.last_reminder_sent_at ? new Date(raw.last_reminder_sent_at) : null,
     phone_number: raw?.phone_number ? String(raw.phone_number) : null,
     source_transaction_id: raw?.source_transaction_id || null,
   };
+}
+
+function getSubscriptionReminderState({ expires_at, now = new Date() }) {
+  const expiryDate = expires_at ? new Date(expires_at) : null;
+  if (!expiryDate || Number.isNaN(expiryDate.getTime())) {
+    return { state: 'none', days_remaining: null, expired: false };
+  }
+
+  const diffMs = expiryDate.getTime() - now.getTime();
+  const daysRemaining = diffMs / (1000 * 60 * 60 * 24);
+
+  if (daysRemaining <= 0) {
+    return { state: 'expired', days_remaining: 0, expired: true };
+  }
+  if (daysRemaining <= 1) {
+    return { state: '1_day', days_remaining: 1, expired: false };
+  }
+  if (daysRemaining <= 3) {
+    return { state: '3_days', days_remaining: 3, expired: false };
+  }
+  if (daysRemaining <= 7) {
+    return { state: '7_days', days_remaining: 7, expired: false };
+  }
+
+  return { state: 'none', days_remaining: Math.ceil(daysRemaining), expired: false };
 }
 
 function resolveSubscription(raw) {
@@ -177,24 +204,6 @@ async function getMaterialAccessSummary({ user, materialType, resourceId, doc })
 
   const resolvedSubscription = resolveSubscription(user?.subscription);
   const config = await getMaterialAccessConfig(materialType, doc);
-  const base = {
-    plan: resolvedSubscription.plan,
-    allow_copy: resolvedSubscription.plan === 'pro',
-    allow_download: false,
-    preview_page_limit: config.basic_preview_pages,
-    upgrade_required: false,
-    payment_required: null,
-    access_config: config,
-  };
-
-  if (resolvedSubscription.plan === 'full-package') {
-    return {
-      ...base,
-      allow_download: true,
-      preview_page_limit: config.full_package_preview_limit || null,
-    };
-  }
-
   const previewGrantCode = `${materialType}_preview_full`;
   const downloadGrantCode = `${materialType}_download`;
   const [previewGrant, downloadGrant] = await Promise.all([
@@ -202,34 +211,59 @@ async function getMaterialAccessSummary({ user, materialType, resourceId, doc })
     findActiveGrantIncludingAdmin({ candId: user?.cand_id, grantCode: downloadGrantCode, resourceId }),
   ]);
 
-  const preview_page_limit = previewGrant
-    ? null
-    : resolvedSubscription.plan === 'basic'
-      ? config.basic_preview_pages
-      : config.paygo_preview_pages;
+  const planPricing = config?.plan_pricing?.[resolvedSubscription.plan] || {
+    preview_pages: resolvedSubscription.plan === 'basic' ? (config?.basic_preview_pages || 3) : (config?.paygo_preview_pages || 3),
+    preview_price: config?.paygo_full_preview_price || 0,
+    download_price: config?.paygo_download_price || 0,
+    access_minutes: config?.paygo_access_minutes || 60,
+    free_access: resolvedSubscription.plan === 'full-package',
+  };
+  const base = {
+    plan: resolvedSubscription.plan,
+    allow_copy: ['pro', 'full-package'].includes(resolvedSubscription.plan),
+    allow_download: false,
+    preview_page_limit: Number(planPricing.preview_pages || 3),
+    upgrade_required: false,
+    payment_required: null,
+    access_config: config,
+  };
+
+  if (['pro', 'full-package'].includes(resolvedSubscription.plan)) {
+    return {
+      ...base,
+      allow_download: true,
+      preview_page_limit: null,
+      payment_required: null,
+      upgrade_required: false,
+    };
+  }
+
+  const preview_page_limit = previewGrant ? null : Number(planPricing.preview_pages || 3);
+  const paymentRequired = {
+    preview: previewGrant
+      ? null
+      : {
+          purpose_code: previewGrantCode,
+          amount: Number(planPricing.preview_price || 0),
+          currency: 'XAF',
+          access_minutes: Number(planPricing.access_minutes || 60),
+        },
+    download: downloadGrant
+      ? null
+      : {
+          purpose_code: downloadGrantCode,
+          amount: Number(planPricing.download_price || 0),
+          currency: 'XAF',
+          access_minutes: Number(planPricing.access_minutes || 60),
+        },
+  };
 
   return {
     ...base,
     preview_page_limit,
     allow_download: Boolean(downloadGrant),
-    payment_required: {
-      preview: previewGrant
-        ? null
-        : {
-            purpose_code: previewGrantCode,
-            amount: config.paygo_full_preview_price,
-            currency: 'XAF',
-            access_minutes: config.paygo_access_minutes,
-          },
-      download: downloadGrant
-        ? null
-        : {
-            purpose_code: downloadGrantCode,
-            amount: config.paygo_download_price,
-            currency: 'XAF',
-            access_minutes: config.paygo_access_minutes,
-          },
-    },
+    upgrade_required: true,
+    payment_required: paymentRequired,
   };
 }
 
@@ -250,6 +284,7 @@ function buildCandidatePaymentRequirement({ title, message, action, amount, reso
 module.exports = {
   normalizeSubscription,
   resolveSubscription,
+  getSubscriptionReminderState,
   syncUserSubscriptionIfExpired,
   buildSubscriptionResponse,
   getMaterialAccessConfig,

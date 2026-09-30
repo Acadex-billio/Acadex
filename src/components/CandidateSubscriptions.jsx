@@ -9,6 +9,88 @@ import { showToast } from '../utility/ToastNotification';
 import { useAuth } from '../context/AuthContext';
 import { startSubscriptionPayment } from '../services/paymentFlowService';
 
+const formatAccessWindow = (minutes) => {
+  const totalMinutes = Number(minutes || 60);
+  if (!Number.isFinite(totalMinutes) || totalMinutes <= 0) return '1 hour';
+
+  const hours = Math.floor(totalMinutes / 60);
+  const remainingMinutes = totalMinutes % 60;
+
+  if (hours && remainingMinutes === 0) {
+    return `${hours} hour${hours === 1 ? '' : 's'}`;
+  }
+
+  if (hours && remainingMinutes) {
+    return `${hours} hour${hours === 1 ? '' : 's'} ${remainingMinutes} minute${remainingMinutes === 1 ? '' : 's'}`;
+  }
+
+  return `${totalMinutes} minute${totalMinutes === 1 ? '' : 's'}`;
+};
+
+const buildPaygoChargeDetails = (pricing) => {
+  const plans = pricing?.plans || {};
+  const materials = pricing?.materials || {};
+  const center = pricing?.center || {};
+  const paygoPlan = plans.paygo || {};
+  const currency = String(paygoPlan.currency || 'XAF').trim().toUpperCase();
+  const amount = Number(paygoPlan.price ?? 0);
+  const durationDays = Math.max(1, Number(paygoPlan.durationDays || paygoPlan.duration_days || 90));
+  const durationMonths = Math.round(durationDays / 30);
+  const durationText = durationDays % 30 === 0 && durationMonths > 0
+    ? `${durationMonths} month${durationMonths === 1 ? '' : 's'}`
+    : `${durationDays} day${durationDays === 1 ? '' : 's'}`;
+
+  const chargeItems = [];
+
+  if (Number.isFinite(amount)) {
+    chargeItems.push({
+      label: 'Upfront PAYGO access',
+      detail: `${amount} ${currency} for ${durationText}.`,
+    });
+  }
+
+  const materialDefinitions = {
+    presentation: 'Presentation',
+    question_paper: 'Question paper',
+    report: 'Report',
+  };
+
+  Object.entries(materialDefinitions).forEach(([key, label]) => {
+    const material = materials[key] || {};
+    const previewPrice = Number(material.paygo_full_preview_price ?? 0);
+    const downloadPrice = Number(material.paygo_download_price ?? 0);
+    const accessMinutes = Number(material.paygo_access_minutes ?? 60);
+
+    if (previewPrice > 0) {
+      chargeItems.push({
+        label: `${label} full preview`,
+        detail: `${previewPrice} ${currency} for ${formatAccessWindow(accessMinutes)}.`,
+      });
+    }
+
+    if (downloadPrice > 0) {
+      chargeItems.push({
+        label: `${label} download`,
+        detail: `${downloadPrice} ${currency} for ${formatAccessWindow(accessMinutes)}.`,
+      });
+    }
+  });
+
+  const centerAmount = Math.max(
+    Number(center?.create?.paygo?.amount ?? 0),
+    Number(center?.join?.paygo?.amount ?? 0),
+  );
+
+  if (centerAmount > 0) {
+    chargeItems.push({
+      label: 'Create or join center',
+      detail: `${centerAmount} ${currency} per center.`,
+    });
+  }
+
+  return chargeItems;
+};
+
 const CandidateSubscriptions = () => {
   const { user, updateUser } = useAuth();
   const navigate = useNavigate();
@@ -62,6 +144,7 @@ const CandidateSubscriptions = () => {
   const currentPlanCode = String(subscriptionData?.subscription?.plan || 'basic').toLowerCase();
   const currentPlan = subscriptionData?.plans?.find((plan) => plan.code === currentPlanCode) || subscriptionData?.subscription?.plan_definition;
   const plans = useMemo(() => Array.isArray(subscriptionData?.plans) ? subscriptionData.plans : [], [subscriptionData]);
+  const paygoChargeDetails = useMemo(() => buildPaygoChargeDetails(subscriptionData?.pricing), [subscriptionData]);
 
   if (loading) return <GraduationCapLoader fullscreen label="Loading subscription plans..." />;
 
@@ -72,8 +155,8 @@ const CandidateSubscriptions = () => {
           <div className={styles.eyebrow}>Candidate billing</div>
           <h1 className={styles.title}>Subscription plans</h1>
           <p className={styles.subtitle}>
-            Choose the access level that matches how you study. Basic is free, Pro unlocks everything,
-            and PAYGO keeps upfront cost low while charging only for premium actions.
+            Choose the study plan that fits your needs. Basic keeps access limited to previews, PAYGO charges only when you use premium actions,
+            Pro unlocks full material access and group tools, and Full Package gives you everything for one flat validity period.
           </p>
         </div>
         <div className={styles.currentCard}>
@@ -104,7 +187,7 @@ const CandidateSubscriptions = () => {
               </div>
 
               <div className={styles.planDuration}>
-                {plan.durationDays ? `Valid for ${Math.round(plan.durationDays / 30)} months, then falls back to Basic.` : 'No expiry.'}
+                {plan.durationDays ? `Valid for ${Math.max(1, Math.round(plan.durationDays / 30))} months, then falls back to Basic.` : 'No expiry.'}
               </div>
 
               <ul className={styles.ruleList}>
@@ -136,14 +219,13 @@ const CandidateSubscriptions = () => {
       <section className={styles.explainerCard}>
         <h2>PAYGO charging details</h2>
         <div className={styles.chargeGrid}>
-          <div className={styles.chargeItem}><strong>Upfront PAYGO access:</strong> 200 XAF for 3 months.</div>
-          <div className={styles.chargeItem}><strong>Presentation full preview:</strong> 100 XAF for 1 hour.</div>
-          <div className={styles.chargeItem}><strong>Presentation download:</strong> 150 XAF for 1 hour.</div>
-          <div className={styles.chargeItem}><strong>Question paper full preview:</strong> 100 XAF for 1 hour.</div>
-          <div className={styles.chargeItem}><strong>Question paper download:</strong> 150 XAF for 1 hour.</div>
-          <div className={styles.chargeItem}><strong>Report full preview:</strong> 150 XAF for 1 hour.</div>
-          <div className={styles.chargeItem}><strong>Report download:</strong> 200 XAF for 1 hour.</div>
-          <div className={styles.chargeItem}><strong>Create or join center:</strong> 200 XAF per center.</div>
+          {paygoChargeDetails.length > 0 ? (
+            paygoChargeDetails.map((item) => (
+              <div key={item.label} className={styles.chargeItem}><strong>{item.label}:</strong> {item.detail}</div>
+            ))
+          ) : (
+            <div className={styles.chargeItem}>PAYGO pricing is not configured yet.</div>
+          )}
         </div>
       </section>
 

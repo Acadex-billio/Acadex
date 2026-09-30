@@ -9,7 +9,7 @@ import { showToast } from '../utility/ToastNotification';
 import { getErrorMessage } from '../utility/getErrorMessage';
 import { maskCandidateId } from '../utility/maskCandidateId';
 
-const PLANS = ['basic', 'pro', 'paygo'];
+const PLANS = ['basic', 'pro', 'paygo', 'full-package'];
 const STATUSES = ['active', 'expired'];
 
 const fmt = (d) => (d ? new Date(d).toLocaleDateString() : '—');
@@ -109,6 +109,7 @@ const BillingPlans = () => {
       total: pagination.total,
       pro: all.filter((s) => s.plan === 'pro').length,
       paygo: all.filter((s) => s.plan === 'paygo').length,
+      'full-package': all.filter((s) => s.plan === 'full-package').length,
       expired: all.filter((s) => s.status === 'expired').length,
     };
   }, [subscriptions, pagination.total]);

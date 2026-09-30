@@ -14,7 +14,7 @@ const logDebug = (...args) => {
   }
 };
 
-const getCookieValue = (name) => {
+export const getCookieValue = (name) => {
   if (typeof document === 'undefined') return '';
   const prefix = `${name}=`;
   const cookie = document.cookie.split(';').map((part) => part.trim()).find((part) => part.startsWith(prefix));
@@ -67,6 +67,18 @@ const getLoginRedirectPath = () => {
 };
 
 const logoutAndRedirect = (message) => {
+  const currentPath = typeof window !== 'undefined' ? window.location.pathname : '';
+  if (!authService.getToken() && !currentPath.includes('/login')) {
+    return;
+  }
+  if (currentPath.includes('/login')) {
+    authService.removeToken();
+    if (window.authDispatch) {
+      window.authDispatch({ type: 'LOGOUT' });
+    }
+    return;
+  }
+
   authService.removeToken();
   if (window.authDispatch) {
     window.authDispatch({ type: 'LOGOUT' });
@@ -236,13 +248,35 @@ api.interceptors.response.use(
       logDebug('[API] 401 Unauthorized detected at', error.config?.url);
 
       const url = error.config?.url || '';
+      const hasToken = Boolean(authService.getToken());
+
       if (url.includes('/auth/login')) {
+        return Promise.reject(error);
+      }
+
+      if (!hasToken && url.includes('/auth/me')) {
+        logDebug('[API] No token present for /auth/me; clearing local auth state without redirect');
+        authService.removeToken();
+        if (window.authDispatch) {
+          window.authDispatch({ type: 'LOGOUT' });
+        }
         return Promise.reject(error);
       }
 
       try {
         if (url.includes('/auth/me')) {
+          if (!hasToken) {
+            return Promise.reject(error);
+          }
           logoutAndRedirect('Your session has expired. Please log in again.');
+          return Promise.reject(error);
+        }
+
+        if (!hasToken) {
+          authService.removeToken();
+          if (window.authDispatch) {
+            window.authDispatch({ type: 'LOGOUT' });
+          }
           return Promise.reject(error);
         }
 

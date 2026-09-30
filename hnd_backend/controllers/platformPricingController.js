@@ -55,8 +55,22 @@ exports.updatePricing = async (req, res) => {
       const updated = { ...current };
       ['report', 'presentation', 'question_paper'].forEach((material) => {
         if (next.materials[material]) {
+          const legacyPlanPricing = next.materials[material].plan_pricing || {};
+          const mergedPlanPricing = { ...((current[material]?.plan_pricing) || {}) };
+          ['basic', 'pro', 'paygo', 'full-package'].forEach((plan) => {
+            const source = legacyPlanPricing[plan] || {};
+            const currentPlan = mergedPlanPricing[plan] || {};
+            mergedPlanPricing[plan] = {
+              preview_pages: Math.max(0, Number(source.preview_pages ?? currentPlan.preview_pages ?? (plan === 'full-package' ? 999 : 3))),
+              preview_price: toNonNegativeNumber(source.preview_price, toNonNegativeNumber(currentPlan.preview_price, 0)),
+              download_price: toNonNegativeNumber(source.download_price, toNonNegativeNumber(currentPlan.download_price, 0)),
+              access_minutes: Math.max(1, Number(source.access_minutes ?? currentPlan.access_minutes ?? 60)),
+              free_access: Boolean(source.free_access ?? currentPlan.free_access ?? (plan === 'full-package')),
+            };
+          });
+
           updated[material] = {
-            basic_preview_pages: Math.max(1, Number(next.materials[material].basic_preview_pages || current[material]?.basic_preview_pages || 1)),
+            basic_preview_pages: Math.max(1, Number(next.materials[material].basic_preview_pages || current[material]?.basic_preview_pages || 3)),
             paygo_preview_pages: Math.max(1, Number(next.materials[material].paygo_preview_pages || current[material]?.paygo_preview_pages || 3)),
             full_package_preview_limit: toNonNegativeNumber(next.materials[material].full_package_preview_limit, toNonNegativeNumber(current[material]?.full_package_preview_limit, 10)),
             full_package_download_limit: toNonNegativeNumber(next.materials[material].full_package_download_limit, toNonNegativeNumber(current[material]?.full_package_download_limit, 5)),
@@ -65,6 +79,7 @@ exports.updatePricing = async (req, res) => {
             paygo_full_preview_price: toNonNegativeNumber(next.materials[material].paygo_full_preview_price, toNonNegativeNumber(current[material]?.paygo_full_preview_price, 0)),
             paygo_download_price: toNonNegativeNumber(next.materials[material].paygo_download_price, toNonNegativeNumber(current[material]?.paygo_download_price, 0)),
             paygo_access_minutes: Math.max(1, Number(next.materials[material].paygo_access_minutes || current[material]?.paygo_access_minutes || 60)),
+            plan_pricing: mergedPlanPricing,
           };
         }
       });

@@ -24,13 +24,18 @@ const normalizeCheckoutError = (err, fallbackMessage) => {
   const providerBody = parseProviderBody(err?.responseBody);
   const providerMessage = String(providerBody?.message || providerBody?.error || '').trim();
   const providerCode = String(providerBody?.code || '').trim();
+  const providerStatusCode = Number(err?.statusCode || 0);
+  const isProviderAuthorizationError = [401, 403].includes(providerStatusCode);
 
-  const message = providerMessage
-    ? `${providerMessage}${providerCode ? ` (${providerCode})` : ''}`
+  const message = isProviderAuthorizationError
+    ? 'Payment provider authorization failed. Please verify the provider credentials and API endpoint.'
+    : providerMessage
+      ? `${providerMessage}${providerCode ? ` (${providerCode})` : ''}`
     : (err?.message || fallbackMessage);
 
-  const providerStatusCode = Number(err?.statusCode || 0);
-  const statusCode = providerStatusCode >= 400 ? providerStatusCode : 500;
+  const statusCode = isProviderAuthorizationError
+    ? 502
+    : providerStatusCode >= 400 ? providerStatusCode : 500;
 
   logger.error('Checkout normalization detected payment provider failure', {
     statusCode,

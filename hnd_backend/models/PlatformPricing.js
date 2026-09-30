@@ -17,9 +17,22 @@ const planSchema = new mongoose.Schema(
   { _id: false }
 );
 
+const planMaterialAccessSchema = new mongoose.Schema(
+  {
+    preview_pages: { type: Number, default: 3, min: 0 },
+    preview_price: { type: Number, default: 0, min: 0 },
+    download_price: { type: Number, default: 0, min: 0 },
+    access_minutes: { type: Number, default: 60, min: 1 },
+    free_access: { type: Boolean, default: false },
+  },
+  { _id: false }
+);
+
 const paygoMaterialSchema = new mongoose.Schema(
   {
-    basic_preview_pages: { type: Number, default: 1, min: 1 },
+    basic_preview_pages: { type: Number, default: 3, min: 1 },
+    access_price: { type: Number, default: 0, min: 0 },
+    access_minutes: { type: Number, default: 60, min: 1 },
     paygo_preview_pages: { type: Number, default: 3, min: 1 },
     full_package_preview_limit: { type: Number, default: 10, min: 0 },
     full_package_download_limit: { type: Number, default: 5, min: 0 },
@@ -28,6 +41,12 @@ const paygoMaterialSchema = new mongoose.Schema(
     paygo_full_preview_price: { type: Number, default: 0, min: 0 },
     paygo_download_price: { type: Number, default: 0, min: 0 },
     paygo_access_minutes: { type: Number, default: 60, min: 1 },
+    plan_pricing: {
+      basic: { type: planMaterialAccessSchema, default: () => ({ preview_pages: 3, preview_price: 0, download_price: 0, access_minutes: 60, free_access: false }) },
+      pro: { type: planMaterialAccessSchema, default: () => ({ preview_pages: 3, preview_price: 0, download_price: 0, access_minutes: 60, free_access: false }) },
+      paygo: { type: planMaterialAccessSchema, default: () => ({ preview_pages: 3, preview_price: 0, download_price: 0, access_minutes: 60, free_access: false }) },
+      'full-package': { type: planMaterialAccessSchema, default: () => ({ preview_pages: 999, preview_price: 0, download_price: 0, access_minutes: 60, free_access: true }) },
+    },
   },
   { _id: false }
 );

@@ -6,7 +6,7 @@ const QuestionPaper = require('../models/QuestionPaper');
 const ChatRoom = require('../models/ChatRoom');
 const PaymentTransaction = require('../models/PaymentTransaction');
 const paymentGrantService = require('../services/paymentGrantService');
-const { getPlanDefinitions, getPlanDefinition, getCenterPricing } = require('../utils/subscriptionCatalog');
+const { getPlanDefinitions, getPlanDefinition, getCenterPricing, getCatalogSnapshot } = require('../utils/subscriptionCatalog');
 const {
   resolveSubscription,
   syncUserSubscriptionIfExpired,
@@ -249,11 +249,20 @@ exports.getMySubscription = async (req, res) => {
       .sort({ createdAt: -1 })
       .limit(10)
       .lean();
+    const pricingSnapshot = await getCatalogSnapshot();
 
     return res.json({
       success: true,
       subscription: await buildSubscriptionResponse(user.subscription),
       plans: await buildPlanCards(),
+      pricing: {
+        plans: pricingSnapshot.planDefinitions,
+        materials: pricingSnapshot.materialDefaults,
+        center: pricingSnapshot.centerPricing,
+        ai_study_mode: pricingSnapshot.aiStudyMode,
+        candidate_project_upload: pricingSnapshot.candidateProjectUploadPricing,
+        concours_partnership: pricingSnapshot.concoursPartnership,
+      },
       recent_transactions: recentTransactions.map(buildPaymentSummary),
     });
   } catch (err) {
@@ -434,6 +443,19 @@ exports.startCenterCheckout = async (req, res) => {
     if (!user) return res.status(404).json({ success: false, message: 'Candidate not found' });
 
     const resolvedSubscription = resolveSubscription(user.subscription);
+    if (resolvedSubscription.plan === 'full-package') {
+      return res.json({
+        success: true,
+        free_access: true,
+        message: 'Full Package members already have center access included.',
+        payment: {
+          amount: 0,
+          currency: 'XAF',
+          status: 'free',
+          purpose_code: 'center_access_full_package',
+        },
+      });
+    }
     if (resolvedSubscription.plan !== 'paygo') {
       return res.status(403).json({ success: false, message: 'Center payment actions are only available to PAYGO candidates.' });
     }
