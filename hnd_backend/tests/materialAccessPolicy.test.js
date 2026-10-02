@@ -44,10 +44,14 @@ const { resolveLocalSubmissionFilePath } = require('../controllers/candidateProj
 const PaymentAccessGrant = require('../models/PaymentAccessGrant');
 const User = require('../models/User');
 const CandidatePurchase = require('../models/CandidatePurchase');
+const QuestionPaper = require('../models/QuestionPaper');
+const materialAccessService = require('../services/materialAccessService');
 PaymentAccessGrant.findOne = async () => null;
 User.findOne = async () => null;
 User.findById = async () => null;
 CandidatePurchase.findOne = async () => null;
+
+const { checkMaterialAccess } = require('../middlewares/materialAccessMiddleware');
 
 test('non-HND question papers are treated as free materials', async () => {
   assert.equal(await isFreeMaterialAccess('question_paper', { paper_type: 'ca' }), true);
@@ -95,8 +99,70 @@ test('paid material access is unrestricted for pro and full package plans, while
 
   assert.equal(accessBasic.plan, 'basic');
   assert.equal(accessBasic.allow_download, false);
-  assert.ok(accessBasic.preview_page_limit > 0);
-  assert.ok(accessBasic.payment_required);
+  assert.equal(accessBasic.preview_page_limit, 3);
+  assert.equal(accessBasic.payment_required.preview, null);
+  assert.equal(accessBasic.payment_required.download, null);
+});
+
+test('material route guard serves Basic previews and routes Basic downloads to upgrade', async () => {
+  const originalUserFindOne = User.findOne;
+  const originalQuestionPaperFindById = QuestionPaper.findById;
+  const originalHasActiveAccess = materialAccessService.hasActiveAccess;
+  let subscription = { plan: 'basic', status: 'active' };
+  let material = { paper_type: 'hnd' };
+
+  User.findOne = () => ({
+    select() { return this; },
+    lean: async () => ({ cand_id: 'CAND123', subscription }),
+  });
+  QuestionPaper.findById = () => ({ lean: async () => material });
+  materialAccessService.hasActiveAccess = async () => false;
+
+  const request = async (accessType) => {
+    let reachedNext = false;
+    const response = {
+      statusCode: 200,
+      status(code) { this.statusCode = code; return this; },
+      json(payload) { this.payload = payload; return this; },
+    };
+    const req = {
+      params: { id: '507f1f77bcf86cd799439011' },
+      body: {},
+      user: { cand_id: 'CAND123', program: 'HND' },
+    };
+
+    await checkMaterialAccess('questionPaper', accessType)(req, response, () => {
+      reachedNext = true;
+    });
+    return { reachedNext, response };
+  };
+
+  try {
+    const basicPreview = await request('preview');
+    assert.equal(basicPreview.reachedNext, true);
+
+    const basicDownload = await request('download');
+    assert.equal(basicDownload.response.statusCode, 403);
+    assert.equal(basicDownload.response.payload.code, 'PLAN_UPGRADE_REQUIRED');
+
+    material = { paper_type: 'mock' };
+    const freeDownload = await request('download');
+    assert.equal(freeDownload.reachedNext, true);
+
+    material = { paper_type: 'hnd' };
+    subscription = { plan: 'pro', status: 'active' };
+    const proDownload = await request('download');
+    assert.equal(proDownload.reachedNext, true);
+
+    subscription = { plan: 'paygo', status: 'active' };
+    const paygoDownload = await request('download');
+    assert.equal(paygoDownload.response.statusCode, 402);
+    assert.equal(paygoDownload.response.payload.code, 'PAYMENT_REQUIRED');
+  } finally {
+    User.findOne = originalUserFindOne;
+    QuestionPaper.findById = originalQuestionPaperFindById;
+    materialAccessService.hasActiveAccess = originalHasActiveAccess;
+  }
 });
 
 test('candidate project previews resolve files by basename when the stored path is missing', () => {

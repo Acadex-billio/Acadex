@@ -465,6 +465,7 @@ const ViewPresentation = () => {
       const safeFile = encodeURIComponent(requested);
       const res = await api.get(`/candidate/presentations/file/${safeFile}`, {
         responseType: 'blob',
+        suppressGlobalForbiddenToast: true,
       });
       const filename = extractFileName(requested) || 'presentation';
       const url = URL.createObjectURL(res.data);
@@ -482,13 +483,13 @@ const ViewPresentation = () => {
         openPaymentModal(createMaterialPaymentRequest(presentation, 'download', errorData.payment_requirement));
         return;
       }
-      if (!options.skipPaymentHandling && err?.response?.status === 403 && /pay|payment|required|access/i.test(String(errorData?.message || ''))) {
-        handlePaymentRequired(presentation, 'download', errorData?.payment_requirement);
+      if (err?.response?.status === 403 && errorData?.code === 'PLAN_UPGRADE_REQUIRED') {
+        showToast(errorData.message || 'Your current plan does not include presentation downloads. Upgrade to continue.', 'warning');
+        navigate('/candidate/subscription');
         return;
       }
-      if (err?.response?.status === 403 && errorData?.code === 'PLAN_UPGRADE_REQUIRED') {
-        showToast(errorData.message || 'Upgrade your subscription to continue.', 'warning');
-        navigate('/candidate/subscription');
+      if (!options.skipPaymentHandling && err?.response?.status === 403 && /pay|payment|required|access/i.test(String(errorData?.message || ''))) {
+        handlePaymentRequired(presentation, 'download', errorData?.payment_requirement);
         return;
       }
       if (err?.response?.status === 403 && errorData?.message) {

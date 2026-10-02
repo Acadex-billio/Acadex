@@ -4,7 +4,8 @@ const materialAccessService = require('../services/materialAccessService');
 const Report = require('../models/Report');
 const Presentation = require('../models/Presentation');
 const QuestionPaper = require('../models/QuestionPaper');
-const { getMaterialAccessSummary } = require('../utils/subscriptionUtils');
+const User = require('../models/User');
+const { getMaterialAccessSummary, isFreeMaterialAccess } = require('../utils/subscriptionUtils');
 
 function getRouteMaterialIdentifier(req) {
   if (req.params.id) return req.params.id;
@@ -120,14 +121,44 @@ function checkMaterialAccess(materialType, accessType = 'preview') {
         const materialTypeKey = materialType === 'questionPaper' ? 'question_paper' : materialType;
         const materialModel = materialType === 'report' ? Report : materialType === 'presentation' ? Presentation : QuestionPaper;
         const material = await materialModel.findById(materialId).lean().catch(() => null);
+        if (material && await isFreeMaterialAccess(materialTypeKey, material)) {
+          return next();
+        }
+
+        const candidate = await User.findOne({ cand_id: req.user?.cand_id })
+          .select('cand_id subscription')
+          .lean();
+        const accessUser = candidate
+          ? { ...req.user, subscription: candidate.subscription }
+          : req.user;
         const accessSummary = material
           ? await getMaterialAccessSummary({
-              user: req.user,
+              user: accessUser,
               materialType: materialTypeKey,
               resourceId: materialId,
               doc: material,
             }).catch(() => null)
           : null;
+
+        if (accessSummary?.plan === 'basic' && accessType === 'preview') {
+          return next();
+        }
+
+        if (['pro', 'full-package'].includes(accessSummary?.plan)) {
+          return next();
+        }
+
+        if (accessSummary?.plan === 'basic' && accessType === 'download') {
+          const materialLabel = materialType === 'questionPaper'
+            ? 'question papers'
+            : `${materialType}s`;
+          return res.status(403).json({
+            success: false,
+            code: 'PLAN_UPGRADE_REQUIRED',
+            message: `Basic includes preview-only access. Upgrade to Pro or Full Package to download ${materialLabel}.`,
+          });
+        }
+
         const paymentRequirement = accessSummary?.payment_required?.[accessType] || null;
 
         return res.status(paymentRequirement ? 402 : 403).json({

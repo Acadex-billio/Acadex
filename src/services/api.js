@@ -318,7 +318,9 @@ api.interceptors.response.use(
     }
 
     if (error.response?.status === 403) {
-      showApiErrorToast(error);
+      if (!error.config?.suppressGlobalForbiddenToast) {
+        showApiErrorToast(error);
+      }
       return Promise.reject(error);
     }
 

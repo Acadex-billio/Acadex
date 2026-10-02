@@ -239,6 +239,20 @@ async function getMaterialAccessSummary({ user, materialType, resourceId, doc })
   }
 
   const preview_page_limit = previewGrant ? null : Number(planPricing.preview_pages || 3);
+
+  if (resolvedSubscription.plan === 'basic') {
+    return {
+      ...base,
+      preview_page_limit,
+      allow_download: Boolean(downloadGrant),
+      upgrade_required: true,
+      payment_required: {
+        preview: null,
+        download: null,
+      },
+    };
+  }
+
   const paymentRequired = {
     preview: previewGrant
       ? null
