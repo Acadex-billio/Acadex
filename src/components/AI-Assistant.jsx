@@ -4,7 +4,7 @@ import { FaPaperPlane } from 'react-icons/fa';
 import styles from '../Astyles/aiAssistant.module.css';
 import { useAuth } from '../context/AuthContext';
 import { API_BASE_URL_NORMALIZED } from '../config/api';
-import api, { getCookieValue } from '../services/api';
+import api, { cacheCsrfToken, getCsrfToken } from '../services/api';
 
 const nowTime = () => new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 const MAX_ATTACHMENTS = 3;
@@ -278,24 +278,7 @@ const AIAssistant = () => {
 
     const loadProfile = async () => {
       try {
-        const token = localStorage.getItem('jwt_token') || localStorage.getItem('authToken');
-        if (!token) {
-          profileLoadedRef.current = true;
-          return;
-        }
-
-        const response = await fetch(`${API_BASE_URL_NORMALIZED}/ai/profile`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
-
-        if (!response.ok) {
-          profileLoadedRef.current = true;
-          return;
-        }
-
-        const data = await response.json();
+        const { data } = await api.get('/ai/profile');
         const profile = data?.profile || {};
         if (cancelled || !profile || typeof profile !== 'object') {
           profileLoadedRef.current = true;
@@ -326,17 +309,8 @@ const AIAssistant = () => {
   useEffect(() => {
     if (!profileLoadedRef.current) return undefined;
 
-    const token = localStorage.getItem('jwt_token') || localStorage.getItem('authToken');
-    if (!token) return undefined;
-
     const timer = setTimeout(() => {
-      fetch(`${API_BASE_URL_NORMALIZED}/ai/profile`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
+      api.put('/ai/profile', {
           tone,
           answerDepth,
           responseLanguage,
@@ -344,8 +318,7 @@ const AIAssistant = () => {
           strictHndMode,
           showSources,
           storeConversation,
-        }),
-      }).catch(() => {
+        }).catch(() => {
         // Profile persistence is best-effort and must not block chat UX.
       });
     }, 450);
@@ -613,44 +586,61 @@ const AIAssistant = () => {
 
     try {
       const token = localStorage.getItem('jwt_token') || localStorage.getItem('authToken');
-      const csrfToken = getCookieValue('csrf_token');
-      const response = await fetch(`${API_BASE_URL_NORMALIZED}/ai/chat`, {
+      const csrfToken = getCsrfToken();
+      const chatUrl = `${API_BASE_URL_NORMALIZED}/ai/chat`;
+      const chatBody = JSON.stringify({
+        message: messageText,
+        language: responseLanguage,
+        includeSources: showSources,
+        strictHndMode,
+        model: selectedAiModel,
+        profile: {
+          tone,
+          answerDepth,
+          responseLanguage,
+          memoryTurns,
+          strictHndMode,
+          showSources,
+          storeConversation,
+        },
+        currentRoute,
+        conversationHistory,
+        attachments: filesSnapshot.map((f) => ({
+          name: f.name,
+          size: f.size,
+          type: f.type,
+          content: f.content,
+          truncated: f.truncated,
+        })),
+      });
+      const chatHeaders = {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...(csrfToken ? { 'X-CSRF-Token': csrfToken } : {}),
+      };
+      const chatRequest = {
         method: 'POST',
         credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-          ...(csrfToken ? { 'X-CSRF-Token': csrfToken } : {}),
-        },
-        body: JSON.stringify({
-          message: messageText,
-          language: responseLanguage,
-          includeSources: showSources,
-          strictHndMode,
-          model: selectedAiModel,
-          profile: {
-            tone,
-            answerDepth,
-            responseLanguage,
-            memoryTurns,
-            strictHndMode,
-            showSources,
-            storeConversation,
-          },
-          currentRoute,
-          conversationHistory,
-          attachments: filesSnapshot.map((f) => ({
-            name: f.name,
-            size: f.size,
-            type: f.type,
-            content: f.content,
-            truncated: f.truncated,
-          })),
-        }),
-      });
+        headers: chatHeaders,
+        body: chatBody,
+      };
+      let response = await fetch(chatUrl, chatRequest);
+
+      if (!response.ok && response.status === 403) {
+        const errorPayload = await response.clone().json().catch(() => null);
+        const responseCsrfToken = String(response.headers.get('x-csrf-token') || '').trim();
+        if (errorPayload?.code === 'CSRF_TOKEN_INVALID' && responseCsrfToken) {
+          cacheCsrfToken(responseCsrfToken);
+          response = await fetch(chatUrl, {
+            ...chatRequest,
+            headers: { ...chatHeaders, 'X-CSRF-Token': responseCsrfToken },
+          });
+        }
+      }
 
       if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
+        const errorPayload = await response.clone().json().catch(() => null);
+        throw new Error(errorPayload?.message || `HTTP ${response.status}`);
       }
 
       const reader = response.body.getReader();

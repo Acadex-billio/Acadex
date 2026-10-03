@@ -21,6 +21,14 @@ export const getCookieValue = (name) => {
   return cookie ? decodeURIComponent(cookie.slice(prefix.length)) : '';
 };
 
+let csrfTokenFromResponse = '';
+
+export const getCsrfToken = () => csrfTokenFromResponse || getCookieValue('csrf_token');
+export const cacheCsrfToken = (token) => {
+  const normalizedToken = String(token || '').trim();
+  if (normalizedToken) csrfTokenFromResponse = normalizedToken;
+};
+
 const normalizeApiError = (error) => {
   const status = error?.response?.status || 0;
   const payload = error?.response?.data || {};
@@ -162,7 +170,7 @@ const api = axios.create({
 api.interceptors.request.use(
   (config) => {
     const method = String(config.method || 'get').toUpperCase();
-    const csrfToken = getCookieValue('csrf_token');
+    const csrfToken = getCsrfToken();
     if (csrfToken && !['GET', 'HEAD', 'OPTIONS'].includes(method)) {
       config.headers['X-CSRF-Token'] = csrfToken;
     }
@@ -200,6 +208,15 @@ const authRefreshApi = axios.create({
   withCredentials: true,
 });
 
+authRefreshApi.interceptors.request.use((config) => {
+  const method = String(config.method || 'get').toUpperCase();
+  const csrfToken = getCsrfToken();
+  if (csrfToken && !['GET', 'HEAD', 'OPTIONS'].includes(method)) {
+    config.headers['X-CSRF-Token'] = csrfToken;
+  }
+  return config;
+});
+
 let authCheckPromise = null;
 let authRefreshPromise = null;
 
@@ -232,6 +249,8 @@ const performAuthCheck = async () => {
 // Response interceptor - Handle token expiry
 api.interceptors.response.use(
   (response) => {
+    const responseCsrfToken = String(response.headers?.['x-csrf-token'] || '').trim();
+    if (responseCsrfToken) cacheCsrfToken(responseCsrfToken);
     logDebug('[API] Response:', {
       status: response.status,
       url: response.config.url,
@@ -242,6 +261,21 @@ api.interceptors.response.use(
     const normalizedError = normalizeApiError(error);
     error.normalized = normalizedError;
     logDebug('[API] response error', normalizedError);
+
+    if (
+      error.response?.status === 403 &&
+      error.response?.data?.code === 'CSRF_TOKEN_INVALID' &&
+      !error.config?._csrfRetry
+    ) {
+      const responseCsrfToken = String(error.response.headers?.['x-csrf-token'] || '').trim();
+      if (responseCsrfToken) {
+        cacheCsrfToken(responseCsrfToken);
+        error.config._csrfRetry = true;
+        error.config.headers = error.config.headers || {};
+        error.config.headers['X-CSRF-Token'] = responseCsrfToken;
+        return api.request(error.config);
+      }
+    }
 
     // Handle 401 Unauthorized - token expired/invalid
     if (error.response?.status === 401) {

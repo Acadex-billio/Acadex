@@ -39,10 +39,11 @@ const issueToken = (res) => {
 const csrfProtection = (req, res, next) => {
   const cookies = parseCookies(req.headers.cookie);
   const cookieToken = cookies[CSRF_COOKIE_NAME] || issueToken(res);
+  res.setHeader('X-CSRF-Token', cookieToken);
   const path = String(req.path || '').replace(/\/$/, '') || '/';
-  const hasAuthenticatedSession = Boolean(cookies.access_token || String(req.headers.authorization || '').trim());
+  const hasAuthenticatedCookieSession = Boolean(cookies.access_token);
 
-  if (SAFE_METHODS.has(String(req.method || '').toUpperCase()) || EXEMPT_PATHS.has(path) || !hasAuthenticatedSession) {
+  if (SAFE_METHODS.has(String(req.method || '').toUpperCase()) || EXEMPT_PATHS.has(path) || !hasAuthenticatedCookieSession) {
     return next();
   }
 

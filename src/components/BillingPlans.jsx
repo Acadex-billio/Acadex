@@ -1,7 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import axios from 'axios';
 import api from '../services/api';
-import authService from '../services/authService';
 import styles from '../Astyles/ManageBilling.module.css';
 import ConfirmDialog from './ConfirmDialog';
 import GraduationCapLoader from './GraduationCapLoader';
@@ -13,17 +11,9 @@ const PLANS = ['basic', 'pro', 'paygo', 'full-package'];
 const STATUSES = ['active', 'expired'];
 
 const fmt = (d) => (d ? new Date(d).toLocaleDateString() : '—');
-const billingApi = axios.create({ timeout: 30000 });
 
 const callBillingApi = async (method, url, data) => {
-  const token = authService.getToken();
-  return billingApi({
-    method,
-    baseURL: api?.defaults?.baseURL,
-    url,
-    data,
-    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-  });
+  return api({ method, url, data });
 };
 
 const BillingPlans = () => {

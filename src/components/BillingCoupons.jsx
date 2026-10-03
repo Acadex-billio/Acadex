@@ -1,7 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import axios from 'axios';
 import api from '../services/api';
-import authService from '../services/authService';
 import styles from '../Astyles/ManageBilling.module.css';
 import ConfirmDialog from './ConfirmDialog';
 import GraduationCapLoader from './GraduationCapLoader';
@@ -9,17 +7,9 @@ import { showToast } from '../utility/ToastNotification';
 import { getErrorMessage } from '../utility/getErrorMessage';
 
 const COUPON_SCOPES = ['subscription', 'material_access', 'center_access', 'tutorship_booking', 'invite_access'];
-const billingApi = axios.create({ timeout: 30000 });
 
 const callBillingApi = async (method, url, data) => {
-  const token = authService.getToken();
-  return billingApi({
-    method,
-    baseURL: api?.defaults?.baseURL,
-    url,
-    data,
-    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-  });
+  return api({ method, url, data });
 };
 
 const BillingCoupons = () => {

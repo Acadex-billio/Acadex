@@ -257,7 +257,7 @@ app.use(
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Cache-Control', 'Accept', 'X-CSRF-Token'],
-    exposedHeaders: ['X-Total-Count', 'X-Preview-Page-Limit', 'X-Allow-Copy', 'X-Subscription-Plan'],
+    exposedHeaders: ['X-Total-Count', 'X-Preview-Page-Limit', 'X-Allow-Copy', 'X-Subscription-Plan', 'X-CSRF-Token'],
     maxAge: 86400, // 24 hours
   })
 );
