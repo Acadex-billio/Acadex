@@ -19,6 +19,11 @@ async function getMaterialDefaults(materialType) {
   return snapshot.materialDefaults[String(materialType || '').toLowerCase()] || null;
 }
 
+async function getAiStudyModePricing() {
+  const snapshot = await getPricingSnapshot();
+  return snapshot.aiStudyMode;
+}
+
 async function getCenterPricing(action, planCode = 'paygo') {
   const snapshot = await getPricingSnapshot();
   const normalizedAction = String(action || '').toLowerCase();
@@ -31,5 +36,6 @@ module.exports = {
   getPlanDefinitions,
   getPlanDefinition,
   getMaterialDefaults,
+  getAiStudyModePricing,
   getCenterPricing,
 };

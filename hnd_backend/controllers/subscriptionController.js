@@ -3,6 +3,7 @@ const User = require('../models/User');
 const Report = require('../models/Report');
 const Presentation = require('../models/Presentation');
 const QuestionPaper = require('../models/QuestionPaper');
+const AiStudyMaterial = require('../models/AiStudyMaterial');
 const ChatRoom = require('../models/ChatRoom');
 const PaymentTransaction = require('../models/PaymentTransaction');
 const paymentGrantService = require('../services/paymentGrantService');
@@ -359,6 +360,16 @@ async function findMaterial(resourceType, resourceId, program, deptId) {
     const allowed = audience === 'GENERAL' || (deptId && (doc.departments || []).map(String).includes(String(deptId)));
     return allowed ? doc : null;
   }
+  if (resourceType === 'ai_mode') {
+    const normalizedProgram = String(program || 'HND').toUpperCase() === 'BTS' ? 'BTS' : 'HND';
+    const doc = await AiStudyMaterial.findOne({ _id: resourceIdValue, program: normalizedProgram, is_active: true })
+      .select('paper_title program departments createdAt')
+      .lean();
+    if (!doc) return null;
+    const allowed = !Array.isArray(doc.departments) || doc.departments.length === 0
+      || (deptId && doc.departments.map(String).includes(String(deptId)));
+    return allowed ? doc : null;
+  }
   return null;
 }
 
@@ -376,6 +387,9 @@ exports.startMaterialCheckout = async (req, res) => {
     const resourceType = String(req.body?.resourceType || '').trim().toLowerCase();
     const resourceId = String(req.body?.resourceId || '').trim();
     const action = String(req.body?.action || '').trim().toLowerCase();
+    if (resourceType === 'ai_mode' && action !== 'preview') {
+      return res.status(400).json({ success: false, message: 'AI Study Mode checkout only supports session access.' });
+    }
     const idempotencyKey = String(req.headers['x-idempotency-key'] || req.body?.idempotencyKey || '').trim();
     const promoCode = sanitizePromoCodeInput(req.body?.promoCode || req.body?.referralCode);
     const phoneNumber = String(req.body?.phoneNumber || user.phone || '').trim();

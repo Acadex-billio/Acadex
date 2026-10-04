@@ -31,7 +31,6 @@ const UploadPresentation = () => {
   const [location, setLocation] = useState('');
   const [pages, setPages] = useState('');
   const [academicSession, setAcademicSession] = useState('');
-  const [materialPrice, setMaterialPrice] = useState('');
   const [projectGithubUrl, setProjectGithubUrl] = useState('');
   const [description, setDescription] = useState('');
   const [presentationFile, setPresentationFile] = useState(null);
@@ -63,7 +62,6 @@ const UploadPresentation = () => {
     setLocation('');
     setPages('');
     setAcademicSession('');
-    setMaterialPrice('');
     setProjectGithubUrl('');
     setDescription('');
     setPresentationFile(null);
@@ -74,14 +72,12 @@ const UploadPresentation = () => {
   };
 
   const isValid = useMemo(() => {
-    if (!title.trim() || !presenterName.trim() || !presenterEmail.trim() || !location.trim() || !pages || !materialPrice) return false;
+    if (!title.trim() || !presenterName.trim() || !presenterEmail.trim() || !location.trim() || !pages) return false;
     if (!activeId && !fromSubmissionId && !presentationFile) return false;
     if (audience === 'SINGLE' && !dptId) return false;
     if (audience === 'MULTIPLE' && dptIds.length === 0) return false;
-    const parsedPrice = Number(materialPrice);
-    if (!Number.isFinite(parsedPrice) || parsedPrice < 0) return false;
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(presenterEmail);
-  }, [title, presenterName, presenterEmail, location, pages, materialPrice, activeId, presentationFile, audience, dptId, dptIds, fromSubmissionId]);
+  }, [title, presenterName, presenterEmail, location, pages, activeId, presentationFile, audience, dptId, dptIds, fromSubmissionId]);
 
   useEffect(() => {
     if (audience === 'GENERAL') {
@@ -169,7 +165,6 @@ const UploadPresentation = () => {
       setPresenterEmail(String(draft.uploader_email || ''));
       setLocation(String(draft.location || '').trim());
       setPages(String(draft.pages || '').trim());
-      setMaterialPrice(draft.upload_fee != null ? String(draft.upload_fee) : '');
       setProjectGithubUrl('');
       setPresentationFile(null);
       showToast('Presentation draft loaded. Complete details and upload to finalize.', 'success');
@@ -281,7 +276,6 @@ const UploadPresentation = () => {
     setPresenterEmail(p.presenter_email || '');
     setLocation(p.location || '');
     setPages(p.pages != null ? String(p.pages) : '');
-    setMaterialPrice(p.material_price != null ? String(p.material_price) : '');
     setProjectGithubUrl(p.project_github_url || '');
     setPresentationFile(null);
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -337,7 +331,6 @@ const UploadPresentation = () => {
         presenter_email: presenterEmail.trim(),
         location: location.trim(),
         pages: String(pages).trim(),
-        material_price: String(materialPrice).trim(),
         project_github_url: String(projectGithubUrl || '').trim(),
         program,
         audience,
@@ -404,7 +397,6 @@ const UploadPresentation = () => {
       fd.append('location', location.trim());
       fd.append('pages', String(pages).trim());
       fd.append('academic_session', academicSession.trim());
-      fd.append('material_price', String(materialPrice).trim());
       fd.append('project_github_url', String(projectGithubUrl || '').trim());
       fd.append('program', program);
       fd.append('audience', audience);
@@ -657,17 +649,6 @@ const UploadPresentation = () => {
             </div>
 
             <div className={styles.row}>
-              <div className={styles.fieldFlex}>
-                <label className={styles.label}>Download Price (XAF) <span>*</span></label>
-                <input
-                  type="number"
-                  min="0"
-                  step="1"
-                  value={materialPrice}
-                  onChange={(e) => setMaterialPrice(e.target.value)}
-                  required
-                />
-              </div>
               <div className={styles.fieldFlex}>
                 <label className={styles.label}>Project GitHub URL</label>
                 <input

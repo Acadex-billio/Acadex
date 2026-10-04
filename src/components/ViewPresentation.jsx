@@ -8,6 +8,7 @@ import SecurePdfPreview from "./SecurePdfPreview";
 import { showToast } from "../utility/ToastNotification";
 import PaymentActionModal from "./PaymentActionModal";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from '../context/AuthContext';
 
 // Remove axios defaults since we're using api service
 // axios.defaults.withCredentials = true;
@@ -36,6 +37,7 @@ const getPlaceholderTheme = (filePath) => {
 
 const ViewPresentation = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [presentations, setPresentations] = useState([]);
   const [search, setSearch] = useState("");
   const [previewFile, setPreviewFile] = useState(null);
@@ -346,6 +348,17 @@ const ViewPresentation = () => {
 
   const openPaymentModal = (config) => setPaymentRequest(config);
 
+  const getMaterialPriceMeta = (presentation, plan) => {
+    const normalizedPlan = String(plan || 'basic').toLowerCase();
+    if (['full-package', 'pro'].includes(normalizedPlan)) return 'Included with your plan';
+    if (normalizedPlan === 'paygo') {
+      const previewPrice = Number(presentation?.paygo_preview_price || 0);
+      const downloadPrice = Number(presentation?.paygo_download_price || 0);
+      return `Full preview ${previewPrice ? `${previewPrice.toLocaleString()} XAF` : 'free'} · Download ${downloadPrice ? `${downloadPrice.toLocaleString()} XAF` : 'free'}`;
+    }
+    return 'Preview only · Upgrade to download';
+  };
+
   const handlePaymentRequired = (presentation, action, requirement) => {
     const amount = Number(requirement?.amount);
     if (!Number.isFinite(amount) || amount < 0) {
@@ -384,7 +397,7 @@ const ViewPresentation = () => {
     description: requirement?.message || (action === 'download'
       ? 'A payment is required before you can download this presentation.'
       : 'A payment is required before you can preview every page of this presentation.'),
-    amount: requirement?.amount ?? null,
+    amount: requirement?.amount ?? (action === 'download' ? presentation?.paygo_download_price : presentation?.paygo_preview_price) ?? null,
     currency: requirement?.currency || 'XAF',
     onStartPayment: async ({ phoneNumber, paymentMethod = 'momo', promoCode = '' }) => {
       const { data } = await api.post('/candidate/payments/materials/checkout', {
@@ -629,11 +642,9 @@ const ViewPresentation = () => {
 
               {/* Metadata Row 2: Price + Time Ago */}
               <div className={styles.metadataRow2}>
-                {Number.isFinite(Number(p.material_price)) && Number(p.material_price) > 0 ? (
-                  <span className={styles.priceTag}>
-                    <span className={styles.priceValue}>{Number(p.material_price).toLocaleString()} XAF</span>
-                  </span>
-                ) : null}
+                <span className={styles.priceTag}>
+                  <span className={styles.priceValue}>{getMaterialPriceMeta(p, user?.subscription?.plan)}</span>
+                </span>
                 <span className={styles.timeTag}>
                   <FaClock className={styles.metaIcon} />
                   {formatTimeAgo(p.upload_date)}

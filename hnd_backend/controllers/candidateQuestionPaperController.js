@@ -11,6 +11,7 @@ const { sanitizeFilename } = require('../middlewares/requestValidation');
 const { getS3ObjectStream } = require('../utils/s3Uploader');
 const materialAccessService = require('../services/materialAccessService');
 const { getMaterialAccessSummary, isFreeMaterialAccess } = require('../utils/subscriptionUtils');
+const { getMaterialDefaults } = require('../utils/subscriptionCatalog');
 const { streamToBuffer, subsetPdfBuffer, applyPdfWatermark } = require('../utils/pdfAccess');
 
 const PAPERS_DIR = path.join(__dirname, '../uploads/papers');
@@ -146,6 +147,7 @@ exports.getQuestionPapers = async (req, res) => {
       .sort({ createdAt: -1 })
       .populate('departments', 'department_name')
       .lean();
+    const paygoPricing = (await getMaterialDefaults('question_paper'))?.plan_pricing?.paygo || {};
 
     const formatted = papers.map((p) => ({
       qp_id: p._id,
@@ -160,7 +162,10 @@ exports.getQuestionPapers = async (req, res) => {
       more_info: p.more_info,
       study_links: parseStudyLinks(p.more_info),
       subscription_access: p.subscription_access || null,
-      material_price: Number(p.subscription_access?.paygo_download_price ?? p.material_price ?? 0) || null,
+      paygo_preview_price: Number(paygoPricing.preview_price || 0),
+      paygo_download_price: Number(paygoPricing.download_price || 0),
+      paygo_preview_pages: Number(paygoPricing.preview_pages || 3),
+      paygo_access_minutes: Number(paygoPricing.access_minutes || 60),
       departments: (p.departments || []).map((d) => ({
         dpt_id: (d && d._id ? d._id : d)?.toString?.() ?? String(d),
         dpt_name: (typeof d === 'object' && d?.department_name) || '',

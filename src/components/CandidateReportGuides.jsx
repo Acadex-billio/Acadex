@@ -74,12 +74,8 @@ const CandidateReportGuides = () => {
 
   const getDownloadPriceMeta = (item, plan) => {
     const normalizedPlan = normalizePlan(plan);
-    const fallbackPrice = Number(item?.material_price ?? item?.subscription_access?.paygo_download_price ?? 0);
     if (['full-package', 'pro'].includes(normalizedPlan)) {
       return 'Included with your plan';
-    }
-    if (Number.isFinite(fallbackPrice) && fallbackPrice > 0) {
-      return `Download ${fallbackPrice.toLocaleString()} XAF`;
     }
     return 'Free guide';
   };

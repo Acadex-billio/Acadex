@@ -48,7 +48,6 @@ const ReportUpload = () => {
   const [keywords, setKeywords] = useState('');
   const [pages, setPages] = useState('');
   const [academicSession, setAcademicSession] = useState('');
-  const [materialPrice, setMaterialPrice] = useState('');
   const [projectGithubUrl, setProjectGithubUrl] = useState('');
   const [reportDoc, setReportDoc] = useState(null);
 
@@ -115,7 +114,6 @@ const ReportUpload = () => {
       setLocation(String(draft.location || '').trim() || 'Candidate Project Upload');
       setKeywords('candidate-project');
       setPages(String(draft.pages || '').trim() || '1');
-      setMaterialPrice(draft.upload_fee != null ? String(draft.upload_fee) : '');
       setProjectGithubUrl('');
       setReportDoc(null);
       showToast('Report draft loaded. Complete details and upload to finalize.', 'success');
@@ -204,12 +202,9 @@ const ReportUpload = () => {
   const isValid = useMemo(() => {
     if (!title.trim() || !writerNames.trim() || !writerEmail.trim() ||
       !description.trim() || !location.trim() || !keywords.trim() ||
-      !pages || !materialPrice) return false;
+      !pages) return false;
 
     if (!activeId && !fromSubmissionId && !reportDoc) return false;
-
-    const parsedPrice = Number(materialPrice);
-    if (!Number.isFinite(parsedPrice) || parsedPrice < 0) return false;
 
     if (audience === AUDIENCE.SINGLE && !dptId) return false;
     if (audience === AUDIENCE.MULTIPLE && dptIds.length === 0) return false;
@@ -218,7 +213,7 @@ const ReportUpload = () => {
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(writerEmail)) return false;
 
     return true;
-  }, [title, writerNames, writerEmail, description, location, keywords, pages, materialPrice, reportDoc, audience, dptId, dptIds, activeId, fromSubmissionId]);
+  }, [title, writerNames, writerEmail, description, location, keywords, pages, reportDoc, audience, dptId, dptIds, activeId, fromSubmissionId]);
 
   const openConfirm = (e) => {
     e.preventDefault();
@@ -265,7 +260,6 @@ const ReportUpload = () => {
     setKeywords('');
     setPages('');
     setAcademicSession('');
-    setMaterialPrice('');
     setProjectGithubUrl('');
     setReportDoc(null);
     setUploadProgress(0);
@@ -296,7 +290,6 @@ const ReportUpload = () => {
     setLocation(r.location || '');
     setKeywords(r.keywords || '');
     setPages(r.pages || '');
-    setMaterialPrice(r.material_price != null ? String(r.material_price) : '');
     setProjectGithubUrl(r.project_github_url || '');
     setReportDoc(null);
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -317,7 +310,6 @@ const ReportUpload = () => {
         location: location.trim(),
         keywords: keywords.trim(),
         pages: String(pages).trim(),
-        material_price: String(materialPrice).trim(),
         project_github_url: String(projectGithubUrl || '').trim(),
         program,
       };
@@ -426,7 +418,6 @@ const ReportUpload = () => {
       fd.append('keywords', keywords.trim());
       fd.append('pages', String(pages));
       fd.append('academic_session', academicSession.trim());
-      fd.append('material_price', String(materialPrice).trim());
       fd.append('project_github_url', String(projectGithubUrl || '').trim());
       fd.append('program', program);
       if (fromSubmissionId) fd.append('from_submission_id', fromSubmissionId);
@@ -454,7 +445,6 @@ const ReportUpload = () => {
         setLocation('');
         setKeywords('');
         setPages('');
-        setMaterialPrice('');
         setProjectGithubUrl('');
         setReportDoc(null);
         setUploadProgress(0);
@@ -625,17 +615,6 @@ const ReportUpload = () => {
             </div>
 
             <div className={styles.row}>
-              <div className={styles.fieldFlex}>
-                <label className={styles.label}>Download Price (XAF) <span>*</span></label>
-                <input
-                  type="number"
-                  min="0"
-                  step="1"
-                  value={materialPrice}
-                  onChange={(e) => setMaterialPrice(e.target.value)}
-                  required
-                />
-              </div>
               <div className={styles.fieldFlex}>
                 <label className={styles.label}>Project GitHub URL</label>
                 <input

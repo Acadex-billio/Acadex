@@ -4,7 +4,9 @@ const mongoose = require('mongoose');
 const QuestionPaper = require('../models/QuestionPaper');
 const AiStudyMaterial = require('../models/AiStudyMaterial');
 const AiStudySession = require('../models/AiStudySession');
+const User = require('../models/User');
 const materialAccessService = require('../services/materialAccessService');
+const { getMaterialAccessSummary, resolveSubscription } = require('../utils/subscriptionUtils');
 
 const STUDY_LIMIT = 20;
 
@@ -241,9 +243,45 @@ exports.startStudySession = async (req, res) => {
       return res.status(403).json({ success: false, message: 'You cannot access this study material.' });
     }
 
-    const hasAiAccess = await materialAccessService.hasActiveAccess(candidateId, String(materialId), 'ai_mode', 'preview').catch(() => false);
+    let hasAiAccess = await materialAccessService.hasActiveAccess(candidateId, String(materialId), 'ai_mode', 'preview').catch(() => false);
     if (!hasAiAccess) {
-      return res.status(403).json({ success: false, message: 'You need granted access to use AI study mode.' });
+      const candidate = await User.findOne({ cand_id: candidateId }).select('cand_id subscription').lean();
+      const access = await getMaterialAccessSummary({
+        user: candidate || { cand_id: candidateId },
+        materialType: 'ai_mode',
+        resourceId: materialId,
+        doc: material,
+      });
+      if (access.plan === 'paygo' && access.payment_required?.preview) {
+        const requirement = access.payment_required.preview;
+        return res.status(402).json({
+          success: false,
+          code: 'PAYMENT_REQUIRED',
+          message: 'Pay to start this AI Study Mode session.',
+          payment_requirement: {
+            title: 'Unlock AI Study Mode session',
+            message: `Pay ${requirement.amount} ${requirement.currency} to start this AI Study Mode session.`,
+            action: 'preview',
+            amount: requirement.amount,
+            currency: requirement.currency,
+            resource_type: 'ai_mode',
+            resource_id: String(materialId),
+            purpose_code: requirement.purpose_code,
+            access_minutes: requirement.access_minutes,
+          },
+        });
+      }
+
+      const plan = resolveSubscription(candidate?.subscription).plan;
+      if (plan === 'paygo' || ['pro', 'full-package'].includes(plan)) {
+        hasAiAccess = true;
+      } else {
+        return res.status(403).json({
+          success: false,
+          code: 'PLAN_UPGRADE_REQUIRED',
+          message: 'AI Study Mode is not included in the Basic plan. Upgrade to Pro, PAYGO, or Full Package to continue.',
+        });
+      }
     }
 
     const materialDepartments = Array.isArray(material.departments) ? material.departments.map((d) => String(d)) : [];

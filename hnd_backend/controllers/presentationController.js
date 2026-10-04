@@ -12,6 +12,7 @@ const { pipeline } = require('stream/promises');
 const { sanitizeFilename } = require('../middlewares/requestValidation');
 const { getS3ObjectStream } = require('../utils/s3Uploader');
 const { getMaterialAccessSummary } = require('../utils/subscriptionUtils');
+const { getMaterialDefaults } = require('../utils/subscriptionCatalog');
 const materialAccessService = require('../services/materialAccessService');
 const { streamToBuffer, subsetPdfBuffer, cropPdfFirstPageHalf } = require('../utils/pdfAccess');
 const { enqueueLibreOfficeJob } = require('../services/libreOfficeQueue');
@@ -369,6 +370,7 @@ exports.getAll = async (req, res) => {
     const page = Math.max(1, parseInt(req.query.page) || 1);
     const limit = Math.min(50, Math.max(10, parseInt(req.query.limit) || 20));
     const skip = (page - 1) * limit;
+    const paygoPricing = (await getMaterialDefaults('presentation'))?.plan_pricing?.paygo || {};
 
     const deptId = req.user?.dpt_id || null;
     const userProgram = String(req.user?.program || 'HND').toUpperCase();
@@ -402,7 +404,10 @@ exports.getAll = async (req, res) => {
       upload_date: p.createdAt,
       program: String(p.program || 'HND').toUpperCase(),
       audience: String(p.audience || 'GENERAL').toUpperCase(),
-      material_price: p.material_price ?? null,
+      paygo_preview_price: Number(paygoPricing.preview_price || 0),
+      paygo_download_price: Number(paygoPricing.download_price || 0),
+      paygo_preview_pages: Number(paygoPricing.preview_pages || 3),
+      paygo_access_minutes: Number(paygoPricing.access_minutes || 60),
       project_github_url: p.project_github_url || null,
       report_id: p.report_id?._id,
       report_title: p.report_id?.title || null,

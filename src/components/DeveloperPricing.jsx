@@ -232,7 +232,7 @@ const DeveloperPricing = () => {
             <div className={styles.sectionEyebrow}>Materials</div>
             <h3>Material access rules</h3>
           </div>
-          <span>Per plan preview and download rules</span>
+          <span>Set 0 for free access or at least 100 XAF for paid actions.</span>
         </div>
 
         <div className={styles.materialGrid}>
@@ -251,8 +251,8 @@ const DeveloperPricing = () => {
                         type="number"
                         min="0"
                         step="1"
-                        value={String(getNestedValue(pricing, `materials.${material}.basic_preview_pages`, 3))}
-                        onChange={(e) => setField(`materials.${material}.basic_preview_pages`, Number(e.target.value || 0))}
+                        value={String(getNestedValue(pricing, `materials.${material}.plan_pricing.basic.preview_pages`, 3))}
+                        onChange={(e) => setField(`materials.${material}.plan_pricing.basic.preview_pages`, Number(e.target.value || 1))}
                       />
                     </label>
                   </div>
@@ -268,8 +268,8 @@ const DeveloperPricing = () => {
                         type="number"
                         min="0"
                         step="1"
-                        value={String(getNestedValue(pricing, `materials.${material}.paygo_preview_pages`, 3))}
-                        onChange={(e) => setField(`materials.${material}.paygo_preview_pages`, Number(e.target.value || 0))}
+                        value={String(getNestedValue(pricing, `materials.${material}.plan_pricing.paygo.preview_pages`, 3))}
+                        onChange={(e) => setField(`materials.${material}.plan_pricing.paygo.preview_pages`, Number(e.target.value || 1))}
                       />
                     </label>
 
@@ -280,8 +280,8 @@ const DeveloperPricing = () => {
                         type="number"
                         min="0"
                         step="0.01"
-                        value={toCurrencyString(getNestedValue(pricing, `materials.${material}.paygo_full_preview_price`, 0))}
-                        onChange={(e) => setField(`materials.${material}.paygo_full_preview_price`, Number(e.target.value || 0))}
+                        value={toCurrencyString(getNestedValue(pricing, `materials.${material}.plan_pricing.paygo.preview_price`, 0))}
+                        onChange={(e) => setField(`materials.${material}.plan_pricing.paygo.preview_price`, Number(e.target.value || 0))}
                       />
                     </label>
 
@@ -292,8 +292,8 @@ const DeveloperPricing = () => {
                         type="number"
                         min="0"
                         step="0.01"
-                        value={toCurrencyString(getNestedValue(pricing, `materials.${material}.paygo_download_price`, 0))}
-                        onChange={(e) => setField(`materials.${material}.paygo_download_price`, Number(e.target.value || 0))}
+                        value={toCurrencyString(getNestedValue(pricing, `materials.${material}.plan_pricing.paygo.download_price`, 0))}
+                        onChange={(e) => setField(`materials.${material}.plan_pricing.paygo.download_price`, Number(e.target.value || 0))}
                       />
                     </label>
 
@@ -304,8 +304,8 @@ const DeveloperPricing = () => {
                         type="number"
                         min="1"
                         step="1"
-                        value={String(getNestedValue(pricing, `materials.${material}.paygo_access_minutes`, 60))}
-                        onChange={(e) => setField(`materials.${material}.paygo_access_minutes`, Number(e.target.value || 60))}
+                        value={String(getNestedValue(pricing, `materials.${material}.plan_pricing.paygo.access_minutes`, 60))}
+                        onChange={(e) => setField(`materials.${material}.plan_pricing.paygo.access_minutes`, Number(e.target.value || 60))}
                       />
                     </label>
                   </div>
@@ -377,6 +377,7 @@ const DeveloperPricing = () => {
                 onChange={(e) => setField('ai_study_mode.session_price', Number(e.target.value || 0))}
               />
             </label>
+            <p className={styles.sectionEyebrow}>Set 0 for free sessions; paid checkouts require at least 100 XAF.</p>
 
             <label className={styles.field}>
               <span>Concours partnership fee</span>

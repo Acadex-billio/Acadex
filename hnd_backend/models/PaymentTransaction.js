@@ -7,7 +7,7 @@ const paymentTransactionSchema = new mongoose.Schema(
     provider_mode: { type: String, enum: ['mock', 'sandbox', 'production'], default: 'mock', index: true },
     purpose_type: { type: String, enum: ['subscription', 'material_access', 'center_access', 'tutorship_booking', 'concours_partnership'], required: true, index: true },
     purpose_code: { type: String, required: true, trim: true, index: true },
-    resource_type: { type: String, enum: ['subscription', 'report', 'presentation', 'question_paper', 'chat_room', 'chat_invite', 'lecturer_booking', 'concours_partnership'], default: 'subscription', index: true },
+    resource_type: { type: String, enum: ['subscription', 'report', 'presentation', 'question_paper', 'ai_mode', 'chat_room', 'chat_invite', 'lecturer_booking', 'concours_partnership'], default: 'subscription', index: true },
     resource_id: { type: String, default: null, trim: true, index: true },
     amount: { type: Number, required: true, min: 0 },
     currency: { type: String, default: 'XAF', trim: true },

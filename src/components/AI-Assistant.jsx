@@ -1,10 +1,13 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import GraduationCapLoader from './GraduationCapLoader';
 import { FaPaperPlane } from 'react-icons/fa';
+import { useNavigate } from 'react-router-dom';
 import styles from '../Astyles/aiAssistant.module.css';
 import { useAuth } from '../context/AuthContext';
 import { API_BASE_URL_NORMALIZED } from '../config/api';
 import api, { cacheCsrfToken, getCsrfToken } from '../services/api';
+import PaymentActionModal from './PaymentActionModal';
+import { showToast } from '../utility/ToastNotification';
 
 const nowTime = () => new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 const MAX_ATTACHMENTS = 3;
@@ -114,6 +117,7 @@ const readFileAsText = (file) =>
 
 const AIAssistant = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const messagesEndRef = useRef(null);
   const currentStreamRef = useRef(null);
   const inputRef = useRef(null);
@@ -185,6 +189,7 @@ const AIAssistant = () => {
   const [studyQuestion, setStudyQuestion] = useState(null);
   const [studyMessages, setStudyMessages] = useState([]);
   const [studyBusy, setStudyBusy] = useState(false);
+  const [studyPaymentRequest, setStudyPaymentRequest] = useState(null);
   const [studyReadyToSubmit, setStudyReadyToSubmit] = useState(false);
   const [studyResult, setStudyResult] = useState(null);
   const [showStudyDetails, setShowStudyDetails] = useState(false);
@@ -721,7 +726,9 @@ const AIAssistant = () => {
     setStudyResult(null);
     setShowStudyDetails(false);
     try {
-      const { data } = await api.post('/ai/study/session/start', { materialId: selectedStudyMaterialId });
+      const { data } = await api.post('/ai/study/session/start', { materialId: selectedStudyMaterialId }, {
+        suppressGlobalForbiddenToast: true,
+      });
       const sessionId = String(data?.session?.sessionId || '');
       const firstQuestion = data?.question || null;
       if (!sessionId || !firstQuestion) {
@@ -745,7 +752,38 @@ const AIAssistant = () => {
         },
       ]);
     } catch (error) {
-      addStudyAssistantMessage(`Could not start study session: ${error?.response?.data?.message || error.message || 'Unknown error'}`);
+      const errorData = error?.response?.data || {};
+      if (error?.response?.status === 402 && errorData.payment_requirement) {
+        const requirement = errorData.payment_requirement;
+        setStudyPaymentRequest({
+          title: requirement.title || 'Unlock AI Study Mode session',
+          description: requirement.message || 'Pay the configured session fee to start this study session.',
+          amount: requirement.amount,
+          currency: requirement.currency || 'XAF',
+          onStartPayment: async ({ phoneNumber, promoCode = '' }) => {
+            const { data: paymentData } = await api.post('/candidate/payments/materials/checkout', {
+              resourceType: 'ai_mode',
+              resourceId: selectedStudyMaterialId,
+              action: 'preview',
+              phoneNumber,
+              promoCode,
+              referralCode: promoCode,
+            });
+            return paymentData;
+          },
+          onSuccess: async () => {
+            setStudyPaymentRequest(null);
+            await startStudySession();
+          },
+        });
+        return;
+      }
+      if (error?.response?.status === 403 && errorData.code === 'PLAN_UPGRADE_REQUIRED') {
+        showToast(errorData.message || 'Upgrade your plan to use AI Study Mode.', 'warning');
+        navigate('/candidate/subscription');
+        return;
+      }
+      addStudyAssistantMessage(`Could not start study session: ${errorData.message || error.message || 'Unknown error'}`);
     } finally {
       setStudyBusy(false);
     }
@@ -1218,6 +1256,12 @@ const AIAssistant = () => {
         </div>
         )}
       </div>
+      <PaymentActionModal
+        {...(studyPaymentRequest || {})}
+        isOpen={Boolean(studyPaymentRequest)}
+        defaultPhoneNumber={user?.phone || user?.phone_number || ''}
+        onClose={() => setStudyPaymentRequest(null)}
+      />
     </div>
   );
 };

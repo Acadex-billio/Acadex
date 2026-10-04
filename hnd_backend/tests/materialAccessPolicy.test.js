@@ -6,6 +6,7 @@ const assert = require('node:assert/strict');
 const catalogModulePath = require.resolve('../utils/subscriptionCatalog');
 const couponModulePath = require.resolve('../services/couponService');
 const subscriptionUtilsPath = require.resolve('../utils/subscriptionUtils');
+let testMaterialPrices = { preview_price: 50, download_price: 80, preview_pages: 3, access_minutes: 60 };
 require.cache[catalogModulePath] = {
   id: catalogModulePath,
   filename: catalogModulePath,
@@ -14,17 +15,18 @@ require.cache[catalogModulePath] = {
     getPlanDefinition: async () => ({ name: 'Basic' }),
     getMaterialDefaults: async (materialType) => ({
       basic_preview_pages: 3,
-      paygo_preview_pages: 3,
-      paygo_full_preview_price: 50,
-      paygo_download_price: 80,
-      paygo_access_minutes: 60,
+      paygo_preview_pages: testMaterialPrices.preview_pages,
+      paygo_full_preview_price: testMaterialPrices.preview_price,
+      paygo_download_price: testMaterialPrices.download_price,
+      paygo_access_minutes: testMaterialPrices.access_minutes,
       plan_pricing: {
         basic: { preview_pages: 3, preview_price: 0, download_price: 0, access_minutes: 60, free_access: false },
         pro: { preview_pages: 999, preview_price: 0, download_price: 0, access_minutes: 60, free_access: true },
-        paygo: { preview_pages: 3, preview_price: 50, download_price: 80, access_minutes: 60, free_access: false },
+        paygo: { ...testMaterialPrices, free_access: false },
         'full-package': { preview_pages: 999, preview_price: 0, download_price: 0, access_minutes: 60, free_access: true },
       },
     }),
+    getAiStudyModePricing: async () => ({ session_price: 125, currency: 'XAF' }),
   },
 };
 require.cache[couponModulePath] = {
@@ -45,6 +47,7 @@ const PaymentAccessGrant = require('../models/PaymentAccessGrant');
 const User = require('../models/User');
 const CandidatePurchase = require('../models/CandidatePurchase');
 const QuestionPaper = require('../models/QuestionPaper');
+const PaymentTransaction = require('../models/PaymentTransaction');
 const materialAccessService = require('../services/materialAccessService');
 PaymentAccessGrant.findOne = async () => null;
 User.findOne = async () => null;
@@ -104,6 +107,64 @@ test('paid material access is unrestricted for pro and full package plans, while
   assert.equal(accessBasic.payment_required.download, null);
 });
 
+test('PAYGO gets configured limited previews and exact per-action prices', async () => {
+  const access = await getMaterialAccessSummary({
+    user: { cand_id: 'CAND123', subscription: { plan: 'paygo', status: 'active' } },
+    materialType: 'presentation',
+    resourceId: 'presentation-1',
+    doc: {},
+  });
+
+  assert.equal(access.plan, 'paygo');
+  assert.equal(access.preview_page_limit, 3);
+  assert.equal(access.payment_required.preview.amount, 50);
+  assert.equal(access.payment_required.download.amount, 80);
+  assert.equal(access.payment_required.preview.access_minutes, 60);
+});
+
+test('PAYGO zero-priced actions do not produce zero-value payment requirements', async () => {
+  const originalPrices = testMaterialPrices;
+  testMaterialPrices = { preview_price: 0, download_price: 0, preview_pages: 4, access_minutes: 60 };
+  try {
+    const access = await getMaterialAccessSummary({
+      user: { cand_id: 'CAND123', subscription: { plan: 'paygo', status: 'active' } },
+      materialType: 'report',
+      resourceId: 'report-free-1',
+      doc: {},
+    });
+    assert.equal(access.preview_page_limit, null);
+    assert.equal(access.allow_download, true);
+    assert.equal(access.payment_required.preview, null);
+    assert.equal(access.payment_required.download, null);
+  } finally {
+    testMaterialPrices = originalPrices;
+  }
+});
+
+test('AI Study Mode uses the configured session price for PAYGO and preserves free plan access', async () => {
+  const paygo = await getMaterialAccessSummary({
+    user: { cand_id: 'CAND123', subscription: { plan: 'paygo', status: 'active' } },
+    materialType: 'ai_mode',
+    resourceId: 'study-material-1',
+    doc: {},
+  });
+  assert.equal(paygo.payment_required.preview.amount, 125);
+  assert.equal(paygo.payment_required.preview.purpose_code, 'ai_mode_preview');
+
+  const pro = await getMaterialAccessSummary({
+    user: { cand_id: 'CAND123', subscription: { plan: 'pro', status: 'active' } },
+    materialType: 'ai_mode',
+    resourceId: 'study-material-1',
+    doc: {},
+  });
+  assert.equal(pro.payment_required, null);
+  assert.equal(pro.allow_download, true);
+});
+
+test('AI Study Mode is a supported payment transaction resource', () => {
+  assert.ok(PaymentTransaction.schema.path('resource_type').enumValues.includes('ai_mode'));
+});
+
 test('material route guard serves Basic previews and routes Basic downloads to upgrade', async () => {
   const originalUserFindOne = User.findOne;
   const originalQuestionPaperFindById = QuestionPaper.findById;
@@ -158,6 +219,9 @@ test('material route guard serves Basic previews and routes Basic downloads to u
     const paygoDownload = await request('download');
     assert.equal(paygoDownload.response.statusCode, 402);
     assert.equal(paygoDownload.response.payload.code, 'PAYMENT_REQUIRED');
+    assert.equal(paygoDownload.response.payload.payment_requirement.amount, 80);
+    const paygoPreview = await request('preview');
+    assert.equal(paygoPreview.reachedNext, true);
   } finally {
     User.findOne = originalUserFindOne;
     QuestionPaper.findById = originalQuestionPaperFindById;

@@ -178,22 +178,50 @@ function buildPlanDefinitions(doc) {
 
 function buildMaterialDefaults(doc) {
   const materials = doc?.materials || {};
-  const normalizeMaterialPlanPricing = (source, fallback) => {
+  const normalizeMaterialPlanPricing = (source, fallback, legacy = {}) => {
     const plans = source || {};
     const result = {};
     ['basic', 'pro', 'paygo', 'full-package'].forEach((plan) => {
       const entry = plans[plan] || fallback[plan] || {};
       const isFullPackage = plan === 'full-package';
+      const legacyValues = legacy[plan] || {};
+      const defaultPlan = fallback[plan] || {};
+      const resolveField = (field, defaultValue) => {
+        const camelField = field.replace(/_([a-z])/g, (_, letter) => letter.toUpperCase());
+        const canonicalValue = entry[field] ?? entry[camelField];
+        const legacyValue = legacyValues[field];
+        if (
+          legacyValue !== undefined &&
+          Number(canonicalValue ?? defaultValue) === Number(defaultValue) &&
+          Number(legacyValue) !== Number(defaultValue)
+        ) {
+          return legacyValue;
+        }
+        return canonicalValue ?? defaultValue;
+      };
       result[plan] = {
-        preview_pages: Math.max(isFullPackage ? 999 : 0, Number(entry.preview_pages ?? entry.previewPageCount ?? fallback[plan]?.preview_pages ?? (isFullPackage ? 999 : 3))),
-        preview_price: toNumber(entry.preview_price ?? entry.previewPrice ?? fallback[plan]?.preview_price ?? 0),
-        download_price: toNumber(entry.download_price ?? entry.downloadPrice ?? fallback[plan]?.download_price ?? 0),
-        access_minutes: Math.max(1, Number(entry.access_minutes ?? entry.accessMinutes ?? fallback[plan]?.access_minutes ?? 60)),
+        preview_pages: Math.max(isFullPackage ? 999 : 0, Number(resolveField('preview_pages', defaultPlan.preview_pages ?? (isFullPackage ? 999 : 3)))),
+        preview_price: toNumber(resolveField('preview_price', defaultPlan.preview_price ?? 0)),
+        download_price: toNumber(resolveField('download_price', defaultPlan.download_price ?? 0)),
+        access_minutes: Math.max(1, Number(resolveField('access_minutes', defaultPlan.access_minutes ?? 60))),
         free_access: Boolean(entry.free_access ?? fallback[plan]?.free_access ?? isFullPackage),
       };
     });
     return result;
   };
+
+  const legacyPlanAliases = (source, defaults) => ({
+    basic: { preview_pages: source?.basic_preview_pages ?? defaults.basic.preview_pages },
+    paygo: {
+      preview_pages: source?.paygo_preview_pages ?? defaults.paygo.preview_pages,
+      preview_price: source?.paygo_full_preview_price ?? defaults.paygo.preview_price,
+      download_price: source?.paygo_download_price ?? defaults.paygo.download_price,
+      access_minutes: source?.paygo_access_minutes ?? defaults.paygo.access_minutes,
+    },
+    'full-package': {
+      preview_pages: source?.full_package_preview_limit ?? defaults['full-package'].preview_pages,
+    },
+  });
 
   const materialTemplates = {
     report: {
@@ -207,7 +235,7 @@ function buildMaterialDefaults(doc) {
       basic_download_price: toNumber(materials?.report?.basic_download_price, 0),
       paygo_full_preview_price: toNumber(materials?.report?.paygo_full_preview_price, 0),
       paygo_download_price: toNumber(materials?.report?.paygo_download_price, 0),
-      plan_pricing: normalizeMaterialPlanPricing(materials?.report?.plan_pricing, DEFAULTS.materials.report.plan_pricing),
+      plan_pricing: normalizeMaterialPlanPricing(materials?.report?.plan_pricing, DEFAULTS.materials.report.plan_pricing, legacyPlanAliases(materials?.report, DEFAULTS.materials.report.plan_pricing)),
     },
     presentation: {
       ...DEFAULTS.materials.presentation,
@@ -220,7 +248,7 @@ function buildMaterialDefaults(doc) {
       basic_download_price: toNumber(materials?.presentation?.basic_download_price, 0),
       paygo_full_preview_price: toNumber(materials?.presentation?.paygo_full_preview_price, 0),
       paygo_download_price: toNumber(materials?.presentation?.paygo_download_price, 0),
-      plan_pricing: normalizeMaterialPlanPricing(materials?.presentation?.plan_pricing, DEFAULTS.materials.presentation.plan_pricing),
+      plan_pricing: normalizeMaterialPlanPricing(materials?.presentation?.plan_pricing, DEFAULTS.materials.presentation.plan_pricing, legacyPlanAliases(materials?.presentation, DEFAULTS.materials.presentation.plan_pricing)),
     },
     question_paper: {
       ...DEFAULTS.materials.question_paper,
@@ -233,7 +261,7 @@ function buildMaterialDefaults(doc) {
       basic_download_price: toNumber(materials?.question_paper?.basic_download_price, 0),
       paygo_full_preview_price: toNumber(materials?.question_paper?.paygo_full_preview_price, 0),
       paygo_download_price: toNumber(materials?.question_paper?.paygo_download_price, 0),
-      plan_pricing: normalizeMaterialPlanPricing(materials?.question_paper?.plan_pricing, DEFAULTS.materials.question_paper.plan_pricing),
+      plan_pricing: normalizeMaterialPlanPricing(materials?.question_paper?.plan_pricing, DEFAULTS.materials.question_paper.plan_pricing, legacyPlanAliases(materials?.question_paper, DEFAULTS.materials.question_paper.plan_pricing)),
     },
   };
 

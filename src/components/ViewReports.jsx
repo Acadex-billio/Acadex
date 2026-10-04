@@ -137,7 +137,13 @@ const ViewReport = () => {
     if (['full-package', 'pro'].includes(normalizedPlan)) {
       return 'Included with your plan';
     }
-    return 'Download price shown at checkout';
+    if (item?.is_guide) return 'Free material';
+    if (normalizedPlan === 'paygo') {
+      const previewPrice = Number(item?.paygo_preview_price || 0);
+      const downloadPrice = Number(item?.paygo_download_price || 0);
+      return `Full preview ${previewPrice ? `${previewPrice.toLocaleString()} XAF` : 'free'} · Download ${downloadPrice ? `${downloadPrice.toLocaleString()} XAF` : 'free'}`;
+    }
+    return 'Preview only · Upgrade to download';
   };
 
   const formatTimeAgo = (timestamp) => {
@@ -269,7 +275,7 @@ const ViewReport = () => {
     description: requirement?.message || (action === 'download'
       ? 'PAYGO requires a separate payment before you can download this report.'
       : 'PAYGO requires a separate payment before you can preview every page of this report.'),
-    amount: requirement?.amount ?? null,
+    amount: requirement?.amount ?? (action === 'download' ? report?.paygo_download_price : report?.paygo_preview_price) ?? null,
     currency: requirement?.currency || 'XAF',
     onStartPayment: async ({ phoneNumber, paymentMethod = 'momo', promoCode = '' }) => {
       const { data } = await api.post('/candidate/payments/materials/checkout', {

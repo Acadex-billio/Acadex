@@ -140,11 +140,15 @@ function checkMaterialAccess(materialType, accessType = 'preview') {
             }).catch(() => null)
           : null;
 
-        if (accessSummary?.plan === 'basic' && accessType === 'preview') {
+        if (['basic', 'paygo'].includes(accessSummary?.plan) && accessType === 'preview') {
           return next();
         }
 
         if (['pro', 'full-package'].includes(accessSummary?.plan)) {
+          return next();
+        }
+
+        if (accessSummary?.allow_download) {
           return next();
         }
 

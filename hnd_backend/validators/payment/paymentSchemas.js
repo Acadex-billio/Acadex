@@ -22,7 +22,7 @@ const manualSubscriptionCheckoutSchema = Joi.object({
 });
 
 const materialCheckoutSchema = Joi.object({
-  resourceType: Joi.string().trim().valid('report', 'presentation', 'question_paper').required(),
+  resourceType: Joi.string().trim().valid('report', 'presentation', 'question_paper', 'ai_mode').required(),
   resourceId: objectIdSchema.required(),
   action: Joi.string().trim().valid('preview', 'download').required(),
   phoneNumber: phoneSchema.required(),

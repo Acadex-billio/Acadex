@@ -2,6 +2,7 @@ const User = require('../models/User');
 const Report = require('../models/Report');
 const Presentation = require('../models/Presentation');
 const QuestionPaper = require('../models/QuestionPaper');
+const AiStudyMaterial = require('../models/AiStudyMaterial');
 const ChatRoom = require('../models/ChatRoom');
 const CandidatePurchase = require('../models/CandidatePurchase');
 const PaymentAccessGrant = require('../models/PaymentAccessGrant');
@@ -56,6 +57,10 @@ async function loadItemTitle(itemType, itemId) {
     if (normalized === 'center') {
       const doc = await ChatRoom.findById(id).select('name').lean();
       return doc ? String(doc.name || '').trim() : null;
+    }
+    if (normalized === 'ai_mode') {
+      const doc = await AiStudyMaterial.findById(id).select('paper_title').lean();
+      return doc ? String(doc.paper_title || '').trim() : null;
     }
   } catch (_) {
     return null;

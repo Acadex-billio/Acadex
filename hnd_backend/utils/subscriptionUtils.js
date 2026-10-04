@@ -1,7 +1,7 @@
 const User = require('../models/User');
 const PaymentAccessGrant = require('../models/PaymentAccessGrant');
 const CandidatePurchase = require('../models/CandidatePurchase');
-const { getPlanDefinition, getMaterialDefaults } = require('./subscriptionCatalog');
+const { getPlanDefinition, getMaterialDefaults, getAiStudyModePricing } = require('./subscriptionCatalog');
 const { Coupon } = require('../models/Coupon');
 const { isCouponActiveNow, ensureCouponBackedSubscriptionStillActive } = require('../services/couponService');
 
@@ -203,15 +203,26 @@ async function getMaterialAccessSummary({ user, materialType, resourceId, doc })
   });
 
   const resolvedSubscription = resolveSubscription(user?.subscription);
-  const config = await getMaterialAccessConfig(materialType, doc);
-  const previewGrantCode = `${materialType}_preview_full`;
+  const normalizedMaterialType = String(materialType || '').trim().toLowerCase();
+  const isAiMode = normalizedMaterialType === 'ai_mode' || normalizedMaterialType === 'ai-mode';
+  const config = isAiMode ? null : await getMaterialAccessConfig(materialType, doc);
+  const aiPricing = isAiMode ? await getAiStudyModePricing() : null;
+  const previewGrantCode = isAiMode ? 'ai_mode_preview' : `${normalizedMaterialType}_preview_full`;
   const downloadGrantCode = `${materialType}_download`;
   const [previewGrant, downloadGrant] = await Promise.all([
     findActiveGrantIncludingAdmin({ candId: user?.cand_id, grantCode: previewGrantCode, resourceId }),
     findActiveGrantIncludingAdmin({ candId: user?.cand_id, grantCode: downloadGrantCode, resourceId }),
   ]);
 
-  const planPricing = config?.plan_pricing?.[resolvedSubscription.plan] || {
+  const planPricing = isAiMode
+    ? {
+        preview_pages: null,
+        preview_price: Number(aiPricing?.session_price || 0),
+        download_price: 0,
+        access_minutes: 60,
+        free_access: false,
+      }
+    : config?.plan_pricing?.[resolvedSubscription.plan] || {
     preview_pages: resolvedSubscription.plan === 'basic' ? (config?.basic_preview_pages || 3) : (config?.paygo_preview_pages || 3),
     preview_price: config?.paygo_full_preview_price || 0,
     download_price: config?.paygo_download_price || 0,
@@ -238,7 +249,12 @@ async function getMaterialAccessSummary({ user, materialType, resourceId, doc })
     };
   }
 
-  const preview_page_limit = previewGrant ? null : Number(planPricing.preview_pages || 3);
+  const previewPagePrice = Number(planPricing.preview_price || 0);
+  const downloadPrice = Number(planPricing.download_price || 0);
+  const freeFullPreview = previewGrant || (resolvedSubscription.plan === 'paygo' && previewPagePrice === 0) || (isAiMode && previewPagePrice === 0);
+  const preview_page_limit = freeFullPreview
+    ? null
+    : Number(planPricing.preview_pages || 3);
 
   if (resolvedSubscription.plan === 'basic') {
     return {
@@ -254,19 +270,19 @@ async function getMaterialAccessSummary({ user, materialType, resourceId, doc })
   }
 
   const paymentRequired = {
-    preview: previewGrant
+    preview: previewGrant || (resolvedSubscription.plan === 'paygo' && previewPagePrice === 0) || (isAiMode && previewPagePrice === 0)
       ? null
       : {
           purpose_code: previewGrantCode,
-          amount: Number(planPricing.preview_price || 0),
+          amount: previewPagePrice,
           currency: 'XAF',
           access_minutes: Number(planPricing.access_minutes || 60),
         },
-    download: downloadGrant
+    download: downloadGrant || downloadPrice === 0
       ? null
       : {
           purpose_code: downloadGrantCode,
-          amount: Number(planPricing.download_price || 0),
+          amount: downloadPrice,
           currency: 'XAF',
           access_minutes: Number(planPricing.access_minutes || 60),
         },
@@ -275,7 +291,7 @@ async function getMaterialAccessSummary({ user, materialType, resourceId, doc })
   return {
     ...base,
     preview_page_limit,
-    allow_download: Boolean(downloadGrant),
+    allow_download: Boolean(downloadGrant) || downloadPrice === 0,
     upgrade_required: true,
     payment_required: paymentRequired,
   };

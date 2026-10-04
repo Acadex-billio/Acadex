@@ -12,6 +12,7 @@ const { pipeline } = require('stream/promises');
 const { sanitizeFilename } = require('../middlewares/requestValidation');
 const { getS3ObjectStream } = require('../utils/s3Uploader');
 const { getMaterialAccessSummary, isFreeMaterialAccess } = require('../utils/subscriptionUtils');
+const { getMaterialDefaults } = require('../utils/subscriptionCatalog');
 const materialAccessService = require('../services/materialAccessService');
 const { streamToBuffer, subsetPdfBuffer, applyPdfWatermark } = require('../utils/pdfAccess');
 const { enqueueLibreOfficeJob } = require('../services/libreOfficeQueue');
@@ -219,6 +220,7 @@ exports.getAll = async (req, res) => {
     const page = Math.max(1, parseInt(req.query.page) || 1);
     const limit = Math.min(50, Math.max(10, parseInt(req.query.limit) || 20));
     const skip = (page - 1) * limit;
+    const paygoPricing = (await getMaterialDefaults('report'))?.plan_pricing?.paygo || {};
 
     // Get department ID from JWT token
     const deptId = req.user?.dpt_id || null;
@@ -245,7 +247,10 @@ exports.getAll = async (req, res) => {
         report_id: r._id,
         upload_date: r.createdAt,
         subscription_access: r.subscription_access || null,
-        material_price: r.material_price ?? null,
+        paygo_preview_price: Number(paygoPricing.preview_price || 0),
+        paygo_download_price: Number(paygoPricing.download_price || 0),
+        paygo_preview_pages: Number(paygoPricing.preview_pages || 3),
+        paygo_access_minutes: Number(paygoPricing.access_minutes || 60),
         project_github_url: r.project_github_url || null,
         departments: (Array.isArray(r.departments)
           ? r.departments.map((d) => ({
@@ -273,6 +278,7 @@ exports.getGuides = async (req, res) => {
     const page = Math.max(1, parseInt(req.query.page) || 1);
     const limit = Math.min(50, Math.max(10, parseInt(req.query.limit) || 20));
     const skip = (page - 1) * limit;
+    const paygoPricing = (await getMaterialDefaults('report'))?.plan_pricing?.paygo || {};
 
     // For guides, make them viewable by all candidates regardless of program/department
     const accessQuery = { is_guide: true };
@@ -294,7 +300,10 @@ exports.getGuides = async (req, res) => {
         report_id: g._id,
         upload_date: g.createdAt,
         program: String(g.program || 'HND').toUpperCase(),
-        material_price: g.material_price ?? g.subscription_access?.paygo_download_price ?? null,
+        paygo_preview_price: Number(paygoPricing.preview_price || 0),
+        paygo_download_price: Number(paygoPricing.download_price || 0),
+        paygo_preview_pages: Number(paygoPricing.preview_pages || 3),
+        paygo_access_minutes: Number(paygoPricing.access_minutes || 60),
         departments: (Array.isArray(g.departments)
           ? g.departments.map((d) => ({ dpt_id: d._id?.toString?.() || String(d), dpt_name: d.department_name || '' }))
           : []),
