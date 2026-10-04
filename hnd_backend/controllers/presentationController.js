@@ -422,7 +422,6 @@ exports.getAll = async (req, res) => {
       department_ids: Array.isArray(p.report_id?.departments)
         ? p.report_id.departments.map((d) => d._id?.toString?.() || String(d))
         : [],
-      subscription_access: p.subscription_access || null,
     }));
 
     res.json({
@@ -443,7 +442,7 @@ exports.downloadFile = async (req, res) => {
   const userProgram = String(req.user?.program || 'HND').toUpperCase();
   const userProgramGroup = getUserProgramsInGroup(userProgram);
   const presentation = await Presentation.findOne({ file_path: requested, program: { $in: userProgramGroup } })
-    .select('audience departments title subscription_access material_price program')
+    .select('audience departments title program')
     .lean();
   if (!presentation) return res.status(404).json({ success: false, message: 'File not found' });
 
@@ -534,7 +533,7 @@ exports.previewFile = async (req, res) => {
   const userProgram = String(req.user?.program || 'HND').toUpperCase();
   const userProgramGroup = getUserProgramsInGroup(userProgram);
   const presentation = await Presentation.findOne({ file_path: requested, program: { $in: userProgramGroup } })
-    .select('audience departments title subscription_access material_price program')
+    .select('audience departments title program')
     .lean();
   if (!presentation) return res.status(404).json({ success: false, message: 'File not found' });
 

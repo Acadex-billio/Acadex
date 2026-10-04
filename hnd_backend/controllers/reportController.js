@@ -234,7 +234,7 @@ exports.getAll = async (req, res) => {
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limit)
-        .select('title writer_names writer_email upload_date keywords description location pages file_path program subscription_access departments material_price project_github_url')
+        .select('title writer_names writer_email upload_date keywords description location pages file_path program departments project_github_url')
         .populate('departments', 'department_name')
         .lean(),
       Report.countDocuments(accessQuery),
@@ -242,11 +242,9 @@ exports.getAll = async (req, res) => {
 
     return res.json({
       reports: reports.map((r) => ({
-        ...r,
         program: String(r.program || 'HND').toUpperCase(),
         report_id: r._id,
         upload_date: r.createdAt,
-        subscription_access: r.subscription_access || null,
         paygo_preview_price: Number(paygoPricing.preview_price || 0),
         paygo_download_price: Number(paygoPricing.download_price || 0),
         paygo_preview_pages: Number(paygoPricing.preview_pages || 3),
@@ -288,7 +286,7 @@ exports.getGuides = async (req, res) => {
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limit)
-        .select('title writer_names writer_email createdAt description pages file_path program departments is_guide material_price subscription_access')
+        .select('title writer_names writer_email createdAt description pages file_path program departments is_guide')
         .populate('departments', 'department_name')
         .lean(),
       Report.countDocuments(accessQuery),
@@ -322,7 +320,7 @@ exports.downloadFile = async (req, res) => {
     if (!requested) return res.status(400).json({ success: false, message: 'Invalid filename' });
 
     // Find report by file_path. If it's not a guide, ensure program matches below.
-    let report = await Report.findOne({ file_path: requested }).select('audience departments title subscription_access material_price program is_guide').lean();
+    let report = await Report.findOne({ file_path: requested }).select('audience departments title program is_guide').lean();
     if (!report) return res.status(404).json({ success: false, message: 'File not found' });
 
     const program = String(req.user?.program || 'HND').toUpperCase();
@@ -430,12 +428,12 @@ exports.previewFile = (req, res) => {
 
     const program = String(req.user?.program || 'HND').toUpperCase();
     // Find report by file_path; if exact match fails, try to match by filename suffix (handles URL variants)
-    let report = await Report.findOne({ file_path: requested }).select('audience departments title subscription_access material_price program is_guide').lean();
+    let report = await Report.findOne({ file_path: requested }).select('audience departments title program is_guide').lean();
     if (!report) {
       try {
         const filename = path.basename(requested.split('?')[0] || requested);
         if (filename) {
-          report = await Report.findOne({ file_path: { $regex: `${filename}$` } }).select('audience departments title subscription_access material_price program is_guide').lean();
+          report = await Report.findOne({ file_path: { $regex: `${filename}$` } }).select('audience departments title program is_guide').lean();
         }
       } catch (_) {
         report = null;

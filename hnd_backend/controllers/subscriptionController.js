@@ -337,7 +337,7 @@ exports.startPlanCheckout = async (req, res) => {
 async function findMaterial(resourceType, resourceId, program, deptId) {
   const resourceIdValue = String(resourceId || '').trim();
   if (!resourceIdValue) return null;
-  const audienceFields = 'audience departments subscription_access material_price title course_title';
+  const audienceFields = 'audience departments title course_title';
   if (resourceType === 'report') {
     const doc = await Report.findOne({ _id: resourceIdValue, program }).select(audienceFields).lean();
     if (!doc) return null;

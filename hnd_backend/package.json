@@ -17,6 +17,7 @@
     "backfill:program-hnd": "node scripts/backfill-program-hnd.js",
     "backfill:announcement-program-hnd": "node scripts/backfill-announcement-program-hnd.js",
     "backfill:subscription-access": "node scripts/backfill-subscription-access.js",
+    "cleanup:legacy-material-pricing": "node scripts/remove-legacy-material-pricing.js",
     "backfill:toast-sound-default": "node scripts/backfill-toast-sound.js",
     "backfill:material-identity": "node scripts/backfill-material-identity.js"
   },

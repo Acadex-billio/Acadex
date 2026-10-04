@@ -1,6 +1,4 @@
 const Joi = require('joi');
-const { materialPriceSchema } = require('../materials/materialSchemas');
-
 const githubUrlPattern = /^https:\/\/github\.com\/[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+(?:\/.*)?$/;
 
 const projectGithubUrlSchema = Joi.string()
@@ -12,7 +10,6 @@ const projectGithubUrlSchema = Joi.string()
   });
 
 const reportMaterialFieldsSchema = Joi.object({
-  material_price: materialPriceSchema.optional(),
   project_github_url: projectGithubUrlSchema.optional(),
 });
 

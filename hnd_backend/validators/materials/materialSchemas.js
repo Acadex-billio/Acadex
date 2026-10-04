@@ -8,9 +8,6 @@ const departmentsArraySchema = Joi.array()
   .max(50)
   .unique();
 
-const materialPriceSchema = Joi.number().required().min(0).max(1000000).precision(2);
-
 module.exports = {
   departmentsArraySchema,
-  materialPriceSchema,
 };

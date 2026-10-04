@@ -3,8 +3,6 @@ require('dotenv').config();
 const mongoose = require('mongoose');
 
 const User = require('../models/User');
-const Report = require('../models/Report');
-const Presentation = require('../models/Presentation');
 const QuestionPaper = require('../models/QuestionPaper');
 const { getMaterialDefaults } = require('../utils/subscriptionCatalog');
 
@@ -63,9 +61,7 @@ async function main() {
 
   try {
     await backfillUsers();
-    await backfillMaterial(Report, 'reports', getMaterialDefaults('report'));
-    await backfillMaterial(Presentation, 'presentations', getMaterialDefaults('presentation'));
-    await backfillMaterial(QuestionPaper, 'question_papers', getMaterialDefaults('question_paper'));
+    await backfillMaterial(QuestionPaper, 'question_papers', await getMaterialDefaults('question_paper'));
     console.log('[backfill-subscription-access] Backfill complete.');
   } finally {
     await mongoose.disconnect();

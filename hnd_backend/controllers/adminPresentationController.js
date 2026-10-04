@@ -64,14 +64,6 @@ const safeUnlink = async (filePath) => {
   }
 };
 
-const parseOptionalPrice = (value) => {
-  const raw = String(value ?? '').trim();
-  if (!raw) return null;
-  const parsed = Number(raw);
-  if (!Number.isFinite(parsed) || parsed < 0) return Number.NaN;
-  return parsed;
-};
-
 const parseGitHubUrl = (value) => {
   const raw = String(value ?? '').trim();
   return raw || null;
@@ -207,7 +199,7 @@ exports.getReports = async (req, res) => {
 
 exports.uploadPresentation = async (req, res) => {
   try {
-    const { report_id, title, presenter_name, presenter_email, material_price, project_github_url, from_submission_id, notify, program, audience, dpt_id, dpt_ids, location, pages, description, academic_session } = req.body;
+    const { report_id, title, presenter_name, presenter_email, project_github_url, from_submission_id, notify, program, audience, dpt_id, dpt_ids, location, pages, description, academic_session } = req.body;
     const normalizedProgram = String(program || 'HND').trim().toUpperCase();
     if (!ALLOWED_PROGRAMS.includes(normalizedProgram)) {
       return res.status(400).json({ success: false, message: 'Invalid program selected.' });
@@ -225,11 +217,7 @@ exports.uploadPresentation = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Missing required fields or file.' });
     }
 
-    const parsedMaterialPrice = parseOptionalPrice(material_price);
     const finalDescription = String(description || '').trim() || null;
-    if (Number.isNaN(parsedMaterialPrice)) {
-      return res.status(400).json({ success: false, message: 'Material price must be a number greater than or equal to 0.' });
-    }
 
     const parsedProjectGitHubUrl = parseGitHubUrl(project_github_url);
 
@@ -341,7 +329,6 @@ exports.uploadPresentation = async (req, res) => {
       file_path: file_path,
       location: finalLocation || null,
       pages: finalPages || null,
-      material_price: parsedMaterialPrice,
       project_github_url: parsedProjectGitHubUrl,
       academic_session: String(academic_session || '').trim() || null,
       content_hash: contentHash || null,
@@ -419,7 +406,6 @@ exports.listPresentations = async (req, res) => {
       file_path: p.file_path,
       program: String(p.program || 'HND').toUpperCase(),
       audience: p.audience || 'GENERAL',
-      material_price: p.material_price ?? null,
       project_github_url: p.project_github_url || null,
       location: p.location || null,
       pages: p.pages || null,
@@ -439,7 +425,7 @@ exports.listPresentations = async (req, res) => {
 exports.updatePresentation = async (req, res) => {
   try {
     const { id } = req.params;
-    const { report_id, title, presenter_name, presenter_email, material_price, project_github_url, program, audience, dpt_id, dpt_ids, location, pages, description, academic_session } = req.body;
+    const { report_id, title, presenter_name, presenter_email, project_github_url, program, audience, dpt_id, dpt_ids, location, pages, description, academic_session } = req.body;
     const normalizedProgram = String(program || 'HND').trim().toUpperCase();
     if (!ALLOWED_PROGRAMS.includes(normalizedProgram)) {
       return res.status(400).json({ success: false, message: 'Invalid program selected.' });
@@ -454,11 +440,7 @@ exports.updatePresentation = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Missing required fields.' });
     }
 
-    const parsedMaterialPrice = parseOptionalPrice(material_price);
     const finalDescription = String(description || '').trim() || null;
-    if (Number.isNaN(parsedMaterialPrice)) {
-      return res.status(400).json({ success: false, message: 'Material price must be a number greater than or equal to 0.' });
-    }
 
     const parsedProjectGitHubUrl = parseGitHubUrl(project_github_url);
 
@@ -515,7 +497,6 @@ exports.updatePresentation = async (req, res) => {
     pres.audience = normalizedAudience;
     pres.departments = departmentIds;
     pres.report_id = report_id ? report_id : null;
-    pres.material_price = parsedMaterialPrice;
     pres.project_github_url = parsedProjectGitHubUrl;
     pres.location = String(location || '').trim() || null;
     pres.pages = String(pages || '').trim() || null;

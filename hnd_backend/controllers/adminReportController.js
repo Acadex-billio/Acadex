@@ -62,14 +62,6 @@ const parseDptIds = (val) => {
   }
 };
 
-const parseOptionalPrice = (value) => {
-  const raw = String(value ?? '').trim();
-  if (!raw) return null;
-  const parsed = Number(raw);
-  if (!Number.isFinite(parsed) || parsed < 0) return Number.NaN;
-  return parsed;
-};
-
 const parseGitHubUrl = (value) => {
   const raw = String(value ?? '').trim();
   return raw || null;
@@ -88,7 +80,6 @@ exports.uploadReport = async (req, res) => {
       location,
       keywords,
       pages,
-      material_price,
       project_github_url,
       from_submission_id,
       notify,
@@ -118,11 +109,6 @@ exports.uploadReport = async (req, res) => {
       !audience
     ) {
       return res.status(400).json({ success: false, message: 'Missing required fields or file.' });
-    }
-
-    const parsedMaterialPrice = parseOptionalPrice(material_price);
-    if (Number.isNaN(parsedMaterialPrice)) {
-      return res.status(400).json({ success: false, message: 'Material price must be a number greater than or equal to 0.' });
     }
 
     const parsedProjectGitHubUrl = parseGitHubUrl(project_github_url);
@@ -227,7 +213,6 @@ exports.uploadReport = async (req, res) => {
       audience,
       notify_candidates: notify === 'true',
       departments: targetDeptIds,
-      material_price: parsedMaterialPrice,
       project_github_url: parsedProjectGitHubUrl,
       academic_session: String(academic_session || '').trim() || null,
       content_hash: contentHash || null,
@@ -300,7 +285,6 @@ exports.listReports = async (req, res) => {
       program: String(r.program || 'HND').toUpperCase(),
       audience: r.audience,
       notify_candidates: r.notify_candidates,
-      material_price: r.material_price ?? null,
       project_github_url: r.project_github_url || null,
       departments: (r.departments || []).map((d) => ({
         dpt_id: (d && d._id ? d._id : d)?.toString?.() ?? String(d),
@@ -343,7 +327,6 @@ exports.listGuides = async (req, res) => {
       program: String(r.program || 'HND').toUpperCase(),
       audience: r.audience,
       notify_candidates: r.notify_candidates,
-      material_price: r.material_price ?? null,
       project_github_url: r.project_github_url || null,
       departments: (r.departments || []).map((d) => ({
         dpt_id: (d && d._id ? d._id : d)?.toString?.() ?? String(d),
@@ -457,7 +440,6 @@ exports.updateReport = async (req, res) => {
       location,
       keywords,
       pages,
-      material_price,
       project_github_url,
       program,
       academic_session,
@@ -470,11 +452,6 @@ exports.updateReport = async (req, res) => {
 
     if (!title || !writer_names || !writer_email || !description || !location || !keywords || !pages || !audience) {
       return res.status(400).json({ success: false, message: 'Missing required fields.' });
-    }
-
-    const parsedMaterialPrice = parseOptionalPrice(material_price);
-    if (Number.isNaN(parsedMaterialPrice)) {
-      return res.status(400).json({ success: false, message: 'Material price must be a number greater than or equal to 0.' });
     }
 
     const parsedProjectGitHubUrl = parseGitHubUrl(project_github_url);
@@ -526,7 +503,6 @@ exports.updateReport = async (req, res) => {
     report.program = normalizedProgram;
     report.audience = String(audience).trim().toUpperCase();
     report.departments = targetDeptIds;
-    report.material_price = parsedMaterialPrice;
     report.project_github_url = parsedProjectGitHubUrl;
     report.academic_session = String(academic_session || '').trim() || null;
     report.duplicate_key = duplicateKey;

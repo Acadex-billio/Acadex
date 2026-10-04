@@ -774,7 +774,6 @@ exports.updateSubmission = async (req, res) => {
             audience: 'GENERAL',
             notify_candidates: false,
             departments: [],
-            material_price: submission.upload_fee,
           });
           submission.published_resource_id = String(publishedReport._id);
           submission.published_resource_type = 'report';
@@ -787,7 +786,6 @@ exports.updateSubmission = async (req, res) => {
             program: submission.target_program,
             audience: 'GENERAL',
             departments: [],
-            material_price: submission.upload_fee,
             location: submission.location || null,
             pages: submission.pages || null,
             report_id: null,
