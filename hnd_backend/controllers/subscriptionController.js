@@ -14,7 +14,7 @@ const {
   buildSubscriptionResponse,
   getMaterialAccessSummary,
 } = require('../utils/subscriptionUtils');
-const { normalizeCheckoutError, startCampayPayment, refreshCampayPaymentStatus } = require('../services/paymentOrchestrationService');
+const { normalizeCheckoutError, startCamerpayPayment, refreshCamerpayPaymentStatus } = require('../services/paymentOrchestrationService');
 const {
   sanitizePromoCodeInput,
   applyCouponToAmount,
@@ -182,7 +182,7 @@ async function createTransaction({ candId, phoneNumber, purposeType, purposeCode
     return paymentGrantService.applySuccessfulPayment(transaction);
   }
 
-  return startCampayPayment({
+  return startCamerpayPayment({
     transactionPayload: {
       user_cand_id: candId,
       provider: 'camerpay',
@@ -212,7 +212,7 @@ async function createTransaction({ candId, phoneNumber, purposeType, purposeCode
 async function refreshTransactionStatus(transaction) {
   if (!transaction) return transaction;
   if (String(transaction.provider || '').toLowerCase() !== 'camerpay') return transaction;
-  return refreshCampayPaymentStatus(transaction, paymentGrantService.applySuccessfulPayment);
+  return refreshCamerpayPaymentStatus(transaction, paymentGrantService.applySuccessfulPayment);
 }
 
 async function buildPlanCards() {

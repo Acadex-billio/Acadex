@@ -44,6 +44,7 @@ const Registration = () => {
   const [currentStep, setCurrentStep] = useState(1);
   const [name, setName] = useState('');
   const [program, setProgram] = useState('BACHELOR');
+  const [programs, setPrograms] = useState([]);
   const [departmentId, setDepartmentId] = useState('');
   const [departmentQuery, setDepartmentQuery] = useState('');
   const [isDepartmentMenuOpen, setIsDepartmentMenuOpen] = useState(false);
@@ -57,6 +58,25 @@ const Registration = () => {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [showPasswordTip, setShowPasswordTip] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+
+  useEffect(() => {
+    let cancelled = false;
+    const loadPrograms = async () => {
+      try {
+        const { data } = await api.get('/programs');
+        const activePrograms = Array.isArray(data?.programs) ? data.programs : [];
+        if (cancelled) return;
+        setPrograms(activePrograms);
+        setProgram((current) => activePrograms.some((item) => item.code === current)
+          ? current
+          : (activePrograms[0]?.code || current));
+      } catch (error) {
+        if (!cancelled) showToast('Failed to load programs', 'error');
+      }
+    };
+    loadPrograms();
+    return () => { cancelled = true; };
+  }, []);
 
   useEffect(() => {
     const fetchDepartments = async () => {
@@ -94,11 +114,13 @@ const Registration = () => {
   );
 
   useEffect(() => {
-    const defaultLanguage = ['BTS', 'LICENCE', 'MASTER'].includes(program) ? 'fr' : 'en';
+    if (program === 'LECTURER') return;
+    const defaultLanguage = programs.find((item) => item.code === program)?.language;
+    if (!defaultLanguage) return;
     if (i18n.language !== defaultLanguage) {
       i18n.changeLanguage(defaultLanguage);
     }
-  }, [program, i18n]);
+  }, [program, programs, i18n]);
 
   const getPasswordRequirements = (pwd) => {
     return {
@@ -379,12 +401,9 @@ const Registration = () => {
                 onChange={e => setProgram(e.target.value)}
                 required
               >
-                <option value="BACHELOR">BACHELOR</option>
-                <option value="MASTERS">MASTERS</option>
-                <option value="LICENCE">LICENCE</option>
-                <option value="MASTER">MASTER</option>
-                <option value="HND">HND</option>
-                <option value="BTS">BTS</option>
+                {programs.map((item) => (
+                  <option key={item.code} value={item.code}>{item.name} ({item.abbreviation})</option>
+                ))}
                 <option value="LECTURER">LECTURER</option>
               </select>
             </div>

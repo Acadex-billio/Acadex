@@ -44,7 +44,7 @@ const PAYMENT_STATUS = {
  * Payment Provider
  */
 const PAYMENT_PROVIDER = {
-  CAMPAY: 'campay',
+  CAMERPAY: 'camerpay',
   MOMO: 'momo',
 };
 
@@ -60,8 +60,8 @@ function getAccessDurationSeconds(accessType) {
  * Validate payment amount
  */
 function isValidPaymentAmount(amount) {
-  const CAMPAY_MINIMUM = 100;
-  return amount >= CAMPAY_MINIMUM;
+  const CAMERPAY_MINIMUM = 100;
+  return amount >= CAMERPAY_MINIMUM;
 }
 
 module.exports = {

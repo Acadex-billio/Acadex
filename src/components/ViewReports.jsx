@@ -7,6 +7,7 @@ import GraduationCapLoader from "./GraduationCapLoader";
 import { useLocation, useNavigate } from "react-router-dom";
 import SecurePdfPreview from "./SecurePdfPreview";
 import { showToast } from "../utility/ToastNotification";
+import { matchesReportSearch } from "../utility/reportFilters";
 import PaymentActionModal from "./PaymentActionModal";
 import { useAuth } from "../context/AuthContext";
 
@@ -112,10 +113,7 @@ const ViewReport = () => {
 
   // Filter reports
   const filteredReports = useMemo(() => {
-    return reports.filter((r) => {
-      if (filterCategory && String(r.report_category || '').toUpperCase() !== filterCategory) return false;
-      return r.title.toLowerCase().includes(search.toLowerCase());
-    });
+    return reports.filter((report) => matchesReportSearch(report, search, filterCategory));
   }, [reports, search, filterCategory]);
 
   const extractFileName = useCallback((file) => file?.replace(/\\/g, "/").split("/").pop(), []);

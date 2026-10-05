@@ -153,6 +153,7 @@ const AdminShell = () => {
       ...(isDeveloper ? [{ to: '/admin/custom-alert', label: 'Custom Alerts', icon: FaBell }] : []),
       ...(isDeveloper ? [{ to: '/admin/manage-billing', label: t('nav.manageBilling', 'Manage Billing'), icon: FaCreditCard }] : []),
       ...(isDeveloper ? [{ to: '/admin/pricing', label: 'PRICING', icon: FaDollarSign }] : []),
+      ...(isDeveloper ? [{ to: '/admin/programs', label: 'Programs', icon: FaClipboardList }] : []),
       ...(isDeveloper ? [{ to: '/admin/manage-users/concours-partners', label: 'Concours Partners', icon: FaUsers }] : []),
       ...(isDeveloper ? [{ to: '/admin/concours', label: 'Concours Management', icon: FaClipboardList }] : []),
       ...(isDeveloper ? [{ to: '/admin/lecturers', label: 'Lecturer Approvals', icon: FaChalkboardTeacher }] : []),

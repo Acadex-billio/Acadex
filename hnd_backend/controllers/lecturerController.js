@@ -18,8 +18,8 @@ const {
 } = require('../services/camerpayPaymentService');
 const {
   normalizeCheckoutError,
-  startCampayPayment,
-  refreshCampayPaymentStatus,
+  startCamerpayPayment,
+  refreshCamerpayPaymentStatus,
 } = require('../services/paymentOrchestrationService');
 const {
   createPayoutBatch,
@@ -810,7 +810,7 @@ exports.startBookingPayment = async (req, res) => {
           },
         });
       } else {
-        transaction = await startCampayPayment({
+        transaction = await startCamerpayPayment({
           transactionPayload: {
             user_cand_id: candidateId,
             provider: 'camerpay',
@@ -913,7 +913,7 @@ exports.refreshBookingPaymentStatus = async (req, res) => {
     }
 
     if (tx.status === 'pending') {
-      await refreshCampayPaymentStatus(tx, paymentGrantService.applySuccessfulPayment);
+      await refreshCamerpayPaymentStatus(tx, paymentGrantService.applySuccessfulPayment);
       if (tx.status === 'successful') {
         booking.payment_status = 'paid';
         booking.status = 'scheduled';
@@ -1305,7 +1305,7 @@ exports.startInviteConferencePayment = async (req, res) => {
           },
         });
       } else {
-        transaction = await startCampayPayment({
+        transaction = await startCamerpayPayment({
           transactionPayload: {
             user_cand_id: inviteeId,
             provider: 'camerpay',
@@ -1389,7 +1389,7 @@ exports.refreshInviteConferencePayment = async (req, res) => {
     if (!tx) return res.status(404).json({ success: false, message: 'Payment transaction not found.' });
 
     if (tx.status === 'pending') {
-      await refreshCampayPaymentStatus(tx, paymentGrantService.applySuccessfulPayment);
+      await refreshCamerpayPaymentStatus(tx, paymentGrantService.applySuccessfulPayment);
       invite.payment_status = tx.status === 'successful' ? 'paid' : mapProviderStatusToBookingPaymentStatus(tx.status);
       booking.invited_candidates[inviteIndex] = invite;
       await booking.save();

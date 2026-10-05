@@ -14,10 +14,10 @@ router.post(
   paymentWebhookController.handleCamerpayCallback
 );
 
-// Webhook endpoint that CamerPay dashboard expects: /api/webhooks/campay
+// Webhook endpoint that CamerPay dashboard expects: /api/webhooks/camerpay
 // Respond immediately with 200 to prevent timeout, process async
 router.post(
-  '/webhooks/campay',
+  '/webhooks/camerpay',
   createAuditTrail('webhook.camerpay.async_callback', {
     bodyFields: ['payment_id', 'transaction_uuid', 'merchant_invoice_id', 'external_id', 'reference', 'status'],
   }),

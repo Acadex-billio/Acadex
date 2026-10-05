@@ -59,7 +59,18 @@ const mapProviderStatusToTransactionStatus = (status) => {
   return 'failed';
 };
 
-const startCampayPayment = async ({
+const isAmbiguousInitiationError = (err) => {
+  const statusCode = Number(err?.statusCode || 0);
+  const providerBody = parseProviderBody(err?.responseBody);
+  const providerErrorCode = String(providerBody?.code || '').toUpperCase();
+  return statusCode === 0
+    || ['NETWORK_ERROR', 'NO_RESPONSE'].includes(providerErrorCode)
+    || String(err?.message || '').toLowerCase().includes('unable to reach camerpay')
+    || String(err?.message || '').toLowerCase().includes('timed out')
+    || String(err?.message || '').toLowerCase().includes('fetch failed');
+};
+
+const startCamerpayPayment = async ({
   transactionPayload,
   phoneNumber,
   payerMessage,
@@ -102,10 +113,7 @@ const startCampayPayment = async ({
     transaction.provider_response = providerBody || { message: normalized.message };
 
     const statusCode = Number(err?.statusCode || 0);
-    const isNetworkOrProviderError = [408, 429, 502, 503, 504, 0].includes(statusCode)
-      || String(err?.message || '').toLowerCase().includes('unable to reach camerpay')
-      || String(err?.message || '').toLowerCase().includes('timed out')
-      || String(err?.message || '').toLowerCase().includes('fetch failed');
+    const isNetworkOrProviderError = isAmbiguousInitiationError(err);
 
     if (isNetworkOrProviderError) {
       transaction.status = 'pending';
@@ -154,7 +162,7 @@ const startCampayPayment = async ({
   return transaction;
 };
 
-const refreshCampayPaymentStatus = async (transaction, onSuccessfulPayment) => {
+const refreshCamerpayPaymentStatus = async (transaction, onSuccessfulPayment) => {
   if (!transaction) return transaction;
   const currentStatus = String(transaction.status || '').toLowerCase();
   if (!['pending', 'unknown'].includes(currentStatus)) return transaction;
@@ -185,7 +193,8 @@ const refreshCampayPaymentStatus = async (transaction, onSuccessfulPayment) => {
 
 module.exports = {
   normalizeCheckoutError,
-  startCampayPayment,
-  refreshCampayPaymentStatus,
+  startCamerpayPayment,
+  refreshCamerpayPaymentStatus,
   mapProviderStatusToTransactionStatus,
+  isAmbiguousInitiationError,
 };

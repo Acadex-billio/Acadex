@@ -11,11 +11,10 @@ dotenv.config({ path: rootEnvPath, quiet: true });
 dotenv.config({ path: path.resolve(__dirname, '.env'), quiet: true, override: true });
 
 const CAMERPAY_TOKEN = String(process.env.CAMERPAY_TOKEN || '').trim();
-const CAMERPAY_API_BASE_URL_DEFAULT = 'https://api.campay.net';
-const CAMERPAY_API_BASE_URL = String(process.env.CAMERPAY_API_BASE_URL || CAMERPAY_API_BASE_URL_DEFAULT).replace(/\/$/, '');
-const CAMERPAY_API_FALLBACK_BASE_URL = String(process.env.CAMERPAY_API_BASE_URL || CAMERPAY_API_BASE_URL_DEFAULT).toLowerCase().includes('campay.net')
-  ? 'https://camerpay.biz'
-  : null;
+const CAMERPAY_API_BASE_URL_DEFAULT = 'https://api.camerpay.biz';
+const configuredApiBaseUrl = String(process.env.CAMERPAY_API_BASE_URL || CAMERPAY_API_BASE_URL_DEFAULT).replace(/\/$/, '').trim();
+const CAMERPAY_API_BASE_URL = configuredApiBaseUrl || CAMERPAY_API_BASE_URL_DEFAULT;
+const CAMERPAY_API_FALLBACK_BASE_URL = null;
 const CAMERPAY_SIMULATION_MODE = String(process.env.CAMERPAY_ALLOW_SIMULATION || '').trim().toLowerCase() === 'true'
   || CAMERPAY_API_BASE_URL.toLowerCase().includes('demo')
   || CAMERPAY_API_BASE_URL.toLowerCase().includes('sandbox');
@@ -24,8 +23,8 @@ const CAMERPAY_SIMULATION_MAX_PENDING_CHECKS = Math.max(1, Number(process.env.CA
 const CAMERPAY_SIMULATION_STATE = new Map();
 
 try {
-  if (String(CAMERPAY_API_BASE_URL || '').toLowerCase().includes('campay.net')) {
-    logger.warn('CAMERPAY_API_BASE_URL is configured to campay.net; keeping configured URL and enabling camerpay.biz fallback', {
+  if (String(CAMERPAY_API_BASE_URL || '').toLowerCase().includes('camerpay.biz')) {
+    logger.warn('CAMERPAY_API_BASE_URL is configured to the primary CamerPay host.', {
       configured_value: CAMERPAY_API_BASE_URL,
     });
   }

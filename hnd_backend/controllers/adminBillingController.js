@@ -2,7 +2,7 @@ const logger = require('../utils/logger');
 const PaymentTransaction = require('../models/PaymentTransaction');
 const User = require('../models/User');
 
-const { refreshCampayPaymentStatus } = require('../services/paymentOrchestrationService');
+const { refreshCamerpayPaymentStatus } = require('../services/paymentOrchestrationService');
 const { runPaymentReconciliation, getReconciliationSummary } = require('../services/paymentReconciliationScheduler');
 
 const PaymentAccessGrant = require('../models/PaymentAccessGrant');
@@ -25,7 +25,7 @@ exports.repairTransaction = async (req, res) => {
     transaction.provider_reference = providerTransactionId;
     await transaction.save();
 
-    const refreshed = await refreshCampayPaymentStatus(transaction, paymentGrantService.applySuccessfulPayment);
+    const refreshed = await refreshCamerpayPaymentStatus(transaction, paymentGrantService.applySuccessfulPayment);
 
     // If successful, apply centralized payment side-effects
     if (refreshed.status === 'successful') {

@@ -8,14 +8,9 @@ const { sendBulkPushNotification, isWebPushConfigured } = require('../utils/webP
 const User = require('../models/User');
 const PayoutBatch = require('../models/PayoutBatch');
 
-const CAMERPAY_API_BASE_URL_DEFAULT = 'https://api.campay.net';
+const CAMERPAY_API_BASE_URL_DEFAULT = 'https://api.camerpay.biz';
 const CAMERPAY_API_BASE_URL = String(process.env.CAMERPAY_API_BASE_URL || CAMERPAY_API_BASE_URL_DEFAULT).replace(/\/$/, '');
-const CAMERPAY_API_FALLBACK_BASE_URL = (() => {
-  const base = String(process.env.CAMERPAY_API_BASE_URL || CAMERPAY_API_BASE_URL_DEFAULT).toLowerCase();
-  if (base.includes('campay.net')) return 'https://camerpay.biz';
-  if (base.includes('camerpay.biz')) return 'https://api.campay.net';
-  return null;
-})();
+const CAMERPAY_API_FALLBACK_BASE_URL = null;
 const CAMERPAY_TOKEN = String(process.env.CAMERPAY_TOKEN || '').trim();
 const CAMERPAY_FETCH_TIMEOUT_MS = Math.max(5000, Number(process.env.CAMERPAY_FETCH_TIMEOUT_MS || 15000));
 const CAMERPAY_PAYOUT_CALLBACK_URL = String(process.env.CAMERPAY_PAYOUT_CALLBACK_URL || process.env.CAMERPAY_CALLBACK_URL || '').trim();

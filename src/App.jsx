@@ -75,6 +75,7 @@ const StudyModeMaterials = lazy(() => import('./components/StudyModeMaterials'))
 const PaymentConfirmation = lazy(() => import('./components/PaymentConfirmation'));
 const DeveloperProjectSubmissions = lazy(() => import('./components/DeveloperProjectSubmissions'));
 const DeveloperPricing = lazy(() => import('./components/DeveloperPricing'));
+const DeveloperPrograms = lazy(() => import('./components/DeveloperPrograms'));
 const PurchaseHistory = lazy(() => import('./components/PurchaseHistory'));
 const AccessGrantHistory = lazy(() => import('./components/AccessGrantHistory'));
 const PermissionVerification = lazy(() => import('./components/PermissionVerification'));
@@ -248,6 +249,7 @@ const App = () => {
                   <Route path="study-mode-materials" element={<ProtectedRoute><DeveloperRoute><StudyModeMaterials /></DeveloperRoute></ProtectedRoute>} />
                   <Route path="project-submissions" element={<ProtectedRoute><DeveloperRoute><DeveloperProjectSubmissions /></DeveloperRoute></ProtectedRoute>} />
                   <Route path="pricing" element={<ProtectedRoute><DeveloperRoute><DeveloperPricing /></DeveloperRoute></ProtectedRoute>} />
+                  <Route path="programs" element={<ProtectedRoute><DeveloperRoute><DeveloperPrograms /></DeveloperRoute></ProtectedRoute>} />
                   <Route path="ai-assistant" element={<AIAssistant />} />
                   <Route path="profile" element={<Profile />} />
                   <Route path="settings" element={<Settings />} />

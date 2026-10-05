@@ -5,7 +5,7 @@ const PaymentTransaction = require("../models/PaymentTransaction");
 const { sendEmail } = require("../services/emailService");
 const { getPricingSnapshot } = require("../services/platformPricingService");
 const {
-  startCampayPayment,
+  startCamerpayPayment,
 } = require("../services/paymentOrchestrationService");
 const {
   createAndStoreAgreement,
@@ -206,7 +206,7 @@ exports.checkout = async (req, res, next) => {
         pricing: partnershipPricing,
         payment: existing,
       });
-    const transaction = await startCampayPayment({
+    const transaction = await startCamerpayPayment({
       transactionPayload: {
         user_cand_id: partner.cand_id,
         provider: "camerpay",

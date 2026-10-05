@@ -1,0 +1,141 @@
+.page {
+  display: grid;
+  gap: 20px;
+  padding: 24px;
+  color: #18324a;
+}
+
+.header {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 16px;
+  border-bottom: 1px solid #d8e3eb;
+  padding-bottom: 16px;
+}
+
+.header h1 {
+  margin: 0;
+  font-size: 24px;
+}
+
+.header p {
+  margin: 6px 0 0;
+  color: #526a7c;
+}
+
+.layout {
+  display: grid;
+  grid-template-columns: minmax(280px, 360px) minmax(0, 1fr);
+  gap: 20px;
+  align-items: start;
+}
+
+.panel {
+  min-width: 0;
+  padding: 18px;
+  border: 1px solid #d8e3eb;
+  border-radius: 6px;
+  background: #fff;
+}
+
+.panel h2 {
+  margin: 0 0 16px;
+  font-size: 17px;
+}
+
+.form {
+  display: grid;
+  gap: 12px;
+}
+
+.field {
+  display: grid;
+  gap: 5px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.field input,
+.field select {
+  width: 100%;
+  min-height: 38px;
+  padding: 7px 9px;
+  border: 1px solid #b9cbd8;
+  border-radius: 4px;
+  background: white;
+  color: #18324a;
+  font: inherit;
+  font-weight: 400;
+}
+
+.checkRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.button {
+  min-height: 36px;
+  padding: 7px 12px;
+  border: 1px solid #176b83;
+  border-radius: 4px;
+  background: #176b83;
+  color: white;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.buttonSecondary {
+  border-color: #9aafbd;
+  background: white;
+  color: #29465a;
+}
+
+.buttonDanger {
+  border-color: #b33b3b;
+  background: white;
+  color: #a42e2e;
+}
+
+.tableWrap {
+  overflow-x: auto;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  text-align: left;
+}
+
+.table th,
+.table td {
+  padding: 10px 8px;
+  border-bottom: 1px solid #e2eaf0;
+  vertical-align: top;
+}
+
+.table th {
+  color: #526a7c;
+  font-size: 11px;
+  text-transform: uppercase;
+}
+
+.muted {
+  color: #738796;
+}
+
+@media (max-width: 850px) {
+  .page { padding: 16px; }
+  .layout { grid-template-columns: 1fr; }
+  .header { align-items: start; flex-direction: column; }
+}

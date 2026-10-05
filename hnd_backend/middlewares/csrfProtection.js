@@ -8,7 +8,7 @@ const EXEMPT_PATHS = new Set([
   '/auth/register',
   '/auth/reset-password',
   '/payment/camerpay/callback',
-  '/webhooks/campay',
+  '/webhooks/camerpay',
 ]);
 
 const parseCookies = (header = '') => String(header)

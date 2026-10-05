@@ -2,7 +2,7 @@
 require('dotenv').config();
 const connectDB = require('../config/database');
 const PaymentTransaction = require('../models/PaymentTransaction');
-const { refreshCampayPaymentStatus } = require('../services/paymentOrchestrationService');
+const { refreshCamerpayPaymentStatus } = require('../services/paymentOrchestrationService');
 
 const updates = [
   {
@@ -37,7 +37,7 @@ const updates = [
 
         // attempt refresh using orchestration service
         try {
-          const refreshed = await refreshCampayPaymentStatus(tx, async (t) => {
+          const refreshed = await refreshCamerpayPaymentStatus(tx, async (t) => {
             // no-op on successful hook
             console.log(`onSuccessfulPayment callback for tx ${t._id}`);
           });
@@ -54,7 +54,7 @@ const updates = [
           await tx.save();
           console.log(`Set provider_reference from provider_response -> ${candidate}`);
           try {
-            const refreshed = await refreshCampayPaymentStatus(tx, async () => {});
+            const refreshed = await refreshCamerpayPaymentStatus(tx, async () => {});
             console.log(`After refresh: status=${refreshed.status}`);
           } catch (e) {
             console.warn('Refresh failed', e.message);
