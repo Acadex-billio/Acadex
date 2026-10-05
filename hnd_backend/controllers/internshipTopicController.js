@@ -1,6 +1,11 @@
 const InternshipTopic = require('../models/InternshipTopic');
 const Department = require('../models/Department');
 const {
+  normalizeProgramCode,
+  resolveProgramCode,
+  mapProgramToDepartmentTrack,
+} = require('../services/programCatalogService');
+const {
   normalizeIds,
   normalizeSession,
   normalizeText,
@@ -8,8 +13,6 @@ const {
   findMaterialDuplicate,
   duplicateResponse,
 } = require('../utils/materialDuplicate');
-
-const ALLOWED_PROGRAMS = ['HND', 'BTS', 'LICENCE', 'BACHELOR', 'MASTERS', 'MASTER'];
 
 function parseIntSafe(v, fallback) {
   const n = Number.parseInt(String(v), 10);
@@ -37,16 +40,15 @@ function coerceStringArray(v) {
     .filter(Boolean);
 }
 
-function normalizeProgram(v) {
-  const normalized = String(v || 'HND').trim().toUpperCase();
-  return ALLOWED_PROGRAMS.includes(normalized) ? normalized : 'HND';
+async function normalizeProgram(v) {
+  const normalized = String(v || 'HND').trim();
+  if (!normalized) return 'HND';
+  const resolved = await resolveProgramCode(normalized, { includeInactive: true });
+  return resolved || normalizeProgramCode(normalized) || 'HND';
 }
 
-function resolveDepartmentTrack(program) {
-  const normalized = String(program || '').trim().toUpperCase();
-  if (['HND', 'BACHELOR', 'MASTERS'].includes(normalized)) return 'HND';
-  if (['BTS', 'LICENCE', 'MASTER'].includes(normalized)) return 'BTS';
-  return null;
+async function resolveDepartmentTrack(program) {
+  return mapProgramToDepartmentTrack(program);
 }
 
 function normalizeReaction(v) {
@@ -171,8 +173,8 @@ exports.createTopic = async (req, res) => {
     const title = String(req.body?.title || '').trim();
     const description = String(req.body?.description || '').trim();
     const researchGuide = String(req.body?.research_guide || '').trim();
-    const programs = Array.from(new Set(coerceStringArray(req.body?.programs).map((p) => normalizeProgram(p)))).filter(Boolean);
-    const program = programs.length ? programs[0] : normalizeProgram(req.body?.program);
+    const programs = Array.from(new Set((await Promise.all(coerceStringArray(req.body?.programs).map((p) => normalizeProgram(p)))).filter(Boolean)));
+    const program = programs.length ? programs[0] : await normalizeProgram(req.body?.program);
     const topicIcon = String(req.body?.topic_icon || '').trim();
     const departmentIds = coerceStringArray(req.body?.department_ids);
     const keywords = parseKeywords(req.body?.keywords);
@@ -191,7 +193,7 @@ exports.createTopic = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Select at least one applicable department.' });
     }
 
-    const allowedPrograms = Array.from(new Set(programs.map(resolveDepartmentTrack).filter(Boolean)));
+    const allowedPrograms = Array.from(new Set((await Promise.all(programs.map(resolveDepartmentTrack))).filter(Boolean)));
     const departments = await Department.find({ _id: { $in: departmentIds }, program: allowedPrograms.length ? { $in: allowedPrograms } : program }).select('_id').lean();
     if (!departments.length) {
       return res.status(400).json({ success: false, message: 'No valid departments found for the selected programs.' });
@@ -239,9 +241,12 @@ exports.listAdminTopics = async (req, res) => {
     const limit = clamp(parseIntSafe(req.query?.limit, 20), 1, 100);
     const query = {};
 
-    const program = String(req.query?.program || '').trim().toUpperCase();
-    if (ALLOWED_PROGRAMS.includes(program)) {
-      query.$or = [{ program }, { programs: program }];
+    const program = String(req.query?.program || '').trim();
+    if (program) {
+      const resolvedProgram = await resolveProgramCode(program, { includeInactive: true });
+      if (resolvedProgram) {
+        query.$or = [{ program: resolvedProgram }, { programs: resolvedProgram }];
+      }
     }
 
     const search = String(req.query?.q || '').trim();
@@ -277,8 +282,8 @@ exports.updateTopic = async (req, res) => {
     const title = String(req.body?.title || topic.title).trim();
     const description = String(req.body?.description || topic.description).trim();
     const researchGuide = String(req.body?.research_guide || topic.research_guide).trim();
-    const programs = Array.from(new Set(coerceStringArray(req.body?.programs).map((p) => normalizeProgram(p))));
-    const program = programs.length ? programs[0] : normalizeProgram(req.body?.program || topic.program);
+    const programs = Array.from(new Set((await Promise.all(coerceStringArray(req.body?.programs).map((p) => normalizeProgram(p)))).filter(Boolean)));
+    const program = programs.length ? programs[0] : await normalizeProgram(req.body?.program || topic.program);
     const topicIcon = String(req.body?.topic_icon || topic.topic_icon || '').trim();
     const departmentIds = coerceStringArray(req.body?.department_ids || topic.department_ids);
     const keywords = parseKeywords(req.body?.keywords || topic.keywords);
@@ -297,7 +302,7 @@ exports.updateTopic = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Select at least one applicable department.' });
     }
 
-    const allowedPrograms = Array.from(new Set(programs.map(resolveDepartmentTrack).filter(Boolean)));
+    const allowedPrograms = Array.from(new Set((await Promise.all(programs.map(resolveDepartmentTrack))).filter(Boolean)));
     const departments = await Department.find({ _id: { $in: departmentIds }, program: allowedPrograms.length ? { $in: allowedPrograms } : program }).select('_id').lean();
     if (!departments.length) {
       return res.status(400).json({ success: false, message: 'No valid departments found for the selected programs.' });
@@ -425,7 +430,7 @@ exports.getCandidateTopicDetail = async (req, res) => {
 exports.rateTopic = async (req, res) => {
   try {
     const candId = String(req.user?.cand_id || '').trim();
-    const program = normalizeProgram(req.user?.program || 'HND');
+    const program = await normalizeProgram(req.user?.program || 'HND');
     const topicId = String(req.params?.topicId || '').trim();
     const stars = Math.max(1, Math.min(5, Number(req.body?.stars || 0)));
 
@@ -457,7 +462,7 @@ exports.rateTopic = async (req, res) => {
 exports.toggleRecommendation = async (req, res) => {
   try {
     const candId = String(req.user?.cand_id || '').trim();
-    const program = normalizeProgram(req.user?.program || 'HND');
+    const program = await normalizeProgram(req.user?.program || 'HND');
     const topicId = String(req.params?.topicId || '').trim();
 
     const topic = await InternshipTopic.findOne({ _id: topicId, $or: [{ programs: program }, { program }] });
@@ -483,7 +488,7 @@ exports.toggleRecommendation = async (req, res) => {
 exports.setReaction = async (req, res) => {
   try {
     const candId = String(req.user?.cand_id || '').trim();
-    const program = normalizeProgram(req.user?.program || 'HND');
+    const program = await normalizeProgram(req.user?.program || 'HND');
     const topicId = String(req.params?.topicId || '').trim();
     const type = normalizeReaction(req.body?.type);
 

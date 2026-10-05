@@ -11,7 +11,12 @@ const { uploadFile } = require('../utils/s3Uploader');
 const { sendBulkBcc } = require('../services/emailService');
 const { sanitizeFilename } = require('../middlewares/requestValidation');
 const { sendBulkPushNotification, isWebPushConfigured } = require('../utils/webPush');
-const { USER_PROGRAMS } = require('../constants/userConstants');
+const {
+  listPrograms,
+  mapProgramToDepartmentTrack,
+  normalizeProgramCode,
+  resolveProgramCode,
+} = require('../services/programCatalogService');
 const {
   hashBuffer,
   normalizeIds,
@@ -20,22 +25,6 @@ const {
   findMaterialDuplicate,
   duplicateResponse,
 } = require('../utils/materialDuplicate');
-
-const ALLOWED_PROGRAMS = [
-  USER_PROGRAMS.HND,
-  USER_PROGRAMS.BTS,
-  USER_PROGRAMS.LICENCE,
-  USER_PROGRAMS.BACHELOR,
-  USER_PROGRAMS.MASTERS,
-  USER_PROGRAMS.MASTER,
-];
-
-const mapProgramToDepartmentTrack = (program) => {
-  const normalized = String(program || '').trim().toUpperCase();
-  if (['HND', 'BACHELOR', 'MASTERS'].includes(normalized)) return 'HND';
-  if (['BTS', 'LICENCE', 'MASTER'].includes(normalized)) return 'BTS';
-  return null;
-};
 
 const AUDIENCE = new Set(['GENERAL', 'SINGLE', 'MULTIPLE']);
 
@@ -67,8 +56,9 @@ const parseDptIds = (val) => {
 
 exports.getDepartments = async (req, res) => {
   try {
-    const program = String(req.query?.program || '').trim().toUpperCase();
-    const query = ALLOWED_PROGRAMS.includes(program) ? { program } : {};
+    const program = normalizeProgramCode(req.query?.program || '');
+    const allowedPrograms = new Set(await listPrograms().then((items) => items.map((item) => normalizeProgramCode(item.code))));
+    const query = allowedPrograms.has(program) ? { program } : {};
     const rows = await Department.find(query)
       .sort({ department_name: 1 })
       .select('_id department_name program')
@@ -89,10 +79,13 @@ exports.uploadPaper = async (req, res) => {
     const semester = String(req.body.semester || '').trim();
     const institution_url = String(req.body.institution_url || '').trim();
     const file = req.file;
-    const normalizedProgram = String(program || 'HND').trim().toUpperCase();
-    if (!ALLOWED_PROGRAMS.includes(normalizedProgram)) {
+    const normalizedProgram = normalizeProgramCode(program || 'HND');
+    const allowedPrograms = new Set(await listPrograms().then((items) => items.map((item) => normalizeProgramCode(item.code))));
+    if (!allowedPrograms.has(normalizedProgram)) {
       return res.status(400).json({ success: false, message: 'Invalid program selected.' });
     }
+    const canonicalProgram = await resolveProgramCode(normalizedProgram, { includeInactive: true });
+    const validatedProgram = normalizeProgramCode(canonicalProgram || normalizedProgram);
 
 
     const aud = String(audience || '').toUpperCase();
@@ -128,8 +121,8 @@ exports.uploadPaper = async (req, res) => {
     }
 
     if (targetDeptIds.length) {
-      const departmentTrack = mapProgramToDepartmentTrack(normalizedProgram);
-      const matchedDepartments = await Department.countDocuments({ _id: { $in: targetDeptIds }, program: departmentTrack || normalizedProgram });
+      const departmentTrack = await mapProgramToDepartmentTrack(validatedProgram);
+      const matchedDepartments = await Department.countDocuments({ _id: { $in: targetDeptIds }, program: departmentTrack || validatedProgram });
       if (matchedDepartments !== targetDeptIds.length) {
         return res.status(400).json({ success: false, message: 'Selected departments must belong to the chosen program.' });
       }
@@ -180,7 +173,7 @@ exports.uploadPaper = async (req, res) => {
       hnd_year: String(hndYear).trim(),
       paper_file: paperFilePath,
       uploaded_by: (uploaded_by || '').trim(),
-      program: normalizedProgram,
+      program: validatedProgram,
       audience: aud,
       more_info: moreInfo,
       departments: targetDeptIds,
@@ -200,12 +193,12 @@ exports.uploadPaper = async (req, res) => {
     if (shouldNotify) {
       let users = [];
       if (aud === 'GENERAL') {
-        users = await User.find({ program: normalizedProgram, email: { $exists: true, $ne: '' } })
+        users = await User.find({ program: validatedProgram, email: { $exists: true, $ne: '' } })
           .select('name email push_subscription allow_push_notifications')
           .lean();
       } else if (targetDeptIds.length) {
         users = await User.find({
-          program: normalizedProgram,
+          program: validatedProgram,
           dpt_id: { $in: targetDeptIds },
           email: { $exists: true, $ne: '' },
         })
@@ -214,7 +207,7 @@ exports.uploadPaper = async (req, res) => {
       }
 
       const subject = `New Question Paper: ${paperTitle}`;
-      const text = `A new ${normalizedProgram} question paper titled "${paperTitle}" has been uploaded.\n\nYear: ${hndYear}\nUploaded by: ${uploaded_by}\n\nLog in to the platform to access and download it.\n\nBest regards,\nPlatform Team`;
+      const text = `A new ${validatedProgram} question paper titled "${paperTitle}" has been uploaded.\n\nYear: ${hndYear}\nUploaded by: ${uploaded_by}\n\nLog in to the platform to access and download it.\n\nBest regards,\nPlatform Team`;
 
       emailReport = await sendBulkBcc(users, subject, text);
 
@@ -248,9 +241,10 @@ exports.uploadPaper = async (req, res) => {
 
 exports.getQuestionPapers = async (req, res) => {
   try {
-    const program = String(req.query?.program || '').trim().toUpperCase();
+    const program = normalizeProgramCode(req.query?.program || '');
     const paper_type_q = String(req.query?.paper_type || '').trim().toLowerCase();
-    const query = ALLOWED_PROGRAMS.includes(program) ? { program } : {};
+    const allowedPrograms = new Set(await listPrograms().then((items) => items.map((item) => normalizeProgramCode(item.code))));
+    const query = allowedPrograms.has(program) ? { program } : {};
     if (paper_type_q && ['hnd', 'ca', 'exam', 'mock'].includes(paper_type_q)) query.paper_type = paper_type_q;
     const papers = await QuestionPaper.find(query)
       .sort({ createdAt: -1 })
@@ -339,10 +333,13 @@ exports.updatePaper = async (req, res) => {
     const region = String(req.body.region || '').trim();
     const semester = String(req.body.semester || '').trim();
     const institution_url = String(req.body.institution_url || '').trim();
-    const normalizedProgram = String(program || 'HND').trim().toUpperCase();
-    if (!['HND', 'BTS'].includes(normalizedProgram)) {
-      return res.status(400).json({ success: false, message: 'Program must be HND or BTS.' });
+    const normalizedProgram = normalizeProgramCode(program || 'HND');
+    const allowedPrograms = new Set(await listPrograms().then((items) => items.map((item) => normalizeProgramCode(item.code))));
+    if (!allowedPrograms.has(normalizedProgram)) {
+      return res.status(400).json({ success: false, message: 'Invalid program selected.' });
     }
+    const canonicalProgram = await resolveProgramCode(normalizedProgram, { includeInactive: true });
+    const validatedProgram = normalizeProgramCode(canonicalProgram || normalizedProgram);
 
     const aud = String(audience || '').toUpperCase();
     if (!AUDIENCE.has(aud)) {
@@ -372,7 +369,8 @@ exports.updatePaper = async (req, res) => {
     }
 
     if (targetDeptIds.length) {
-      const matchedDepartments = await Department.countDocuments({ _id: { $in: targetDeptIds }, program: normalizedProgram });
+      const departmentTrack = await mapProgramToDepartmentTrack(validatedProgram);
+      const matchedDepartments = await Department.countDocuments({ _id: { $in: targetDeptIds }, program: departmentTrack || validatedProgram });
       if (matchedDepartments !== targetDeptIds.length) {
         return res.status(400).json({ success: false, message: 'Selected departments must belong to the chosen program.' });
       }
@@ -397,7 +395,7 @@ exports.updatePaper = async (req, res) => {
     paper.course_title = String(paperTitle).trim();
     paper.hnd_year = String(hndYear).trim();
     paper.uploaded_by = (uploaded_by || '').trim();
-    paper.program = normalizedProgram;
+    paper.program = validatedProgram;
     paper.audience = aud;
     paper.more_info = paper_type === 'hnd' ? coerceMoreInfo({ more_info, study_links }) : '';
     paper.departments = targetDeptIds;

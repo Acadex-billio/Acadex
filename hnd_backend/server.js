@@ -67,11 +67,13 @@ const lecturerRoutes = require('./Routes/lecturerRoutes');
 const adRoutes = require('./Routes/adRoutes');
 const materialAccessRoutes = require('./Routes/materialAccessRoutes');
 const developerRoutes = require('./Routes/developerRoutes');
+const programRoutes = require('./Routes/programRoutes');
 const concoursRoutes = require('./Routes/concoursRoutes');
 const publicRoutes = require('./Routes/publicRoutes');
 const { getLibreOfficeQueueStats } = require('./services/libreOfficeQueue');
 const { startPaymentReconciliationScheduler } = require('./services/paymentReconciliationScheduler');
 const { startSubscriptionReminderScheduler } = require('./services/subscriptionReminderScheduler');
+const { ensureDefaultPrograms } = require('./services/programCatalogService');
 const { mountVersionCompatibleRoute } = require('./utils/versionRouter');
 const { csrfProtection } = require('./middlewares/csrfProtection');
 
@@ -82,8 +84,9 @@ const startupDebugEnabled = String(process.env.STARTUP_DEBUG || '').trim().toLow
 
 // Initialize database connection but do not let DB failures crash the whole process
 const dbStartupPromise = connectDB()
-  .then(() => {
+  .then(async () => {
     logger.info('Database connected; starting DB-dependent background services');
+    await ensureDefaultPrograms();
     try {
       startPaymentReconciliationScheduler();
       startSubscriptionReminderScheduler();
@@ -418,6 +421,7 @@ mountVersionCompatibleRoute(app, '/api/lecturers', lecturerRoutes);
 mountVersionCompatibleRoute(app, '/api/ads', adRoutes);
 mountVersionCompatibleRoute(app, '/api/material-access', materialAccessRoutes);
 mountVersionCompatibleRoute(app, '/api/developer', developerRoutes);
+mountVersionCompatibleRoute(app, '/api/programs', programRoutes);
 mountVersionCompatibleRoute(app, '/api/concours', concoursRoutes);
 
 // Dev-only routes (enabled locally or when DEBUG_ROUTES_ENABLED=true)

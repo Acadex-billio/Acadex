@@ -1,4 +1,5 @@
 const { getOrCreatePricingDocument, getPricingSnapshot } = require('../services/platformPricingService');
+const { listActiveProgramCodes } = require('../services/programCatalogService');
 const { MIN_PAYMENT_AMOUNT } = require('../constants/paymentConstants');
 
 exports.getPricing = async (_req, res) => {
@@ -27,7 +28,7 @@ exports.updatePricing = async (req, res) => {
   try {
     const doc = await getOrCreatePricingDocument();
     const next = req.body?.pricing || {};
-    const allowedPrograms = ['HND', 'BACHELOR', 'MASTERS', 'LICENCE', 'MASTER', 'BTS'];
+    const allowedPrograms = await listActiveProgramCodes();
     const toNonNegativeNumber = (value, fallback) => {
       const n = Number(value);
       return Number.isFinite(n) && n >= 0 ? n : fallback;

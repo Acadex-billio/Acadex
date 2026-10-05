@@ -11,8 +11,13 @@ const { uploadFile } = require('../utils/s3Uploader');
 const { sendBulkBcc } = require('../services/emailService');
 const { sanitizeFilename } = require('../middlewares/requestValidation');
 const { sendBulkPushNotification, isWebPushConfigured } = require('../utils/webPush');
-const { USER_PROGRAMS } = require('../constants/userConstants');
 const CandidateProjectSubmission = require('../models/CandidateProjectSubmission');
+const {
+  listPrograms,
+  mapProgramToDepartmentTrack,
+  normalizeProgramCode,
+  resolveProgramCode,
+} = require('../services/programCatalogService');
 const {
   hashBuffer,
   normalizeIds,
@@ -21,22 +26,6 @@ const {
   findMaterialDuplicate,
   duplicateResponse,
 } = require('../utils/materialDuplicate');
-
-const ALLOWED_PROGRAMS = [
-  USER_PROGRAMS.HND,
-  USER_PROGRAMS.BTS,
-  USER_PROGRAMS.LICENCE,
-  USER_PROGRAMS.BACHELOR,
-  USER_PROGRAMS.MASTERS,
-  USER_PROGRAMS.MASTER,
-];
-
-const mapProgramToDepartmentTrack = (program) => {
-  const normalized = String(program || '').trim().toUpperCase();
-  if (['HND', 'BACHELOR', 'MASTERS'].includes(normalized)) return 'HND';
-  if (['BTS', 'LICENCE', 'MASTER'].includes(normalized)) return 'BTS';
-  return null;
-};
 
 const REPORT_DIR = path.join(__dirname, '../uploads/reports');
 const REPORT_PDF_DIR = path.join(REPORT_DIR, 'pdfs');
@@ -86,10 +75,13 @@ exports.uploadReport = async (req, res) => {
       program,
       academic_session,
     } = req.body;
-    const normalizedProgram = String(program || 'HND').trim().toUpperCase();
-    if (!ALLOWED_PROGRAMS.includes(normalizedProgram)) {
+    const normalizedProgram = normalizeProgramCode(program || 'HND');
+    const allowedPrograms = new Set(await listPrograms().then((programs) => programs.map((item) => normalizeProgramCode(item.code))));
+    if (!allowedPrograms.has(normalizedProgram)) {
       return res.status(400).json({ success: false, message: 'Invalid program selected.' });
     }
+    const canonicalProgram = await resolveProgramCode(normalizedProgram, { includeInactive: true });
+    const validatedProgram = normalizeProgramCode(canonicalProgram || normalizedProgram);
 
 
     const normalizedFromSubmissionId = String(from_submission_id || '').trim();
@@ -128,8 +120,8 @@ exports.uploadReport = async (req, res) => {
     }
 
     if (targetDeptIds.length) {
-      const departmentTrack = mapProgramToDepartmentTrack(normalizedProgram);
-      const matchedDepartments = await Department.countDocuments({ _id: { $in: targetDeptIds }, program: departmentTrack || normalizedProgram });
+      const departmentTrack = await mapProgramToDepartmentTrack(validatedProgram);
+      const matchedDepartments = await Department.countDocuments({ _id: { $in: targetDeptIds }, program: departmentTrack || validatedProgram });
       if (matchedDepartments !== targetDeptIds.length) {
         return res.status(400).json({ success: false, message: 'Selected departments must belong to the chosen program.' });
       }
@@ -137,7 +129,7 @@ exports.uploadReport = async (req, res) => {
 
     const contentHash = hashBuffer(req.file?.buffer);
     const duplicateKey = buildDuplicateKey([
-      'report', title, writer_names, normalizedProgram, normalizeSession(academic_session),
+      'report', title, writer_names, validatedProgram, normalizeSession(academic_session),
       normalizeIds(targetDeptIds), 'standard',
     ]);
     const duplicate = await findMaterialDuplicate({ model: Report, duplicateKey, contentHash });
@@ -209,7 +201,7 @@ exports.uploadReport = async (req, res) => {
       location: finalLocation.trim(),
       pages: String(finalPages).trim(),
       file_path: filePath,
-      program: normalizedProgram,
+      program: validatedProgram,
       audience,
       notify_candidates: notify === 'true',
       departments: targetDeptIds,
@@ -226,10 +218,10 @@ exports.uploadReport = async (req, res) => {
     if (notify === 'true') {
       let users = [];
       if (audience === 'GENERAL') {
-        users = await User.find({ program: normalizedProgram, email: { $exists: true, $ne: '' } }).select('name email push_subscription allow_push_notifications').lean();
+        users = await User.find({ program: validatedProgram, email: { $exists: true, $ne: '' } }).select('name email push_subscription allow_push_notifications').lean();
       } else {
         users = await User.find({
-          program: normalizedProgram,
+          program: validatedProgram,
           dpt_id: { $in: targetDeptIds },
           email: { $exists: true, $ne: '' },
         })
@@ -237,7 +229,7 @@ exports.uploadReport = async (req, res) => {
           .lean();
       }
       const subject = 'New Report Uploaded';
-      const text = `A new ${normalizedProgram} report titled "${title}" has been uploaded to the platform.\n\nAudience: ${audience}\n\n— Platform Team`;
+      const text = `A new ${validatedProgram} report titled "${title}" has been uploaded to the platform.\n\nAudience: ${audience}\n\n— Platform Team`;
       await sendBulkBcc(users, subject, text);
 
       // Send push notifications
@@ -248,7 +240,7 @@ exports.uploadReport = async (req, res) => {
             pushUsers,
             'report',
             `New Report: ${title}`,
-            `A new ${normalizedProgram} report "${title}" by ${writer_names} has been uploaded.`,
+            `A new ${validatedProgram} report "${title}" by ${writer_names} has been uploaded.`,
             '/candidate/reports',
             String(report._id)
           );
@@ -265,8 +257,9 @@ exports.uploadReport = async (req, res) => {
 
 exports.listReports = async (req, res) => {
   try {
-    const program = String(req.query?.program || '').trim().toUpperCase();
-    const query = ALLOWED_PROGRAMS.includes(program) ? { program } : {};
+    const program = normalizeProgramCode(req.query?.program || '');
+    const allowedPrograms = new Set(await listPrograms().then((items) => items.map((item) => normalizeProgramCode(item.code))));
+    const query = allowedPrograms.has(program) ? { program } : {};
     const rows = await Report.find(query)
       .sort({ createdAt: -1 })
       .populate('departments', 'department_name abbreviation')
@@ -306,9 +299,10 @@ exports.listReports = async (req, res) => {
  */
 exports.listGuides = async (req, res) => {
   try {
-    const program = String(req.query?.program || '').trim().toUpperCase();
+    const program = normalizeProgramCode(req.query?.program || '');
     const query = { is_guide: true };
-    if (ALLOWED_PROGRAMS.includes(program)) query.program = program;
+    const allowedPrograms = new Set(await listPrograms().then((items) => items.map((item) => normalizeProgramCode(item.code))));
+    if (allowedPrograms.has(program)) query.program = program;
     const rows = await Report.find(query)
       .sort({ createdAt: -1 })
       .populate('departments', 'department_name abbreviation')
@@ -362,10 +356,13 @@ exports.uploadGuide = async (req, res) => {
       program,
       academic_session,
     } = req.body;
-    const normalizedProgram = String(program || 'HND').trim().toUpperCase();
-    if (!ALLOWED_PROGRAMS.includes(normalizedProgram)) {
+    const normalizedProgram = normalizeProgramCode(program || 'HND');
+    const allowedPrograms = new Set(await listPrograms().then((items) => items.map((item) => normalizeProgramCode(item.code))));
+    if (!allowedPrograms.has(normalizedProgram)) {
       return res.status(400).json({ success: false, message: 'Invalid program selected.' });
     }
+    const canonicalProgram = await resolveProgramCode(normalizedProgram, { includeInactive: true });
+    const validatedProgram = normalizeProgramCode(canonicalProgram || normalizedProgram);
 
     if (!req.file || !title || !writer_names || !writer_email || !description || !location || !keywords || !pages || !audience) {
       return res.status(400).json({ success: false, message: 'Missing required fields or file.' });
@@ -385,7 +382,7 @@ exports.uploadGuide = async (req, res) => {
 
     const contentHash = hashBuffer(req.file.buffer);
     const duplicateKey = buildDuplicateKey([
-      'report', title, writer_names, normalizedProgram, normalizeSession(academic_session),
+      'report', title, writer_names, validatedProgram, normalizeSession(academic_session),
       normalizeIds(targetDeptIds), 'guide',
     ]);
     const duplicate = await findMaterialDuplicate({ model: Report, duplicateKey, contentHash });
@@ -410,7 +407,7 @@ exports.uploadGuide = async (req, res) => {
       location: String(location || '').trim(),
       pages: String(pages).trim(),
       file_path: filePath,
-      program: normalizedProgram,
+      program: validatedProgram,
       audience,
       departments: targetDeptIds,
       is_guide: true,
@@ -444,11 +441,13 @@ exports.updateReport = async (req, res) => {
       program,
       academic_session,
     } = req.body;
-    const normalizedProgram = String(program || 'HND').trim().toUpperCase();
-    if (!ALLOWED_PROGRAMS.includes(normalizedProgram)) {
+    const normalizedProgram = normalizeProgramCode(program || 'HND');
+    const allowedPrograms = new Set(await listPrograms().then((items) => items.map((item) => normalizeProgramCode(item.code))));
+    if (!allowedPrograms.has(normalizedProgram)) {
       return res.status(400).json({ success: false, message: 'Invalid program selected.' });
     }
-
+    const canonicalProgram = await resolveProgramCode(normalizedProgram, { includeInactive: true });
+    const validatedProgram = normalizeProgramCode(canonicalProgram || normalizedProgram);
 
     if (!title || !writer_names || !writer_email || !description || !location || !keywords || !pages || !audience) {
       return res.status(400).json({ success: false, message: 'Missing required fields.' });
@@ -471,8 +470,8 @@ exports.updateReport = async (req, res) => {
     }
 
     if (targetDeptIds.length) {
-      const departmentTrack = mapProgramToDepartmentTrack(normalizedProgram);
-      const matchedDepartments = await Department.countDocuments({ _id: { $in: targetDeptIds }, program: departmentTrack || normalizedProgram });
+      const departmentTrack = await mapProgramToDepartmentTrack(validatedProgram);
+      const matchedDepartments = await Department.countDocuments({ _id: { $in: targetDeptIds }, program: departmentTrack || validatedProgram });
       if (matchedDepartments !== targetDeptIds.length) {
         return res.status(400).json({ success: false, message: 'Selected departments must belong to the chosen program.' });
       }
@@ -482,7 +481,7 @@ exports.updateReport = async (req, res) => {
     if (!report) return res.status(404).json({ success: false, message: 'Report not found.' });
 
     const duplicateKey = buildDuplicateKey([
-      'report', title, writer_names, normalizedProgram, normalizeSession(academic_session),
+      'report', title, writer_names, validatedProgram, normalizeSession(academic_session),
       normalizeIds(targetDeptIds), report.is_guide ? 'guide' : 'standard',
     ]);
     const duplicate = await findMaterialDuplicate({
@@ -500,7 +499,7 @@ exports.updateReport = async (req, res) => {
     report.location = String(location).trim();
     report.keywords = String(keywords).trim();
     report.pages = String(pages).trim();
-    report.program = normalizedProgram;
+    report.program = validatedProgram;
     report.audience = String(audience).trim().toUpperCase();
     report.departments = targetDeptIds;
     report.project_github_url = parsedProjectGitHubUrl;

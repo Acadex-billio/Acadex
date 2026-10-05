@@ -17,6 +17,7 @@ const {
   jwtAuthMiddleware,
 } = require('../utils/jwtUtils');
 const { buildSubscriptionResponse } = require('../utils/subscriptionUtils');
+const { findProgram, mapProgramToDepartmentTrack, normalizeProgramCode } = require('../services/programCatalogService');
 const logger = require('../utils/logger');
 const { isEnabled } = require('../services/featureFlagService');
 const {
@@ -55,19 +56,6 @@ const clearAuthCookies = (res) => {
   res.clearCookie(AUTH_COOKIE_NAMES.REFRESH_TOKEN, options);
 };
 
-const mapProgramToDepartmentTrack = (program) => {
-  const normalized = String(program || '').trim().toUpperCase();
-  if (['HND', 'BACHELOR', 'MASTERS'].includes(normalized)) return 'HND';
-  if (['BTS', 'LICENCE', 'MASTER'].includes(normalized)) return 'BTS';
-  return null;
-};
-
-const getDefaultLanguageForProgram = (program) => {
-  const normalized = String(program || '').trim().toUpperCase();
-  if (['BTS', 'LICENCE', 'MASTER'].includes(normalized)) return 'fr';
-  return 'en';
-};
-
 const generateCandId = async () => {
   // Randomized candidate ID avoids count-based race conditions under concurrent registrations.
   for (let i = 0; i < 10; i += 1) {
@@ -86,10 +74,11 @@ exports.register = async (req, res) => {
       return res.status(400).json({ message: 'All fields are required.' });
     }
 
-    const normalizedProgram = String(program || 'HND').trim().toUpperCase();
-    if (!['HND', 'BTS', 'LECTURER', 'BACHELOR', 'MASTERS', 'LICENCE', 'MASTER'].includes(normalizedProgram)) {
-      return res.status(400).json({ message: 'Program must be HND, BTS, LECTURER, BACHELOR, MASTERS, LICENCE, or MASTER.' });
-    }
+    let normalizedProgram = normalizeProgramCode(program || 'HND');
+    const isLecturer = normalizedProgram === 'LECTURER';
+    const programRecord = isLecturer ? null : await findProgram(normalizedProgram);
+    if (!isLecturer && !programRecord) return res.status(400).json({ message: 'Select an active program.' });
+    if (programRecord) normalizedProgram = programRecord.code;
 
     const normalizedEmail = String(email).toLowerCase().trim();
     const normalizedPhone = String(phone).trim();
@@ -110,7 +99,7 @@ exports.register = async (req, res) => {
 
       dept = await Department.findById(dpt_id);
       if (!dept) return res.status(404).json({ message: 'Invalid department selected.' });
-      const expectedTrack = mapProgramToDepartmentTrack(normalizedProgram);
+      const expectedTrack = await mapProgramToDepartmentTrack(normalizedProgram);
       if (!expectedTrack || String(dept.program || 'HND').toUpperCase() !== expectedTrack) {
         return res.status(400).json({ message: `Selected department does not belong to ${normalizedProgram} track.` });
       }
@@ -124,8 +113,6 @@ exports.register = async (req, res) => {
         message: 'User already exists with this email, phone, or name.',
       });
     }
-
-    const isLecturer = normalizedProgram === 'LECTURER';
 
     let user = null;
     for (let i = 0; i < 3; i += 1) {
@@ -142,7 +129,8 @@ exports.register = async (req, res) => {
           program: normalizedProgram,
           preferred_language: isLecturer
             ? (['en', 'fr'].includes(String(preferred_language).toLowerCase()) ? String(preferred_language).toLowerCase() : 'en')
-            : getDefaultLanguageForProgram(normalizedProgram),
+            : programRecord.language,
+          preferred_language_source: isLecturer ? 'user' : 'program',
           account_status: isLecturer ? 'pending_approval' : 'active',
           subscription: {
             plan: 'basic',
@@ -309,7 +297,7 @@ exports.login = async (req, res) => {
       role,
       is_admin: isAdmin,
       program: String(user.program || 'HND').toUpperCase(),
-      preferred_language: String(user.preferred_language || getDefaultLanguageForProgram(user.program || 'HND')).toLowerCase(),
+      preferred_language: String(user.preferred_language || 'en').toLowerCase(),
       account_status: accountStatus,
       subscription: await buildSubscriptionResponse(user.subscription),
       partnership: user.partnership || null,

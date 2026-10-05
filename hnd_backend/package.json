@@ -9,8 +9,8 @@
   "scripts": {
     "start": "node server.js",
     "dev": "node server.js",
-    "test": "npm run smoke:code",
-    "smoke:code": "node scripts/smoke-code.js",
+    "test": "node --test tests/*.test.js",
+    "smoke:code": "node scripts/smoke-code.js && node --test tests/*.test.js",
     "smoke:integration": "node scripts/smoke-integration.js",
     "smoke:payments": "node scripts/regression-payments.js",
     "test:ci": "npm run smoke:code && npm run smoke:integration",

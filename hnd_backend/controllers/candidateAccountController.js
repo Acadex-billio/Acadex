@@ -8,6 +8,7 @@ const ChatInvite = require('../models/ChatInvite');
 const ChatBlock = require('../models/ChatBlock');
 const History = require('../models/History');
 const { buildSubscriptionResponse } = require('../utils/subscriptionUtils');
+const { findProgram, normalizeProgramCode } = require('../services/programCatalogService');
 
 function requireJWTUser(req) {
   const u = req.user;
@@ -253,8 +254,13 @@ exports.respondProgramUpdate = async (req, res) => {
     }
 
     if (response === 'accept') {
-      user.program = String(request.target_program || user.program).toUpperCase();
-      user.preferred_language = ['BTS', 'LICENCE', 'MASTER'].includes(user.program) ? 'fr' : 'en';
+      const targetProgram = await findProgram(normalizeProgramCode(request.target_program), { includeInactive: true });
+      if (!targetProgram) return res.status(400).json({ success: false, message: 'The requested program is no longer available.' });
+      user.program = targetProgram.code;
+      if ((user.preferred_language_source || 'program') === 'program') {
+        user.preferred_language = targetProgram.language;
+        user.preferred_language_source = 'program';
+      }
       user.program_update_request = {
         ...request,
         status: 'accepted',

@@ -17,7 +17,6 @@ const SUBSCRIPTION_STATUS_VALUES = Object.values(SUBSCRIPTION_STATUSES);
 const USER_ROLE_VALUES = Object.values(USER_ROLES);
 const ACCOUNT_STATUS_VALUES = Object.values(ACCOUNT_STATUSES);
 const COMPLAINT_STATUS_VALUES = Object.values(COMPLAINT_STATUSES);
-const USER_PROGRAM_VALUES = Object.values(USER_PROGRAMS);
 
 const subscriptionSchema = new mongoose.Schema(
   {
@@ -70,8 +69,9 @@ const userSchema = new mongoose.Schema(
     },
     dpt_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Department', required: false, default: null },
     role: { type: String, enum: USER_ROLE_VALUES, default: USER_ROLES.CANDIDATE, index: true },
-    program: { type: String, enum: USER_PROGRAM_VALUES, default: USER_PROGRAMS.HND, index: true },
+    program: { type: String, default: USER_PROGRAMS.HND, trim: true, uppercase: true, index: true },
     preferred_language: { type: String, enum: ['en', 'fr'], default: 'en' },
+    preferred_language_source: { type: String, enum: ['program', 'user'], default: 'program' },
     academic_year: { type: String, default: null, trim: true },
     allow_emails: { type: Boolean, default: true },
     allow_push_notifications: { type: Boolean, default: true },
@@ -121,8 +121,8 @@ const userSchema = new mongoose.Schema(
     ],
     program_update_request: {
       status: { type: String, enum: ['none', 'pending', 'accepted', 'rejected'], default: 'none', index: true },
-      source_program: { type: String, enum: USER_PROGRAM_VALUES, default: null },
-      target_program: { type: String, enum: USER_PROGRAM_VALUES, default: null },
+      source_program: { type: String, default: null, trim: true, uppercase: true },
+      target_program: { type: String, default: null, trim: true, uppercase: true },
       message: { type: String, default: null, trim: true },
       requested_by: { type: String, default: null, trim: true },
       requested_at: { type: Date, default: null },

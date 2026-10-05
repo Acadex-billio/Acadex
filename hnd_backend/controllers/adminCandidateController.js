@@ -3,13 +3,9 @@ const PaymentTransaction = require('../models/PaymentTransaction');
 const { sendEmail } = require('../services/emailService');
 const { sendWebPushNotification, isWebPushConfigured } = require('../utils/webPush');
 const paymentGrantService = require('../services/paymentGrantService');
+const { findProgram, normalizeProgramCode } = require('../services/programCatalogService');
 
 const normalizeCandId = (v) => String(v || '').trim();
-const getDefaultLanguageForProgram = (program) => {
-  const normalized = String(program || '').trim().toUpperCase();
-  return ['BTS', 'LICENCE', 'MASTER'].includes(normalized) ? 'fr' : 'en';
-};
-const PROGRAM_VALUES = ['HND', 'BTS', 'BACHELOR', 'MASTERS', 'LICENCE', 'MASTER'];
 
 exports.listCandidates = async (req, res) => {
   try {
@@ -468,11 +464,12 @@ exports.reactivateUser = async (req, res) => {
 exports.startProgramUpdateCampaign = async (req, res) => {
   try {
     const actor = normalizeCandId(req.user?.cand_id);
-    const currentProgram = String(req.body?.current_program || '').trim().toUpperCase();
-    const targetProgram = String(req.body?.target_program || '').trim().toUpperCase();
+    const currentProgram = normalizeProgramCode(req.body?.current_program);
+    const targetProgram = normalizeProgramCode(req.body?.target_program);
     const customMessage = String(req.body?.message || '').trim();
 
-    if (!PROGRAM_VALUES.includes(currentProgram) || !PROGRAM_VALUES.includes(targetProgram)) {
+    const [sourceRecord, targetRecord] = await Promise.all([findProgram(currentProgram), findProgram(targetProgram)]);
+    if (!sourceRecord || !targetRecord) {
       return res.status(400).json({ success: false, message: 'Invalid source or destination program.' });
     }
     if (currentProgram === targetProgram) {
@@ -511,10 +508,11 @@ exports.startProgramUpdateCampaign = async (req, res) => {
 exports.updateUserProgram = async (req, res) => {
   try {
     const candId = normalizeCandId(req.params?.candId);
-    const targetProgram = String(req.body?.program || '').trim().toUpperCase();
+    const targetProgram = normalizeProgramCode(req.body?.program);
 
     if (!candId) return res.status(400).json({ success: false, message: 'candId is required' });
-    if (!PROGRAM_VALUES.includes(targetProgram)) {
+    const programRecord = await findProgram(targetProgram);
+    if (!programRecord) {
       return res.status(400).json({ success: false, message: 'Invalid destination program.' });
     }
 
@@ -524,8 +522,11 @@ exports.updateUserProgram = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Only candidates can be moved with this action.' });
     }
 
-    user.program = targetProgram;
-    user.preferred_language = getDefaultLanguageForProgram(targetProgram);
+    user.program = programRecord.code;
+    if ((user.preferred_language_source || 'program') === 'program') {
+      user.preferred_language = programRecord.language;
+      user.preferred_language_source = 'program';
+    }
     user.program_update_request = {
       status: 'none',
       source_program: null,
