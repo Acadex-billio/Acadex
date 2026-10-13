@@ -7,8 +7,6 @@ const User = require('../models/User');
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
-const { spawn } = require('child_process');
-const { pipeline } = require('stream/promises');
 const { sanitizeFilename } = require('../middlewares/requestValidation');
 const { getS3ObjectStream } = require('../utils/s3Uploader');
 const { getMaterialAccessSummary, isFreeMaterialAccess } = require('../utils/subscriptionUtils');
@@ -16,6 +14,8 @@ const { getMaterialDefaults } = require('../utils/subscriptionCatalog');
 const materialAccessService = require('../services/materialAccessService');
 const { streamToBuffer, subsetPdfBuffer, applyPdfWatermark } = require('../utils/pdfAccess');
 const { enqueueLibreOfficeJob } = require('../services/libreOfficeQueue');
+const { runLibreOfficeConvert } = require('../services/libreOfficeRunner');
+const { pipelineWithLimits } = require('../utils/streamLimits');
 
 const REPORT_DIR = path.join(__dirname, '../uploads/reports');
 const PREVIEW_CACHE_DIR = path.join(os.tmpdir(), 'hnd-preview', 'reports');
@@ -29,7 +29,6 @@ const LO_PATHS = [
   'soffice',
 ];
 const COMMAND_CANDIDATES = LO_PATHS.filter((p) => p.includes('\\') ? fs.existsSync(p) : true);
-const LIBREOFFICE_TIMEOUT_MS = 30000;
 
 const S3_BASE_URL = String(process.env.AWS_S3_URL || '').replace(/\/$/, '');
 
@@ -82,7 +81,7 @@ const writeS3ObjectToFile = async (source, destinationPath) => {
   await fs.promises.mkdir(path.dirname(destinationPath), { recursive: true });
   const readStream = getS3ObjectStream(key);
   const writeStream = fs.createWriteStream(destinationPath);
-  await pipeline(readStream, writeStream);
+  await pipelineWithLimits(readStream, writeStream);
   console.log('[ViewReport] Remote file downloaded for preview conversion:', {
     destinationPath,
     exists: fs.existsSync(destinationPath),
@@ -90,65 +89,17 @@ const writeS3ObjectToFile = async (source, destinationPath) => {
   return true;
 };
 
-const runLibreOfficeConvert = (command, sourcePath, outputDir) =>
-  new Promise((resolve, reject) => {
-    const args = ['--headless', '--convert-to', 'pdf', sourcePath, '--outdir', outputDir];
-    console.log('[ViewReport] Starting LibreOffice conversion:', {
-      command,
-      sourcePath,
-      outputDir,
-      args,
-    });
-    const child = spawn(command, args, { windowsHide: true });
-    let settled = false;
-
-    const timer = setTimeout(() => {
-      if (settled) return;
-      settled = true;
-      child.kill('SIGTERM');
-      reject(new Error(`LibreOffice conversion timed out after ${LIBREOFFICE_TIMEOUT_MS}ms`));
-    }, LIBREOFFICE_TIMEOUT_MS);
-
-    let stderr = '';
-    child.stderr.on('data', (buf) => {
-      stderr += buf.toString();
-    });
-
-    child.on('error', (err) => {
-      if (settled) return;
-      settled = true;
-      clearTimeout(timer);
-      console.error('[ViewReport] LibreOffice spawn error:', {
-        command,
-        message: err.message,
-      });
-      reject(err);
-    });
-    child.on('close', (code) => {
-      if (settled) return;
-      settled = true;
-      clearTimeout(timer);
-      console.log('[ViewReport] LibreOffice conversion finished:', {
-        command,
-        code,
-        stderr,
-      });
-      if (code !== 0) return reject(new Error(stderr || `LibreOffice exited with code ${code}`));
-      return resolve();
-    });
-  });
-
 const convertToPdf = async (sourcePath, outputDir) => {
   const sourceExt = path.extname(String(sourcePath || '')).toLowerCase();
   if (sourceExt !== '.doc' && sourceExt !== '.docx') {
     throw new Error('Only DOC and DOCX files are supported for conversion');
   }
 
-  return enqueueLibreOfficeJob(`report:${path.basename(sourcePath)}`, async () => {
+  return enqueueLibreOfficeJob(`report:${path.basename(sourcePath)}`, async (signal) => {
     let lastError;
     for (const command of COMMAND_CANDIDATES) {
       try {
-        await runLibreOfficeConvert(command, sourcePath, outputDir);
+        await runLibreOfficeConvert(command, sourcePath, outputDir, { signal });
         console.log('[ViewReport] LibreOffice conversion succeeded:', {
           command,
           sourcePath,

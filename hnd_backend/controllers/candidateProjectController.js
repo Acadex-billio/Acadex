@@ -3,8 +3,8 @@ const path = require('path');
 const os = require('os');
 const http = require('http');
 const https = require('https');
-const { spawn } = require('child_process');
-const { pipeline } = require('stream/promises');
+const net = require('net');
+const dns = require('dns').promises;
 const mongoose = require('mongoose');
 const CandidateProjectSubmission = require('../models/CandidateProjectSubmission');
 const Report = require('../models/Report');
@@ -13,6 +13,8 @@ const { USER_PROGRAMS } = require('../constants/userConstants');
 const { getOrCreatePricingDocument, getPricingSnapshot } = require('../services/platformPricingService');
 const { getS3ObjectStream } = require('../utils/s3Uploader');
 const { enqueueLibreOfficeJob } = require('../services/libreOfficeQueue');
+const { runLibreOfficeConvert } = require('../services/libreOfficeRunner');
+const { pipelineWithLimits } = require('../utils/streamLimits');
 const { sendWebPushNotification, isWebPushConfigured } = require('../utils/webPush');
 const { sendEmail, hasEmailConfig } = require('../services/emailService');
 const logger = require('../utils/logger');
@@ -39,7 +41,9 @@ const LO_PATHS = [
   'soffice',
 ];
 const COMMAND_CANDIDATES = LO_PATHS.filter((p) => (p.includes('\\') ? fs.existsSync(p) : true));
-const LIBREOFFICE_TIMEOUT_MS = 30000;
+const PREVIEW_DOWNLOAD_TIMEOUT_MS = 120000;
+const PREVIEW_DOWNLOAD_IDLE_TIMEOUT_MS = 20000;
+const MAX_PREVIEW_DOWNLOAD_BYTES = 50 * 1024 * 1024;
 
 const S3_BASE_URL = String(process.env.AWS_S3_URL || '').replace(/\/$/, '');
 
@@ -83,76 +87,188 @@ const writeS3ObjectToFile = async (source, destinationPath) => {
   await fs.promises.mkdir(path.dirname(destinationPath), { recursive: true });
   const readStream = getS3ObjectStream(key);
   const writeStream = fs.createWriteStream(destinationPath);
-  await pipeline(readStream, writeStream);
+  await pipelineWithLimits(readStream, writeStream);
   return true;
 };
 
-const downloadHttpToFile = async (sourceUrl, destinationPath, redirectCount = 0) => {
+const isPrivateIpAddress = (hostname) => {
+  const address = hostname.replace(/^\[|\]$/g, '').toLowerCase();
+  const ipVersion = net.isIP(address);
+  if (ipVersion === 4) {
+    const octets = address.split('.').map(Number);
+    return octets[0] === 0
+      || octets[0] === 10
+      || octets[0] === 127
+      || (octets[0] === 169 && octets[1] === 254)
+      || (octets[0] === 172 && octets[1] >= 16 && octets[1] <= 31)
+      || (octets[0] === 192 && octets[1] === 168)
+      || (octets[0] === 100 && octets[1] >= 64 && octets[1] <= 127)
+      || octets[0] >= 224;
+  }
+  if (ipVersion === 6) {
+    return address === '::'
+      || address === '::1'
+      || address.startsWith('fc')
+      || address.startsWith('fd')
+      || /^fe[89ab]/.test(address)
+      || address.startsWith('ff')
+      || address.startsWith('::ffff:');
+  }
+  return ['localhost', 'metadata.google.internal'].includes(address)
+    || address.endsWith('.localhost')
+    || address.endsWith('.local')
+    || address.endsWith('.internal');
+};
+
+const validatePreviewUrl = (url, previousUrl = null) => {
+  if (!['http:', 'https:'].includes(url.protocol) || !url.hostname || url.username || url.password) {
+    throw new Error('Preview source URL is invalid.');
+  }
+  if (previousUrl?.protocol === 'https:' && url.protocol !== 'https:') {
+    throw new Error('Preview redirects cannot downgrade from HTTPS.');
+  }
+  if (isPrivateIpAddress(url.hostname)) {
+    throw new Error('Preview source URL cannot target a local or private host.');
+  }
+};
+
+const resolvePreviewAddress = async (hostname, deadlineAt) => {
+  const ipFamily = net.isIP(hostname);
+  if (ipFamily) return { address: hostname, family: ipFamily };
+
+  const remainingMs = deadlineAt - Date.now();
+  if (remainingMs <= 0) {
+    throw Object.assign(new Error('Preview file download timed out.'), { code: 'PREVIEW_STREAM_TIMEOUT' });
+  }
+
+  let timer;
+  let addresses;
+  try {
+    addresses = await Promise.race([
+      dns.lookup(hostname, { all: true, verbatim: true }),
+      new Promise((_, reject) => {
+        timer = setTimeout(
+          () => reject(Object.assign(new Error('Preview source DNS lookup timed out.'), { code: 'PREVIEW_STREAM_TIMEOUT' })),
+          remainingMs
+        );
+      }),
+    ]);
+  } finally {
+    clearTimeout(timer);
+  }
+
+  if (!addresses.length || addresses.some(({ address }) => isPrivateIpAddress(address))) {
+    throw new Error('Preview source URL cannot resolve to a local or private host.');
+  }
+  return addresses[0];
+};
+
+const downloadHttpToFile = async (
+  sourceUrl,
+  destinationPath,
+  redirectCount = 0,
+  deadlineAt = Date.now() + PREVIEW_DOWNLOAD_TIMEOUT_MS,
+  previousUrl = null
+) => {
+  const url = new URL(sourceUrl);
+  validatePreviewUrl(url, previousUrl);
+  let remainingMs = deadlineAt - Date.now();
+  if (remainingMs <= 0) {
+    const error = new Error('Preview file download timed out.');
+    error.code = 'PREVIEW_STREAM_TIMEOUT';
+    throw error;
+  }
+
+  const targetAddress = await resolvePreviewAddress(url.hostname, deadlineAt);
+  remainingMs = deadlineAt - Date.now();
+  if (remainingMs <= 0) {
+    throw Object.assign(new Error('Preview file download timed out.'), { code: 'PREVIEW_STREAM_TIMEOUT' });
+  }
+
   await fs.promises.mkdir(path.dirname(destinationPath), { recursive: true });
-  const client = sourceUrl.startsWith('https://') ? https : http;
+  const client = url.protocol === 'https:' ? https : http;
   return new Promise((resolve, reject) => {
-    const request = client.get(sourceUrl, (response) => {
+    let settled = false;
+    let request;
+    const timeoutError = new Error('Preview file download timed out.');
+    timeoutError.code = 'PREVIEW_STREAM_TIMEOUT';
+    const totalTimer = setTimeout(() => request?.destroy(timeoutError), remainingMs);
+    const finish = (error) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(totalTimer);
+      if (error) reject(error);
+      else resolve();
+    };
+
+    request = client.get(url, {
+      lookup: (_hostname, options, callback) => {
+        if (options?.all) {
+          callback(null, [targetAddress]);
+        } else {
+          callback(null, targetAddress.address, targetAddress.family);
+        }
+      },
+    }, (response) => {
       if (response.statusCode >= 300 && response.statusCode < 400 && response.headers.location) {
         if (redirectCount >= 5) {
-          return reject(new Error('Too many redirects while downloading preview file.'));
+          response.resume();
+          return finish(new Error('Too many redirects while downloading preview file.'));
         }
-        return resolve(downloadHttpToFile(response.headers.location, destinationPath, redirectCount + 1));
+        let redirectUrl;
+        try {
+          redirectUrl = new URL(response.headers.location, url);
+          validatePreviewUrl(redirectUrl, url);
+        } catch (error) {
+          response.resume();
+          return finish(error);
+        }
+        response.resume();
+        clearTimeout(totalTimer);
+        settled = true;
+        return downloadHttpToFile(redirectUrl.href, destinationPath, redirectCount + 1, deadlineAt, url)
+          .then(resolve, reject);
       }
 
       if (response.statusCode !== 200) {
-        return reject(new Error(`Failed to download file: HTTP ${response.statusCode}`));
+        response.resume();
+        return finish(new Error(`Failed to download file: HTTP ${response.statusCode}`));
       }
 
+      if (Number(response.headers['content-length']) > MAX_PREVIEW_DOWNLOAD_BYTES) {
+        response.destroy();
+        const error = new Error('Preview file exceeds the maximum allowed size.');
+        error.code = 'PREVIEW_FILE_TOO_LARGE';
+        return finish(error);
+      }
       const writeStream = fs.createWriteStream(destinationPath);
-      pipeline(response, writeStream)
-        .then(resolve)
-        .catch(reject);
+      pipelineWithLimits(response, writeStream, {
+        maxBytes: MAX_PREVIEW_DOWNLOAD_BYTES,
+        totalTimeoutMs: remainingMs,
+        idleTimeoutMs: PREVIEW_DOWNLOAD_IDLE_TIMEOUT_MS,
+      }).then(() => finish(), async (error) => {
+        try {
+          await fs.promises.unlink(destinationPath);
+        } catch (cleanupError) {
+          if (cleanupError.code !== 'ENOENT') {
+            logger.warn('[CandidateProject] Failed to remove partial preview download:', cleanupError);
+          }
+        }
+        finish(error);
+      });
     });
 
-    request.on('error', reject);
+    request.setTimeout(PREVIEW_DOWNLOAD_IDLE_TIMEOUT_MS, () => request.destroy(Object.assign(new Error('Preview download stalled.'), { code: 'PREVIEW_STREAM_IDLE_TIMEOUT' })));
+    request.on('error', finish);
   });
 };
 
-const runLibreOfficeConvert = (command, sourcePath, outputDir) =>
-  new Promise((resolve, reject) => {
-    const args = ['--headless', '--convert-to', 'pdf', sourcePath, '--outdir', outputDir];
-    const child = spawn(command, args, { windowsHide: true });
-    let settled = false;
-
-    const timer = setTimeout(() => {
-      if (settled) return;
-      settled = true;
-      child.kill('SIGTERM');
-      reject(new Error(`LibreOffice conversion timed out after ${LIBREOFFICE_TIMEOUT_MS}ms`));
-    }, LIBREOFFICE_TIMEOUT_MS);
-
-    let stderr = '';
-    child.stderr.on('data', (buf) => {
-      stderr += buf.toString();
-    });
-
-    child.on('error', (err) => {
-      if (settled) return;
-      settled = true;
-      clearTimeout(timer);
-      reject(err);
-    });
-
-    child.on('close', (code) => {
-      if (settled) return;
-      settled = true;
-      clearTimeout(timer);
-      if (code !== 0) return reject(new Error(stderr || `LibreOffice exited with code ${code}`));
-      return resolve();
-    });
-  });
-
 const convertToPdf = async (sourcePath, outputDir, lockKey) =>
-  enqueueLibreOfficeJob(lockKey, async () => {
+  enqueueLibreOfficeJob(lockKey, async (signal) => {
     let lastError;
     for (const command of COMMAND_CANDIDATES) {
       try {
-        await runLibreOfficeConvert(command, sourcePath, outputDir);
+        await runLibreOfficeConvert(command, sourcePath, outputDir, { signal });
         return;
       } catch (err) {
         lastError = err;
@@ -644,7 +760,18 @@ exports.previewSubmissionFile = async (req, res) => {
     return fs.createReadStream(pdfPath).pipe(res);
   } catch (err) {
     console.error('[CandidateProject] preview error:', err);
-    return res.status(500).json({ success: false, message: 'Failed to preview file.' });
+    const status = err?.code === 'PREVIEW_FILE_TOO_LARGE' ? 413
+      : ['PREVIEW_STREAM_TIMEOUT', 'PREVIEW_STREAM_IDLE_TIMEOUT'].includes(err?.code) ? 504
+        : 500;
+    return res.status(status).json({
+      success: false,
+      code: err?.code || 'PREVIEW_FAILED',
+      message: status === 413
+        ? 'Preview file exceeds the maximum allowed size.'
+        : status === 504
+          ? 'Preview file retrieval timed out. Please try again.'
+          : 'Failed to preview file.',
+    });
   }
 };
 

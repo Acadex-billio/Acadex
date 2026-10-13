@@ -7,8 +7,6 @@ const History = require('../models/History');
 const User = require('../models/User');
 const path = require('path');
 const fs = require('fs');
-const { spawn } = require('child_process');
-const { pipeline } = require('stream/promises');
 const { sanitizeFilename } = require('../middlewares/requestValidation');
 const { getS3ObjectStream } = require('../utils/s3Uploader');
 const { getMaterialAccessSummary } = require('../utils/subscriptionUtils');
@@ -16,6 +14,8 @@ const { getMaterialDefaults } = require('../utils/subscriptionCatalog');
 const materialAccessService = require('../services/materialAccessService');
 const { streamToBuffer, subsetPdfBuffer, cropPdfFirstPageHalf } = require('../utils/pdfAccess');
 const { enqueueLibreOfficeJob } = require('../services/libreOfficeQueue');
+const { runLibreOfficeConvert } = require('../services/libreOfficeRunner');
+const { pipelineWithLimits } = require('../utils/streamLimits');
 const { renderPdfFirstPageToPng } = require('../utils/pdfToImage');
 const { isCloudConvertConfigured, convertPresentationToPdf } = require('../utils/cloudConvertClient');
 const { resolveLibreOfficeCommand } = require('../utils/libreOffice');
@@ -102,47 +102,13 @@ const writeS3ObjectToFile = async (source, destinationPath) => {
   await fs.promises.mkdir(path.dirname(destinationPath), { recursive: true });
   const readStream = getS3ObjectStream(key);
   const writeStream = fs.createWriteStream(destinationPath);
-  await pipeline(readStream, writeStream);
+  await pipelineWithLimits(readStream, writeStream);
   console.log('[Presentations] Remote file downloaded for preview conversion:', {
     destinationPath,
     exists: fs.existsSync(destinationPath),
   });
   return true;
 };
-
-const runLibreOfficeConvert = (command, sourcePath, outputDir) =>
-  new Promise((resolve, reject) => {
-    const args = ['--headless', '--convert-to', 'pdf', sourcePath, '--outdir', outputDir];
-    console.log('[Presentations] Starting LibreOffice conversion:', {
-      command,
-      sourcePath,
-      outputDir,
-      args,
-    });
-    const child = spawn(command, args, { windowsHide: true });
-
-    let stderr = '';
-    child.stderr.on('data', (buf) => {
-      stderr += buf.toString();
-    });
-
-    child.on('error', (err) => {
-      console.error('[Presentations] LibreOffice spawn error:', {
-        command,
-        message: err.message,
-      });
-      reject(err);
-    });
-    child.on('close', (code) => {
-      console.log('[Presentations] LibreOffice conversion finished:', {
-        command,
-        code,
-        stderr,
-      });
-      if (code !== 0) return reject(new Error(stderr || `LibreOffice exited with code ${code}`));
-      return resolve();
-    });
-  });
 
 const convertToPdf = async (sourcePath, outputDir, options = {}) => {
   const { sourceUrl, outputName } = options;
@@ -178,18 +144,24 @@ const convertToPdf = async (sourcePath, outputDir, options = {}) => {
         preparedSourcePath,
       });
 
-      const convertedPath = await convertPresentationToPdf({
-        sourcePath: preparedSourcePath,
-        sourceUrl,
-        outputDir,
-        outputName: outputName || path.basename(preparedSourcePath),
-      });
+      const convertedPath = await enqueueLibreOfficeJob(`cloudconvert:${path.basename(preparedSourcePath)}`, (signal) =>
+        convertPresentationToPdf({
+          sourcePath: preparedSourcePath,
+          sourceUrl,
+          outputDir,
+          outputName: outputName || path.basename(preparedSourcePath),
+          signal,
+        })
+      );
 
       if (convertedPath) {
         return convertedPath;
       }
       throw new Error('CloudConvert returned no converted file');
     } catch (err) {
+      if (err?.code === 'JOB_EXECUTION_TIMEOUT' || err?.code === 'CLOUDCONVERT_TIMEOUT') {
+        throw err;
+      }
       console.error('[Presentations] CloudConvert conversion failed:', {
         message: err.message,
         sourceUrl,
@@ -210,11 +182,11 @@ const convertToPdf = async (sourcePath, outputDir, options = {}) => {
       outputName,
     });
 
-    return enqueueLibreOfficeJob(`presentation:${path.basename(sourcePath)}`, async () => {
+    return enqueueLibreOfficeJob(`presentation:${path.basename(sourcePath)}`, async (signal) => {
       let lastError;
       for (const command of [localCommand]) {
         try {
-          await runLibreOfficeConvert(command, sourcePath, outputDir);
+          await runLibreOfficeConvert(command, sourcePath, outputDir, { signal });
           console.log('[Presentations] LibreOffice conversion succeeded:', {
             command,
             sourcePath,

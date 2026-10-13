@@ -1,6 +1,6 @@
 import api from './api';
 
-export const startSubscriptionPayment = async ({ planCode, phoneNumber, paymentMethod = 'momo', promoCode = '', referralCode = '', redirectUrl = `${window.location.origin}/payment/confirmation` }) => {
+export const startSubscriptionPayment = async ({ planCode, phoneNumber, paymentMethod = 'momo', promoCode = '', referralCode = '', redirectUrl = `${window.location.origin}/payment/confirmation`, idempotencyKey }) => {
   const { data } = await api.post('/candidate/subscription/checkout', {
     planCode,
     phoneNumber,
@@ -8,7 +8,7 @@ export const startSubscriptionPayment = async ({ planCode, phoneNumber, paymentM
     promoCode,
     referralCode,
     redirectUrl,
-  });
+  }, { headers: idempotencyKey ? { 'X-Idempotency-Key': idempotencyKey } : {} });
   return data;
 };
 

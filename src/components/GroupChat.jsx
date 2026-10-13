@@ -481,7 +481,7 @@ const GroupChat = ({ mode = 'candidate' }) => {
             description: requirement.message,
             amount: requirement.amount,
             currency: requirement.currency,
-            onStartPayment: async ({ phoneNumber, paymentMethod = 'momo', promoCode = '' }) => {
+            onStartPayment: async ({ phoneNumber, paymentMethod = 'momo', promoCode = '', idempotencyKey }) => {
               const { data } = await api.post('/candidate/payments/centers/checkout', {
                 action: 'join',
                 roomId: requirement.resource_id,
@@ -489,7 +489,7 @@ const GroupChat = ({ mode = 'candidate' }) => {
                 phoneNumber,
                 promoCode,
                 referralCode: promoCode,
-              });
+              }, { headers: { 'X-Idempotency-Key': idempotencyKey } });
               return data;
             },
             onSuccess: async (result) => {
@@ -693,14 +693,14 @@ const GroupChat = ({ mode = 'candidate' }) => {
           description: requirement.message,
           amount: requirement.amount,
           currency: requirement.currency,
-          onStartPayment: async ({ phoneNumber, paymentMethod = 'momo', promoCode = '' }) => {
+          onStartPayment: async ({ phoneNumber, paymentMethod = 'momo', promoCode = '', idempotencyKey }) => {
             const { data } = await api.post('/candidate/payments/centers/checkout', {
               action: 'create',
               paymentMethod,
               phoneNumber,
               promoCode,
               referralCode: promoCode,
-            });
+            }, { headers: { 'X-Idempotency-Key': idempotencyKey } });
             return data;
           },
           onSuccess: async (result) => {
@@ -776,7 +776,7 @@ const GroupChat = ({ mode = 'candidate' }) => {
           description: requirement.message,
           amount: requirement.amount,
           currency: requirement.currency,
-          onStartPayment: async ({ phoneNumber, paymentMethod = 'momo', promoCode = '' }) => {
+          onStartPayment: async ({ phoneNumber, paymentMethod = 'momo', promoCode = '', idempotencyKey }) => {
             const { data } = await api.post('/candidate/payments/centers/checkout', {
               action: 'join',
               roomId: requirement.resource_id,
@@ -784,7 +784,7 @@ const GroupChat = ({ mode = 'candidate' }) => {
               phoneNumber,
               promoCode,
               referralCode: promoCode,
-            });
+            }, { headers: { 'X-Idempotency-Key': idempotencyKey } });
             return data;
           },
           onSuccess: async (result) => {

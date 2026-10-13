@@ -760,7 +760,7 @@ const AIAssistant = () => {
           description: requirement.message || 'Pay the configured session fee to start this study session.',
           amount: requirement.amount,
           currency: requirement.currency || 'XAF',
-          onStartPayment: async ({ phoneNumber, promoCode = '' }) => {
+          onStartPayment: async ({ phoneNumber, promoCode = '', idempotencyKey }) => {
             const { data: paymentData } = await api.post('/candidate/payments/materials/checkout', {
               resourceType: 'ai_mode',
               resourceId: selectedStudyMaterialId,
@@ -768,7 +768,7 @@ const AIAssistant = () => {
               phoneNumber,
               promoCode,
               referralCode: promoCode,
-            });
+            }, { headers: { 'X-Idempotency-Key': idempotencyKey } });
             return paymentData;
           },
           onSuccess: async () => {

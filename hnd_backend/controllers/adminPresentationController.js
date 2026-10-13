@@ -8,13 +8,13 @@ const Department = require('../models/Department');
 const mongoose = require('mongoose');
 const path = require('path');
 const fs = require('fs');
-const { spawn } = require('child_process');
 const { sendBulkBcc } = require('../services/emailService');
 const { sanitizeFilename } = require('../middlewares/requestValidation');
 const { uploadFile } = require('../utils/s3Uploader');
 const { sendBulkPushNotification, isWebPushConfigured } = require('../utils/webPush');
 const CandidateProjectSubmission = require('../models/CandidateProjectSubmission');
 const { enqueueLibreOfficeJob } = require('../services/libreOfficeQueue');
+const { runLibreOfficeConvert } = require('../services/libreOfficeRunner');
 const { isCloudConvertConfigured, convertPresentationToPdf } = require('../utils/cloudConvertClient');
 const {
   listPrograms,
@@ -59,28 +59,8 @@ const parseGitHubUrl = (value) => {
 };
 
 // PDF Conversion Functions
-const runLibreOfficeConvert = (command, sourcePath, outputDir) =>
-  new Promise((resolve, reject) => {
-    const args = ['--headless', '--convert-to', 'pdf', sourcePath, '--outdir', outputDir];
-    const child = spawn(command, args, { windowsHide: true });
-
-    let stderr = '';
-    child.stderr.on('data', (buf) => {
-      stderr += buf.toString();
-    });
-
-    child.on('error', (err) => {
-      reject(err);
-    });
-
-    child.on('close', (code) => {
-      if (code !== 0) return reject(new Error(stderr || `LibreOffice exited with code ${code}`));
-      return resolve();
-    });
-  });
-
 const convertToPdf = async (sourcePath, outputDir) => {
-  return enqueueLibreOfficeJob(`presentation:${path.basename(sourcePath)}`, async () => {
+  return enqueueLibreOfficeJob(`presentation:${path.basename(sourcePath)}`, async (signal) => {
     const ext = path.extname(sourcePath).toLowerCase();
     if (isCloudConvertConfigured() && ['.ppt', '.pptx'].includes(ext)) {
       try {
@@ -88,6 +68,7 @@ const convertToPdf = async (sourcePath, outputDir) => {
           sourcePath: path.resolve(sourcePath),
           outputDir,
           outputName: path.basename(sourcePath),
+          signal,
         });
       } catch (err) {
         console.error('[AdminPresentation] CloudConvert conversion failed, falling back to LibreOffice:', err.message);
@@ -97,7 +78,7 @@ const convertToPdf = async (sourcePath, outputDir) => {
     let lastError;
     for (const command of COMMAND_CANDIDATES) {
       try {
-        await runLibreOfficeConvert(command, sourcePath, outputDir);
+        await runLibreOfficeConvert(command, sourcePath, outputDir, { signal });
         return;
       } catch (err) {
         lastError = err;

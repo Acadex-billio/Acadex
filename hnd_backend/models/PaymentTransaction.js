@@ -17,7 +17,7 @@ const paymentTransactionSchema = new mongoose.Schema(
     external_reference: { type: String, required: true, unique: true, trim: true },
     provider_reference: { type: String, default: null, trim: true, index: true },
     external_id: { type: String, default: null, trim: true },
-    status: { type: String, enum: ['pending', 'successful', 'failed', 'cancelled', 'expired'], default: 'pending', index: true },
+    status: { type: String, enum: ['pending', 'successful', 'failed', 'cancelled', 'expired', 'refunded'], default: 'pending', index: true },
     provider_response: { type: mongoose.Schema.Types.Mixed, default: null },
     metadata: { type: mongoose.Schema.Types.Mixed, default: null },
     initiated_at: { type: Date, default: Date.now },

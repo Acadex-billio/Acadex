@@ -275,7 +275,7 @@ const ViewReport = () => {
       : 'PAYGO requires a separate payment before you can preview every page of this report.'),
     amount: requirement?.amount ?? (action === 'download' ? report?.paygo_download_price : report?.paygo_preview_price) ?? null,
     currency: requirement?.currency || 'XAF',
-    onStartPayment: async ({ phoneNumber, paymentMethod = 'momo', promoCode = '' }) => {
+    onStartPayment: async ({ phoneNumber, paymentMethod = 'momo', promoCode = '', idempotencyKey }) => {
       const { data } = await api.post('/candidate/payments/materials/checkout', {
         resourceType: 'report',
         resourceId: report.report_id,
@@ -284,7 +284,7 @@ const ViewReport = () => {
         phoneNumber,
         promoCode,
         referralCode: promoCode,
-      });
+      }, { headers: { 'X-Idempotency-Key': idempotencyKey } });
       return data;
     },
     onSuccess: async () => {

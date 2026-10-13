@@ -10,7 +10,8 @@ const parsePositiveInt = (value, fallback) => {
 
 const CONCURRENCY = parsePositiveInt(process.env.LIBREOFFICE_QUEUE_CONCURRENCY, 2);
 const MAX_QUEUE_SIZE = parsePositiveInt(process.env.LIBREOFFICE_QUEUE_MAX_SIZE, 200);
-const JOB_WAIT_TIMEOUT_MS = parsePositiveInt(process.env.LIBREOFFICE_QUEUE_WAIT_TIMEOUT_MS, 120000);
+const QUEUE_WAIT_TIMEOUT_MS = parsePositiveInt(process.env.LIBREOFFICE_QUEUE_WAIT_TIMEOUT_MS, 120000);
+const JOB_EXECUTION_TIMEOUT_MS = parsePositiveInt(process.env.LIBREOFFICE_JOB_EXECUTION_TIMEOUT_MS, 60000);
 
 const state = {
   running: 0,
@@ -19,41 +20,59 @@ const state = {
   failed: 0,
 };
 
+const createQueueError = (code, message) => {
+  const err = new Error(message);
+  err.code = code;
+  return err;
+};
+
+const removeQueuedJob = (job) => {
+  const index = state.queued.indexOf(job);
+  if (index < 0) return false;
+  state.queued.splice(index, 1);
+  return true;
+};
+
 const next = () => {
   while (state.running < CONCURRENCY && state.queued.length > 0) {
     const job = state.queued.shift();
+    clearTimeout(job.waitTimer);
+    job.waitTimer = null;
+    job.state = 'running';
     state.running += 1;
 
-    let settled = false;
-    const timer = setTimeout(() => {
-      if (settled) return;
-      settled = true;
-      state.running -= 1;
-      state.failed += 1;
-      const err = new Error('LibreOffice queue wait timeout exceeded');
-      err.code = 'QUEUE_WAIT_TIMEOUT';
-      job.reject(err);
-      next();
-    }, JOB_WAIT_TIMEOUT_MS);
+    const controller = new AbortController();
+    let callerSettled = false;
+    const executionTimer = setTimeout(() => {
+      const err = createQueueError('JOB_EXECUTION_TIMEOUT', 'LibreOffice job execution timed out');
+      controller.abort(err);
+      if (!callerSettled) {
+        callerSettled = true;
+        state.failed += 1;
+        job.reject(err);
+      }
+    }, JOB_EXECUTION_TIMEOUT_MS);
 
     Promise.resolve()
-      .then(() => job.work())
+      .then(() => job.work(controller.signal))
       .then((result) => {
-        if (settled) return;
-        settled = true;
-        clearTimeout(timer);
+        clearTimeout(executionTimer);
         state.running -= 1;
-        state.completed += 1;
-        job.resolve(result);
+        if (!callerSettled) {
+          callerSettled = true;
+          state.completed += 1;
+          job.resolve(result);
+        }
         next();
       })
       .catch((err) => {
-        if (settled) return;
-        settled = true;
-        clearTimeout(timer);
+        clearTimeout(executionTimer);
         state.running -= 1;
-        state.failed += 1;
-        job.reject(err);
+        if (!callerSettled) {
+          callerSettled = true;
+          state.failed += 1;
+          job.reject(err);
+        }
         next();
       });
   }
@@ -61,20 +80,24 @@ const next = () => {
 
 const enqueueLibreOfficeJob = (name, work) => {
   if (typeof work !== 'function') {
-    const err = new Error('Queue work must be a function');
-    err.code = 'QUEUE_INVALID_JOB';
-    throw err;
+    throw createQueueError('QUEUE_INVALID_JOB', 'Queue work must be a function');
   }
 
   const totalInSystem = state.running + state.queued.length;
   if (totalInSystem >= MAX_QUEUE_SIZE) {
-    const err = new Error('LibreOffice queue is full');
-    err.code = 'QUEUE_FULL';
-    throw err;
+    throw createQueueError('QUEUE_FULL', 'LibreOffice queue is full');
   }
 
   return new Promise((resolve, reject) => {
-    state.queued.push({ name, work, resolve, reject });
+    const job = { name, work, resolve, reject, state: 'queued', waitTimer: null };
+    job.waitTimer = setTimeout(() => {
+      if (!removeQueuedJob(job)) return;
+      job.state = 'timed_out';
+      state.failed += 1;
+      reject(createQueueError('QUEUE_WAIT_TIMEOUT', 'LibreOffice queue wait timeout exceeded'));
+    }, QUEUE_WAIT_TIMEOUT_MS);
+
+    state.queued.push(job);
     if (queueDebugEnabled) {
       console.log('[LibreOfficeQueue] Enqueued job:', {
         name,

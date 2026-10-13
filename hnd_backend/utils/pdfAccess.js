@@ -1,14 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const { PDFDocument, rgb, StandardFonts, degrees } = require('pdf-lib');
-
-async function streamToBuffer(stream) {
-  const chunks = [];
-  for await (const chunk of stream) {
-    chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
-  }
-  return Buffer.concat(chunks);
-}
+const { streamToBuffer } = require('./streamLimits');
 
 async function subsetPdfBuffer(inputBuffer, maxPages) {
   if (!maxPages || maxPages < 1) return inputBuffer;

@@ -257,13 +257,14 @@ const CandidateSubscriptions = () => {
         currency={selectedPlan?.currency || 'XAF'}
         confirmLabel={selectedPlan ? 'Pay now' : 'Pay now'}
         onClose={() => setSelectedPlan(null)}
-        onStartPayment={async ({ phoneNumber, paymentMethod, promoCode = '' }) => {
+        onStartPayment={async ({ phoneNumber, paymentMethod, promoCode = '', idempotencyKey }) => {
           return startSubscriptionPayment({
             planCode: selectedPlan.code,
             phoneNumber,
             paymentMethod,
             promoCode,
             referralCode: promoCode,
+            idempotencyKey,
           });
         }}
         onSuccess={async (result) => {

@@ -73,6 +73,12 @@ function buildPaymentSummary(transaction) {
     phone_number: transaction.phone_number,
     description: transaction.description,
     status: transaction.status,
+    provider_status: String(
+      transaction?.provider_response?.status
+      || transaction?.provider_response?.payment_status
+      || transaction?.provider_response?.data?.status
+      || ''
+    ).toLowerCase() || null,
     provider: transaction.provider,
     provider_mode: transaction.provider_mode,
     provider_reference: transaction.provider_reference || null,

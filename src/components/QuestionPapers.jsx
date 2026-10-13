@@ -219,7 +219,7 @@ const QuestionPapers = () => {
       : 'PAYGO requires a separate payment before you can preview every page of this question paper.'),
     amount: requirement?.amount ?? (action === 'download' ? paper?.paygo_download_price : paper?.paygo_preview_price) ?? null,
     currency: requirement?.currency || 'XAF',
-    onStartPayment: async ({ phoneNumber, paymentMethod = 'momo', promoCode = '' }) => {
+    onStartPayment: async ({ phoneNumber, paymentMethod = 'momo', promoCode = '', idempotencyKey }) => {
       const { data } = await api.post('/candidate/payments/materials/checkout', {
         resourceType: 'question_paper',
         resourceId: paper.qp_id,
@@ -228,7 +228,7 @@ const QuestionPapers = () => {
         phoneNumber,
         promoCode,
         referralCode: promoCode,
-      });
+      }, { headers: { 'X-Idempotency-Key': idempotencyKey } });
       return data;
     },
     onSuccess: async () => {

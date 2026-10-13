@@ -55,7 +55,8 @@ const mapProviderStatusToTransactionStatus = (status) => {
   const normalized = String(status || '').toLowerCase();
   if (['successful', 'success', 'completed', 'paid', 'paid_success', 'paid_successful', 'settled'].includes(normalized)) return 'successful';
   if (['pending', 'processing', 'initiated', 'created', 'unknown', 'queued', 'started'].includes(normalized)) return 'pending';
-  if (['failed', 'cancelled', 'expired'].includes(normalized)) return normalized;
+  if (['failed', 'cancelled', 'expired', 'refunded'].includes(normalized)) return normalized;
+  if (normalized === 'reversed') return 'refunded';
   return 'failed';
 };
 
@@ -63,6 +64,8 @@ const isAmbiguousInitiationError = (err) => {
   const statusCode = Number(err?.statusCode || 0);
   const providerBody = parseProviderBody(err?.responseBody);
   const providerErrorCode = String(providerBody?.code || '').toUpperCase();
+  if (providerErrorCode === 'ENOTFOUND') return false;
+
   return statusCode === 0
     || ['NETWORK_ERROR', 'NO_RESPONSE'].includes(providerErrorCode)
     || String(err?.message || '').toLowerCase().includes('unable to reach camerpay')
@@ -152,7 +155,7 @@ const startCamerpayPayment = async ({
   transaction.provider_mode = providerResult.providerMode || transaction.provider_mode;
   transaction.provider_response = providerResult.providerResponse || null;
   transaction.status = mapProviderStatusToTransactionStatus(providerResult.status);
-  transaction.completed_at = providerResult.status === 'successful' ? new Date() : null;
+  transaction.completed_at = transaction.status === 'pending' ? null : new Date();
 
   if (providerResult.status === 'successful' && typeof onSuccessfulPayment === 'function') {
     await onSuccessfulPayment(transaction);

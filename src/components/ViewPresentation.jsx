@@ -399,7 +399,7 @@ const ViewPresentation = () => {
       : 'A payment is required before you can preview every page of this presentation.'),
     amount: requirement?.amount ?? (action === 'download' ? presentation?.paygo_download_price : presentation?.paygo_preview_price) ?? null,
     currency: requirement?.currency || 'XAF',
-    onStartPayment: async ({ phoneNumber, paymentMethod = 'momo', promoCode = '' }) => {
+    onStartPayment: async ({ phoneNumber, paymentMethod = 'momo', promoCode = '', idempotencyKey }) => {
       const { data } = await api.post('/candidate/payments/materials/checkout', {
         resourceType: 'presentation',
         resourceId: presentation.presentation_id,
@@ -408,7 +408,7 @@ const ViewPresentation = () => {
         phoneNumber,
         promoCode,
         referralCode: promoCode,
-      });
+      }, { headers: { 'X-Idempotency-Key': idempotencyKey } });
       return data;
     },
     onSuccess: async () => {

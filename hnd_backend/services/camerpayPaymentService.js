@@ -15,12 +15,15 @@ const CAMERPAY_API_BASE_URL_DEFAULT = 'https://api.camerpay.biz';
 const configuredApiBaseUrl = String(process.env.CAMERPAY_API_BASE_URL || CAMERPAY_API_BASE_URL_DEFAULT).replace(/\/$/, '').trim();
 const CAMERPAY_API_BASE_URL = configuredApiBaseUrl || CAMERPAY_API_BASE_URL_DEFAULT;
 const CAMERPAY_API_FALLBACK_BASE_URL = null;
-const CAMERPAY_SIMULATION_MODE = String(process.env.CAMERPAY_ALLOW_SIMULATION || '').trim().toLowerCase() === 'true'
-  || CAMERPAY_API_BASE_URL.toLowerCase().includes('demo')
-  || CAMERPAY_API_BASE_URL.toLowerCase().includes('sandbox');
+const CAMERPAY_SIMULATION_MODE = String(process.env.CAMERPAY_ALLOW_SIMULATION || '').trim().toLowerCase() === 'true';
 const CAMERPAY_SIMULATION_SUCCESS_AFTER_MS = Math.max(3000, Number(process.env.CAMERPAY_SIMULATION_SUCCESS_AFTER_MS || 8000));
-const CAMERPAY_SIMULATION_MAX_PENDING_CHECKS = Math.max(1, Number(process.env.CAMERPAY_SIMULATION_MAX_PENDING_CHECKS || 2));
+const CAMERPAY_SIMULATION_STATE_TTL_MS = Math.max(60000, Number(process.env.CAMERPAY_SIMULATION_STATE_TTL_MS || 30 * 60 * 1000));
+const CAMERPAY_SIMULATION_STATE_MAX_ENTRIES = 5000;
 const CAMERPAY_SIMULATION_STATE = new Map();
+
+if (CAMERPAY_SIMULATION_MODE && String(process.env.NODE_ENV || '').toLowerCase() === 'production') {
+  throw new Error('CAMERPAY_ALLOW_SIMULATION must not be enabled in production.');
+}
 
 try {
   if (String(CAMERPAY_API_BASE_URL || '').toLowerCase().includes('camerpay.biz')) {
@@ -46,7 +49,7 @@ try {
   });
 } catch (_) {}
 function getProviderMode() {
-  return 'production'; // CamerPay is always production-ready
+  return CAMERPAY_SIMULATION_MODE ? 'sandbox' : 'production';
 }
 
 function isConfigured() {
@@ -83,9 +86,23 @@ function mapPaymentMethodToProviderMethod(method, amount) {
   return shouldUseOrangeForLowAmount ? 'orange_money' : 'mtn_momo';
 }
 
-async function fetchJson(url, options) {
+const pruneSimulationState = (now = Date.now()) => {
+  for (const [reference, state] of CAMERPAY_SIMULATION_STATE) {
+    if (now - state.createdAt >= CAMERPAY_SIMULATION_STATE_TTL_MS) {
+      CAMERPAY_SIMULATION_STATE.delete(reference);
+    }
+  }
+
+  while (CAMERPAY_SIMULATION_STATE.size >= CAMERPAY_SIMULATION_STATE_MAX_ENTRIES) {
+    const oldestReference = CAMERPAY_SIMULATION_STATE.keys().next().value;
+    if (!oldestReference) break;
+    CAMERPAY_SIMULATION_STATE.delete(oldestReference);
+  }
+};
+
+async function fetchJson(url, options, { maxAttempts = String(options?.method || 'GET').toUpperCase() === 'GET' ? 2 : 1 } = {}) {
   let response;
-  const maxAttempts = 2;
+  let body;
 
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
     const controller = new AbortController();
@@ -100,8 +117,13 @@ async function fetchJson(url, options) {
       });
 
       response = await fetch(url, { ...options, signal: controller.signal });
+      const text = await response.text();
+      try {
+        body = text ? JSON.parse(text) : null;
+      } catch (_) {
+        body = text || null;
+      }
       const durationMs = Date.now() - attemptStart;
-      clearTimeout(timeoutId);
 
       logger.info('CamerPay request completed', {
         url,
@@ -110,11 +132,9 @@ async function fetchJson(url, options) {
         status: response.status,
         duration_ms: durationMs,
       });
-
       break;
     } catch (error) {
       const durationMs = Date.now() - attemptStart;
-      clearTimeout(timeoutId);
       const isLastAttempt = attempt === maxAttempts;
 
       logger.warn('CamerPay request error', {
@@ -142,6 +162,8 @@ async function fetchJson(url, options) {
         detail: error?.message || 'fetch failed',
       };
       throw requestErr;
+    } finally {
+      clearTimeout(timeoutId);
     }
   }
 
@@ -150,14 +172,6 @@ async function fetchJson(url, options) {
     err.statusCode = 502;
     err.responseBody = { code: 'NO_RESPONSE', endpoint: url };
     throw err;
-  }
-
-  const text = await response.text();
-  let body = null;
-  try {
-    body = text ? JSON.parse(text) : null;
-  } catch (_) {
-    body = text || null;
   }
 
   if (!response.ok) {
@@ -257,9 +271,9 @@ async function initiateCollectionPayment({
 
     if (!CAMERPAY_TOKEN && CAMERPAY_SIMULATION_MODE) {
       const providerReference = reference;
+      pruneSimulationState();
       CAMERPAY_SIMULATION_STATE.set(providerReference, {
         createdAt: Date.now(),
-        checks: 0,
         amount: Number(amount),
         currency: paymentCurrency,
         customer_phone: sanitizedPhone,
@@ -316,6 +330,10 @@ async function initiateCollectionPayment({
           statusCode: err.statusCode,
           attemptUrls: requestUrls,
         });
+        if (String(err?.responseBody?.code || '').toUpperCase() === 'NETWORK_ERROR'
+          || String(err?.responseBody?.code || '').toUpperCase() === 'NO_RESPONSE') {
+          break;
+        }
       }
     }
 
@@ -385,23 +403,24 @@ async function getCollectionPaymentStatus(providerReference) {
   }
 
   if (!CAMERPAY_TOKEN && CAMERPAY_SIMULATION_MODE) {
-    const simulationState = CAMERPAY_SIMULATION_STATE.get(providerReference) || {
-      createdAt: Date.now(),
-      checks: 0,
-      amount: null,
-      currency: null,
-      customer_phone: null,
-    };
-    simulationState.checks += 1;
-    CAMERPAY_SIMULATION_STATE.set(providerReference, simulationState);
+    pruneSimulationState();
+    const simulationState = CAMERPAY_SIMULATION_STATE.get(providerReference);
+    if (!simulationState) {
+      return {
+        provider: 'camerpay',
+        providerMode: getProviderMode(),
+        providerReference,
+        status: 'unknown',
+        providerResponse: { simulated: true, error: 'Unknown or expired simulation reference' },
+      };
+    }
     const ageMs = Date.now() - simulationState.createdAt;
-    const simulatedSuccess = ageMs >= CAMERPAY_SIMULATION_SUCCESS_AFTER_MS || simulationState.checks >= CAMERPAY_SIMULATION_MAX_PENDING_CHECKS;
+    const simulatedSuccess = ageMs >= CAMERPAY_SIMULATION_SUCCESS_AFTER_MS;
     const simulatedStatus = simulatedSuccess ? 'successful' : 'pending';
 
     logger.info('CamerPay payment status read simulated locally', {
       providerReference,
       status: simulatedStatus,
-      attempt: simulationState.checks,
       age_ms: ageMs,
     });
 
@@ -417,7 +436,6 @@ async function getCollectionPaymentStatus(providerReference) {
         simulated: true,
         provider_reference: providerReference,
         status: simulatedStatus,
-        checks: simulationState.checks,
         age_ms: ageMs,
       },
     };
@@ -485,6 +503,8 @@ async function getCollectionPaymentStatus(providerReference) {
       ? 'successful'
       : ['failed', 'cancelled', 'declined', 'expired', 'rejected'].includes(providerStatus)
         ? 'failed'
+        : ['refunded', 'reversed'].includes(providerStatus)
+          ? 'refunded'
         : ['pending', 'processing', 'initiated', 'created', 'queued', 'started', 'unknown', 'awaiting_payment', 'awaiting_approval', 'waiting_for_approval', 'waiting_approval', 'pending_approval', 'awaiting_confirmation'].includes(providerStatus)
           ? 'pending'
           : 'pending';

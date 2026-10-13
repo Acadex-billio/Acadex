@@ -4,6 +4,7 @@ const assert = require('node:assert/strict');
 const {
   normalizeCheckoutError,
   isAmbiguousInitiationError,
+  mapProviderStatusToTransactionStatus,
 } = require('../services/paymentOrchestrationService');
 
 test('provider authorization failures become gateway errors, not candidate session errors', () => {
@@ -47,4 +48,24 @@ test('network failures remain ambiguous because provider acceptance is unknown',
     statusCode: 502,
     message: 'Unable to reach CamerPay API. Please retry in a moment.',
   }), true);
+});
+
+test('DNS resolution failures are definitive because no provider request could be sent', () => {
+  assert.equal(isAmbiguousInitiationError({
+    statusCode: 502,
+    message: 'Unable to reach CamerPay API. Please retry in a moment.',
+    responseBody: {
+      code: 'ENOTFOUND',
+      endpoint: 'https://api.camerpay.biz/api/payment/initiate',
+      detail: 'fetch failed',
+    },
+  }), false);
+});
+
+test('provider terminal states, including refunds, remain distinct', () => {
+  assert.equal(mapProviderStatusToTransactionStatus('successful'), 'successful');
+  assert.equal(mapProviderStatusToTransactionStatus('failed'), 'failed');
+  assert.equal(mapProviderStatusToTransactionStatus('cancelled'), 'cancelled');
+  assert.equal(mapProviderStatusToTransactionStatus('refunded'), 'refunded');
+  assert.equal(mapProviderStatusToTransactionStatus('reversed'), 'refunded');
 });

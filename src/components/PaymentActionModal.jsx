@@ -4,6 +4,8 @@ import { showToast } from '../utility/ToastNotification';
 import { getErrorMessage } from '../utility/getErrorMessage';
 
 const wait = (ms) => new Promise((resolve) => window.setTimeout(resolve, ms));
+const PAYMENT_STATUS_TIMEOUT_MS = 2 * 60 * 1000;
+const MAX_STATUS_REQUEST_TIMEOUT_MS = 30000;
 
 const PAYMENT_PROGRESS_SEQUENCE = [
   'Starting payment...',
@@ -41,6 +43,7 @@ const PaymentActionModal = ({
   const [statusText, setStatusText] = useState('');
   const [retryAvailable, setRetryAvailable] = useState(false);
   const [pendingPaymentReference, setPendingPaymentReference] = useState('');
+  const [idempotencyKey, setIdempotencyKey] = useState('');
 
   useEffect(() => {
     if (isOpen) {
@@ -51,6 +54,7 @@ const PaymentActionModal = ({
       setStatusText('');
       setRetryAvailable(false);
       setPendingPaymentReference('');
+      setIdempotencyKey('');
     }
   }, [defaultPhoneNumber, isOpen]);
 
@@ -75,39 +79,41 @@ const PaymentActionModal = ({
   if (!isOpen) return null;
 
   const pollStatus = async (transactionId) => {
-    for (let attempt = 0; attempt < 15; attempt += 1) {
+    const deadline = Date.now() + PAYMENT_STATUS_TIMEOUT_MS;
+    let attempt = 0;
+
+    while (Date.now() < deadline) {
+      const remainingMs = deadline - Date.now();
       try {
-        const { data } = await api.get(`/candidate/payments/${encodeURIComponent(transactionId)}/status`);
-        const status = String(data?.payment?.status || '').toLowerCase();
-        const providerStatus = String(data?.payment?.provider_status || '').toLowerCase();
-        const combinedStatus = status || providerStatus || '';
+        const { data } = await api.get(`/candidate/payments/${encodeURIComponent(transactionId)}/status`, {
+          timeout: Math.min(MAX_STATUS_REQUEST_TIMEOUT_MS, remainingMs),
+        });
+        const status = String(data?.payment?.status || '').trim().toLowerCase();
+        const providerStatus = String(data?.payment?.provider_status || '').trim().toLowerCase();
+        const normalizedStatuses = [status, providerStatus];
 
-        if (combinedStatus === 'successful' || combinedStatus === 'paid' || combinedStatus === 'approved') {
-          return data;
-        }
-
-        if (['failed', 'cancelled', 'expired', 'rejected', 'declined'].includes(combinedStatus)) {
-          const err = new Error(`Payment ${combinedStatus}.`);
+        const terminalStatus = normalizedStatuses.find((value) => ['failed', 'cancelled', 'expired', 'rejected', 'declined', 'refunded'].includes(value));
+        if (terminalStatus) {
+          const err = new Error(`Payment ${terminalStatus}.`);
           err.paymentData = data;
           throw err;
         }
-
-        const nextStatus = PAYMENT_PROGRESS_SEQUENCE[Math.min(attempt + 3, PAYMENT_PROGRESS_SEQUENCE.length - 1)];
-        setStatusText(nextStatus);
-      } catch (err) {
-        if (attempt < 14) {
-          const currentAttempt = attempt + 1;
-          if (currentAttempt >= 3) {
-            setStatusText(PAYMENT_PROGRESS_SEQUENCE[4]);
-          } else {
-            setStatusText(PAYMENT_PROGRESS_SEQUENCE[3]);
-          }
-          await wait(3000);
-          continue;
+        if (normalizedStatuses.some((value) => ['successful', 'paid', 'approved'].includes(value))) {
+          return data;
         }
-        throw err;
+
+        const combinedStatus = status || providerStatus;
+        setStatusText(combinedStatus === 'pending' || combinedStatus === 'processing'
+          ? PAYMENT_PROGRESS_SEQUENCE[Math.min(attempt + 3, PAYMENT_PROGRESS_SEQUENCE.length - 1)]
+          : 'Payment status is not confirmed yet. Checking again...');
+      } catch (err) {
+        if (err?.paymentData || !isRetryableError(err)) throw err;
+        setStatusText('Payment status could not be refreshed. Retrying shortly...');
       }
-      await wait(3000);
+
+      const delayMs = Math.min(8000, 1500 * (2 ** attempt));
+      await wait(Math.min(delayMs, Math.max(0, deadline - Date.now())));
+      attempt += 1;
     }
 
     const err = new Error('Payment confirmation timed out.');
@@ -119,7 +125,14 @@ const PaymentActionModal = ({
     const status = Number(err?.statusCode || err?.response?.status || 0);
     const code = String(err?.code || '').toUpperCase();
     const message = String(err?.message || '').toLowerCase();
-    return status === 408 || status === 504 || code === 'ECONNABORTED' || code === 'ERR_NETWORK' || message.includes('timed out') || message.includes('network');
+    const providerErrorCode = String(
+      err?.response?.data?.provider_error?.code
+      || err?.normalized?.details?.code
+      || ''
+    ).toUpperCase();
+    if (providerErrorCode === 'ENOTFOUND') return false;
+
+    return status === 408 || status === 429 || status >= 500 || code === 'ECONNABORTED' || code === 'ERR_NETWORK' || message.includes('timed out') || message.includes('network');
   };
 
   const resumePaymentCheck = async (transactionId) => {
@@ -128,12 +141,22 @@ const PaymentActionModal = ({
     setRetryAvailable(false);
     setSubmitting(true);
     setStatusText('Retrying payment check...');
+    let retryableFailure = false;
 
     try {
       const finalResult = await pollStatus(transactionId);
       const finalPayment = (finalResult?.payment || {}) || {};
-      const finalPaymentStatus = String(finalPayment.status || finalPayment.provider_status || '').toLowerCase();
-      if (!['successful', 'paid', 'approved'].includes(finalPaymentStatus)) {
+      const finalPaymentStatuses = [
+        String(finalPayment.status || '').toLowerCase(),
+        String(finalPayment.provider_status || '').toLowerCase(),
+      ];
+      const finalTerminalStatus = finalPaymentStatuses.find((status) => ['failed', 'cancelled', 'expired', 'rejected', 'declined', 'refunded'].includes(status));
+      if (finalTerminalStatus) {
+        throw new Error(`Payment ${finalTerminalStatus}.`);
+      }
+      const finalSuccessStatus = finalPaymentStatuses.find((status) => ['successful', 'paid', 'approved'].includes(status));
+      if (!finalSuccessStatus) {
+        const finalPaymentStatus = finalPaymentStatuses.find(Boolean) || 'failed';
         throw new Error(`Payment ${finalPaymentStatus || 'failed'}.`);
       }
 
@@ -146,17 +169,17 @@ const PaymentActionModal = ({
       onClose?.();
     } catch (err) {
       if (isRetryableError(err)) {
+        retryableFailure = true;
         setRetryAvailable(true);
-        setStatusText('The connection timed out. Check your internet connection and try again.');
-        showToast('The connection timed out. Check your internet connection and try again.', 'warning');
+        setStatusText('Payment status is still unknown. Check your connection and try again; do not start another payment.');
+        showToast('Payment status is still unknown. Please check again before starting another payment.', 'warning');
         return;
       }
+      if (err?.paymentData) setPendingPaymentReference('');
       showToast(getErrorMessage(err, 'Payment failed.'), 'error');
     } finally {
-      if (!retryAvailable) {
-        setSubmitting(false);
-        setStatusText('');
-      }
+      setSubmitting(false);
+      if (!retryableFailure) setStatusText('');
     }
   };
 
@@ -168,10 +191,16 @@ const PaymentActionModal = ({
     }
 
     const normalizedPromoCode = String(promoCode || '').trim().toUpperCase();
+    const checkoutIdempotencyKey = idempotencyKey || window.crypto?.randomUUID?.();
+    if (!checkoutIdempotencyKey) {
+      showToast('Secure payment initialization is unavailable in this browser. Please use a supported browser.', 'error');
+      return;
+    }
     setSubmitting(true);
     setRetryAvailable(false);
-    setPendingPaymentReference('');
+    if (!idempotencyKey) setIdempotencyKey(checkoutIdempotencyKey);
     setStatusText(PAYMENT_PROGRESS_SEQUENCE[0]);
+    let retryableFailure = false;
 
     try {
       if (typeof onStartPayment !== 'function') {
@@ -182,29 +211,47 @@ const PaymentActionModal = ({
         phoneNumber: `+237${cleanPhone}`,
         paymentMethod,
         promoCode: normalizedPromoCode,
+        idempotencyKey: checkoutIdempotencyKey,
       });
 
       const payment = startResult?.payment || startResult;
       const paymentRef = payment?.provider_reference || payment?.transaction_id;
       if (!paymentRef) {
-        throw new Error('Payment could not be initialized.');
+        const ambiguousError = new Error('Payment status could not be confirmed. Retry using the same payment request.');
+        ambiguousError.statusCode = 408;
+        throw ambiguousError;
       }
       setPendingPaymentReference(paymentRef);
 
       let finalResult = startResult;
       const normalizedStatus = String(payment.status || '').toLowerCase();
       const providerStatus = String(payment.provider_status || '').toLowerCase();
-      const combinedStatus = normalizedStatus || providerStatus || '';
-      const isAlreadySuccessful = ['successful', 'paid', 'approved'].includes(combinedStatus);
+      const paymentStatuses = [normalizedStatus, providerStatus];
+      const terminalStatus = paymentStatuses.find((status) => ['failed', 'cancelled', 'expired', 'rejected', 'declined', 'refunded'].includes(status));
+      const isAlreadySuccessful = paymentStatuses.some((status) => ['successful', 'paid', 'approved'].includes(status));
 
+      if (terminalStatus) {
+        const terminalError = new Error(`Payment ${terminalStatus}.`);
+        terminalError.paymentData = startResult;
+        throw terminalError;
+      }
       if (!isAlreadySuccessful) {
         setStatusText(PAYMENT_PROGRESS_SEQUENCE[3]);
         finalResult = await pollStatus(paymentRef);
       }
 
       const finalPayment = (finalResult?.payment || payment) || {};
-      const finalPaymentStatus = String(finalPayment.status || finalPayment.provider_status || '').toLowerCase();
-      if (!['successful', 'paid', 'approved'].includes(finalPaymentStatus)) {
+      const finalPaymentStatuses = [
+        String(finalPayment.status || '').toLowerCase(),
+        String(finalPayment.provider_status || '').toLowerCase(),
+      ];
+      const finalTerminalStatus = finalPaymentStatuses.find((status) => ['failed', 'cancelled', 'expired', 'rejected', 'declined', 'refunded'].includes(status));
+      if (finalTerminalStatus) {
+        throw new Error(`Payment ${finalTerminalStatus}.`);
+      }
+      const finalSuccessStatus = finalPaymentStatuses.find((status) => ['successful', 'paid', 'approved'].includes(status));
+      if (!finalSuccessStatus) {
+        const finalPaymentStatus = finalPaymentStatuses.find(Boolean) || 'failed';
         throw new Error(`Payment ${finalPaymentStatus || 'failed'}.`);
       }
 
@@ -217,17 +264,18 @@ const PaymentActionModal = ({
       onClose?.();
     } catch (err) {
       if (isRetryableError(err)) {
+        retryableFailure = true;
         setRetryAvailable(true);
-        setStatusText('The connection timed out. Check your internet connection and try again.');
-        showToast('The connection timed out. Check your internet connection and try again.', 'warning');
+        setStatusText('The payment result is unknown. Retry using the same payment details to avoid creating a duplicate.');
+        showToast('The payment result is unknown. Please retry with the same payment details before creating another payment.', 'warning');
         return;
       }
+      if (err?.paymentData) setPendingPaymentReference('');
+      if (!isRetryableError(err)) setIdempotencyKey('');
       showToast(getErrorMessage(err, 'Payment failed.'), 'error');
     } finally {
-      if (!retryAvailable) {
-        setSubmitting(false);
-        setStatusText('');
-      }
+      setSubmitting(false);
+      if (!retryableFailure) setStatusText('');
     }
   };
 
@@ -342,7 +390,7 @@ const PaymentActionModal = ({
                 <select
                   value={paymentMethod}
                   onChange={(e) => setPaymentMethod(e.target.value)}
-                  disabled={submitting}
+                  disabled={submitting || retryAvailable}
                   style={{
                     border: '1px solid #cddbe5',
                     borderRadius: 10,
@@ -390,7 +438,7 @@ const PaymentActionModal = ({
                 value={phoneNumber}
                 onChange={(e) => setPhoneNumber(e.target.value.replace(/\D/g, '').slice(0, 9))}
                 placeholder="6XXXXXXXX"
-                disabled={submitting}
+                disabled={submitting || retryAvailable}
                 inputMode="numeric"
                 pattern="[0-9]{9}"
                 maxLength={9}
@@ -416,7 +464,7 @@ const PaymentActionModal = ({
           value={promoCode}
           onChange={(e) => setPromoCode(e.target.value.toUpperCase().replace(/\s+/g, '').slice(0, 30))}
           placeholder="ENTER CODE"
-          disabled={submitting}
+          disabled={submitting || retryAvailable}
           style={{
             width: '100%',
             marginTop: 8,
@@ -431,11 +479,13 @@ const PaymentActionModal = ({
 
         {!submitting && statusText ? <div style={{ marginTop: 12, color: '#0e5f84', fontSize: 14 }}>{statusText}</div> : null}
 
-        {retryAvailable && pendingPaymentReference ? (
+        {retryAvailable ? (
           <div style={{ marginTop: 14, display: 'flex', justifyContent: 'flex-end' }}>
             <button
               type="button"
-              onClick={() => resumePaymentCheck(pendingPaymentReference)}
+              onClick={() => pendingPaymentReference
+                ? resumePaymentCheck(pendingPaymentReference)
+                : handleSubmit()}
               style={{
                 border: '1px solid #0e5f84',
                 background: '#ffffff',
@@ -446,7 +496,7 @@ const PaymentActionModal = ({
                 cursor: 'pointer',
               }}
             >
-              Retry payment check
+              {pendingPaymentReference ? 'Check payment status again' : 'Retry same payment request'}
             </button>
           </div>
         ) : null}
@@ -470,7 +520,7 @@ const PaymentActionModal = ({
           <button
             type="button"
             onClick={handleSubmit}
-            disabled={submitting}
+            disabled={submitting || retryAvailable}
             style={{
               border: 'none',
               background: 'linear-gradient(135deg, #0e5f84 0%, #0b4561 100%)',
