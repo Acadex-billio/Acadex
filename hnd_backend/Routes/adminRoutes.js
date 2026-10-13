@@ -114,6 +114,7 @@ router.post('/presentations/batch/convert', adminPresentationController.batchCon
 
 router.get('/candidates', adminCandidateController.listCandidates);
 router.get('/candidates/:candId', validate({ params: schemas.ids.candIdParam }), adminCandidateController.getCandidateDetails);
+router.post('/candidates/:candId/reset-password', validate({ params: schemas.ids.candIdParam }), adminCandidateController.resetCandidatePassword);
 router.put('/candidates/:candId/suspend', validate({ params: schemas.ids.candIdParam }), adminCandidateController.suspendCandidate);
 router.put('/candidates/:candId/block', validate({ params: schemas.ids.candIdParam }), adminCandidateController.blockCandidate);
 router.put('/candidates/:candId/reactivate', validate({ params: schemas.ids.candIdParam }), adminCandidateController.reactivateCandidate);

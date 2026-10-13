@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { FaCopy } from 'react-icons/fa';
 import api from '../services/api';
 import GraduationCapLoader from './GraduationCapLoader';
 import { showToast } from '../utility/ToastNotification';
@@ -24,6 +25,7 @@ const ManageCandidates = ({ fixedRole = 'candidate', title = 'Manage Candidates'
   const [suspendEnd, setSuspendEnd] = useState('');
   const [actionReason, setActionReason] = useState('');
   const [saving, setSaving] = useState(false);
+  const [resetPassword, setResetPassword] = useState('');
 
   const [individualProgram, setIndividualProgram] = useState('');
   const [bulkCurrentProgram, setBulkCurrentProgram] = useState('HND');
@@ -83,6 +85,7 @@ const ManageCandidates = ({ fixedRole = 'candidate', title = 'Manage Candidates'
     try {
       setSelected(candId);
       setDetails(null);
+      setResetPassword('');
       const { data } = await api.get(`/admin/candidates/${encodeURIComponent(candId)}`);
       const nextDetails = data?.candidate || null;
       setDetails(nextDetails);
@@ -100,6 +103,7 @@ const ManageCandidates = ({ fixedRole = 'candidate', title = 'Manage Candidates'
   const closeModal = () => {
     setSelected(null);
     setDetails(null);
+    setResetPassword('');
   };
 
   const statusLabel = useMemo(() => {
@@ -165,6 +169,32 @@ const ManageCandidates = ({ fixedRole = 'candidate', title = 'Manage Candidates'
       showToast(getErrorMessage(err, 'Failed to reactivate user'), 'error');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const onResetCandidatePassword = async () => {
+    if (!details?.cand_id) return;
+    if (!window.confirm(`Reset the password for ${details.name}? Their current password will stop working.`)) return;
+
+    setSaving(true);
+    try {
+      const { data } = await api.post(`/admin/candidates/${encodeURIComponent(details.cand_id)}/reset-password`);
+      if (!data?.password) throw new Error('The server did not return the new password');
+      setResetPassword(data.password);
+      showToast('Candidate password reset', 'success');
+    } catch (err) {
+      showToast(getErrorMessage(err, 'Failed to reset candidate password'), 'error');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const onCopyResetPassword = async () => {
+    try {
+      await navigator.clipboard.writeText(resetPassword);
+      showToast('New password copied', 'success');
+    } catch (err) {
+      showToast(getErrorMessage(err, 'Failed to copy new password'), 'error');
     }
   };
 
@@ -338,6 +368,38 @@ const ManageCandidates = ({ fixedRole = 'candidate', title = 'Manage Candidates'
                 <div className={styles.rowSubtitle}>{details.department?.department_name ? `Department: ${details.department.department_name}` : ''}</div>
                 <div className={styles.rowSubtitle}>{details.email ? `Email: ${details.email}` : ''}</div>
                 <div className={styles.rowSubtitle}>{details.phone ? `Phone: ${details.phone}` : ''}</div>
+
+                {isCandidateView && (
+                  <>
+                    <div style={{ height: 12 }} />
+                    <div className={styles.cardTitle}>Reset candidate password</div>
+                    <div className={styles.rowSubtitle}>A new password will replace the candidate's current password.</div>
+                    <div style={{ height: 8 }} />
+                    <button type="button" className={styles.dangerBtn} onClick={onResetCandidatePassword} disabled={saving}>
+                      {saving ? 'Resetting...' : 'Reset Password'}
+                    </button>
+                    {resetPassword && (
+                      <div className={styles.row} style={{ marginTop: 10 }}>
+                        <input
+                          type="text"
+                          value={resetPassword}
+                          readOnly
+                          aria-label="New candidate password"
+                          style={{ flex: 1, height: 44, borderRadius: 12, border: '1px solid var(--border)', padding: '0 12px' }}
+                        />
+                        <button
+                          type="button"
+                          className={styles.actionBtn}
+                          onClick={onCopyResetPassword}
+                          aria-label="Copy new password"
+                          title="Copy new password"
+                        >
+                          <FaCopy />
+                        </button>
+                      </div>
+                    )}
+                  </>
+                )}
 
                 {isCandidateView && (
                   <>

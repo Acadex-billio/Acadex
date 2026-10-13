@@ -1,11 +1,30 @@
+const crypto = require('crypto');
 const User = require('../models/User');
 const PaymentTransaction = require('../models/PaymentTransaction');
 const { sendEmail } = require('../services/emailService');
 const { sendWebPushNotification, isWebPushConfigured } = require('../utils/webPush');
+const logger = require('../utils/logger');
 const paymentGrantService = require('../services/paymentGrantService');
 const { findProgram, normalizeProgramCode } = require('../services/programCatalogService');
 
 const normalizeCandId = (v) => String(v || '').trim();
+
+const generateCandidatePassword = () => {
+  const characterSets = ['ABCDEFGHJKLMNPQRSTUVWXYZ', 'abcdefghijkmnopqrstuvwxyz', '23456789'];
+  const allCharacters = characterSets.join('');
+  const characters = characterSets.map((set) => set[crypto.randomInt(set.length)]);
+
+  while (characters.length < 16) {
+    characters.push(allCharacters[crypto.randomInt(allCharacters.length)]);
+  }
+
+  for (let i = characters.length - 1; i > 0; i -= 1) {
+    const swapIndex = crypto.randomInt(i + 1);
+    [characters[i], characters[swapIndex]] = [characters[swapIndex], characters[i]];
+  }
+
+  return characters.join('');
+};
 
 exports.listCandidates = async (req, res) => {
   try {
@@ -94,6 +113,29 @@ exports.getCandidateDetails = async (req, res) => {
     });
   } catch (err) {
     return res.status(500).json({ success: false, message: err.message || 'Failed to fetch candidate' });
+  }
+};
+
+exports.resetCandidatePassword = async (req, res) => {
+  try {
+    const candId = normalizeCandId(req.params?.candId);
+    if (!candId) return res.status(400).json({ success: false, message: 'candId is required' });
+
+    const candidate = await User.findOne({ cand_id: candId, role: 'candidate' });
+    if (!candidate) return res.status(404).json({ success: false, message: 'Candidate not found' });
+
+    const password = generateCandidatePassword();
+    candidate.password = password;
+    await candidate.save();
+
+    return res.json({ success: true, password });
+  } catch (err) {
+    logger.error('admin.candidate_password_reset.error', {
+      requestId: req.requestId,
+      error: err?.message || err,
+      stack: err?.stack,
+    });
+    return res.status(500).json({ success: false, message: 'Failed to reset candidate password' });
   }
 };
 
@@ -789,4 +831,3 @@ exports.rejectManualPaymentVerification = async (req, res) => {
     return res.status(500).json({ success: false, message: err.message || 'Failed to reject manual payment verification' });
   }
 };
-
