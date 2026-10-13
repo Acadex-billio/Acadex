@@ -358,7 +358,6 @@ async function initiateCollectionPayment({
       providerReference,
       merchant_invoice_id: payload.merchant_invoice_id,
       response_keys: Object.keys(response || {}),
-      full_response: response,
     });
 
     const normalizedProviderResponse = response && typeof response === 'object'
@@ -383,9 +382,16 @@ async function initiateCollectionPayment({
       stack: err.stack,
       request: {
         url: lastTriedUrl || `${CAMERPAY_API_BASE_URL}/api/payment/initiate`,
-        payload,
+        payment_method: payload?.payment_method,
+        amount: payload?.amount,
+        currency: payload?.currency,
+        merchant_invoice_id: payload?.merchant_invoice_id,
       },
-      responseBody: err.responseBody,
+      response: {
+        statusCode: err.statusCode || null,
+        providerCode: err.responseBody?.code || null,
+        message: err.responseBody?.message || null,
+      },
     });
     throw err;
   }

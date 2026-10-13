@@ -15,6 +15,7 @@ test('provider authorization failures become gateway errors, not candidate sessi
 
   assert.equal(unauthorized.statusCode, 502);
   assert.match(unauthorized.message, /provider authorization failed/i);
+  assert.equal(unauthorized.provider_error.code, 'PROVIDER_AUTHORIZATION_FAILED');
 
   const forbidden = normalizeCheckoutError({
     statusCode: 403,
@@ -23,6 +24,7 @@ test('provider authorization failures become gateway errors, not candidate sessi
 
   assert.equal(forbidden.statusCode, 502);
   assert.match(forbidden.message, /provider authorization failed/i);
+  assert.equal(forbidden.provider_error.code, 'PROVIDER_AUTHORIZATION_FAILED');
 });
 
 test('candidate authentication failures remain 401 responses', () => {

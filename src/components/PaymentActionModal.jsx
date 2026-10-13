@@ -130,7 +130,7 @@ const PaymentActionModal = ({
       || err?.normalized?.details?.code
       || ''
     ).toUpperCase();
-    if (providerErrorCode === 'ENOTFOUND') return false;
+    if (['ENOTFOUND', 'PROVIDER_AUTHORIZATION_FAILED'].includes(providerErrorCode)) return false;
 
     return status === 408 || status === 429 || status >= 500 || code === 'ECONNABORTED' || code === 'ERR_NETWORK' || message.includes('timed out') || message.includes('network');
   };

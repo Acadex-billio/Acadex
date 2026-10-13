@@ -48,7 +48,13 @@ const normalizeCheckoutError = (err, fallbackMessage) => {
     },
   });
 
-  return { statusCode, message, provider_error: providerBody };
+  return {
+    statusCode,
+    message,
+    provider_error: isProviderAuthorizationError
+      ? { code: 'PROVIDER_AUTHORIZATION_FAILED' }
+      : providerBody,
+  };
 };
 
 const mapProviderStatusToTransactionStatus = (status) => {
