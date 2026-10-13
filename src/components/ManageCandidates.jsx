@@ -349,7 +349,7 @@ const ManageCandidates = ({ fixedRole = 'candidate', title = 'Manage Candidates'
       {selected && (
         <>
           <div className={styles.modalOverlay} onClick={closeModal} />
-          <div className={`${styles.card} ${styles.modalCard}`} onClick={(e) => e.stopPropagation()}>
+          <div className={`${styles.card} ${styles.modalCard} ${styles.candidateDetailsModal}`} onClick={(e) => e.stopPropagation()}>
             <div className={styles.cardTitle}>User details</div>
             {!details && <div className={styles.rowSubtitle}>Loading...</div>}
             {details && (

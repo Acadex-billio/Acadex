@@ -203,3 +203,36 @@
   width: min(560px, calc(100vw - 28px));
   z-index: 1210;
 }
+
+.candidateDetailsModal {
+  top: 50%;
+  transform: translate(-50%, -50%);
+  box-sizing: border-box;
+  max-height: calc(100vh - 32px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+@supports (height: 100dvh) {
+  .candidateDetailsModal {
+    max-height: calc(100dvh - 32px);
+  }
+}
+
+.candidateDetailsModal input,
+.candidateDetailsModal select,
+.candidateDetailsModal textarea {
+  box-sizing: border-box;
+  max-width: 100%;
+  min-width: 0;
+}
+
+@media (max-width: 520px) {
+  .candidateDetailsModal .row {
+    flex-wrap: wrap;
+  }
+
+  .candidateDetailsModal input[type='datetime-local'] {
+    flex-basis: 100%;
+  }
+}
