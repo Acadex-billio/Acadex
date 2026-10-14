@@ -466,6 +466,37 @@ label {
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
 }
 
+.apparelPreview {
+  position: relative;
+  width: min(100%, 420px);
+  margin-bottom: 12px;
+  container-type: inline-size;
+}
+
+.apparelPreview img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.apparelName {
+  position: absolute;
+  top: 28%;
+  left: 29.8%;
+  width: 13%;
+  overflow: hidden;
+  color: #087334;
+  font-size: clamp(5px, 1.05cqw, 12px);
+  font-weight: 800;
+  line-height: 1.05;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.apparelNameShirt {
+  left: 28.8%;
+}
+
 .previewLogo {
   margin-bottom: 12px;
 }

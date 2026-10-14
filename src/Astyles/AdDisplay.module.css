@@ -153,6 +153,52 @@
   flex-shrink: 0;
 }
 
+.personalizedArtwork {
+  position: relative;
+  width: 100%;
+  container-type: inline-size;
+}
+
+.personalizedImage {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.personalizedName {
+  position: absolute;
+  top: 28%;
+  left: 29.8%;
+  width: 13%;
+  overflow: hidden;
+  color: #087334;
+  font-size: clamp(5px, 1.05cqw, 12px);
+  font-weight: 800;
+  line-height: 1.05;
+  text-align: center;
+  text-overflow: clip;
+  white-space: nowrap;
+}
+
+.personalizedNameShirt {
+  left: 28.8%;
+}
+
+.apparelTop {
+  overflow: hidden;
+  border-radius: 10px 10px 0 0;
+}
+
+.bannerArtwork {
+  width: min(160px, 24vw);
+  flex-shrink: 0;
+}
+
+.apparelSide {
+  width: 110px;
+  flex-shrink: 0;
+}
+
 .tag {
   display: inline-block;
   padding: 2px 10px;

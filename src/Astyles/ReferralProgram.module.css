@@ -171,6 +171,63 @@
   line-height: 1.5;
 }
 
+.benefitImage {
+  display: block;
+  width: min(100%, 280px);
+  max-height: 190px;
+  margin-top: 12px;
+  border-radius: 10px;
+  object-fit: cover;
+}
+
+.apparelPreview {
+  position: relative;
+  width: 100%;
+  margin-top: 12px;
+  container-type: inline-size;
+}
+
+.apparelImage {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.apparelName {
+  position: absolute;
+  top: 28%;
+  left: 29.8%;
+  width: 13%;
+  overflow: hidden;
+  color: #087334;
+  font-size: 9px;
+  font-size: clamp(5px, 1.05cqw, 12px);
+  font-weight: 800;
+  line-height: 1.05;
+  text-align: center;
+  text-overflow: clip;
+  white-space: nowrap;
+}
+
+.apparelNameShirt {
+  left: 28.8%;
+}
+
+.apparelAdminImage {
+  display: block;
+  width: min(100%, 620px);
+  height: auto;
+  border-radius: 10px;
+}
+
+.imageUploadPreview {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 10px;
+  margin-top: 10px;
+}
+
 .badge {
   display: inline-flex;
   padding: 4px 9px;

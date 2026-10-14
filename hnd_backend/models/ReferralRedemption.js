@@ -5,6 +5,7 @@ const referralRedemptionSchema = new mongoose.Schema(
     candidate_id: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, index: true },
     benefit_code: { type: String, required: true, trim: true },
     benefit_name: { type: String, required: true, trim: true },
+    benefit_image_url: { type: String, default: null, trim: true, maxlength: 2000 },
     points_spent: { type: Number, min: 1, required: true },
     status: { type: String, enum: ['pending', 'fulfilled', 'rejected'], default: 'pending', index: true },
     reviewed_by: { type: String, default: null, trim: true },

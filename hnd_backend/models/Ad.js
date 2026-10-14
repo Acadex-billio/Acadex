@@ -35,6 +35,7 @@ const adSchema = new mongoose.Schema(
     subtitle: { type: String, trim: true, maxlength: 200, default: '' },
     body: { type: String, trim: true, maxlength: 1000, default: '' },
     imageUrl: { type: String, trim: true, default: '' },
+    imagePersonalization: { type: String, enum: ['none', 'candidate_apparel'], default: 'none' },
     logoUrl: { type: String, trim: true, default: '' },
     tag: { type: String, trim: true, maxlength: 40, default: '' }, // e.g. "NEW", "PROMO"
 

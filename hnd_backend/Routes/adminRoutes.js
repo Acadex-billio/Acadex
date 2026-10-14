@@ -49,6 +49,13 @@ const questionPaperFileFilter = (_req, file, cb) => {
   return cb(new multer.MulterError('LIMIT_UNEXPECTED_FILE', 'Invalid file type'));
 };
 
+const referralBenefitImageFilter = (_req, file, cb) => {
+  const ext = path.extname(file.originalname).toLowerCase();
+  const allowedMimeTypes = { '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png' };
+  if (allowedMimeTypes[ext] === file.mimetype) return cb(null, true);
+  return cb(new multer.MulterError('LIMIT_UNEXPECTED_FILE', 'Invalid referral benefit image type'));
+};
+
 const uploadPaper = multer({
   storage,
   limits: { fileSize: 15 * 1024 * 1024 },
@@ -63,6 +70,11 @@ const uploadPresentation = multer({
   storage,
   limits: { fileSize: 25 * 1024 * 1024 },
   fileFilter: presentationFileFilter,
+});
+const uploadReferralBenefitImage = multer({
+  storage,
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: referralBenefitImageFilter,
 });
 
 router.get('/departments', departmentController.getAllFormatted);
@@ -183,6 +195,8 @@ router.post('/billing/coupons/:code/unpublish', requireDeveloper, validate({ par
 router.delete('/billing/coupons/:code', requireDeveloper, validate({ params: schemas.ids.codeParam }), couponController.deleteCoupon);
 router.get('/referrals/program', requireDeveloper, referralController.getAdminProgram);
 router.put('/referrals/program', requireDeveloper, referralController.updateAdminProgram);
+router.get('/referrals/materials', requireDeveloper, referralController.getMaterialCatalog);
+router.post('/referrals/benefit-image', requireDeveloper, uploadReferralBenefitImage.single('image'), referralController.uploadBenefitImage);
 router.get('/referrals/redemptions', requireDeveloper, referralController.listAdminRedemptions);
 router.put('/referrals/redemptions/:redemptionId', requireDeveloper, referralController.reviewAdminRedemption);
 

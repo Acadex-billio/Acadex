@@ -183,7 +183,7 @@ Referral point-ledger and redemption balance updates use MongoDB transactions; t
 
 ### GET `/api/candidate/referral`
 
-Get the candidate's referral code/link, point balance, referrals, published benefits and reward history.
+Get the candidate's referral code/link, display name, point balance, referrals, published benefits and reward history. Benefit responses include progress toward unlock, optional image URLs, and whether an automatic material-access grant completed. The built-in Acadex T-shirt and shirt rewards show the candidate's name on their mockup; unlocked apparel receives a sequential gift number (G1, G2, ...), ordered by configured point threshold.
 
 ### POST `/api/candidate/referral/redemptions`
 
@@ -605,7 +605,15 @@ Read current referral rules and benefits.
 
 ### PUT `/api/admin/referrals/program`
 
-Replace referral program settings, including first-purchase rewards, per-purchase-type rewards, recipient points and automatic/redeemable benefits.
+Replace referral program settings, including registration rewards for both participants, first-purchase rewards, per-purchase-type rewards, recipient points and automatic/redeemable benefits. The built-in T-shirt and shirt rewards must remain configured; admins can set their point thresholds and publication status. Automatic material benefits require a selected question paper, report or presentation plus preview/download access.
+
+### GET `/api/admin/referrals/materials`
+
+List available question papers, reports and presentations that can be selected for automatic referral rewards.
+
+### POST `/api/admin/referrals/benefit-image`
+
+Upload an optional benefit image (`multipart/form-data`, field `image`, JPG/PNG up to 5 MB). Returns the hosted `image_url` to include in the program settings.
 
 ### GET `/api/admin/referrals/redemptions?status=pending`
 

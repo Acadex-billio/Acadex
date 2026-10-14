@@ -3,8 +3,10 @@ const AdDeliveryLog = require('../models/AdDeliveryLog');
 const AdEventLog = require('../models/AdEventLog');
 const User = require('../models/User');
 const AdPerformance = require('../models/AdPerformance');
+const ReferralGiftCounter = require('../models/ReferralGiftCounter');
 const { uploadFile } = require('../utils/s3Uploader');
 const { getAdAnalytics, logAdEvent } = require('../services/adAnalyticsService');
+const { normalizeAdImageSettings, personalizeAdForCandidate } = require('../services/adPersonalization');
 const fs = require('fs');
 const path = require('path');
 
@@ -106,6 +108,7 @@ exports.listActive = async (req, res) => {
     const program = String(user?.program || '').toUpperCase(); // HND | BTS
     const applicableTags = ['all'];
 
+    let candidate = null;
     if (role === 'candidate' || role === 'student') {
       applicableTags.push('candidate_all');
       if (program === 'HND') applicableTags.push('candidate_hnd');
@@ -113,7 +116,7 @@ exports.listActive = async (req, res) => {
 
       const candId = String(user?.cand_id || '').trim();
       if (candId) {
-        const candidate = await User.findOne({ cand_id: candId }).select('login_count').lean();
+        candidate = await User.findOne({ cand_id: candId }).select('login_count name').lean();
         if (Number(candidate?.login_count || 0) === 1) {
           applicableTags.push('first_time_candidate');
         }
@@ -188,7 +191,24 @@ exports.listActive = async (req, res) => {
       return shown < cap;
     });
 
-    return res.json({ success: true, ads: filteredAds });
+    let nextGiftNumber = null;
+    if (
+      (role === 'candidate' || role === 'student') &&
+      candidate?._id &&
+      filteredAds.some((ad) => ad.imagePersonalization === 'candidate_apparel')
+    ) {
+      const giftCounter = await ReferralGiftCounter.findOne({ candidate_id: candidate._id })
+        .select('gift_count')
+        .lean();
+      nextGiftNumber = Number(giftCounter?.gift_count || 0) + 1;
+    }
+
+    const personalizedAds = filteredAds.map((ad) => personalizeAdForCandidate(
+      ad,
+      role === 'candidate' || role === 'student' ? candidate?.name : null,
+      nextGiftNumber
+    ));
+    return res.json({ success: true, ads: personalizedAds });
   } catch (err) {
     console.error('[AdController] listActive:', err);
     return res.status(500).json({ success: false, message: 'Server error' });
@@ -199,7 +219,7 @@ exports.listActive = async (req, res) => {
 exports.create = async (req, res) => {
   try {
     const {
-      title, subtitle, body, imageUrl, logoUrl, tag,
+      title, subtitle, body, imageUrl, imagePersonalization, logoUrl, tag,
       ctaText, ctaUrl, ctaSecondaryText, ctaSecondaryUrl,
       targetAudience, displayType, showCloseButton, closeOnTimer,
       closeTimerSeconds, intervalSeconds, dailyCapPerUser, priority,
@@ -212,19 +232,24 @@ exports.create = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Ad title is required' });
     }
 
+    const imageSettings = normalizeAdImageSettings({ imageUrl, imagePersonalization, targetAudience });
+    const useCandidateApparel = imageSettings.imagePersonalization === 'candidate_apparel';
     const ad = new Ad({
       title: String(title).trim(),
       subtitle: String(subtitle || '').trim(),
       body: String(body || '').trim(),
-      imageUrl: '',
+      imageUrl: imageSettings.imageUrl,
+      imagePersonalization: imageSettings.imagePersonalization,
       logoUrl: String(logoUrl || '').trim(),
       tag: String(tag || '').trim(),
       ctaText: String(ctaText || '').trim(),
       ctaUrl: String(ctaUrl || '').trim(),
       ctaSecondaryText: String(ctaSecondaryText || '').trim(),
       ctaSecondaryUrl: String(ctaSecondaryUrl || '').trim(),
-      targetAudience: Array.isArray(targetAudience) && targetAudience.length ? targetAudience : ['all'],
-      displayType: displayType || 'modal',
+      targetAudience: useCandidateApparel
+        ? imageSettings.targetAudience
+        : Array.isArray(imageSettings.targetAudience) && imageSettings.targetAudience.length ? imageSettings.targetAudience : ['all'],
+      displayType: useCandidateApparel ? 'modal' : displayType || 'modal',
       showCloseButton: showCloseButton !== false,
       closeOnTimer: Boolean(closeOnTimer),
       closeTimerSeconds: safeNum(closeTimerSeconds, 8),
@@ -235,7 +260,10 @@ exports.create = async (req, res) => {
       specificRoutes: Array.isArray(specificRoutes) ? specificRoutes : [],
       startDate: startDate ? new Date(startDate) : null,
       endDate: endDate ? new Date(endDate) : null,
-      styling: styling ? pick(styling, STYLE_FIELDS) : {},
+      styling: {
+        ...(styling ? pick(styling, STYLE_FIELDS) : {}),
+        ...(useCandidateApparel ? { imagePosition: 'top' } : {}),
+      },
       amountPaid: safeNum(amountPaid, 0),
       advertiserName: String(advertiserName || '').trim(),
       advertiserLogoUrl: String(advertiserLogoUrl || '').trim(),
@@ -258,7 +286,7 @@ exports.update = async (req, res) => {
     if (!ad) return res.status(404).json({ success: false, message: 'Ad not found' });
 
     const allowed = [
-      'title', 'subtitle', 'body', 'imageUrl', 'logoUrl', 'tag',
+      'title', 'subtitle', 'body', 'imageUrl', 'imagePersonalization', 'logoUrl', 'tag',
       'ctaText', 'ctaUrl', 'ctaSecondaryText', 'ctaSecondaryUrl',
       'targetAudience', 'displayType', 'showCloseButton', 'closeOnTimer',
       'closeTimerSeconds', 'intervalSeconds', 'dailyCapPerUser', 'priority',
@@ -270,13 +298,19 @@ exports.update = async (req, res) => {
       if (key in req.body) ad[key] = req.body[key];
     });
 
-    // Image URL is intentionally disabled in manager; keep ads logo-only.
-    ad.imageUrl = '';
+    const imageSettings = normalizeAdImageSettings(ad);
+    ad.imageUrl = imageSettings.imageUrl;
+    ad.imagePersonalization = imageSettings.imagePersonalization;
+    ad.targetAudience = imageSettings.targetAudience;
+    if (ad.imagePersonalization === 'candidate_apparel') {
+      ad.displayType = 'modal';
+    }
 
     if (req.body.styling) {
       Object.assign(ad.styling, pick(req.body.styling, STYLE_FIELDS));
       ad.markModified('styling');
     }
+    if (ad.imagePersonalization === 'candidate_apparel') ad.styling.imagePosition = 'top';
 
     await ad.save();
     return res.json({ success: true, ad });

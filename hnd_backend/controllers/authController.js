@@ -19,6 +19,7 @@ const {
 const { buildSubscriptionResponse } = require('../utils/subscriptionUtils');
 const { findProgram, mapProgramToDepartmentTrack, normalizeProgramCode } = require('../services/programCatalogService');
 const logger = require('../utils/logger');
+const referralService = require('../services/referralService');
 const { isEnabled } = require('../services/featureFlagService');
 const {
   AUTH_COOKIE_NAMES,
@@ -167,6 +168,18 @@ exports.register = async (req, res) => {
 
     if (!user?._id) {
       return res.status(500).json({ message: 'Unable to complete registration. Please try again.' });
+    }
+
+    if (referrer && user.role === 'candidate') {
+      try {
+        await referralService.awardRegistration({ referrerId: referrer._id, referredUser: user });
+      } catch (referralError) {
+        logger.error('auth.register.referral_award_failed', {
+          candidate_id: user.cand_id,
+          error: referralError?.message || referralError,
+          stack: referralError?.stack,
+        });
+      }
     }
 
     try {

@@ -115,15 +115,17 @@ const CandidateReferralProgram = () => {
                 {data.program.rules.map((rule) => (
                   <div className={styles.item} key={rule.code}>
                     <p className={styles.itemTitle}>
-                      {rule.trigger === 'first_purchase'
-                        ? t('referralProgram.firstPurchase')
-                        : t('referralProgram.eachPurchase', { type: t(`referralProgram.${{
+                      {rule.trigger === 'registration'
+                        ? t('referralProgram.candidateRegistration')
+                        : rule.trigger === 'first_purchase'
+                          ? t('referralProgram.firstPurchase')
+                          : t('referralProgram.eachPurchase', { type: t(`referralProgram.${{
                           subscription: 'subscriptions',
                           material_access: 'materials',
                           center_access: 'chatCenters',
                           tutorship_booking: 'tutorshipBookings',
                           concours_partnership: 'concoursPartnerships',
-                        }[rule.purchase_type] || 'materials'}`) })}
+                          }[rule.purchase_type] || 'materials'}`) })}
                     </p>
                     <p className={styles.itemText}>
                       {rule.referrer_points > 0
@@ -146,15 +148,57 @@ const CandidateReferralProgram = () => {
                 <article className={styles.item} key={benefit.code}>
                   <div className={styles.itemHeader}>
                     <div>
-                      <h3 className={styles.itemTitle}>{benefit.name}</h3>
-                      <p className={styles.itemText}>{benefit.description || `${benefit.points_required} points required`}</p>
+                      <h3 className={styles.itemTitle}>
+                        {benefit.reward_type === 'apparel_gift'
+                          ? t(`referralProgram.${benefit.apparel_type === 't_shirt' ? 'apparelTShirt' : 'apparelShirt'}`)
+                          : benefit.name}
+                      </h3>
+                      <p className={styles.itemText}>
+                        {benefit.reward_type === 'apparel_gift'
+                          ? t(`referralProgram.${benefit.apparel_type === 't_shirt' ? 'apparelTShirt' : 'apparelShirt'}`)
+                          : benefit.description || `${benefit.points_required} points required`}
+                      </p>
+                      {benefit.reward_type === 'material_access' ? (
+                        <p className={styles.itemText}>
+                          {t('referralProgram.materialUnlockDescription', {
+                            title: benefit.material_title,
+                            level: t(`referralProgram.${benefit.access_type === 'preview' ? 'previewAccess' : 'downloadAccess'}`),
+                          })}
+                        </p>
+                      ) : null}
                     </div>
                     <span className={benefit.unlocked || benefit.can_redeem ? styles.badge : styles.badgeMuted}>
-                      {benefit.mode === 'automatic'
-                        ? (benefit.unlocked ? t('referralProgram.unlocked') : t('referralProgram.lifetimeThreshold', { points: benefit.points_required }))
+                      {benefit.reward_type === 'apparel_gift' && benefit.unlocked
+                        ? t('referralProgram.apparelGiftNumber', { number: benefit.gift_number })
+                        : benefit.mode === 'automatic'
+                          ? (benefit.unlocked ? t('referralProgram.unlocked') : t('referralProgram.lifetimeThreshold', { points: benefit.points_required }))
                         : t('referralProgram.pointCost', { points: benefit.points_required })}
                     </span>
                   </div>
+                  {benefit.reward_type === 'apparel_gift' ? (
+                    <div className={styles.apparelPreview}>
+                      <img
+                        className={styles.apparelImage}
+                        src={benefit.apparel_type === 't_shirt' ? '/referral-tshirt.png' : '/referral-shirt.png'}
+                        alt={t(`referralProgram.${benefit.apparel_type === 't_shirt' ? 'apparelTShirt' : 'apparelShirt'}`)}
+                      />
+                      <span
+                        className={`${styles.apparelName} ${benefit.apparel_type === 'shirt' ? styles.apparelNameShirt : ''}`}
+                        title={data.candidate_name}
+                      >
+                        {benefit.gift_number ? `G${benefit.gift_number} - ` : ''}
+                        {data.candidate_name}
+                      </span>
+                    </div>
+                  ) : benefit.image_url ? <img className={styles.benefitImage} src={benefit.image_url} alt={benefit.name} /> : null}
+                  {!benefit.unlocked && !benefit.can_redeem ? (
+                    <p className={styles.itemText}>
+                      {t('referralProgram.pointsRemaining', { points: benefit.points_remaining })}
+                    </p>
+                  ) : null}
+                  {benefit.unlock_status === 'grant_failed' ? (
+                    <p className={styles.error} role="status">{t('referralProgram.materialGrantRetry')}</p>
+                  ) : null}
                   {benefit.mode === 'redeem' ? (
                     <button
                       type="button"

@@ -67,6 +67,18 @@ const openUrl = async (url, adId, linkDestination = null, button = 'primary') =>
   window.open(nextUrl, '_blank', 'noopener,noreferrer');
 };
 
+const PersonalizedArtwork = ({ ad, className }) => (
+  <div className={`${styles.personalizedArtwork} ${className || ''}`}>
+    <img src={ad.imageUrl} alt="" className={styles.personalizedImage} />
+    {ad.candidateName ? (
+      <span className={`${styles.personalizedName} ${ad.imageUrl === '/referral-shirt.png' ? styles.personalizedNameShirt : ''}`}>
+        {ad.nextGiftNumber ? `G${ad.nextGiftNumber} - ` : ''}
+        {ad.candidateName}
+      </span>
+    ) : null}
+  </div>
+);
+
 /* ─────────── single ad renderer ─────────── */
 const AdModal = ({ ad, onClose }) => {
   const { styling = {}, displayType } = ad;
@@ -155,6 +167,7 @@ const AdModal = ({ ad, onClose }) => {
   };
 
   const showImage = ad.imageUrl && styling.imagePosition !== 'none';
+  const isPersonalizedApparel = ad.imagePersonalization === 'candidate_apparel';
   const isBackground = styling.imagePosition === 'background';
   const isSide = styling.imagePosition === 'left' || styling.imagePosition === 'right';
 
@@ -165,6 +178,7 @@ const AdModal = ({ ad, onClose }) => {
         style={{ backgroundColor: styling.backgroundColor || '#1976d2', color: styling.textColor || '#fff', borderRadius: br }}
       >
         <div className={styles.bannerContent}>
+          {isPersonalizedApparel && <PersonalizedArtwork ad={ad} className={styles.bannerArtwork} />}
           {ad.logoUrl && <img src={ad.logoUrl} alt="" className={styles.logo} />}
           <div style={{ minWidth: 0 }}>
             <p className={styles.bannerTitle}>{ad.title}</p>
@@ -198,18 +212,26 @@ const AdModal = ({ ad, onClose }) => {
         {/* top image */}
         {showImage && styling.imagePosition === 'top' && (
           <div className={styles.imageTop}>
-            <div className={styles.imgWrapper} style={{ borderRadius: `${br} ${br} 0 0` }}>
-              <img src={ad.imageUrl} alt="" />
-            </div>
+            {isPersonalizedApparel
+              ? <PersonalizedArtwork ad={ad} className={styles.apparelTop} />
+              : (
+                <div className={styles.imgWrapper} style={{ borderRadius: `${br} ${br} 0 0` }}>
+                  <img src={ad.imageUrl} alt="" />
+                </div>
+              )}
           </div>
         )}
 
         <div className={isSide ? styles.imageSide : ''}>
           {isSide && showImage && (
             <div className={styles.innerSide}>
-              <div className={styles.imgWrapper} style={{ order: styling.imagePosition === 'right' ? 1 : 0 }}>
-                <img src={ad.imageUrl} alt="" />
-              </div>
+              {isPersonalizedApparel
+                ? <PersonalizedArtwork ad={ad} className={styles.apparelSide} />
+                : (
+                  <div className={styles.imgWrapper} style={{ order: styling.imagePosition === 'right' ? 1 : 0 }}>
+                    <img src={ad.imageUrl} alt="" />
+                  </div>
+                )}
               <div className={styles.inner} style={{ padding: '20px 12px 20px 0' }}>
                 <InnerContent
                   ad={ad}

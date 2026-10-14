@@ -71,6 +71,10 @@ Routes are defined in `src/App.jsx` and grouped into public, candidate, admin, l
 
 `src/config/api.js` uses the current host on port 5000 for localhost. Deployed builds use `REACT_APP_API_URL`, normalized to end in `/api`; the built-in non-local fallback is only a placeholder and must be replaced.
 
+## Candidate Apparel Ads
+
+Developer-managed ads can use `/referral-tshirt.png` or `/referral-shirt.png` as personalized campaign artwork. Select one in Ads Manager to target candidates and show the ad as a modal; the active-ad API adds only that candidate's name and next referral gift number for rendering over the chest print area. Route targeting, scheduling, frequency limits, close controls, and the modal countdown remain configurable as with other ads. The images are static frontend assets under `public/`.
+
 ## Data, Files, and Integrations
 
 Models in `hnd_backend/models/` cover users, departments, academic materials, history, chat, announcements, billing, material access, projects, lecturers, ads, and concours workflows. Uploaded files are served from `/uploads` and may also be stored in S3. Office previews use the conversion queue when available.

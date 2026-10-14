@@ -55,6 +55,11 @@ const ROUTE_OPTIONS = [
   '/admin/ads',
 ];
 
+const APPAREL_AD_IMAGES = {
+  '/referral-tshirt.png': 'Acadex T-shirt',
+  '/referral-shirt.png': 'Acadex shirt',
+};
+
 const DEFAULT_STYLING = {
   backgroundColor: '#ffffff',
   textColor: '#1a1a1a',
@@ -84,6 +89,8 @@ const EMPTY_FORM = {
   title: '',
   subtitle: '',
   body: '',
+  imageUrl: '',
+  imagePersonalization: 'none',
   logoUrl: '',
   tag: '',
   ctaText: '',
@@ -181,6 +188,16 @@ const LivePreview = ({ form }) => {
     <div className={styles.previewWrap}>
       <div className={styles.previewHeader}>Live Preview</div>
       <div className={styles.previewCard} style={style}>
+        {form.imageUrl ? (
+          <div className={styles.apparelPreview}>
+            <img src={form.imageUrl} alt={APPAREL_AD_IMAGES[form.imageUrl] || 'Campaign'} />
+            {form.imagePersonalization === 'candidate_apparel' ? (
+              <span className={`${styles.apparelName} ${form.imageUrl === '/referral-shirt.png' ? styles.apparelNameShirt : ''}`}>
+                G1 - Candidate Name
+              </span>
+            ) : null}
+          </div>
+        ) : null}
         {showLogo ? <div className={styles.previewLogo}><img src={form.logoUrl} alt="Logo preview" /></div> : null}
         {form.tag ? <span className={styles.previewTag} style={tagStyle}>{form.tag}</span> : null}
         <h3 className={styles.previewTitle} style={titleStyle}>{form.title || 'Your ad title'}</h3>
@@ -244,6 +261,8 @@ const AdsManager = () => {
       title: ad.title || '',
       subtitle: ad.subtitle || '',
       body: ad.body || '',
+      imageUrl: ad.imageUrl || '',
+      imagePersonalization: ad.imagePersonalization || 'none',
       logoUrl: ad.logoUrl || '',
       tag: ad.tag || '',
       ctaText: ad.ctaText || '',
@@ -275,10 +294,25 @@ const AdsManager = () => {
   };
 
   const set = (key, val) => setForm((prev) => ({ ...prev, [key]: val }));
+  const setCampaignImage = (imageUrl) => {
+    setForm((prev) => ({
+      ...prev,
+      imageUrl,
+      imagePersonalization: imageUrl ? 'candidate_apparel' : 'none',
+      ...(imageUrl ? {
+        targetAudience: ['candidate_all'],
+        displayType: 'modal',
+        styling: { ...prev.styling, imagePosition: 'top' },
+      } : {}),
+    }));
+  };
   const setStyle = (key, val) => setForm((prev) => ({ ...prev, styling: { ...prev.styling, [key]: val } }));
 
   const toggleAudience = (val) => {
     setForm((prev) => {
+      if (prev.imagePersonalization === 'candidate_apparel' && !val.startsWith('candidate_') && val !== 'first_time_candidate') {
+        return prev;
+      }
       const current = prev.targetAudience;
       if (current.includes(val)) {
         const next = current.filter((v) => v !== val);
@@ -516,6 +550,16 @@ const AdsManager = () => {
                   <textarea className={styles.textarea} value={form.body} onChange={(e) => set('body', e.target.value)} placeholder="Optional body text" />
                 </div>
                 <div className={styles.field}>
+                  <label>Campaign image</label>
+                  <select className={styles.select} value={form.imageUrl} onChange={(e) => setCampaignImage(e.target.value)}>
+                    <option value="">No campaign image</option>
+                    {Object.entries(APPAREL_AD_IMAGES).map(([imageUrl, label]) => (
+                      <option key={imageUrl} value={imageUrl}>{label} (personalized)</option>
+                    ))}
+                  </select>
+                  <span className={styles.hint}>Apparel ads display the candidate’s name and next gift number. They target candidates and use the full artwork.</span>
+                </div>
+                <div className={styles.field}>
                   <label>Logo file (PNG/JPG, max 5MB)</label>
                   <input
                     type="file"
@@ -563,7 +607,12 @@ const AdsManager = () => {
                 <div className={styles.audienceGrid}>
                   {AUDIENCE_OPTIONS.map(({ value, label }) => (
                     <label key={value} className={`${styles.audienceChip} ${form.targetAudience.includes(value) ? styles.selected : ''}`}>
-                      <input type="checkbox" checked={form.targetAudience.includes(value)} onChange={() => toggleAudience(value)} />
+                      <input
+                        type="checkbox"
+                        checked={form.targetAudience.includes(value)}
+                        disabled={form.imagePersonalization === 'candidate_apparel' && !value.startsWith('candidate_') && value !== 'first_time_candidate'}
+                        onChange={() => toggleAudience(value)}
+                      />
                       {label}
                     </label>
                   ))}
@@ -575,12 +624,15 @@ const AdsManager = () => {
                 <div className={styles.row}>
                   <div className={styles.field}>
                     <label>Display type</label>
-                    <select className={styles.select} value={form.displayType} onChange={(e) => set('displayType', e.target.value)}>
+                    <select className={styles.select} value={form.displayType} disabled={form.imagePersonalization === 'candidate_apparel'} onChange={(e) => set('displayType', e.target.value)}>
                       <option value="modal">Modal</option>
                       <option value="banner_top">Banner Top</option>
                       <option value="banner_bottom">Banner Bottom</option>
                     </select>
                   </div>
+                  {form.imagePersonalization === 'candidate_apparel' ? (
+                    <span className={styles.hint}>Personalized apparel ads use a modal so the shirt and printed name remain legible.</span>
+                  ) : null}
                   <div className={styles.field}>
                     <label>Interval (seconds)</label>
                     <input type="number" min={0} className={styles.input} value={form.intervalSeconds} onChange={(e) => set('intervalSeconds', Number(e.target.value))} />
@@ -687,7 +739,7 @@ const AdsManager = () => {
                   <div className={styles.field}><label>Button border width</label><input className={styles.input} value={form.styling.buttonBorderWidth} onChange={(e) => setStyle('buttonBorderWidth', e.target.value)} /></div>
                   <div className={styles.field}>
                     <label>Image position</label>
-                    <select className={styles.select} value={form.styling.imagePosition} onChange={(e) => setStyle('imagePosition', e.target.value)}>
+                    <select className={styles.select} value={form.styling.imagePosition} disabled={form.imagePersonalization === 'candidate_apparel'} onChange={(e) => setStyle('imagePosition', e.target.value)}>
                       <option value="top">Top</option>
                       <option value="left">Left</option>
                       <option value="right">Right</option>
@@ -695,6 +747,9 @@ const AdsManager = () => {
                       <option value="none">Hidden</option>
                     </select>
                   </div>
+                  {form.imagePersonalization === 'candidate_apparel' ? (
+                    <span className={styles.hint}>Personalized apparel artwork stays fully visible in its original proportions.</span>
+                  ) : null}
                 </div>
               </div>
             </div>
