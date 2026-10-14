@@ -5,6 +5,7 @@ import styles from '../Astyles/AdsManager.module.css';
 import ConfirmDialog from './ConfirmDialog';
 import api from '../services/api';
 import { showToast } from '../utility/ToastNotification';
+import { resolveAdCtaDestination } from '../utility/adCta';
 
 const AUDIENCE_OPTIONS = [
   { value: 'all', label: 'All users' },
@@ -139,7 +140,7 @@ const ColorField = ({ label, name, value, onChange }) => (
   </div>
 );
 
-const LivePreview = ({ form }) => {
+const LivePreview = ({ form, onCtaClick }) => {
   const style = {
     background: form.styling.backgroundColor || '#fff',
     color: form.styling.textColor || '#111',
@@ -209,8 +210,8 @@ const LivePreview = ({ form }) => {
           <span>daily cap {Number(form.dailyCapPerUser || 0) || 'unlimited'}</span>
         </div>
         <div className={styles.previewButtons}>
-          {form.ctaText ? <button type="button" className={styles.previewBtn} style={buttonStyle}>{form.ctaText}</button> : null}
-          {form.ctaSecondaryText ? <button type="button" className={styles.previewBtnGhost} style={secondaryButtonStyle}>{form.ctaSecondaryText}</button> : null}
+          {form.ctaText ? <button type="button" className={styles.previewBtn} style={buttonStyle} onClick={() => onCtaClick(form.ctaUrl)}>{form.ctaText}</button> : null}
+          {form.ctaSecondaryText ? <button type="button" className={styles.previewBtnGhost} style={secondaryButtonStyle} onClick={() => onCtaClick(form.ctaSecondaryUrl)}>{form.ctaSecondaryText}</button> : null}
         </div>
       </div>
     </div>
@@ -231,6 +232,19 @@ const AdsManager = () => {
   const [logoUploading, setLogoUploading] = useState(false);
   const [logoFileName, setLogoFileName] = useState('');
   const navigate = useNavigate();
+
+  const openPreviewDestination = (destination) => {
+    const resolved = resolveAdCtaDestination(destination);
+    if (!resolved) {
+      showToast('Enter a valid destination URL or in-app route for this button.', 'warning');
+      return;
+    }
+    if (resolved.type === 'internal') {
+      navigate(resolved.path);
+    } else {
+      window.open(resolved.url, '_blank', 'noopener,noreferrer');
+    }
+  };
 
   const load = useCallback(async () => {
     try {
@@ -507,7 +521,7 @@ const AdsManager = () => {
             </div>
 
             <div className={styles.modalBody}>
-              <LivePreview form={form} />
+              <LivePreview form={form} onCtaClick={openPreviewDestination} />
 
               <div className={styles.section}>
                 <p className={styles.sectionTitle}>Advertiser & Campaign</p>
@@ -593,12 +607,25 @@ const AdsManager = () => {
               <div className={styles.section}>
                 <p className={styles.sectionTitle}>CTA</p>
                 <div className={styles.row}>
-                  <div className={styles.field}><label>Primary text</label><input className={styles.input} value={form.ctaText} onChange={(e) => set('ctaText', e.target.value)} /></div>
-                  <div className={styles.field}><label>Primary URL</label><input className={styles.input} value={form.ctaUrl} onChange={(e) => set('ctaUrl', e.target.value)} /></div>
+                  <div className={styles.field}>
+                    <label>Primary button label</label>
+                    <input className={styles.input} value={form.ctaText} onChange={(e) => set('ctaText', e.target.value)} placeholder="e.g. Check my points" />
+                  </div>
+                  <div className={styles.field}>
+                    <label>Primary destination URL or in-app route</label>
+                    <input className={styles.input} value={form.ctaUrl} onChange={(e) => set('ctaUrl', e.target.value)} placeholder="e.g. /candidate/referrals or https://example.com" />
+                    <span className={styles.hint}>Use an app route such as /candidate/referrals, or a full external URL. Put button wording in the label field.</span>
+                  </div>
                 </div>
                 <div className={styles.row}>
-                  <div className={styles.field}><label>Secondary text</label><input className={styles.input} value={form.ctaSecondaryText} onChange={(e) => set('ctaSecondaryText', e.target.value)} /></div>
-                  <div className={styles.field}><label>Secondary URL</label><input className={styles.input} value={form.ctaSecondaryUrl} onChange={(e) => set('ctaSecondaryUrl', e.target.value)} /></div>
+                  <div className={styles.field}>
+                    <label>Secondary button label</label>
+                    <input className={styles.input} value={form.ctaSecondaryText} onChange={(e) => set('ctaSecondaryText', e.target.value)} placeholder="e.g. View rewards" />
+                  </div>
+                  <div className={styles.field}>
+                    <label>Secondary destination URL or in-app route</label>
+                    <input className={styles.input} value={form.ctaSecondaryUrl} onChange={(e) => set('ctaSecondaryUrl', e.target.value)} placeholder="e.g. /candidate/referrals or https://example.com" />
+                  </div>
                 </div>
               </div>
 

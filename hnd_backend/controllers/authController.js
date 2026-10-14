@@ -11,10 +11,12 @@ const VerificationCode = require('../models/VerificationCode');
 const { sendEmail } = require('../services/emailService');
 const {
   authenticateToken,
+  extractAccessToken,
   extractRefreshToken,
   generateAccessToken,
   generateRefreshToken,
   jwtAuthMiddleware,
+  blacklistToken,
 } = require('../utils/jwtUtils');
 const { buildSubscriptionResponse } = require('../utils/subscriptionUtils');
 const { findProgram, mapProgramToDepartmentTrack, normalizeProgramCode } = require('../services/programCatalogService');
@@ -24,9 +26,8 @@ const { isEnabled } = require('../services/featureFlagService');
 const {
   AUTH_COOKIE_NAMES,
   ACCESS_TOKEN_COOKIE_MAX_AGE,
-  REFRESH_TOKEN_REMEMBER_ME_MAX_AGE,
-  REFRESH_TOKEN_DEFAULT_MAX_AGE,
   AUTH_COOKIE_PATH,
+  getRefreshTokenCookieMaxAge,
 } = require('../constants/authConstants');
 
 const isProduction = process.env.NODE_ENV === 'production';
@@ -305,10 +306,13 @@ exports.login = async (req, res) => {
       logger.info('auth.login.role_updated', { role, cand_id: user.cand_id });
     }
 
-    const rememberMe = String(req.body.rememberMe || '').toLowerCase() === 'true' || req.body.rememberMe === true;
+    const rememberMe = role === 'candidate' ||
+      role === 'student' ||
+      String(req.body.rememberMe || '').toLowerCase() === 'true' ||
+      req.body.rememberMe === true;
     const accessToken = generateAccessToken(user);
     const refreshToken = generateRefreshToken(user);
-    const refreshCookieAge = rememberMe ? REFRESH_TOKEN_REMEMBER_ME_MAX_AGE : REFRESH_TOKEN_DEFAULT_MAX_AGE;
+    const refreshCookieAge = getRefreshTokenCookieMaxAge(role, rememberMe);
 
     res.cookie(AUTH_COOKIE_NAMES.ACCESS_TOKEN, accessToken, getCookieOptions(ACCESS_TOKEN_COOKIE_MAX_AGE));
     res.cookie(AUTH_COOKIE_NAMES.REFRESH_TOKEN, refreshToken, getCookieOptions(refreshCookieAge));
@@ -407,7 +411,11 @@ exports.refresh = async (req, res) => {
     const accessToken = generateAccessToken(user);
     const rotatedRefreshToken = generateRefreshToken(user);
     res.cookie(AUTH_COOKIE_NAMES.ACCESS_TOKEN, accessToken, getCookieOptions(ACCESS_TOKEN_COOKIE_MAX_AGE));
-    res.cookie(AUTH_COOKIE_NAMES.REFRESH_TOKEN, rotatedRefreshToken, getCookieOptions(REFRESH_TOKEN_DEFAULT_MAX_AGE));
+    res.cookie(
+      AUTH_COOKIE_NAMES.REFRESH_TOKEN,
+      rotatedRefreshToken,
+      getCookieOptions(getRefreshTokenCookieMaxAge(user.role))
+    );
 
     return res.json({ success: true, message: 'Session refreshed' });
   } catch (error) {
@@ -420,25 +428,19 @@ exports.logout = async (req, res) => {
   try {
     clearAuthCookies(res);
 
-    // Extract token from Authorization header
-    const authHeader = req.headers.authorization;
-    const token = authHeader && authHeader.startsWith('Bearer ') 
-      ? authHeader.substring(7) 
-      : null;
+    const accessToken = extractAccessToken(req);
+    const refreshToken = extractRefreshToken(req);
 
     let tokenUser = null;
-    if (token) {
+    if (accessToken) {
       try {
         tokenUser = await jwtAuthMiddleware(req);
       } catch (_) {
         tokenUser = null;
       }
-
-      // Blacklist the token
-      const { blacklistToken } = require('../utils/jwtUtils');
-      blacklistToken(token);
-      logger.info('auth.logout.token_blacklisted');
     }
+    await Promise.all([accessToken, refreshToken].filter(Boolean).map(blacklistToken));
+    if (accessToken || refreshToken) logger.info('auth.logout.tokens_blacklisted');
 
     if (tokenUser?.cand_id) {
       try {

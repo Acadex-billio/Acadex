@@ -74,28 +74,20 @@ const getLoginRedirectPath = () => {
   return '/login';
 };
 
-const logoutAndRedirect = (message) => {
+const logoutAndRedirect = (message, { redirect = true } = {}) => {
   const currentPath = typeof window !== 'undefined' ? window.location.pathname : '';
-  if (!authService.getToken() && !currentPath.includes('/login')) {
-    return;
-  }
-  if (currentPath.includes('/login')) {
-    authService.removeToken();
-    if (window.authDispatch) {
-      window.authDispatch({ type: 'LOGOUT' });
-    }
-    return;
-  }
-
   authService.removeToken();
   if (window.authDispatch) {
     window.authDispatch({ type: 'LOGOUT' });
   }
+  if (!redirect || currentPath.startsWith('/login')) return;
   if (typeof window.showToast === 'function') {
     window.showToast(message || 'Your session has expired. Please log in again.', 'error');
   }
   window.location.replace(getLoginRedirectPath());
 };
+
+export const handleAuthSessionExpired = (message, options) => logoutAndRedirect(message, options);
 
 const emitValidationEvent = (error) => {
   if (typeof window === 'undefined' || !window.dispatchEvent) return;
@@ -116,7 +108,7 @@ const showApiErrorToast = (error, fallbackMessage = 'Something went wrong. Pleas
   const message = payload?.message || error?.message || fallbackMessage;
 
   if (status === 401) {
-    window.showToast('Your session has expired. Please log in again.', 'error');
+    window.showToast(message || 'Authentication is required to continue. Please sign in.', 'error');
     return;
   }
 
@@ -166,7 +158,13 @@ const api = axios.create({
   withCredentials: true,
 });
 
-// Request interceptor - Add JWT token to all requests
+const authCheckApi = axios.create({
+  baseURL: API_BASE_URL,
+  timeout: 30000,
+  withCredentials: true,
+});
+
+// Authenticated API calls use HttpOnly cookies; CSRF headers protect mutations.
 api.interceptors.request.use(
   (config) => {
     const method = String(config.method || 'get').toUpperCase();
@@ -174,19 +172,10 @@ api.interceptors.request.use(
     if (csrfToken && !['GET', 'HEAD', 'OPTIONS'].includes(method)) {
       config.headers['X-CSRF-Token'] = csrfToken;
     }
-    const token = authService.getToken();
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-      logDebug('[API] Request:', {
-        method: config.method?.toUpperCase(),
-        url: config.url,
-      });
-    } else {
-      logDebug('[API] Request without token:', {
-        method: config.method?.toUpperCase(),
-        url: config.url,
-      });
-    }
+    logDebug('[API] Cookie-authenticated request:', {
+      method: config.method?.toUpperCase(),
+      url: config.url,
+    });
     return config;
   },
   (error) => {
@@ -195,13 +184,7 @@ api.interceptors.request.use(
   }
 );
 
-// Dedicated API client for silent auth health checks (this client has no interceptors to avoid recursion)
-const authCheckApi = axios.create({
-  baseURL: API_BASE_URL,
-  timeout: 30000,
-  withCredentials: true,
-});
-
+// Keep auth refresh/check requests separate to prevent interceptor recursion.
 const authRefreshApi = axios.create({
   baseURL: API_BASE_URL,
   timeout: 30000,
@@ -217,10 +200,34 @@ authRefreshApi.interceptors.request.use((config) => {
   return config;
 });
 
-let authCheckPromise = null;
-let authRefreshPromise = null;
+authRefreshApi.interceptors.response.use(
+  (response) => {
+    const responseCsrfToken = String(response.headers?.['x-csrf-token'] || '').trim();
+    if (responseCsrfToken) cacheCsrfToken(responseCsrfToken);
+    return response;
+  },
+  async (error) => {
+    const responseCsrfToken = String(error.response?.headers?.['x-csrf-token'] || '').trim();
+    if (
+      error.response?.status === 403 &&
+      error.response?.data?.code === 'CSRF_TOKEN_INVALID' &&
+      responseCsrfToken &&
+      !error.config?._csrfRetry
+    ) {
+      cacheCsrfToken(responseCsrfToken);
+      error.config._csrfRetry = true;
+      error.config.headers = error.config.headers || {};
+      error.config.headers['X-CSRF-Token'] = responseCsrfToken;
+      return authRefreshApi.request(error.config);
+    }
+    return Promise.reject(error);
+  }
+);
 
-const refreshAuthSession = async () => {
+let authRefreshPromise = null;
+let authCheckPromise = null;
+
+export const refreshAuthSession = async () => {
   if (authRefreshPromise) return authRefreshPromise;
   authRefreshPromise = authRefreshApi.post('/auth/refresh').finally(() => {
     authRefreshPromise = null;
@@ -228,21 +235,11 @@ const refreshAuthSession = async () => {
   return authRefreshPromise;
 };
 
-const performAuthCheck = async () => {
+export const checkCookieAuthSession = async () => {
   if (authCheckPromise) return authCheckPromise;
-  const token = authService.getToken();
-  if (!token) {
-    authCheckPromise = Promise.reject(new Error('No token available'));
-    authCheckPromise.finally(() => { authCheckPromise = null; });
-    return authCheckPromise;
-  }
-
-  authCheckPromise = authCheckApi.get('/auth/me', {
-    headers: { Authorization: `Bearer ${token}` }
-  }).finally(() => {
+  authCheckPromise = authCheckApi.get('/auth/me').finally(() => {
     authCheckPromise = null;
   });
-
   return authCheckPromise;
 };
 
@@ -277,72 +274,67 @@ api.interceptors.response.use(
       }
     }
 
-    // Handle 401 Unauthorized - token expired/invalid
+    // Renew cookie sessions before treating an API 401 as a signed-out state.
     if (error.response?.status === 401) {
       logDebug('[API] 401 Unauthorized detected at', error.config?.url);
 
       const url = error.config?.url || '';
-      const hasToken = Boolean(authService.getToken());
-
-      if (url.includes('/auth/login')) {
+      if (url.includes('/auth/login') || url.includes('/auth/refresh')) {
         return Promise.reject(error);
       }
 
-      if (!hasToken && url.includes('/auth/me')) {
-        logDebug('[API] No token present for /auth/me; clearing local auth state without redirect');
-        authService.removeToken();
-        if (window.authDispatch) {
-          window.authDispatch({ type: 'LOGOUT' });
+      if (error.config?._authRefreshRetried) {
+        if (url.includes('/auth/me')) {
+          logoutAndRedirect(null, { redirect: false });
+        } else {
+          try {
+            const sessionCheck = await checkCookieAuthSession();
+            if (sessionCheck.data?.authenticated) {
+              showApiErrorToast(error, 'You are not authorized to perform this action.');
+            } else {
+              logoutAndRedirect('Your session has expired. Please log in again.');
+            }
+          } catch (sessionError) {
+            if (sessionError.response?.status === 401) {
+              logoutAndRedirect('Your session has expired. Please log in again.');
+            } else {
+              showApiErrorToast(sessionError, 'Could not verify your session. Check your connection and try again.');
+            }
+          }
         }
         return Promise.reject(error);
       }
 
       try {
-        if (url.includes('/auth/me')) {
-          if (!hasToken) {
-            return Promise.reject(error);
+        await refreshAuthSession();
+        error.config._authRefreshRetried = true;
+        return api.request(error.config);
+      } catch (refreshError) {
+        if (refreshError.response?.status === 401) {
+          if (url.includes('/auth/me')) {
+            logoutAndRedirect(null, { redirect: false });
+          } else {
+            try {
+              const sessionCheck = await checkCookieAuthSession();
+              if (sessionCheck.data?.authenticated) {
+                showApiErrorToast(error, 'You are not authorized to perform this action.');
+              } else {
+                logoutAndRedirect('Your session has expired. Please log in again.');
+              }
+            } catch (sessionError) {
+              if (sessionError.response?.status === 401) {
+                logoutAndRedirect('Your session has expired. Please log in again.');
+              } else {
+                showApiErrorToast(sessionError, 'Could not verify your session. Check your connection and try again.');
+              }
+            }
           }
-          logoutAndRedirect('Your session has expired. Please log in again.');
-          return Promise.reject(error);
-        }
-
-        if (!hasToken) {
-          authService.removeToken();
-          if (window.authDispatch) {
-            window.authDispatch({ type: 'LOGOUT' });
-          }
-          return Promise.reject(error);
-        }
-
-        if (!url.includes('/auth/refresh') && !error.config?._authRefreshRetried) {
-          await refreshAuthSession();
-          error.config._authRefreshRetried = true;
-          return api.request(error.config);
-        }
-
-        const check = await performAuthCheck();
-
-        if (check?.data?.authenticated) {
-          logDebug('[API] Token valid via /auth/me; skipping logout');
-          showApiErrorToast(error, 'Access denied for this resource. Please contact the administrator.');
-          return Promise.reject(error);
-        }
-      } catch (meError) {
-        if (meError.response?.status === 401) {
-          logDebug('[API] /auth/me returned 401, clearing auth state');
-          logoutAndRedirect('Your session has expired. Please log in again.');
-        } else if (meError.response?.status === 429) {
-          logDebug('[API] /auth/me rate limited; leaving token intact');
-          showApiErrorToast(error, 'Too many auth checks too quickly; please wait a few seconds.');
-        } else if (isTimeoutError(meError)) {
-          logDebug('[API] /auth/me timed out; showing retryable network guidance');
-          showApiErrorToast(error, 'The connection timed out. Check your internet connection and try again.');
         } else {
-          logDebug('[API] /auth/me check failed without 401; leaving token intact');
+          logDebug('[API] Refresh failed without invalidating the session', normalizeApiError(refreshError));
+          showApiErrorToast(refreshError, 'Could not refresh your session. Check your connection and try again.');
         }
+        return Promise.reject(refreshError);
       }
-
-      return Promise.reject(error);
     }
 
     if (error.response?.status === 400) {
@@ -382,4 +374,3 @@ api.interceptors.response.use(
 );
 
 export default api;
-

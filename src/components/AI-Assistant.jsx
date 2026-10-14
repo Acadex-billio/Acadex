@@ -5,7 +5,13 @@ import { useNavigate } from 'react-router-dom';
 import styles from '../Astyles/aiAssistant.module.css';
 import { useAuth } from '../context/AuthContext';
 import { API_BASE_URL_NORMALIZED } from '../config/api';
-import api, { cacheCsrfToken, getCsrfToken } from '../services/api';
+import api, {
+  cacheCsrfToken,
+  checkCookieAuthSession,
+  getCsrfToken,
+  handleAuthSessionExpired,
+  refreshAuthSession,
+} from '../services/api';
 import PaymentActionModal from './PaymentActionModal';
 import { showToast } from '../utility/ToastNotification';
 
@@ -590,7 +596,6 @@ const AIAssistant = () => {
     }
 
     try {
-      const token = localStorage.getItem('jwt_token') || localStorage.getItem('authToken');
       const csrfToken = getCsrfToken();
       const chatUrl = `${API_BASE_URL_NORMALIZED}/ai/chat`;
       const chatBody = JSON.stringify({
@@ -620,7 +625,6 @@ const AIAssistant = () => {
       });
       const chatHeaders = {
         'Content-Type': 'application/json',
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
         ...(csrfToken ? { 'X-CSRF-Token': csrfToken } : {}),
       };
       const chatRequest = {
@@ -630,6 +634,27 @@ const AIAssistant = () => {
         body: chatBody,
       };
       let response = await fetch(chatUrl, chatRequest);
+
+      if (response.status === 401) {
+        try {
+          await refreshAuthSession();
+          response = await fetch(chatUrl, chatRequest);
+        } catch (refreshError) {
+          if (refreshError.response?.status === 401) {
+            try {
+              await checkCookieAuthSession();
+            } catch (authError) {
+              if (authError.response?.status === 401) {
+                handleAuthSessionExpired('Your session has expired. Please log in again.');
+                throw new Error('Your session has expired. Please log in again.');
+              }
+              throw authError;
+            }
+          } else {
+            throw refreshError;
+          }
+        }
+      }
 
       if (!response.ok && response.status === 403) {
         const errorPayload = await response.clone().json().catch(() => null);

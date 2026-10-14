@@ -16,7 +16,8 @@ export const getErrorMessage = (err, fallback = 'Something went wrong. Please tr
   }
 
   if (status === 401) {
-    return 'Your Session has Expire, Please Login Again to Get Authenticated';
+    const authMessage = typeof msg === 'string' ? msg.trim() : '';
+    return authMessage || 'Authentication is required to continue. Please sign in.';
   }
 
   if (status === 403) {

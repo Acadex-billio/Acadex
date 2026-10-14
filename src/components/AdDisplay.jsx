@@ -4,10 +4,11 @@
  * then shows each ad according to its interval, display type, and route targeting.
  */
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { FaTimes, FaExternalLinkAlt } from 'react-icons/fa';
 import styles from '../Astyles/AdDisplay.module.css';
 import api from '../services/api';
+import { resolveAdCtaDestination } from '../utility/adCta';
 
 /* ─────────── storage helpers ─────────── */
 const SEEN_KEY = 'ad_last_seen_v1';
@@ -38,35 +39,6 @@ const matchesRoute = (ad, pathname) => {
   return routes.some((r) => pathname === r || pathname.startsWith(r + '/'));
 };
 
-/* ─────────── CTA helper ─────────── */
-const toExternalUrl = (url) => {
-  const raw = String(url || '').trim();
-  if (!raw) return '';
-  if (/^https?:\/\//i.test(raw)) return raw;
-  return `https://${raw}`;
-};
-
-const openUrl = async (url, adId, linkDestination = null, button = 'primary') => {
-  if (!url) return;
-  // fire click tracking (include button type)
-  try {
-    await api.post(`/ads/${adId}/click`, { button });
-  } catch (_) { }
-  // Track link click with destination and button if provided
-  if (linkDestination) {
-    try {
-      await api.post(`/ads/${adId}/link-click`, { link_destination: linkDestination, button });
-    } catch (_) { }
-  }
-  // store last clicked ad for potential registration attribution
-  try {
-    localStorage.setItem('last_clicked_ad', JSON.stringify({ adId, button, ts: Date.now() }));
-  } catch (_) {}
-  const nextUrl = toExternalUrl(url);
-  if (!nextUrl) return;
-  window.open(nextUrl, '_blank', 'noopener,noreferrer');
-};
-
 const PersonalizedArtwork = ({ ad, className }) => (
   <div className={`${styles.personalizedArtwork} ${className || ''}`}>
     <img src={ad.imageUrl} alt="" className={styles.personalizedImage} />
@@ -80,7 +52,7 @@ const PersonalizedArtwork = ({ ad, className }) => (
 );
 
 /* ─────────── single ad renderer ─────────── */
-const AdModal = ({ ad, onClose }) => {
+const AdModal = ({ ad, onClose, onCtaClick }) => {
   const { styling = {}, displayType } = ad;
   const br = styling.borderRadius || '16px';
 
@@ -186,7 +158,9 @@ const AdModal = ({ ad, onClose }) => {
           </div>
           {ad.ctaText && (
             <button type="button" className={styles.bannerCta} style={btnStyle}
-              onClick={() => { openUrl(ad.ctaUrl, ad._id, ad.ctaUrl); handleClose(); }}>
+              onClick={() => {
+                if (onCtaClick(ad.ctaUrl, 'primary')) handleClose(false, true);
+              }}>
               {ad.ctaText}
             </button>
           )}
@@ -238,6 +212,7 @@ const AdModal = ({ ad, onClose }) => {
                   btnStyle={btnStyle}
                   secondaryBtnStyle={secondaryBtnStyle}
                   handleClose={handleClose}
+                  onCtaClick={onCtaClick}
                   titleStyle={titleStyle}
                   subtitleStyle={subtitleStyle}
                   bodyStyle={bodyStyle}
@@ -253,6 +228,7 @@ const AdModal = ({ ad, onClose }) => {
                 btnStyle={btnStyle}
                 secondaryBtnStyle={secondaryBtnStyle}
                 handleClose={handleClose}
+                onCtaClick={onCtaClick}
                 titleStyle={titleStyle}
                 subtitleStyle={subtitleStyle}
                 bodyStyle={bodyStyle}
@@ -285,7 +261,7 @@ const AdModal = ({ ad, onClose }) => {
 };
 
 /* inner content (shared between modal and side layout) */
-const InnerContent = ({ ad, btnStyle, secondaryBtnStyle, handleClose, titleStyle, subtitleStyle, bodyStyle, tagStyle }) => (
+const InnerContent = ({ ad, btnStyle, secondaryBtnStyle, handleClose, onCtaClick, titleStyle, subtitleStyle, bodyStyle, tagStyle }) => (
   <>
     {ad.logoUrl && (
       <img
@@ -306,7 +282,9 @@ const InnerContent = ({ ad, btnStyle, secondaryBtnStyle, handleClose, titleStyle
             type="button"
             className={styles.ctaBtn}
             style={btnStyle}
-            onClick={async () => { await openUrl(ad.ctaUrl, ad._id, ad.ctaUrl, 'primary'); handleClose(false, true); }}
+            onClick={() => {
+              if (onCtaClick(ad.ctaUrl, 'primary')) handleClose(false, true);
+            }}
           >
             <FaExternalLinkAlt style={{ fontSize: 11 }} />
             {ad.ctaText}
@@ -317,7 +295,9 @@ const InnerContent = ({ ad, btnStyle, secondaryBtnStyle, handleClose, titleStyle
             type="button"
             className={`${styles.ctaBtn} ${styles.ctaSecondary}`}
             style={secondaryBtnStyle}
-            onClick={async () => { if (ad.ctaSecondaryUrl) { await openUrl(ad.ctaSecondaryUrl, ad._id, ad.ctaSecondaryUrl, 'secondary'); } handleClose(false, true); }}
+            onClick={() => {
+              if (onCtaClick(ad.ctaSecondaryUrl, 'secondary')) handleClose(false, true);
+            }}
           >
             {ad.ctaSecondaryText}
           </button>
@@ -330,6 +310,7 @@ const InnerContent = ({ ad, btnStyle, secondaryBtnStyle, handleClose, titleStyle
 /* ─────────────────── main export ─────────────────── */
 const AdDisplay = () => {
   const location = useLocation();
+  const navigate = useNavigate();
   const [queue, setQueue] = useState([]);
   const [current, setCurrent] = useState(null);
   const fetchedRef = useRef(false);
@@ -372,9 +353,40 @@ const AdDisplay = () => {
     });
   }, [current]);
 
+  const handleCtaClick = useCallback((destination, button) => {
+    const resolved = resolveAdCtaDestination(destination);
+    if (!resolved) {
+      if (typeof window.showToast === 'function') {
+        window.showToast('This ad button does not have a valid destination configured.', 'warning');
+      }
+      return;
+    }
+
+    api.post(`/ads/${current._id}/click`, { button }).catch((error) => {
+      console.error('Failed to track ad button click', error);
+    });
+    api.post(`/ads/${current._id}/link-click`, {
+      link_destination: destination,
+      button,
+    }).catch((error) => {
+      console.error('Failed to track ad link click', error);
+    });
+
+    try {
+      localStorage.setItem('last_clicked_ad', JSON.stringify({ adId: current._id, button, ts: Date.now() }));
+    } catch (_) {}
+
+    if (resolved.type === 'internal') {
+      navigate(resolved.path);
+    } else {
+      window.open(resolved.url, '_blank', 'noopener,noreferrer');
+    }
+    return true;
+  }, [current, navigate]);
+
   if (!current) return null;
 
-  return <AdModal ad={current} onClose={handleClose} />;
+  return <AdModal ad={current} onClose={handleClose} onCtaClick={handleCtaClick} />;
 };
 
 export default AdDisplay;

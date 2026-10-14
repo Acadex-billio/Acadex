@@ -3,13 +3,12 @@
  * Provides authentication state and methods to the entire app
  */
 
-import React, { createContext, useContext, useReducer, useEffect } from 'react';
+import React, { createContext, useContext, useReducer, useEffect, useRef } from 'react';
 import authService from '../services/authService';
-import api from '../services/api';
+import api, { handleAuthSessionExpired, refreshAuthSession } from '../services/api';
 import { triggerPushPrompt } from '../services/pushNotifications';
 
-const ACTIVITY_STORAGE_KEY = 'acadex_last_activity_at';
-const INACTIVITY_WINDOW_MS = 72 * 60 * 60 * 1000;
+const TOKEN_REFRESH_INTERVAL_MS = 10 * 60 * 1000;
 
 const isVerboseLoggingEnabled =
   String(process.env.REACT_APP_DEBUG_LOGS || '').trim().toLowerCase() === 'true';
@@ -100,6 +99,7 @@ const AuthContext = createContext();
 // Auth provider component
 export const AuthProvider = ({ children }) => {
   const [state, dispatch] = useReducer(authReducer, initialState);
+  const lastAuthRefreshAt = useRef(0);
 
   // Expose dispatcher to API module for logout handling in interceptor
   useEffect(() => {
@@ -111,76 +111,36 @@ export const AuthProvider = ({ children }) => {
     };
   }, [dispatch]);
 
-  // Check for existing token on app start
+  // The HttpOnly cookie session is authoritative; bootstrap through the API.
   useEffect(() => {
     const initializeAuth = async () => {
-      const token = authService.getToken();
-      const user = authService.getCurrentUser();
-      
-      logDebug('[Auth Context] Initializing auth:', {
-        hasToken: !!token, 
-        hasUser: !!user,
-        tokenExpired: token ? authService.isTokenExpired() : null
-      });
-      
-      if (token && user && !authService.isTokenExpired()) {
-        const lastActivityRaw = localStorage.getItem(ACTIVITY_STORAGE_KEY);
-        const lastActivityAt = Number(lastActivityRaw || 0);
-        const now = Date.now();
-        const hasValidActivity = Number.isFinite(lastActivityAt) && lastActivityAt > 0;
-        const isInactiveTooLong = hasValidActivity && now - lastActivityAt > INACTIVITY_WINDOW_MS;
-
-        if (isInactiveTooLong) {
-          authService.removeToken();
-          localStorage.removeItem(ACTIVITY_STORAGE_KEY);
-          localStorage.removeItem('userId');
-          localStorage.removeItem('userEmail');
-          localStorage.removeItem('userName');
-          localStorage.removeItem('isAdmin');
-          if (typeof window.showToast === 'function') {
-            window.showToast('You were logged out after 72 hours of inactivity. Please log in again.', 'warning');
-          }
+      authService.removeToken();
+      localStorage.removeItem('acadex_last_activity_at');
+      try {
+        const response = await api.get('/auth/me');
+        if (response.data?.authenticated && response.data?.user) {
+          lastAuthRefreshAt.current = Date.now() - TOKEN_REFRESH_INTERVAL_MS;
           dispatch({
-            type: AUTH_ACTIONS.LOGOUT
+            type: AUTH_ACTIONS.LOGIN_SUCCESS,
+            payload: { token: null, user: response.data.user },
           });
           return;
         }
-
-        localStorage.setItem(ACTIVITY_STORAGE_KEY, String(now));
-        logDebug('[Auth Context] Found valid token');
-        dispatch({
-          type: AUTH_ACTIONS.LOGIN_SUCCESS,
-          payload: { token, user }
+      } catch (error) {
+        logDebug('[Auth Context] Cookie session bootstrap failed', {
+          status: error?.response?.status || 0,
+          message: error?.message,
         });
-      } else {
-        try {
-          const response = await api.get('/auth/me');
-          if (response.data?.authenticated && response.data?.user) {
-            dispatch({
-              type: AUTH_ACTIONS.LOGIN_SUCCESS,
-              payload: { token: null, user: response.data.user },
-            });
-            localStorage.setItem(ACTIVITY_STORAGE_KEY, String(Date.now()));
-            return;
-          }
-        } catch (_) {
-          // Continue with a signed-out state when no valid cookie session exists.
-        }
-
-        logDebug('[Auth Context] No valid token found, clearing auth state');
-        // Clear all auth data
-        authService.removeToken();
-        dispatch({
-          type: AUTH_ACTIONS.LOGOUT
-        });
-        // Clear localStorage compatibility data
-        localStorage.removeItem('userId');
-        localStorage.removeItem('userEmail');
-        localStorage.removeItem('userName');
       }
+
+      authService.removeToken();
+      localStorage.removeItem('userId');
+      localStorage.removeItem('userEmail');
+      localStorage.removeItem('userName');
+      localStorage.removeItem('isAdmin');
+      dispatch({ type: AUTH_ACTIONS.LOGOUT });
     };
 
-    // Initialize immediately without delay
     initializeAuth();
   }, []);
 
@@ -194,12 +154,13 @@ export const AuthProvider = ({ children }) => {
       const { user } = response.data;
 
       if (user) {
+        authService.removeToken();
+        lastAuthRefreshAt.current = Date.now();
         dispatch({
           type: AUTH_ACTIONS.LOGIN_SUCCESS,
           payload: { token: null, user }
         });
 
-        localStorage.setItem(ACTIVITY_STORAGE_KEY, String(Date.now()));
         setTimeout(() => {
           try {
             triggerPushPrompt();
@@ -207,27 +168,19 @@ export const AuthProvider = ({ children }) => {
             // Ignore prompt trigger errors.
           }
         }, 800);
-        
-        // SECURITY: Do NOT persist PII in localStorage. Use JWT payload only.
-        // localStorage.setItem('userId', user.cand_id);
-        // localStorage.setItem('userEmail', user.email);
-        // localStorage.setItem('userName', user.name);
+
         logDebug('[AuthContext] Login succeeded');
-        
         return { success: true, user };
-      } else {
-        console.error('[AuthContext] Invalid login response format:', response.data);
-        throw new Error('Invalid login response format');
       }
+
+      console.error('[AuthContext] Invalid login response format:', response.data);
+      throw new Error('Invalid login response format');
     } catch (error) {
       const errorMessage = error.response?.data?.message || error.message || 'Login failed';
       const httpStatus = error.response?.status;
-      
-      console.error('[AuthContext] ❌ Login error:', {
-        errorMessage,
-        httpStatus,
-      });
-      
+
+      console.error('[AuthContext] Login error:', { errorMessage, httpStatus });
+
       dispatch({
         type: AUTH_ACTIONS.LOGIN_FAILURE,
         payload: errorMessage
@@ -249,62 +202,56 @@ export const AuthProvider = ({ children }) => {
       localStorage.removeItem('userEmail');
       localStorage.removeItem('userName');
       localStorage.removeItem('isAdmin');
-      localStorage.removeItem(ACTIVITY_STORAGE_KEY);
     }
   };
 
   useEffect(() => {
-    if (!state.isAuthenticated) return;
+    if (!state.isAuthenticated) return undefined;
 
-    let lastWriteAt = 0;
-    const writeActivity = () => {
-      const now = Date.now();
-      if (now - lastWriteAt < 15000) return;
-      lastWriteAt = now;
-      localStorage.setItem(ACTIVITY_STORAGE_KEY, String(now));
-    };
+    const refreshInBackground = async () => {
+      if (document.visibilityState !== 'visible') return;
+      if (Date.now() - lastAuthRefreshAt.current < TOKEN_REFRESH_INTERVAL_MS) return;
 
-    const checkInactivity = () => {
-      const lastActivityRaw = localStorage.getItem(ACTIVITY_STORAGE_KEY);
-      const lastActivityAt = Number(lastActivityRaw || 0);
-      const now = Date.now();
-      if (!Number.isFinite(lastActivityAt) || lastActivityAt <= 0) {
-        localStorage.setItem(ACTIVITY_STORAGE_KEY, String(now));
-        return;
-      }
-      if (now - lastActivityAt > INACTIVITY_WINDOW_MS) {
-        logout();
-        if (typeof window.showToast === 'function') {
-          window.showToast('You were logged out after 72 hours of inactivity. Please log in again.', 'warning');
+      try {
+        await refreshAuthSession();
+        lastAuthRefreshAt.current = Date.now();
+      } catch (refreshError) {
+        if (refreshError.response?.status !== 401) {
+          logDebug('[Auth Context] Background refresh temporarily failed', {
+            status: refreshError.response?.status || 0,
+            message: refreshError.message,
+          });
+          return;
+        }
+
+        try {
+          await api.get('/auth/me');
+          lastAuthRefreshAt.current = Date.now();
+        } catch (authError) {
+          if (authError.response?.status === 401) {
+            handleAuthSessionExpired('Your session has expired. Please log in again.');
+          } else {
+            logDebug('[Auth Context] Could not verify session after refresh failure', {
+              status: authError.response?.status || 0,
+              message: authError.message,
+            });
+          }
         }
       }
     };
 
-    const onActivity = () => writeActivity();
-    const onVisibility = () => {
-      if (document.visibilityState === 'visible') {
-        writeActivity();
-        checkInactivity();
-      }
+    const intervalId = window.setInterval(refreshInBackground, TOKEN_REFRESH_INTERVAL_MS);
+    const onResume = () => {
+      if (document.visibilityState === 'visible') refreshInBackground();
     };
+    window.addEventListener('focus', refreshInBackground);
+    document.addEventListener('visibilitychange', onResume);
 
-    const activityEvents = ['mousedown', 'keydown', 'touchstart', 'scroll'];
-    activityEvents.forEach((eventName) => {
-      window.addEventListener(eventName, onActivity, { passive: true });
-    });
-    window.addEventListener('focus', onActivity);
-    document.addEventListener('visibilitychange', onVisibility);
-
-    checkInactivity();
-    const intervalId = window.setInterval(checkInactivity, 60000);
-
+    refreshInBackground();
     return () => {
-      activityEvents.forEach((eventName) => {
-        window.removeEventListener(eventName, onActivity);
-      });
-      window.removeEventListener('focus', onActivity);
-      document.removeEventListener('visibilitychange', onVisibility);
       window.clearInterval(intervalId);
+      window.removeEventListener('focus', refreshInBackground);
+      document.removeEventListener('visibilitychange', onResume);
     };
   }, [state.isAuthenticated]);
 
