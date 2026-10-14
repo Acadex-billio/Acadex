@@ -134,12 +134,16 @@ const CandidateReportGuides = () => {
               </div>
 
               <div className={styles.titleRow}>
-                <h3 className={styles.cardTitle}>{`REPORT WRITING GUIDE FOR ${((g.departments||[])[0]?.dpt_name || g.program || '').toUpperCase()}`}</h3>
+                <h3 className={styles.cardTitle}>
+                  {`REPORT WRITING GUIDE FOR ${((g.departments || []).map((department) => department.dpt_name).filter(Boolean).join(', ') || g.program || '').toUpperCase()}`}
+                </h3>
               </div>
 
               <div className={styles.presenterRow}>
                 <FaBuilding className={styles.presenterIcon} />
-                <span className={styles.presenterName}>{(g.departments || [])[0]?.dpt_name || 'General'}</span>
+                <span className={styles.presenterName}>
+                  {(g.departments || []).map((department) => department.dpt_name).filter(Boolean).join(', ') || 'General'}
+                </span>
               </div>
 
               <div className={styles.metadataRow}>

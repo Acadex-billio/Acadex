@@ -54,6 +54,17 @@ User.findOne = async () => null;
 User.findById = async () => null;
 CandidatePurchase.findOne = async () => null;
 
+const visibilityServicePath = require.resolve('../services/candidateMaterialVisibilityService');
+require.cache[visibilityServicePath] = {
+  id: visibilityServicePath,
+  filename: visibilityServicePath,
+  loaded: true,
+  exports: {
+    getCandidateMaterialProgramCodes: async (program) => [String(program || 'HND').toUpperCase()],
+    getCandidateMaterialProgramFilter: (programCodes) => ({ program: { $in: programCodes } }),
+  },
+};
+
 const { checkMaterialAccess } = require('../middlewares/materialAccessMiddleware');
 
 test('non-HND question papers are treated as free materials', async () => {
@@ -168,6 +179,7 @@ test('AI Study Mode is a supported payment transaction resource', () => {
 test('material route guard serves Basic previews and routes Basic downloads to upgrade', async () => {
   const originalUserFindOne = User.findOne;
   const originalQuestionPaperFindById = QuestionPaper.findById;
+  const originalQuestionPaperFindOne = QuestionPaper.findOne;
   const originalHasActiveAccess = materialAccessService.hasActiveAccess;
   let subscription = { plan: 'basic', status: 'active' };
   let material = { paper_type: 'hnd' };
@@ -177,6 +189,10 @@ test('material route guard serves Basic previews and routes Basic downloads to u
     lean: async () => ({ cand_id: 'CAND123', subscription }),
   });
   QuestionPaper.findById = () => ({ lean: async () => material });
+  QuestionPaper.findOne = () => ({
+    select() { return this; },
+    lean: async () => ({ _id: '507f1f77bcf86cd799439011' }),
+  });
   materialAccessService.hasActiveAccess = async () => false;
 
   const request = async (accessType) => {
@@ -225,6 +241,7 @@ test('material route guard serves Basic previews and routes Basic downloads to u
   } finally {
     User.findOne = originalUserFindOne;
     QuestionPaper.findById = originalQuestionPaperFindById;
+    QuestionPaper.findOne = originalQuestionPaperFindOne;
     materialAccessService.hasActiveAccess = originalHasActiveAccess;
   }
 });

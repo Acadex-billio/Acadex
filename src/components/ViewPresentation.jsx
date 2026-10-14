@@ -632,13 +632,21 @@ const ViewPresentation = () => {
                 </span>
                 <span className={styles.metaChip}>
                   <FaBuilding className={styles.metaIcon} />
-                  {p.audience || p.program || 'GENERAL'}
+                  {p.program || 'HND'}
                 </span>
                 <span className={styles.metaChip}>
                   <FaRegFileAlt className={styles.metaIcon} />
                   {p.pages || 'N/A'} Slides
                 </span>
               </div>
+              {(p.departments || []).length ? (
+                <div className={styles.presenterRow}>
+                  <FaBuilding className={styles.presenterIcon} />
+                  <span className={styles.presenterName}>
+                    {(p.departments || []).map((department) => department.dpt_name).filter(Boolean).join(', ')}
+                  </span>
+                </div>
+              ) : null}
 
               {/* Metadata Row 2: Price + Time Ago */}
               <div className={styles.metadataRow2}>

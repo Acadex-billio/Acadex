@@ -6,6 +6,10 @@ const QuestionPaper = require('../models/QuestionPaper');
 const Report = require('../models/Report');
 const Presentation = require('../models/Presentation');
 const Announcement = require('../models/Announcement');
+const {
+  getCandidateMaterialProgramCodes,
+  getCandidateMaterialProgramFilter,
+} = require('../services/candidateMaterialVisibilityService');
 
 exports.getDashboard = async (req, res) => {
   try {
@@ -17,7 +21,7 @@ exports.getDashboard = async (req, res) => {
 
     const user = await User.findOne({ cand_id: userId })
       .populate('dpt_id', 'department_name abbreviation faculty')
-      .select('cand_id name profile_picture dpt_id')
+      .select('cand_id name profile_picture dpt_id program')
       .lean();
 
     if (!user) {
@@ -26,20 +30,20 @@ exports.getDashboard = async (req, res) => {
 
     const dpt = user.dpt_id;
     const dptId = dpt?._id ?? user.dpt_id;
+    const programCodes = await getCandidateMaterialProgramCodes(user.program);
+    const materialProgramFilter = getCandidateMaterialProgramFilter(programCodes);
 
     const now = new Date();
     const faculty = dpt?.faculty ? String(dpt.faculty).trim() : null;
 
     const [questionPapers, reports, presentations, courseMates, latestAnnouncement] = await Promise.all([
-      QuestionPaper.find().sort({ createdAt: -1 }).limit(5).select('course_title').lean(),
-      Report.find(
-        dptId ? { $or: [{ audience: 'GENERAL' }, { departments: dptId }] } : {}
-      )
+      QuestionPaper.find(materialProgramFilter).sort({ createdAt: -1 }).limit(5).select('course_title').lean(),
+      Report.find(materialProgramFilter)
         .sort({ createdAt: -1 })
         .limit(5)
         .select('title')
         .lean(),
-      Presentation.find().sort({ createdAt: -1 }).limit(5).select('title').lean(),
+      Presentation.find(materialProgramFilter).sort({ createdAt: -1 }).limit(5).select('title').lean(),
       User.find({ dpt_id: dptId, cand_id: { $ne: userId } })
         .limit(5)
         .select('cand_id name profile_picture')

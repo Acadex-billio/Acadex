@@ -21,6 +21,11 @@ const { isCloudConvertConfigured, convertPresentationToPdf } = require('../utils
 const { resolveLibreOfficeCommand } = require('../utils/libreOffice');
 const { thumbnailQueue, connection } = require('../services/thumbnailQueue');
 const { QueueEvents } = require('bullmq');
+const {
+  getCandidateMaterialProgramCodes,
+  getCandidateMaterialProgramFilter,
+  isMaterialVisibleToCandidate,
+} = require('../services/candidateMaterialVisibilityService');
 
 const PRESENTATION_DIR = path.join(__dirname, '../uploads/presentations');
 const PRESENTATION_PDF_DIR = path.join(PRESENTATION_DIR, 'pdfs');
@@ -30,26 +35,6 @@ const PDF_DIR = PRESENTATION_PDF_DIR;
 if (!fs.existsSync(PDF_DIR)) fs.mkdirSync(PDF_DIR, { recursive: true });
 if (!fs.existsSync(THUMBNAIL_DIR)) fs.mkdirSync(THUMBNAIL_DIR, { recursive: true });
 
-
-// Program groups: English vs French
-const PROGRAM_GROUPS = {
-  ENGLISH: ['HND', 'BACHELOR', 'MASTERS'],
-  FRENCH: ['BTS', 'LICENCE', 'MASTER'],
-};
-
-// Helper to get program group
-const getProgramGroup = (program) => {
-  const prog = String(program || 'HND').toUpperCase();
-  if (PROGRAM_GROUPS.ENGLISH.includes(prog)) return 'ENGLISH';
-  if (PROGRAM_GROUPS.FRENCH.includes(prog)) return 'FRENCH';
-  return null;
-};
-
-// Helper to get all programs in the user's group
-const getUserProgramsInGroup = (userProgram) => {
-  const group = getProgramGroup(userProgram);
-  return group === 'ENGLISH' ? PROGRAM_GROUPS.ENGLISH : PROGRAM_GROUPS.FRENCH;
-};
 
 const S3_BASE_URL = String(process.env.AWS_S3_URL || '').replace(/\/$/, '');
 
@@ -300,23 +285,6 @@ const sendThumbnailPlaceholder = (res, message = 'Preview unavailable') => {
   );
 };
 
-const canAccessPresentation = (presentation, userProgram, deptId) => {
-  if (!presentation) return false;
-  
-  // Check if user is in the same program group
-  const userProgramsInGroup = getUserProgramsInGroup(userProgram);
-  if (!userProgramsInGroup.includes(String(presentation.program).toUpperCase())) {
-    return false;
-  }
-
-  // Check audience access within the group
-  const aud = String(presentation.audience || 'GENERAL').toUpperCase();
-  if (aud === 'GENERAL') return true;
-  if (!deptId) return false;
-  const deptIds = (presentation.departments || []).map((d) => String(d._id || d));
-  return deptIds.includes(String(deptId));
-};
-
 const applyPreviewHeaders = (res, access) => {
   res.setHeader('X-Subscription-Plan', String(access?.plan || 'basic'));
   res.setHeader('X-Allow-Copy', access?.allow_copy ? 'true' : 'false');
@@ -344,20 +312,15 @@ exports.getAll = async (req, res) => {
     const skip = (page - 1) * limit;
     const paygoPricing = (await getMaterialDefaults('presentation'))?.plan_pricing?.paygo || {};
 
-    const deptId = req.user?.dpt_id || null;
-    const userProgram = String(req.user?.program || 'HND').toUpperCase();
-    const userProgramGroup = getUserProgramsInGroup(userProgram);
-
-    // Query presentations for all programs in the user's language group
-    const accessQuery = deptId
-      ? { program: { $in: userProgramGroup }, $or: [{ audience: 'GENERAL' }, { departments: deptId }] }
-      : { program: { $in: userProgramGroup }, audience: 'GENERAL' };
+    const programCodes = await getCandidateMaterialProgramCodes(req.user?.program);
+    const accessQuery = getCandidateMaterialProgramFilter(programCodes);
 
     const [presentations, total] = await Promise.all([
       Presentation.find(accessQuery)
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limit)
+        .populate('departments', 'department_name')
         .populate({
           path: 'report_id',
           select: 'title departments pages',
@@ -376,6 +339,12 @@ exports.getAll = async (req, res) => {
       upload_date: p.createdAt,
       program: String(p.program || 'HND').toUpperCase(),
       audience: String(p.audience || 'GENERAL').toUpperCase(),
+      departments: (Array.isArray(p.departments)
+        ? p.departments.map((d) => ({
+            dpt_id: d._id?.toString?.() || String(d),
+            dpt_name: d.department_name || '',
+          }))
+        : []),
       paygo_preview_price: Number(paygoPricing.preview_price || 0),
       paygo_download_price: Number(paygoPricing.download_price || 0),
       paygo_preview_pages: Number(paygoPricing.preview_pages || 3),
@@ -411,15 +380,15 @@ exports.downloadFile = async (req, res) => {
   const requested = decodeURIComponent(req.params.filename || '');
   if (!requested) return res.status(400).json({ success: false, message: 'Invalid filename' });
 
-  const userProgram = String(req.user?.program || 'HND').toUpperCase();
-  const userProgramGroup = getUserProgramsInGroup(userProgram);
-  const presentation = await Presentation.findOne({ file_path: requested, program: { $in: userProgramGroup } })
+  const programCodes = await getCandidateMaterialProgramCodes(req.user?.program);
+  const presentation = await Presentation.findOne({
+    file_path: requested,
+    ...getCandidateMaterialProgramFilter(programCodes),
+  })
     .select('audience departments title program')
     .lean();
   if (!presentation) return res.status(404).json({ success: false, message: 'File not found' });
-
-  const deptId = req.user?.dpt_id || null;
-  if (!canAccessPresentation(presentation, userProgram, deptId)) {
+  if (!isMaterialVisibleToCandidate(presentation, programCodes)) {
     return res.status(403).json({ success: false, message: 'Not authorized to access this presentation' });
   }
 
@@ -502,15 +471,15 @@ exports.previewFile = async (req, res) => {
   if (!requested) return res.status(400).json({ success: false, message: 'Invalid filename' });
   console.log('[Presentations] Preview request received:', { requested });
 
-  const userProgram = String(req.user?.program || 'HND').toUpperCase();
-  const userProgramGroup = getUserProgramsInGroup(userProgram);
-  const presentation = await Presentation.findOne({ file_path: requested, program: { $in: userProgramGroup } })
+  const programCodes = await getCandidateMaterialProgramCodes(req.user?.program);
+  const presentation = await Presentation.findOne({
+    file_path: requested,
+    ...getCandidateMaterialProgramFilter(programCodes),
+  })
     .select('audience departments title program')
     .lean();
   if (!presentation) return res.status(404).json({ success: false, message: 'File not found' });
-
-  const deptId = req.user?.dpt_id || null;
-  if (!canAccessPresentation(presentation, userProgram, deptId)) {
+  if (!isMaterialVisibleToCandidate(presentation, programCodes)) {
     return res.status(403).json({ success: false, message: 'Not authorized to access this presentation' });
   }
 
@@ -679,15 +648,15 @@ exports.getThumbnail = async (req, res) => {
   if (!requested) return res.status(400).json({ success: false, message: 'Invalid filename' });
 
   try {
-    const userProgram = String(req.user?.program || 'HND').toUpperCase();
-    const userProgramGroup = getUserProgramsInGroup(userProgram);
-    const presentation = await Presentation.findOne({ file_path: requested, program: { $in: userProgramGroup } })
+    const programCodes = await getCandidateMaterialProgramCodes(req.user?.program);
+    const presentation = await Presentation.findOne({
+      file_path: requested,
+      ...getCandidateMaterialProgramFilter(programCodes),
+    })
       .select('audience departments title program')
       .lean();
     if (!presentation) return res.status(404).json({ success: false, message: 'File not found' });
-
-    const deptId = req.user?.dpt_id || null;
-    if (!canAccessPresentation(presentation, userProgram, deptId)) {
+    if (!isMaterialVisibleToCandidate(presentation, programCodes)) {
       return res.status(403).json({ success: false, message: 'Not authorized to access this presentation' });
     }
 

@@ -6,6 +6,10 @@ const Presentation = require('../models/Presentation');
 const QuestionPaper = require('../models/QuestionPaper');
 const User = require('../models/User');
 const { getMaterialAccessSummary, isFreeMaterialAccess } = require('../utils/subscriptionUtils');
+const {
+  getCandidateMaterialProgramCodes,
+  getCandidateMaterialProgramFilter,
+} = require('../services/candidateMaterialVisibilityService');
 
 function getRouteMaterialIdentifier(req) {
   if (req.params.id) return req.params.id;
@@ -24,16 +28,12 @@ function normalizeMaterialIdentifier(identifier) {
   return value.split('?')[0].trim();
 }
 
-async function resolveMaterialId(materialType, identifier, req) {
+async function resolveMaterialId(materialType, identifier, programCodes) {
   if (!identifier) return null;
-  if (mongoose.Types.ObjectId.isValid(identifier)) {
-    return identifier;
-  }
-
   const decoded = normalizeMaterialIdentifier(identifier);
   if (!decoded) return null;
 
-  const program = String(req.user?.program || 'HND').toUpperCase();
+  const programFilter = getCandidateMaterialProgramFilter(programCodes);
   let model;
   let query;
   let fallbackQuery;
@@ -41,22 +41,26 @@ async function resolveMaterialId(materialType, identifier, req) {
 
   if (materialType === 'report') {
     model = Report;
-    query = { file_path: decoded, program };
-    fallbackQuery = { file_path: decoded };
+    query = { file_path: decoded, ...programFilter };
+    fallbackQuery = { file_path: decoded, ...programFilter };
     suffixField = 'file_path';
   } else if (materialType === 'presentation') {
     model = Presentation;
-    query = { file_path: decoded, program };
-    fallbackQuery = { file_path: decoded };
+    query = { file_path: decoded, ...programFilter };
+    fallbackQuery = { file_path: decoded, ...programFilter };
     suffixField = 'file_path';
   } else if (materialType === 'questionPaper') {
     model = QuestionPaper;
-    query = { paper_file: decoded, program };
-    fallbackQuery = { paper_file: decoded };
+    query = { paper_file: decoded, ...programFilter };
+    fallbackQuery = { paper_file: decoded, ...programFilter };
     suffixField = 'paper_file';
   }
 
   if (!model || !query) return null;
+  if (mongoose.Types.ObjectId.isValid(decoded)) {
+    const byId = await model.findOne({ _id: decoded, ...programFilter }).select('_id').lean();
+    return byId?._id || null;
+  }
 
   const tryFind = async (candidateQuery) => {
     try {
@@ -76,7 +80,10 @@ async function resolveMaterialId(materialType, identifier, req) {
   try {
     const filename = path.basename(decoded);
     if (filename) {
-      const bySuffix = await model.findOne({ [suffixField]: { $regex: `${filename}$` } }).select('_id').lean();
+      const bySuffix = await model.findOne({
+        ...programFilter,
+        [suffixField]: { $regex: `${filename}$` },
+      }).select('_id').lean();
       if (bySuffix && bySuffix._id) return bySuffix._id;
     }
   } catch (_) {}
@@ -102,7 +109,8 @@ function checkMaterialAccess(materialType, accessType = 'preview') {
         });
       }
 
-      const materialId = await resolveMaterialId(materialType, routeIdentifier, req);
+      const programCodes = await getCandidateMaterialProgramCodes(req.user?.program);
+      const materialId = await resolveMaterialId(materialType, routeIdentifier, programCodes);
       if (!materialId) {
         return res.status(404).json({
           success: false,

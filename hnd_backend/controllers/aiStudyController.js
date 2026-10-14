@@ -7,18 +7,13 @@ const AiStudySession = require('../models/AiStudySession');
 const User = require('../models/User');
 const materialAccessService = require('../services/materialAccessService');
 const { getMaterialAccessSummary, resolveSubscription } = require('../utils/subscriptionUtils');
+const { getCandidateMaterialDepartmentTracks } = require('../services/candidateMaterialVisibilityService');
 
 const STUDY_LIMIT = 20;
 
 const normalizeProgram = (value) => {
   const raw = String(value || 'HND').trim().toUpperCase();
   return raw === 'BTS' ? 'BTS' : 'HND';
-};
-
-const toObjectId = (value) => {
-  const raw = String(value || '').trim();
-  if (!mongoose.Types.ObjectId.isValid(raw)) return null;
-  return new mongoose.Types.ObjectId(raw);
 };
 
 const parseMcqText = (text) => {
@@ -184,22 +179,13 @@ exports.listStudyMaterialsForDeveloper = async (req, res) => {
 
 exports.listStudyPapersForCandidate = async (req, res) => {
   try {
-    const program = normalizeProgram(req.user?.program);
-    const deptObjectId = toObjectId(req.user?.dpt_id);
+    const programTracks = await getCandidateMaterialDepartmentTracks(req.user?.program);
 
     const filter = {
       is_active: true,
-      program,
+      program: { $in: programTracks },
       question_count: { $gte: STUDY_LIMIT },
-      $or: [
-        { departments: { $exists: false } },
-        { departments: { $size: 0 } },
-      ],
     };
-
-    if (deptObjectId) {
-      filter.$or.push({ departments: deptObjectId });
-    }
 
     const materials = await AiStudyMaterial.find(filter)
       .sort({ createdAt: -1 })
@@ -224,8 +210,7 @@ exports.listStudyPapersForCandidate = async (req, res) => {
 exports.startStudySession = async (req, res) => {
   try {
     const candidateId = String(req.user?.cand_id || '').trim();
-    const program = normalizeProgram(req.user?.program);
-    const deptObjectId = toObjectId(req.user?.dpt_id);
+    const programTracks = await getCandidateMaterialDepartmentTracks(req.user?.program);
     const materialId = String(req.body?.materialId || '').trim();
 
     if (!candidateId) {
@@ -235,14 +220,13 @@ exports.startStudySession = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Valid study material is required.' });
     }
 
-    const material = await AiStudyMaterial.findById(materialId).lean();
+    const material = await AiStudyMaterial.findOne({
+      _id: materialId,
+      program: { $in: programTracks },
+    }).lean();
     if (!material || !material.is_active) {
       return res.status(404).json({ success: false, message: 'Study material not found.' });
     }
-    if (normalizeProgram(material.program) !== program) {
-      return res.status(403).json({ success: false, message: 'You cannot access this study material.' });
-    }
-
     let hasAiAccess = await materialAccessService.hasActiveAccess(candidateId, String(materialId), 'ai_mode', 'preview').catch(() => false);
     if (!hasAiAccess) {
       const candidate = await User.findOne({ cand_id: candidateId }).select('cand_id subscription').lean();
@@ -281,14 +265,6 @@ exports.startStudySession = async (req, res) => {
           code: 'PLAN_UPGRADE_REQUIRED',
           message: 'AI Study Mode is not included in the Basic plan. Upgrade to Pro, PAYGO, or Full Package to continue.',
         });
-      }
-    }
-
-    const materialDepartments = Array.isArray(material.departments) ? material.departments.map((d) => String(d)) : [];
-    if (materialDepartments.length > 0) {
-      const deptId = String(deptObjectId || '');
-      if (!deptId || !materialDepartments.includes(deptId)) {
-        return res.status(403).json({ success: false, message: 'You cannot access this study material.' });
       }
     }
 

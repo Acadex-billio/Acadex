@@ -533,7 +533,9 @@ const QuestionPapers = () => {
 
               <div className={styles.presenterRow}>
                 <FaBuilding className={styles.presenterIcon} />
-                <span className={styles.presenterName}>{p.departments.map((d) => d.dpt_name).join(', ') || 'General'}</span>
+                <span className={styles.presenterName}>
+                  {p.program || 'HND'} · {p.departments.map((d) => d.dpt_name).join(', ') || p.audience || 'General'}
+                </span>
               </div>
 
               <div className={styles.metadataRow}>

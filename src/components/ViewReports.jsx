@@ -498,7 +498,9 @@ const ViewReport = () => {
 
               <div className={styles.presenterRow}>
                 <FaBuilding className={styles.presenterIcon} />
-                <span className={styles.presenterName}>{(r.departments || [])[0]?.dpt_name || r.audience || 'General'}</span>
+                <span className={styles.presenterName}>
+                  {r.program || 'HND'} · {(r.departments || []).map((department) => department.dpt_name).filter(Boolean).join(', ') || r.audience || 'General'}
+                </span>
               </div>
 
               <div className={styles.metadataRow}>

@@ -13,6 +13,11 @@ const materialAccessService = require('../services/materialAccessService');
 const { getMaterialAccessSummary, isFreeMaterialAccess } = require('../utils/subscriptionUtils');
 const { getMaterialDefaults } = require('../utils/subscriptionCatalog');
 const { streamToBuffer, subsetPdfBuffer, applyPdfWatermark } = require('../utils/pdfAccess');
+const {
+  getCandidateMaterialProgramCodes,
+  getCandidateMaterialProgramFilter,
+  getCandidateMaterialDepartmentTracks,
+} = require('../services/candidateMaterialVisibilityService');
 
 const PAPERS_DIR = path.join(__dirname, '../uploads/papers');
 
@@ -54,15 +59,6 @@ const streamS3ToResponse = (source, res, disposition = 'inline', downloadName = 
 
   stream.pipe(res);
   return true;
-};
-
-const canAccessPaper = (paper, deptObjectId) => {
-  if (!paper) return false;
-  const audience = String(paper.audience || '').toUpperCase();
-  if (audience === 'GENERAL') return true;
-  if (!deptObjectId) return false;
-  const deptIds = (paper.departments || []).map((d) => String(d));
-  return deptIds.includes(String(deptObjectId));
 };
 
 const applyPreviewHeaders = (res, access) => {
@@ -108,10 +104,10 @@ const parseStudyLinks = (text) => {
 
 exports.getDepartments = async (req, res) => {
   try {
-    const program = String(req.user?.program || 'HND').toUpperCase();
-    const rows = await Department.find({ program })
+    const programTracks = await getCandidateMaterialDepartmentTracks(req.user?.program);
+    const rows = await Department.find({ program: { $in: programTracks } })
       .sort({ department_name: 1 })
-      .select('_id department_name abbreviation')
+      .select('_id department_name abbreviation program')
       .lean();
 
     return res.json(
@@ -119,7 +115,7 @@ exports.getDepartments = async (req, res) => {
         dpt_id: d._id.toString(),
         department_name: d.department_name,
         abbreviation: d.abbreviation,
-        program: String(d.program || program).toUpperCase(),
+        program: String(d.program || '').toUpperCase(),
       }))
     );
   } catch (err) {
@@ -130,14 +126,11 @@ exports.getDepartments = async (req, res) => {
 
 exports.getQuestionPapers = async (req, res) => {
   try {
-    const deptId = req.user?.dpt_id || null;
-    const program = String(req.user?.program || 'HND').toUpperCase();
+    const programCodes = await getCandidateMaterialProgramCodes(req.user?.program);
     const paper_type_q = String(req.query?.paper_type || '').trim().toLowerCase();
     const validTypes = ['hnd', 'ca', 'exam', 'mock'];
 
-    const query = deptId
-      ? { program, $or: [{ audience: 'GENERAL' }, { departments: deptId }] }
-      : { program, audience: 'GENERAL' };
+    const query = getCandidateMaterialProgramFilter(programCodes);
 
     if (validTypes.includes(paper_type_q)) {
       query.paper_type = paper_type_q;
@@ -186,15 +179,13 @@ exports.downloadPaper = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Invalid filename' });
     }
 
-    const program = String(req.user?.program || 'HND').toUpperCase();
-    const paper = await QuestionPaper.findOne({ paper_file: requested, program }).select('audience departments course_title subscription_access').lean();
+    const programCodes = await getCandidateMaterialProgramCodes(req.user?.program);
+    const paper = await QuestionPaper.findOne({
+      paper_file: requested,
+      ...getCandidateMaterialProgramFilter(programCodes),
+    }).select('audience departments course_title subscription_access').lean();
     if (!paper) {
       return res.status(404).json({ success: false, message: 'Paper not found' });
-    }
-
-    const deptId = req.user?.dpt_id || null;
-    if (!canAccessPaper(paper, deptId)) {
-      return res.status(403).json({ success: false, message: 'Not authorized to access this paper' });
     }
 
     const candidate = await User.findOne({ cand_id: req.user?.cand_id }).select('cand_id subscription').lean();
@@ -313,15 +304,13 @@ exports.previewPaper = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Invalid filename' });
     }
 
-    const program = String(req.user?.program || 'HND').toUpperCase();
-    const paper = await QuestionPaper.findOne({ paper_file: requested, program }).select('audience departments course_title subscription_access').lean();
+    const programCodes = await getCandidateMaterialProgramCodes(req.user?.program);
+    const paper = await QuestionPaper.findOne({
+      paper_file: requested,
+      ...getCandidateMaterialProgramFilter(programCodes),
+    }).select('audience departments course_title subscription_access').lean();
     if (!paper) {
       return res.status(404).json({ success: false, message: 'Paper not found' });
-    }
-
-    const deptId = req.user?.dpt_id || null;
-    if (!canAccessPaper(paper, deptId)) {
-      return res.status(403).json({ success: false, message: 'Not authorized to access this paper' });
     }
 
     const candidate = await User.findOne({ cand_id: req.user?.cand_id }).select('cand_id subscription').lean();

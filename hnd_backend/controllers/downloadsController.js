@@ -8,35 +8,38 @@ const fs = require('fs');
 const { sanitizeFilename } = require('../middlewares/requestValidation');
 const materialAccessService = require('../services/materialAccessService');
 const { getS3ObjectStream } = require('../utils/s3Uploader');
+const {
+  getCandidateMaterialProgramCodes,
+  getCandidateMaterialProgramFilter,
+  isMaterialVisibleToCandidate,
+} = require('../services/candidateMaterialVisibilityService');
 
 const PAPERS_DIR = path.join(__dirname, '../uploads/papers');
 
-const resolveMaterial = async (resourceType, identifier, program) => {
+const resolveMaterial = async (resourceType, identifier, programCodes) => {
   // identifier may be an _id or a filename
   if (!resourceType) return null;
   const rt = String(resourceType || '').toLowerCase();
+  const programFilter = getCandidateMaterialProgramFilter(programCodes);
   if (rt === 'question_paper' || rt === 'questionpaper') {
     if (identifier.match && identifier.match(/^[0-9a-fA-F]{24}$/)) {
-      return await QuestionPaper.findById(identifier).lean();
+      return await QuestionPaper.findOne({ _id: identifier, ...programFilter }).lean();
     }
-    return await QuestionPaper.findOne({ paper_file: identifier, program }).lean();
+    return await QuestionPaper.findOne({ paper_file: identifier, ...programFilter }).lean();
   }
 
   if (rt === 'report') {
     if (identifier.match && identifier.match(/^[0-9a-fA-F]{24}$/)) {
-      return await Report.findById(identifier).lean();
+      return await Report.findOne({ _id: identifier, ...programFilter }).lean();
     }
-    // Try to resolve by program first, but fall back to global match (guides may belong to other programs)
-    let found = await Report.findOne({ file_path: identifier, program }).lean();
-    if (found) return found;
-    return await Report.findOne({ file_path: identifier }).lean();
+    return await Report.findOne({ file_path: identifier, ...programFilter }).lean();
   }
 
   if (rt === 'presentation') {
     if (identifier.match && identifier.match(/^[0-9a-fA-F]{24}$/)) {
-      return await Presentation.findById(identifier).lean();
+      return await Presentation.findOne({ _id: identifier, ...programFilter }).lean();
     }
-    return await Presentation.findOne({ file_path: identifier, program }).lean();
+    return await Presentation.findOne({ file_path: identifier, ...programFilter }).lean();
   }
 
   return null;
@@ -45,11 +48,11 @@ const resolveMaterial = async (resourceType, identifier, program) => {
 exports.saveDownload = async (req, res) => {
   try {
     const { resourceType, resourceId, filename } = req.body || {};
-    const program = String(req.user?.program || 'HND').toUpperCase();
+    const programCodes = await getCandidateMaterialProgramCodes(req.user?.program);
     const identifier = resourceId || filename;
     if (!resourceType || !identifier) return res.status(400).json({ success: false, message: 'Missing resourceType or identifier' });
 
-    const material = await resolveMaterial(resourceType, identifier, program);
+    const material = await resolveMaterial(resourceType, identifier, programCodes);
     if (!material) return res.status(404).json({ success: false, message: 'Resource not found' });
 
     // Find user document to get _id
@@ -76,6 +79,7 @@ exports.saveDownload = async (req, res) => {
 
 exports.listDownloads = async (req, res) => {
   try {
+    const programCodes = await getCandidateMaterialProgramCodes(req.user?.program);
     const user = await User.findOne({ cand_id: req.user?.cand_id }).select('_id').lean();
     if (!user) return res.status(401).json({ success: false, message: 'User not found' });
 
@@ -86,19 +90,22 @@ exports.listDownloads = async (req, res) => {
         const item = { id: a._id, materialType: a.materialType, accessType: a.accessType, expiresAt: a.expiresAt };
         try {
           if (a.materialType === 'questionPaper') {
-            const m = await QuestionPaper.findById(a.materialId).select('course_title paper_file').lean();
+            const m = await QuestionPaper.findById(a.materialId).select('course_title paper_file program').lean();
+            if (!isMaterialVisibleToCandidate(m, programCodes)) return null;
             item.title = m?.course_title || null;
             item.filename = m?.paper_file || null;
             item.resource_type = 'question_paper';
             item.resource_id = m?._id || null;
           } else if (a.materialType === 'report') {
-            const m = await Report.findById(a.materialId).select('title file_path').lean();
+            const m = await Report.findById(a.materialId).select('title file_path program').lean();
+            if (!isMaterialVisibleToCandidate(m, programCodes)) return null;
             item.title = m?.title || null;
             item.filename = m?.file_path || null;
             item.resource_type = 'report';
             item.resource_id = m?._id || null;
           } else if (a.materialType === 'presentation') {
-            const m = await Presentation.findById(a.materialId).select('title file_path').lean();
+            const m = await Presentation.findById(a.materialId).select('title file_path program').lean();
+            if (!isMaterialVisibleToCandidate(m, programCodes)) return null;
             item.title = m?.title || null;
             item.filename = m?.file_path || null;
             item.resource_type = 'presentation';
@@ -111,7 +118,7 @@ exports.listDownloads = async (req, res) => {
       })
     );
 
-    return res.json({ success: true, downloads: results });
+    return res.json({ success: true, downloads: results.filter(Boolean) });
   } catch (err) {
     console.error('[Downloads] List error:', err);
     return res.status(500).json({ success: false, message: 'Failed to list downloads' });
@@ -145,6 +152,7 @@ const streamS3OrLocal = (fileRef, res, downloadName) => {
 
 exports.streamSavedDownload = async (req, res) => {
   try {
+    const programCodes = await getCandidateMaterialProgramCodes(req.user?.program);
     const downloadId = req.params.downloadId;
     if (!downloadId) return res.status(400).json({ success: false, message: 'Missing downloadId' });
 
@@ -159,22 +167,25 @@ exports.streamSavedDownload = async (req, res) => {
     // Resolve material and stream
     const materialType = access.materialType;
     if (materialType === 'questionPaper') {
-      const m = await QuestionPaper.findById(access.materialId).select('paper_file course_title').lean();
+      const m = await QuestionPaper.findById(access.materialId).select('paper_file course_title program').lean();
       if (!m) return res.status(404).json({ success: false, message: 'File not found' });
+      if (!isMaterialVisibleToCandidate(m, programCodes)) return res.status(403).json({ success: false, message: 'You cannot access this material.' });
       if (streamS3OrLocal(m.paper_file, res, sanitizeFilename(m.paper_file) || m.course_title)) return;
       return res.status(404).json({ success: false, message: 'File not found' });
     }
 
     if (materialType === 'report') {
-      const m = await Report.findById(access.materialId).select('file_path title').lean();
+      const m = await Report.findById(access.materialId).select('file_path title program').lean();
       if (!m) return res.status(404).json({ success: false, message: 'File not found' });
+      if (!isMaterialVisibleToCandidate(m, programCodes)) return res.status(403).json({ success: false, message: 'You cannot access this material.' });
       if (streamS3OrLocal(m.file_path, res, sanitizeFilename(m.file_path) || m.title)) return;
       return res.status(404).json({ success: false, message: 'File not found' });
     }
 
     if (materialType === 'presentation') {
-      const m = await Presentation.findById(access.materialId).select('file_path title').lean();
+      const m = await Presentation.findById(access.materialId).select('file_path title program').lean();
       if (!m) return res.status(404).json({ success: false, message: 'File not found' });
+      if (!isMaterialVisibleToCandidate(m, programCodes)) return res.status(403).json({ success: false, message: 'You cannot access this material.' });
       if (streamS3OrLocal(m.file_path, res, sanitizeFilename(m.file_path) || m.title)) return;
       return res.status(404).json({ success: false, message: 'File not found' });
     }

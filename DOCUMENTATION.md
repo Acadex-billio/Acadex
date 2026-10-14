@@ -69,6 +69,10 @@ Main guards are `requireAuth`, `requireAdmin`, `requireDeveloper`, and `requireS
 
 The browser uses the HttpOnly `access_token` and `refresh_token` cookies as its authentication source; frontend requests do not send legacy localStorage JWTs. Access cookies last 15 minutes. Candidate refresh cookies are automatically set to 30 days and renewed with a 30-day sliding lifetime; other roles use a one-day refresh-cookie lifetime unless remember-me is explicitly requested. Refresh JWTs default to 30 days (`JWT_REFRESH_EXPIRES_IN` can override this). While an authenticated app tab is visible, the frontend silently refreshes every 10 minutes, refreshes on return to a visible tab, and retries a failed authenticated request once after refresh. A lost/expired refresh token ends the session; the client no longer logs users out solely due to a 72-hour local inactivity timer. The legacy `hnd.sid` Express session has a seven-day cookie but does not define the current JWT login lifetime.
 
+### Candidate Material Visibility
+
+Candidate question papers, reports (including report guides), presentations, and AI Study Mode materials are visible across programs that share the candidate program's configured `visibility_group` in the program catalog. Program tags and department/audience metadata remain displayed as material details, but no longer restrict visibility within that language group. Candidate listings, previews, downloads, thumbnails, saved downloads, and dashboard material summaries use this same language-group scope. AI Study Mode follows the group's configured department tracks (HND or BTS).
+
 ## Frontend Navigation
 
 Routes are defined in `src/App.jsx` and grouped into public, candidate, admin, lecturer, developer, and concours-partner workflows. Key families include `/`, `/login`, `/register`, `/reset-password`, `/candidate/*`, `/admin/*`, lecturer routes, payment/study routes, and concours routes.

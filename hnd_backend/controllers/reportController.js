@@ -16,6 +16,11 @@ const { streamToBuffer, subsetPdfBuffer, applyPdfWatermark } = require('../utils
 const { enqueueLibreOfficeJob } = require('../services/libreOfficeQueue');
 const { runLibreOfficeConvert } = require('../services/libreOfficeRunner');
 const { pipelineWithLimits } = require('../utils/streamLimits');
+const {
+  getCandidateMaterialProgramCodes,
+  getCandidateMaterialProgramFilter,
+  isMaterialVisibleToCandidate,
+} = require('../services/candidateMaterialVisibilityService');
 
 const REPORT_DIR = path.join(__dirname, '../uploads/reports');
 const PREVIEW_CACHE_DIR = path.join(os.tmpdir(), 'hnd-preview', 'reports');
@@ -118,17 +123,6 @@ const convertToPdf = async (sourcePath, outputDir) => {
   });
 };
 
-const canAccessReport = (report, deptId) => {
-  if (!report) return false;
-  const aud = String(report.audience || '').toUpperCase();
-  // Guides are public to all candidates
-  if (report.is_guide) return true;
-  if (aud === 'GENERAL') return true;
-  if (!deptId) return false;
-  const deptIds = (report.departments || []).map((d) => String(d));
-  return deptIds.includes(String(deptId));
-};
-
 const applyPreviewHeaders = (res, access) => {
   res.setHeader('X-Subscription-Plan', String(access?.plan || 'basic'));
   res.setHeader('X-Allow-Copy', access?.allow_copy ? 'true' : 'false');
@@ -173,19 +167,15 @@ exports.getAll = async (req, res) => {
     const skip = (page - 1) * limit;
     const paygoPricing = (await getMaterialDefaults('report'))?.plan_pricing?.paygo || {};
 
-    // Get department ID from JWT token
-    const deptId = req.user?.dpt_id || null;
-    const program = String(req.user?.program || 'HND').toUpperCase();
-    const accessQuery = deptId
-      ? { program, $or: [{ audience: 'GENERAL' }, { departments: deptId }] }
-      : { program, audience: 'GENERAL' };
+    const programCodes = await getCandidateMaterialProgramCodes(req.user?.program);
+    const accessQuery = getCandidateMaterialProgramFilter(programCodes);
 
     const [reports, total] = await Promise.all([
       Report.find(accessQuery)
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limit)
-        .select('title writer_names writer_email upload_date keywords description location pages file_path program departments project_github_url')
+        .select('title writer_names writer_email upload_date keywords description location pages file_path program audience departments project_github_url is_guide')
         .populate('departments', 'department_name')
         .lean(),
       Report.countDocuments(accessQuery),
@@ -193,7 +183,17 @@ exports.getAll = async (req, res) => {
 
     return res.json({
       reports: reports.map((r) => ({
+        title: r.title,
+        writer_names: r.writer_names,
+        writer_email: r.writer_email,
+        keywords: r.keywords,
+        description: r.description,
+        location: r.location,
+        pages: r.pages,
+        file_path: r.file_path,
         program: String(r.program || 'HND').toUpperCase(),
+        audience: String(r.audience || 'GENERAL').toUpperCase(),
+        is_guide: Boolean(r.is_guide),
         report_id: r._id,
         upload_date: r.createdAt,
         paygo_preview_price: Number(paygoPricing.preview_price || 0),
@@ -229,8 +229,11 @@ exports.getGuides = async (req, res) => {
     const skip = (page - 1) * limit;
     const paygoPricing = (await getMaterialDefaults('report'))?.plan_pricing?.paygo || {};
 
-    // For guides, make them viewable by all candidates regardless of program/department
-    const accessQuery = { is_guide: true };
+    const programCodes = await getCandidateMaterialProgramCodes(req.user?.program);
+    const accessQuery = {
+      ...getCandidateMaterialProgramFilter(programCodes),
+      is_guide: true,
+    };
 
     const [guides, total] = await Promise.all([
       Report.find(accessQuery)
@@ -270,17 +273,14 @@ exports.downloadFile = async (req, res) => {
     const requested = decodeURIComponent(req.params.filename || '');
     if (!requested) return res.status(400).json({ success: false, message: 'Invalid filename' });
 
-    // Find report by file_path. If it's not a guide, ensure program matches below.
-    let report = await Report.findOne({ file_path: requested }).select('audience departments title program is_guide').lean();
+    const programCodes = await getCandidateMaterialProgramCodes(req.user?.program);
+    const report = await Report.findOne({
+      file_path: requested,
+      ...getCandidateMaterialProgramFilter(programCodes),
+    }).select('audience departments title program is_guide').lean();
     if (!report) return res.status(404).json({ success: false, message: 'File not found' });
 
-    const program = String(req.user?.program || 'HND').toUpperCase();
-    if (!report.is_guide && String(report.program || '').toUpperCase() !== program) {
-      return res.status(403).json({ success: false, message: 'Not authorized to access this report' });
-    }
-
-    const deptId = req.user?.dpt_id || null;
-    if (!canAccessReport(report, deptId)) {
+    if (!isMaterialVisibleToCandidate(report, programCodes)) {
       return res.status(403).json({ success: false, message: 'Not authorized to access this report' });
     }
 
@@ -377,14 +377,21 @@ exports.previewFile = (req, res) => {
     if (!requested) return res.status(400).json({ success: false, message: 'Invalid filename' });
     console.log('[ViewReport] Preview request received:', { requested });
 
-    const program = String(req.user?.program || 'HND').toUpperCase();
+    const programCodes = await getCandidateMaterialProgramCodes(req.user?.program);
+    const programFilter = getCandidateMaterialProgramFilter(programCodes);
     // Find report by file_path; if exact match fails, try to match by filename suffix (handles URL variants)
-    let report = await Report.findOne({ file_path: requested }).select('audience departments title program is_guide').lean();
+    let report = await Report.findOne({
+      file_path: requested,
+      ...programFilter,
+    }).select('audience departments title program is_guide').lean();
     if (!report) {
       try {
         const filename = path.basename(requested.split('?')[0] || requested);
         if (filename) {
-          report = await Report.findOne({ file_path: { $regex: `${filename}$` } }).select('audience departments title program is_guide').lean();
+          report = await Report.findOne({
+            ...programFilter,
+            file_path: { $regex: `${filename}$` },
+          }).select('audience departments title program is_guide').lean();
         }
       } catch (_) {
         report = null;
@@ -393,8 +400,7 @@ exports.previewFile = (req, res) => {
 
     if (!report) return res.status(404).json({ success: false, message: 'File not found' });
 
-    const deptId = req.user?.dpt_id || null;
-    if (!canAccessReport(report, deptId)) {
+    if (!isMaterialVisibleToCandidate(report, programCodes)) {
       return res.status(403).json({ success: false, message: 'Not authorized to access this report' });
     }
 
