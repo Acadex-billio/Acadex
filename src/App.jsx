@@ -31,6 +31,8 @@ const QuestionUpload = lazy(() => import('./components/QuestionUpload'));
 const Department = lazy(() => import('./components/Department'));
 const Profile = lazy(() => import('./components/Profile'));
 const CandidateSubscriptions = lazy(() => import('./components/CandidateSubscriptions'));
+const CandidateReferralProgram = lazy(() => import('./components/CandidateReferralProgram'));
+const AdminReferralProgram = lazy(() => import('./components/AdminReferralProgram'));
 const CandidateEarnMoney = lazy(() => import('./components/CandidateEarnMoney'));
 const AdminInternshipTopics = lazy(() => import('./components/AdminInternshipTopics'));
 const CandidateInternshipTopics = lazy(() => import('./components/CandidateInternshipTopics'));
@@ -54,7 +56,6 @@ const AIAssistant = lazy(() => import('./components/AI-Assistant'));
 const AdminFeedback = lazy(() => import('./components/AdminFeedback'));
 const CandidateFeedback = lazy(() => import('./components/CandidateFeedback'));
 const AdminActivity = lazy(() => import('./components/AdminActivity'));
-const CandidateActivity = lazy(() => import('./components/CandidateActivity'));
 const Documentation = lazy(() => import('./components/Documentation'));
 const TermsOfService = lazy(() => import('./components/TermsOfService'));
 const PrivacyPolicy = lazy(() => import('./components/PrivacyPolicy'));
@@ -226,6 +227,7 @@ const App = () => {
                   <Route path="manage-users/concours-partners" element={<ProtectedRoute><DeveloperRoute><DeveloperConcoursPartners /></DeveloperRoute></ProtectedRoute>} />
                   <Route path="manage-candidates" element={<Navigate to="/admin/manage-users/candidates" replace />} />
                   <Route path="manage-billing" element={<ProtectedRoute><DeveloperRoute><ManageBilling /></DeveloperRoute></ProtectedRoute>} />
+                  <Route path="referrals" element={<ProtectedRoute><DeveloperRoute><AdminReferralProgram /></DeveloperRoute></ProtectedRoute>} />
                   <Route path="purchase-history" element={<ProtectedRoute><DeveloperRoute><PurchaseHistory /></DeveloperRoute></ProtectedRoute>} />
                   <Route path="access-grant-history" element={<ProtectedRoute><DeveloperRoute><AccessGrantHistory /></DeveloperRoute></ProtectedRoute>} />
                   <Route path="permission-verification" element={<ProtectedRoute><DeveloperRoute><PermissionVerification /></DeveloperRoute></ProtectedRoute>} />
@@ -278,7 +280,6 @@ const App = () => {
                   <Route path="reports/guides" element={<CandidateReportGuides />} />
                   <Route path="faqs" element={<CandidateFAQs />} />
                   <Route path="reports/faqs" element={<Navigate to="/candidate/faqs" replace />} />
-                  <Route path="results" element={<AdminPublishResults />} />
                   <Route path="presentations" element={<ViewPresentation />} />
                   <Route path="announcements" element={<Announcements />} />
                   <Route path="internship-topics" element={<CandidateInternshipTopics />} />
@@ -286,10 +287,10 @@ const App = () => {
                   <Route path="history" element={<MyDownloads />} />
                   <Route path="chat" element={<GroupChat mode="candidate" />} />
                   <Route path="feedback" element={<CandidateFeedback />} />
-                  <Route path="activity" element={<CandidateActivity />} />
                   <Route path="ai-assistant" element={<AIAssistant />} />
                   <Route path="profile" element={<Profile />} />
                   <Route path="subscription" element={<CandidateSubscriptions />} />
+                  <Route path="referrals" element={<CandidateReferralProgram />} />
                   <Route path="earn-money" element={<CandidateEarnMoney />} />
                   <Route path="lecturers" element={<CandidateLecturers />} />
                   <Route path="tutorship-bookings" element={<CandidateTutorshipBookings />} />

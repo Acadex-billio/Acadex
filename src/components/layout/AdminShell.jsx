@@ -152,6 +152,7 @@ const AdminShell = () => {
       { to: '/admin/ai-assistant', label: t('nav.aiAssistant'), icon: FaRobot },
       ...(isDeveloper ? [{ to: '/admin/custom-alert', label: 'Custom Alerts', icon: FaBell }] : []),
       ...(isDeveloper ? [{ to: '/admin/manage-billing', label: t('nav.manageBilling', 'Manage Billing'), icon: FaCreditCard }] : []),
+      ...(isDeveloper ? [{ to: '/admin/referrals', label: t('nav.referralProgram'), icon: FaUsers }] : []),
       ...(isDeveloper ? [{ to: '/admin/pricing', label: 'PRICING', icon: FaDollarSign }] : []),
       ...(isDeveloper ? [{ to: '/admin/programs', label: 'Programs', icon: FaClipboardList }] : []),
       ...(isDeveloper ? [{ to: '/admin/manage-users/concours-partners', label: 'Concours Partners', icon: FaUsers }] : []),

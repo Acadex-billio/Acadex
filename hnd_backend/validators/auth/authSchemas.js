@@ -25,6 +25,7 @@ const registerSchema = Joi.object({
   email: Joi.string().email().required(),
   phone: phoneSchema.required(),
   password: passwordSchema.required(),
+  referralCode: Joi.string().trim().uppercase().pattern(/^[A-F0-9]{10}$/).allow('').optional(),
 });
 
 const resetPasswordRequestSchema = Joi.object({

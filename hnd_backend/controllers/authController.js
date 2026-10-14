@@ -2,7 +2,7 @@
  * Auth Controller - Login, Register, Reset Password
  */
 const bcrypt = require('bcryptjs');
-const { randomInt } = require('crypto');
+const { randomInt, randomBytes } = require('crypto');
 const mongoose = require('mongoose');
 const User = require('../models/User');
 const History = require('../models/History');
@@ -69,7 +69,7 @@ const generateCandId = async () => {
 
 exports.register = async (req, res) => {
   try {
-    const { name, dpt_id, email, phone, password, program, preferred_language } = req.body;
+    const { name, dpt_id, email, phone, password, program, preferred_language, referralCode } = req.body;
     if (!name || !email || !phone || !password) {
       return res.status(400).json({ message: 'All fields are required.' });
     }
@@ -114,6 +114,17 @@ exports.register = async (req, res) => {
       });
     }
 
+    let referrer = null;
+    const normalizedReferralCode = String(referralCode || '').trim().toUpperCase();
+    if (normalizedReferralCode && normalizedProgram !== 'LECTURER') {
+      referrer = await User.findOne({
+        referral_code: normalizedReferralCode,
+        role: 'candidate',
+        account_status: 'active',
+      }).select('_id').lean();
+      if (!referrer) return res.status(400).json({ message: 'Referral code is invalid or unavailable.' });
+    }
+
     let user = null;
     for (let i = 0; i < 3; i += 1) {
       try {
@@ -124,6 +135,8 @@ exports.register = async (req, res) => {
           email: normalizedEmail,
           phone: normalizedPhone,
           password,
+          ...(!isLecturer ? { referral_code: randomBytes(5).toString('hex').toUpperCase() } : {}),
+          ...(referrer && !isLecturer ? { referred_by: referrer._id, referred_at: new Date() } : {}),
           dpt_id: dept?._id || null,
           role: isLecturer ? 'lecturer' : 'candidate',
           program: normalizedProgram,
@@ -145,8 +158,8 @@ exports.register = async (req, res) => {
         await user.save();
         break;
       } catch (saveErr) {
-        // Retry only if we collided on cand_id; throw all other validation/db errors.
-        if (!(saveErr?.code === 11000 && saveErr?.keyPattern?.cand_id)) {
+        // Retry only on generated ID/code collisions; throw all other validation/db errors.
+        if (!(saveErr?.code === 11000 && (saveErr?.keyPattern?.cand_id || saveErr?.keyPattern?.referral_code))) {
           throw saveErr;
         }
       }

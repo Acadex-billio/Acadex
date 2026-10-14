@@ -11,6 +11,7 @@ const User = require('../models/User');
 const PaymentAccessGrant = require('../models/PaymentAccessGrant');
 const History = require('../models/History');
 const paymentGrantService = require('../services/paymentGrantService');
+const referralService = require('../services/referralService');
 const {
   normalizeWebhookPaymentStatus,
   validateTransactionReference,
@@ -18,6 +19,18 @@ const {
 } = require('../services/paymentValidationService');
 
 const PLAN_DURATION_MS = 90 * 24 * 60 * 60 * 1000;
+
+const retryReferralAward = async (transaction) => {
+  try {
+    await referralService.awardSuccessfulPurchase(transaction);
+  } catch (error) {
+    logger.error('referral.payment_award.retry_failed', {
+      transaction_id: String(transaction?._id || ''),
+      error: error?.message || error,
+      stack: error?.stack,
+    });
+  }
+};
 
 /**
  * Handle CamerPay webhook callback when payment completes
@@ -113,6 +126,7 @@ exports.handleCamerpayCallback = async (req, res) => {
           current_status: transaction.status,
           webhook_status: paymentStatus,
         });
+        await retryReferralAward(transaction);
         if (respond) {
           return res.json({
             success: true,
@@ -174,6 +188,7 @@ exports.handleCamerpayCallback = async (req, res) => {
       }
       transaction.provider_response = payload;
       await transaction.save();
+      await retryReferralAward(transaction);
       if (respond) {
         return res.json({
           success: true,

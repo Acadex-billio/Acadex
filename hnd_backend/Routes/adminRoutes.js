@@ -15,6 +15,7 @@ const adminAccessController = require('../controllers/adminAccessController');
 const platformPricingController = require('../controllers/platformPricingController');
 const internshipTopicController = require('../controllers/internshipTopicController');
 const couponController = require('../controllers/couponController');
+const referralController = require('../controllers/referralController');
 const adminBillingController = require('../controllers/adminBillingController');
 const faqController = require('../controllers/faqController');
 const { validateDocumentUpload } = require('../middlewares/uploadValidation');
@@ -180,5 +181,9 @@ router.put('/billing/coupons/:code', requireDeveloper, validate({ params: schema
 router.post('/billing/coupons/:code/publish', requireDeveloper, validate({ params: schemas.ids.codeParam }), couponController.publishCoupon);
 router.post('/billing/coupons/:code/unpublish', requireDeveloper, validate({ params: schemas.ids.codeParam }), couponController.unpublishCoupon);
 router.delete('/billing/coupons/:code', requireDeveloper, validate({ params: schemas.ids.codeParam }), couponController.deleteCoupon);
+router.get('/referrals/program', requireDeveloper, referralController.getAdminProgram);
+router.put('/referrals/program', requireDeveloper, referralController.updateAdminProgram);
+router.get('/referrals/redemptions', requireDeveloper, referralController.listAdminRedemptions);
+router.put('/referrals/redemptions/:redemptionId', requireDeveloper, referralController.reviewAdminRedemption);
 
 module.exports = router;

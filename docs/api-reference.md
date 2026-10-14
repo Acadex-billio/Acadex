@@ -52,6 +52,7 @@ Create a candidate account.
 | `email` | string | yes | Lowercased in backend |
 | `phone` | string | yes | |
 | `password` | string | yes | Hashed with bcrypt |
+| `referralCode` | string | no | Optional candidate referral code (10 hexadecimal characters) |
 
 - **Response (201)**
 
@@ -175,6 +176,20 @@ Array of:
 # 2) Candidate API (`/api/candidate`)
 
 All candidate endpoints are protected by session middleware (`requireAuth`).
+
+## Referral program
+
+Referral point-ledger and redemption balance updates use MongoDB transactions; the MongoDB deployment must support transactions (for example, Atlas or a replica set).
+
+### GET `/api/candidate/referral`
+
+Get the candidate's referral code/link, point balance, referrals, published benefits and reward history.
+
+### POST `/api/candidate/referral/redemptions`
+
+Request a published redeemable benefit. Available points are deducted immediately; rejected requests return the points.
+
+- **Body**: `{ "benefitCode": "..." }`
 
 ## GET `/api/candidate/dashboard`
 
@@ -581,6 +596,26 @@ Reactivate a candidate.
 ### PUT `/api/admin/candidates/:candId/complaints/reviewed`
 
 Mark pending complaints reviewed.
+
+## Referral program (developer only)
+
+### GET `/api/admin/referrals/program`
+
+Read current referral rules and benefits.
+
+### PUT `/api/admin/referrals/program`
+
+Replace referral program settings, including first-purchase rewards, per-purchase-type rewards, recipient points and automatic/redeemable benefits.
+
+### GET `/api/admin/referrals/redemptions?status=pending`
+
+List redemption requests (`pending`, `fulfilled`, `rejected`, or `all`).
+
+### PUT `/api/admin/referrals/redemptions/:redemptionId`
+
+Review a request.
+
+- **Body**: `{ "decision": "fulfilled" | "rejected", "note": "optional" }`
 
 ---
 

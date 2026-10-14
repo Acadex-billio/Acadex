@@ -40,6 +40,12 @@ const subscriptionSchema = new mongoose.Schema(
 const userSchema = new mongoose.Schema(
   {
     cand_id: { type: String, required: true, unique: true },
+    referral_code: { type: String, uppercase: true, trim: true, sparse: true, unique: true },
+    referred_by: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null, index: true },
+    referred_at: { type: Date, default: null },
+    referral_first_purchase_transaction_id: { type: mongoose.Schema.Types.ObjectId, ref: 'PaymentTransaction', default: null },
+    referral_points_balance: { type: Number, min: 0, default: 0 },
+    referral_points_earned: { type: Number, min: 0, default: 0 },
     name: { type: String, required: true, trim: true },
     email: { type: String, required: true, unique: true, lowercase: true, trim: true },
     phone: { type: String, trim: true },

@@ -17,6 +17,7 @@ const faqController = require('../controllers/faqController');
 const { checkMaterialAccess, getMaterialAccessInfo } = require('../middlewares/materialAccessMiddleware');
 const subscriptionController = require('../controllers/subscriptionController');
 const internshipTopicController = require('../controllers/internshipTopicController');
+const referralController = require('../controllers/referralController');
 const { validateProfileImage, ALLOWED_EXTENSIONS } = require('../middlewares/uploadValidation');
 const { requireAuth, requireSelfOrAdmin } = require('../middlewares/jwtAuth');
 const { validate, schemas } = require('../middlewares/validateRequest');
@@ -53,6 +54,8 @@ router.use(requireAuth);
 router.use(requireAnyRole(['candidate', 'admin', 'developer']));
 
 router.get('/dashboard', dashboardController.getDashboard);
+router.get('/referral', referralController.getCandidateProgram);
+router.post('/referral/redemptions', referralController.createCandidateRedemption);
 
 router.get('/profile/:cand_id', requireSelfOrAdmin('cand_id'), profileController.getProfile);
 router.put('/profile/update/:cand_id', requireSelfOrAdmin('cand_id'), profileController.updateProfile);

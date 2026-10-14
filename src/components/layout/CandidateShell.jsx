@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { FaBars, FaTimes, FaHome, FaFileAlt, FaBook, FaClipboardList, FaCog, FaCommentDots, FaComments, FaChartLine, FaSignOutAlt, FaUserCircle, FaHistory, FaBullhorn, FaCreditCard, FaLightbulb, FaUsers, FaChevronDown, FaChalkboardTeacher, FaDollarSign } from 'react-icons/fa';
+import { FaBars, FaTimes, FaHome, FaFileAlt, FaBook, FaClipboardList, FaCog, FaCommentDots, FaComments, FaSignOutAlt, FaUserCircle, FaHistory, FaBullhorn, FaCreditCard, FaLightbulb, FaUsers, FaChevronDown, FaChalkboardTeacher, FaDollarSign } from 'react-icons/fa';
 import styles from '../../Astyles/DashboardShell.module.css';
 import { useAuth } from '../../context/AuthContext';
 import { useLoading } from '../../context/LoadingContext';
@@ -190,6 +190,7 @@ const CandidateShell = () => {
       { to: '/candidate/announcements', label: t('nav.announcements'), icon: FaBullhorn, badge: announcementCount },
       { to: '/candidate/faqs', label: 'FAQs', icon: FaCommentDots },
       { to: '/candidate/earn-money', label: 'Earn Money', icon: FaDollarSign },
+      { to: '/candidate/referrals', label: t('nav.referralProgram'), icon: FaUsers },
       { to: '/candidate/internship-topics', label: t('nav.internshipTopics'), icon: FaLightbulb },
       { to: '/candidate/tutorship-bookings', label: 'Tutorship Bookings', icon: FaComments, badge: bookingAlertCount },
       { to: '/candidate/concours', label: 'Concours', icon: FaClipboardList },
@@ -212,7 +213,6 @@ const CandidateShell = () => {
       { to: '/candidate/settings', label: t('nav.settings'), icon: FaCog },
       { to: '/candidate/profile', label: t('nav.profile'), icon: FaUserCircle },
       { to: '/candidate/history', label: t('nav.downloads'), icon: FaHistory },
-      { to: '/candidate/activity', label: t('nav.activity'), icon: FaChartLine },
       { to: '/candidate/feedback', label: t('nav.feedback'), icon: FaCommentDots, badge: feedbackCount },
       { to: '/candidate/subscription', label: t('nav.subscriptions'), icon: FaCreditCard },
     ],
@@ -451,14 +451,6 @@ const CandidateShell = () => {
                 </NavLink>
               </div>
             )}
-            <NavLink
-              to="/candidate/results"
-              className={({ isActive }) => `${styles.navLink} ${isActive ? styles.active : ''}`}
-              onClick={onNavClick}
-            >
-              <FaChartLine className={styles.navIcon} />
-              <span>Results</span>
-            </NavLink>
             {sidebarMainItems.map(({ to, label, icon: Icon, badge }) => (
               <NavLink
                 key={to}

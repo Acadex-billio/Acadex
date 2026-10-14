@@ -11,6 +11,7 @@ const History = require('../models/History');
 const { sendEmail } = require('../services/emailService');
 const logger = require('../utils/logger');
 const ConcoursAuditLog = require('../models/ConcoursAuditLog');
+const referralService = require('./referralService');
 
 const PLAN_DURATION_MS = 90 * 24 * 60 * 60 * 1000;
 const DEFAULT_ACCESS_MINUTES = 60;
@@ -333,6 +334,16 @@ async function applySuccessfulPayment(transaction) {
 
   if (finalTx.purpose_type === 'center_access') {
     await applyCenterAccessTransaction(finalTx);
+  }
+
+  try {
+    await referralService.awardSuccessfulPurchase(finalTx);
+  } catch (error) {
+    logger.error('referral.payment_award.failed', {
+      transaction_id: String(finalTx._id),
+      error: error?.message || error,
+      stack: error?.stack,
+    });
   }
 
   try {

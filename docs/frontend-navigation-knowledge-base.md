@@ -27,6 +27,7 @@ All candidate pages are inside the **Candidate Dashboard Shell**.
 - `/candidate/question-papers` — Question Papers
 - `/candidate/reports` — Reports
 - `/candidate/presentations` — Presentations
+- `/candidate/referrals` — Referral code, points and benefits
 - `/candidate/chat` — Chat
 - `/candidate/profile` — Profile
 - `/candidate/settings` — Settings
@@ -44,6 +45,7 @@ All admin pages are inside the **Admin Shell**.
 - `/admin/presentations` — Presentations Upload/CRUD
 - `/admin/profile` — Profile
 - `/admin/settings` — Settings
+- `/admin/referrals` — Configure referral rewards and review benefit requests (developer only)
 
 ---
 

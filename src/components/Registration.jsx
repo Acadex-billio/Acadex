@@ -54,6 +54,9 @@ const Registration = () => {
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [referralCode, setReferralCode] = useState(() => (
+    new URLSearchParams(window.location.search).get('ref') || ''
+  ));
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [showPasswordTip, setShowPasswordTip] = useState(false);
@@ -220,6 +223,7 @@ const Registration = () => {
         email,
         phone,
         password,
+        ...(referralCode.trim() ? { referralCode: referralCode.trim().toUpperCase() } : {}),
         ...(program === 'LECTURER' ? { preferred_language: lecturerLanguage } : {}),
       });
 
@@ -323,6 +327,19 @@ const Registration = () => {
                 onChange={e => setPhone(e.target.value)}
                 required
                 placeholder="Enter your phone number"
+              />
+            </div>
+
+            <div className={styles.formGroup}>
+              <label htmlFor="referral-code">{t('referralProgram.codeOptional')}</label>
+              <input
+                id="referral-code"
+                type="text"
+                value={referralCode}
+                onChange={(e) => setReferralCode(e.target.value.toUpperCase())}
+                maxLength={10}
+                autoComplete="off"
+                placeholder={t('referralProgram.codePlaceholder')}
               />
             </div>
 
