@@ -331,10 +331,11 @@ const AdPerformanceReport = () => {
 
               <div class="support">
                 <h2>ACADEX SUPPORT</h2>
-                <p>acadex@gmail.com</p>
+                <p>acadexmail@gmail.com</p>
                 <p>678507737</p>
                 <p>www.acadexe.com</p>
-                <p>brightstackinnovations@gmail.com</p>
+                <p>WhatsApp: https://wa.link/qt7d0t</p>
+                <p>Powered by VANTORA Ltd.</p>
               </div>
             </div>
           </body>
@@ -802,10 +803,10 @@ const AdPerformanceReport = () => {
                 <div>
                   <h4>📧 ACADEX SUPPORT</h4>
                   <ul>
-                    <li>acadex@gmail.com</li>
+                    <li>acadexmail@gmail.com</li>
                     <li>678507737</li>
                     <li>www.acadexe.com</li>
-                    <li>brightstackinnovations@gmail.com</li>
+                    <li>WhatsApp: https://wa.link/qt7d0t</li>
                   </ul>
                 </div>
               </div>
@@ -828,20 +829,20 @@ const AdPerformanceReport = () => {
           <h3>📧 ACADEX SUPPORT</h3>
           <div className={styles.footerContent}>
             <p>📧 acadexmail@gmail.com</p>
-            <p>💬 +237 678507737</p>
+            <p>💬 WhatsApp: https://wa.link/qt7d0t</p>
+            <p>☎️ Call: 678507737</p>
             <p>🌐 www.acadexe.com</p>
           </div>
         </div>
         <div className={styles.footerSection}>
-          <h3>⚡ POWERED BY BRIGHTSTACKINNOVATIONS</h3>
+          <h3>⚡ POWERED BY VANTORA LTD.</h3>
           <div className={styles.footerContent}>
-            <p>📧 brightstackinnovations26@gmail.com</p>
-            <p>🌐 brightstackinnovations2026.com</p>
+            <p>Acadex is powered by VANTORA Ltd.</p>
           </div>
         </div>
       </section>
 
-      <div className={styles.copyright}>© 2026 BRIGHTSTACKINNOVATIONS. All Rights Reserved.</div>
+      <div className={styles.copyright}>© {new Date().getFullYear()} VANTORA Ltd. All Rights Reserved.</div>
     </div>
   );
 };

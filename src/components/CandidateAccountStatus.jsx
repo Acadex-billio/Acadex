@@ -105,8 +105,9 @@ const CandidateAccountStatus = () => {
 
           <div style={{ marginTop: 14 }}>
             <div className={styles.rowTitle}>Support Contacts</div>
-            <div className={styles.rowSubtitle}>Email: brightstackinnovations@gmail.com</div>
-            <div className={styles.rowSubtitle}>WhatsApp: +237 678 507 737</div>
+            <div className={styles.rowSubtitle}>Email: <a href="mailto:acadexmail@gmail.com">acadexmail@gmail.com</a></div>
+            <div className={styles.rowSubtitle}>WhatsApp: <a href="https://wa.link/qt7d0t" target="_blank" rel="noopener noreferrer">Contact support</a></div>
+            <div className={styles.rowSubtitle}>Phone: <a href="tel:+237678507737">678507737</a></div>
           </div>
         </section>
 

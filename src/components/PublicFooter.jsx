@@ -5,8 +5,10 @@ const PublicFooter = () => (
   <footer className={styles.footer}>
     <span>© {new Date().getFullYear()} ACADEX. All rights reserved.</span>
     <span className={styles.footerDivider} aria-hidden="true" />
-    <span>Empowering HND students to excel.</span>
-    <span className={styles.heart} aria-label="with love">♥</span>
+    <span>Acadex is powered by VANTORA Ltd.</span>
+    <a href="mailto:acadexmail@gmail.com">acadexmail@gmail.com</a>
+    <a href="https://wa.link/qt7d0t" target="_blank" rel="noopener noreferrer">WhatsApp support</a>
+    <a href="tel:+237678507737">Call 678507737</a>
   </footer>
 );
 

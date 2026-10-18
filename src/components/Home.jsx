@@ -68,7 +68,7 @@ const Home = () => {
                             '@type': 'ContactPoint',
                             contactType: 'customer support',
                             telephone: '+237678507737',
-                            email: 'brightstackinnovations@gmail.com',
+                            email: 'acadexmail@gmail.com',
                         },
                     })}
                 </script>
@@ -130,30 +130,43 @@ const Home = () => {
                     </section>
                 </section>
 
-                <section className={styles.cardRow}>
-                    <article className={styles.infoCard}>
+                <section className={styles.cardRow} aria-label="Explore Acadex resources">
+                    <Link
+                        to={isAuthenticated ? '/candidate/question-papers/hnd' : '/materials?type=papers'}
+                        className={styles.infoCard}
+                        onClick={triggerLinkLoading}
+                    >
                         <div className={styles.cardArt}>📄</div>
                         <h3>{t('homePage.pastPapers')}</h3>
-                    </article>
-                    <article className={styles.infoCard}>
+                    </Link>
+                    <Link
+                        to={isAuthenticated ? '/candidate/reports' : '/materials?type=reports'}
+                        className={styles.infoCard}
+                        onClick={triggerLinkLoading}
+                    >
                         <div className={styles.cardArt}>📊</div>
                         <h3>{t('homePage.reports')}</h3>
-                    </article>
-                    <article className={styles.infoCard}>
+                    </Link>
+                    <Link
+                        to={isAuthenticated ? '/candidate/internship-topics' : '/login'}
+                        className={styles.infoCard}
+                        onClick={triggerLinkLoading}
+                    >
                         <div className={styles.cardArt}>💡</div>
                         <h3>{t('homePage.topics')}</h3>
-                    </article>
+                    </Link>
                 </section>
 
                 <footer className={styles.siteFooter}>
                     <div className={styles.footerGrid}>
                         <Link to="/documentation" className={styles.footerLink} onClick={triggerLinkLoading}>{t('homePage.aboutPlatform')}</Link>
-                        <a className={styles.footerLink} href="mailto:brightstackinnovations@gmail.com">Contact: brightstackinnovations@gmail.com</a>
+                        <a className={styles.footerLink} href="mailto:acadexmail@gmail.com">Email: acadexmail@gmail.com</a>
+                        <a className={styles.footerLink} href="https://wa.link/qt7d0t" target="_blank" rel="noopener noreferrer">WhatsApp support</a>
                         <a className={styles.footerLink} href="tel:+237678507737">Phone: 678507737</a>
                         <Link to="/terms-of-service" className={styles.footerLink} onClick={triggerLinkLoading}>{t('common.terms')}</Link>
                         <Link to="/privacy-policy" className={styles.footerLink} onClick={triggerLinkLoading}>{t('common.privacy')}</Link>
                     </div>
-                    <p className={styles.footerCopy}>© 2026 Acadex -- powered by BRIGHTSTACKINNOVATIONS -- www.brightsatinnovations.com Doula bonaberi</p>
+                    <p className={styles.footerCopy}>© {new Date().getFullYear()} Acadex. Powered by VANTORA Ltd.</p>
                 </footer>
             </div>
         </div>

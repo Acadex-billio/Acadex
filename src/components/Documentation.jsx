@@ -80,7 +80,7 @@ const Documentation = () => {
         <meta name="twitter:image" content="https://www.acadexe.com/logo192.png" />
         <meta name="twitter:image:alt" content="Acadex documentation preview" />
         <link rel="canonical" href="https://www.acadexe.com/documentation" />
-        <meta name="keywords" content="Acadex documentation, HND study portal, BTS platform guide, academic resource platform, Brightstack Innovations" />
+        <meta name="keywords" content="Acadex documentation, HND study portal, BTS platform guide, academic resource platform, VANTORA Ltd" />
       </Helmet>
 
       <section className={styles.panel}>

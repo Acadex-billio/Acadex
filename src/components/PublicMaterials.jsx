@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Helmet } from 'react-helmet';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { FaBookOpen, FaFileAlt, FaFilePowerpoint, FaFilePdf, FaSearch, FaDownload, FaEye } from 'react-icons/fa';
 import api from '../services/api';
 import { getErrorMessage } from '../utility/getErrorMessage';
@@ -17,7 +17,9 @@ const CATEGORIES = [
 
 const PublicMaterials = () => {
   const navigate = useNavigate();
-  const [type, setType] = useState('papers');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const requestedType = searchParams.get('type');
+  const type = CATEGORIES.some((category) => category.id === requestedType) ? requestedType : 'papers';
   const [search, setSearch] = useState('');
   const [items, setItems] = useState([]);
   const [pagination, setPagination] = useState({ page: 1, pages: 1, total: 0 });
@@ -65,7 +67,11 @@ const PublicMaterials = () => {
   }, [type, pagination.page, search, reload]);
 
   const changeCategory = (nextType) => {
-    setType(nextType);
+    setSearchParams((previous) => {
+      const next = new URLSearchParams(previous);
+      next.set('type', nextType);
+      return next;
+    });
     setPagination((previous) => ({ ...previous, page: 1 }));
   };
 
@@ -124,14 +130,14 @@ const PublicMaterials = () => {
     <div className={styles.page}>
       <Helmet>
         <title>Browse Study Materials | Acadex</title>
-        <meta name="description" content="Browse Acadex question papers, reports, and presentations. Sign in to preview or download materials." />
+        <meta name="description" content="Browse Acadex question papers, reports, and presentations, and preview the first page before signing in to continue." />
       </Helmet>
       <PublicHeader />
       <main className={styles.main}>
         <section className={styles.intro}>
           <span className={styles.eyebrow}>ACADEX LEARNING LIBRARY</span>
           <h1>Explore study materials</h1>
-          <p>Browse question papers, reports, and presentations. Sign in when you’re ready to preview or download.</p>
+          <p>Browse question papers, reports, and presentations. Preview the first page, then sign in to continue reading or download.</p>
         </section>
 
         <div className={styles.toolbar}>

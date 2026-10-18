@@ -158,8 +158,9 @@ const TermsOfService = () => {
         <p>
           Please review the Privacy Policy for details about the information we collect and how it is handled. Complaints,
           concerns, or support requests may be submitted through the platform’s support channels or by contacting
-          <a href="mailto:brightstackinnovations@gmail.com">brightstackinnovations@gmail.com</a> or
-          <a href="https://wa.me/237678507737" target="_blank" rel="noreferrer">WhatsApp +237 678 507 737</a>.
+          <a href="mailto:acadexmail@gmail.com">acadexmail@gmail.com</a>,
+          <a href="https://wa.link/qt7d0t" target="_blank" rel="noreferrer">WhatsApp support</a>, or
+          <a href="tel:+237678507737">call 678507737</a>.
         </p>
 
         <h2>13. Changes to These Terms</h2>

@@ -118,9 +118,10 @@ const PrivacyPolicy = () => {
 
         <h2>10. Contact and Complaints</h2>
         <p>
-          For privacy concerns, account questions, or requests, contact BrightStack Innovations at
-          <a href="mailto:brightstackinnovations@gmail.com">brightstackinnovations@gmail.com</a> or
-          <a href="https://wa.me/237678507737" target="_blank" rel="noreferrer">WhatsApp +237 678 507 737</a>.
+          For privacy concerns, account questions, or requests, contact Acadex at
+          <a href="mailto:acadexmail@gmail.com">acadexmail@gmail.com</a>,
+          <a href="https://wa.link/qt7d0t" target="_blank" rel="noreferrer">WhatsApp support</a>, or
+          <a href="tel:+237678507737">call 678507737</a>.
         </p>
 
         <h2>11. Changes to This Policy</h2>
