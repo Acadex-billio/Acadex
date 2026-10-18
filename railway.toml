@@ -1,8 +1,8 @@
 [build]
-builder = "NIXPACKS"
-buildCommand = "cd hnd_backend && npm ci --omit=dev"
+builder = "DOCKERFILE"
+dockerfilePath = "hnd_backend/Dockerfile"
 
 [deploy]
-startCommand = "cd hnd_backend && npm start"
+startCommand = "npm start"
 healthcheckPath = "/api/health"
 restartPolicyType = "ON_FAILURE"

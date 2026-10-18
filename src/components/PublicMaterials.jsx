@@ -7,6 +7,7 @@ import { getErrorMessage } from '../utility/getErrorMessage';
 import { showToast } from '../utility/ToastNotification';
 import PublicHeader from './PublicHeader';
 import PublicFooter from './PublicFooter';
+import SecurePdfPreview from './SecurePdfPreview';
 import styles from '../Astyles/PublicMaterials.module.css';
 
 const CATEGORIES = [
@@ -125,6 +126,12 @@ const PublicMaterials = () => {
 
   const activeCategory = CATEGORIES.find((category) => category.id === type) || CATEGORIES[0];
   const ActiveIcon = activeCategory.Icon;
+  const knownPageCount = Number.parseInt(String(previewItem?.pages || ''), 10);
+  const lockedPagesMessage = Number.isFinite(knownPageCount) && knownPageCount > 1
+    ? `Pages 2–${knownPageCount} are locked. Sign in to continue reading this material.`
+    : knownPageCount === 1
+      ? 'This material has one page. Sign in to access the full material.'
+    : 'Other pages are locked. Sign in to continue reading this material.';
 
   return (
     <div className={styles.page}>
@@ -254,11 +261,17 @@ const PublicMaterials = () => {
             ) : previewError ? (
               <div className={styles.previewStatus} role="alert">{previewError}</div>
             ) : previewUrl ? (
-              <iframe className={styles.previewFrame} src={previewUrl} title={`First page of ${previewItem.title || 'material'}`} />
+              <div className={styles.pdfPreviewCanvas}>
+                <SecurePdfPreview
+                  fileUrl={previewUrl}
+                  maxPages={1}
+                  allowTextSelection={false}
+                />
+              </div>
             ) : null}
             <div className={styles.lockedPreview}>
               <span aria-hidden="true">🔒</span>
-              <p><strong>Page 2 is locked.</strong> Sign in to continue reading this material.</p>
+              <p>{lockedPagesMessage}</p>
               <button type="button" onClick={() => requireAuthentication('continue reading this material')}>
                 Sign in to continue
               </button>

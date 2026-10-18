@@ -10,25 +10,24 @@ This guide keeps the frontend on Vercel and moves the backend from Render to Rai
   - Uses the frontend environment variable REACT_APP_API_URL
 
 - Backend: Railway
-  - Deploys the hnd_backend folder as a Node.js service
-  - Uses the Dockerfile in hnd_backend
+  - Builds from the repository root using the root `railway.toml`
+  - Uses `hnd_backend/Dockerfile` for the API service
   - Exposes the API on Railway’s assigned public URL
 
 ## 2. Recommended repo structure for this setup
 
 Keep the repo as-is with these deployment boundaries:
 
-- Root project for the frontend React app
-- hnd_backend directory for the API service
+- Root project for the frontend React app and Railway build context
+- `hnd_backend` directory for the API source and Dockerfile
 
-Do not try to deploy the backend from the repo root. Deploy the backend from the hnd_backend folder in Railway.
+Keep the Railway service root directory at the repository root. The Dockerfile copies the backend source from `hnd_backend/`, and its Docker build context must include that folder.
 
 ## 3. Frontend environment variables on Vercel
 
 Set these in Vercel Project Settings -> Environment Variables:
 
 - REACT_APP_API_URL=https://<your-railway-backend-url>/api
-- REACT_APP_VAPID_PUBLIC_KEY=<public VAPID key matching the backend>
 - REACT_APP_DEBUG_LOGS=false
 
 If the frontend is still pointing at Render URLs, update them before the first redeploy.
@@ -44,6 +43,9 @@ Required:
 - JWT_SECRET=<strong-random-secret>
 - SESSION_SECRET=<strong-random-secret>
 - MONGODB_URI=<your-mongodb-connection-string>
+- VAPID_PUBLIC_KEY=<generated VAPID public key>
+- VAPID_PRIVATE_KEY=<matching VAPID private key>
+- VAPID_SUBJECT=mailto:<support-email>
 
 Commonly needed:
 - CORS_ORIGIN=https://<your-vercel-domain>
@@ -64,8 +66,8 @@ In Railway:
 1. Create a new project.
 2. Add a new service.
 3. Connect this repository.
-4. Set the service root directory to hnd_backend.
-5. Use the existing Dockerfile.
+4. Leave the service root directory at the repository root.
+5. Let `railway.toml` select `hnd_backend/Dockerfile`.
 6. Deploy.
 
 Railway should build the backend using the Dockerfile and start it with npm start.

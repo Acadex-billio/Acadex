@@ -3,6 +3,7 @@ const router = express.Router();
 const paymentWebhookController = require('../controllers/paymentWebhookController');
 const publicMaterialController = require('../controllers/publicMaterialController');
 const resendWebhookController = require('../controllers/resendWebhookController');
+const { isWebPushConfigured, vapidPublicKey } = require('../utils/webPush');
 const { createAuditTrail } = require('../middlewares/auditTrail');
 
 // Public webhook endpoints (no authentication required)
@@ -38,6 +39,11 @@ router.post(
 
 router.get('/materials/catalog', publicMaterialController.listCatalog);
 router.get('/materials/:type/:materialId/preview', publicMaterialController.previewMaterial);
+router.get('/push/config', (_req, res) => res.json({
+  success: true,
+  configured: isWebPushConfigured,
+  publicKey: isWebPushConfigured ? vapidPublicKey : null,
+}));
 router.post('/webhooks/resend', resendWebhookController.handleEvent);
 
 module.exports = router;

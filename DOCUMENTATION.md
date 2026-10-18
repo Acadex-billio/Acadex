@@ -91,9 +91,9 @@ Developer-managed ads can use `/referral-tshirt.png` or `/referral-shirt.png` as
 
 Models in `hnd_backend/models/` cover users, departments, academic materials, history, chat, announcements, billing, material access, projects, lecturers, ads, and concours workflows. Uploaded files are served from `/uploads` and may also be stored in S3. Office previews use the conversion queue when available.
 
-Core environment variables are `PORT`, `NODE_ENV`, `CORS_ORIGIN`, `MONGODB_URI`, `JWT_SECRET`, `SESSION_SECRET`, `RESEND_API_KEY`, `RESEND_WEBHOOK_SECRET`, CamerPay settings, AWS settings, AI provider keys, LiveKit settings, `REACT_APP_API_URL`, and `REACT_APP_VAPID_PUBLIC_KEY`. Use `hnd_backend/ENV_EXAMPLE.md` for placeholders only.
+Core environment variables are `PORT`, `NODE_ENV`, `CORS_ORIGIN`, `MONGODB_URI`, `JWT_SECRET`, `SESSION_SECRET`, `RESEND_API_KEY`, `RESEND_WEBHOOK_SECRET`, CamerPay settings, AWS settings, AI provider keys, and LiveKit settings. Use `hnd_backend/ENV_EXAMPLE.md` for backend placeholders only.
 
-Web Push requires matching `VAPID_PUBLIC_KEY` and `VAPID_PRIVATE_KEY` on the backend and `REACT_APP_VAPID_PUBLIC_KEY` on the frontend. Production must use HTTPS. iOS/iPadOS requires Acadex to be installed to the Home Screen for web push support.
+Web Push requires matching `VAPID_PUBLIC_KEY` and `VAPID_PRIVATE_KEY` on the backend. The public key is provided at runtime by `/api/push/config`, so it does not need to be embedded in the frontend build. Production must use HTTPS. iOS/iPadOS requires Acadex to be installed to the Home Screen for web push support.
 
 `DEBUG_ROUTES_ENABLED` controls development storage test routes. Set it explicitly to `false` in production.
 

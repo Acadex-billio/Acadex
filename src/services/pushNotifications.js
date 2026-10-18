@@ -2,6 +2,23 @@ import api from './api';
 
 const SW_PATH = '/push-sw.js';
 const PUSH_PROMPT_EVENT = 'push-notification-prompt-request';
+let pushConfigPromise;
+
+export const getPushConfig = async () => {
+  if (!pushConfigPromise) {
+    pushConfigPromise = api.get('/push/config')
+      .then(({ data }) => {
+        const publicKey = data?.configured === true ? String(data?.publicKey || '').trim() : '';
+        return { configured: Boolean(publicKey), publicKey };
+      })
+      .catch((error) => {
+        pushConfigPromise = null;
+        throw error;
+      });
+  }
+
+  return pushConfigPromise;
+};
 
 const storePushPreference = (enabled) => {
   try {
@@ -26,8 +43,6 @@ const urlBase64ToUint8Array = (base64String) => {
 export const canUsePushNotifications = () => {
   return !getPushSupportMessage();
 };
-
-export const isPushConfigured = () => Boolean(String(process.env.REACT_APP_VAPID_PUBLIC_KEY || '').trim());
 
 export const getPushSupportMessage = () => {
   if (typeof window === 'undefined' || typeof navigator === 'undefined') {
@@ -83,14 +98,14 @@ export const reportPushFailure = async ({ candId, reason, stage, browser }) => {
   }
 };
 
-export const registerAndSubscribePush = async (candId) => {
+export const registerAndSubscribePush = async (candId, configuredPublicKey) => {
   if (!canUsePushNotifications()) {
     throw new Error(getPushSupportMessage());
   }
 
-  const vapidPublicKey = String(process.env.REACT_APP_VAPID_PUBLIC_KEY || '').trim();
+  const vapidPublicKey = String(configuredPublicKey || '').trim();
   if (!vapidPublicKey) {
-    throw new Error('Push notifications are not configured. Missing REACT_APP_VAPID_PUBLIC_KEY.');
+    throw new Error('Push notifications are not configured on the server. Please contact support.');
   }
 
   const applicationServerKey = urlBase64ToUint8Array(vapidPublicKey);

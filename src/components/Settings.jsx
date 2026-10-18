@@ -9,8 +9,8 @@ import { getErrorMessage } from '../utility/getErrorMessage';
 import i18n, { resolveLanguageForUser } from '../i18n';
 import {
   canUsePushNotifications,
+  getPushConfig,
   getPushSupportMessage,
-  isPushConfigured,
   registerAndSubscribePush,
   requestPushPermission,
   unsubscribePush,
@@ -33,6 +33,9 @@ const Settings = () => {
   const [allowToastSound, setAllowToastSound] = useState(true);
   const [preferredLanguage, setPreferredLanguage] = useState(() => resolveLanguageForUser(user));
   const [updatingPush, setUpdatingPush] = useState(false);
+  const [pushConfigLoading, setPushConfigLoading] = useState(true);
+  const [pushPublicKey, setPushPublicKey] = useState('');
+  const [pushConfigUnavailable, setPushConfigUnavailable] = useState(false);
 
   const [accountStatus, setAccountStatus] = useState('active');
   const [leftOpen, setLeftOpen] = useState(false);
@@ -45,6 +48,30 @@ const Settings = () => {
 
   useEffect(() => {
     // JWT handles credentials automatically
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    getPushConfig()
+      .then((config) => {
+        if (!cancelled && config.configured) {
+          setPushPublicKey(config.publicKey);
+        } else if (!cancelled) {
+          setPushConfigUnavailable(true);
+        }
+      })
+      .catch((error) => {
+        if (!cancelled) {
+          setPushConfigUnavailable(true);
+          console.error('[Settings] Failed to load push configuration:', error?.message || error);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setPushConfigLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   useEffect(() => {
@@ -122,15 +149,20 @@ const Settings = () => {
   };
 
   const onTogglePushNotifications = async (value) => {
-    if (!cand_id || updatingPush) return;
+    if (!cand_id || updatingPush || pushConfigLoading) return;
 
     if (value && !canUsePushNotifications()) {
       showToast(getPushSupportMessage(), 'warning');
       return;
     }
 
-    if (value && !isPushConfigured()) {
-      showToast('Push notifications are not configured for this site. Please contact support.', 'error');
+    if (value && !pushPublicKey) {
+      showToast(
+        pushConfigUnavailable
+          ? 'Unable to load push notification configuration. Please refresh the page or contact support.'
+          : 'Push notifications are not configured on the server. Please contact support.',
+        'error'
+      );
       return;
     }
 
@@ -143,7 +175,7 @@ const Settings = () => {
         if (permission !== 'granted') {
           throw new Error('Notification permission was not granted.');
         }
-        await registerAndSubscribePush(cand_id);
+        await registerAndSubscribePush(cand_id, pushPublicKey);
       } else {
         const localCleanupSucceeded = await unsubscribePush(cand_id);
         if (!localCleanupSucceeded) {
@@ -429,7 +461,7 @@ const Settings = () => {
               <input
                 type="checkbox"
                 checked={allowPushNotifications}
-                disabled={updatingPush}
+                disabled={updatingPush || pushConfigLoading}
                 onChange={(e) => onTogglePushNotifications(e.target.checked)}
               />
               <span className={styles.slider} />

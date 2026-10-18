@@ -25,7 +25,7 @@ PORT=5000
 RESEND_API_KEY=replace-with-your-resend-api-key
 RESEND_WEBHOOK_SECRET=whsec_replace-with-your-resend-webhook-signing-secret
 
-# Web Push (use the same VAPID public key in the frontend build)
+# Web Push (the public key is served by the backend at runtime)
 VAPID_PUBLIC_KEY=replace-with-your-vapid-public-key
 VAPID_PRIVATE_KEY=replace-with-your-vapid-private-key
 VAPID_SUBJECT=mailto:admin@example.com
@@ -83,7 +83,7 @@ LIBREOFFICE_QUEUE_WAIT_TIMEOUT_MS=180000
 LIBREOFFICE_QUEUE_DEBUG=false
 ```
 
-The frontend build must also set `REACT_APP_VAPID_PUBLIC_KEY` to the same public key. Push requires HTTPS in production. On iPhone and iPad, users must install Acadex to the Home Screen and open the installed app before enabling push.
+The backend serves the public key to the frontend at runtime through `/api/push/config`. Push requires HTTPS in production. On iPhone and iPad, users must install Acadex to the Home Screen and open the installed app before enabling push.
 
 ## 🔑 Generate Secure SESSION_SECRET
 

@@ -1,6 +1,6 @@
 FROM node:20-bookworm
 
-WORKDIR /app
+WORKDIR /app/hnd_backend
 
 # Install LibreOffice and fonts for DOCX/PPTX to PDF conversion on server.
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -19,10 +19,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 ENV PATH="/usr/bin:/usr/lib/libreoffice/program:${PATH}"
 ENV LIBREOFFICE_PATH="/usr/bin/soffice"
 
-COPY package*.json ./
+COPY hnd_backend/package*.json ./
 RUN npm ci --omit=dev
 
-COPY . .
+COPY hnd_backend/. .
 
 ENV NODE_ENV=production
 ENV PORT=5000

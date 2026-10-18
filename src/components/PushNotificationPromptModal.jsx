@@ -3,8 +3,8 @@ import styles from '../Astyles/PushNotificationPromptModal.module.css';
 import { useAuth } from '../context/AuthContext';
 import {
   canUsePushNotifications,
+  getPushConfig,
   getPushPermissionStatus,
-  isPushConfigured,
   registerAndSubscribePush,
   reportPushFailure,
   requestPushPermission,
@@ -18,10 +18,22 @@ const PushNotificationPromptModal = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [isWorking, setIsWorking] = useState(false);
   const [permissionState, setPermissionState] = useState('unknown');
+  const [pushPublicKey, setPushPublicKey] = useState('');
 
   useEffect(() => {
-    const handlePromptRequest = () => {
+    let cancelled = false;
+    const handlePromptRequest = async () => {
       if (!user?.cand_id) return;
+
+      let config;
+      try {
+        config = await getPushConfig();
+      } catch (error) {
+        console.error('[Push] Failed to load prompt configuration:', error?.message || error);
+        return;
+      }
+      if (cancelled || !config.configured) return;
+      setPushPublicKey(config.publicKey);
 
       const status = getPushPermissionStatus();
       let storageEnabled = false;
@@ -30,7 +42,7 @@ const PushNotificationPromptModal = () => {
       } catch (err) {
         console.warn('[Push] Could not read the cached notification preference:', err?.message || err);
       }
-      const shouldShow = isPushConfigured() && canUsePushNotifications() && (status.permission !== 'granted' || !storageEnabled);
+      const shouldShow = canUsePushNotifications() && (status.permission !== 'granted' || !storageEnabled);
 
       if (shouldShow) {
         setPermissionState(status.permission);
@@ -39,8 +51,11 @@ const PushNotificationPromptModal = () => {
     };
 
     window.addEventListener(PUSH_PROMPT_EVENT, handlePromptRequest);
-    return () => window.removeEventListener(PUSH_PROMPT_EVENT, handlePromptRequest);
-  }, [user?.cand_id]);
+    return () => {
+      cancelled = true;
+      window.removeEventListener(PUSH_PROMPT_EVENT, handlePromptRequest);
+    };
+  }, [pushPublicKey, user?.cand_id]);
 
   const heading = useMemo(() => {
     if (permissionState === 'denied') return 'Notifications are blocked';
@@ -75,7 +90,7 @@ const PushNotificationPromptModal = () => {
         throw new Error('Push permission was not granted. Please allow notifications in your browser settings.');
       }
 
-      await registerAndSubscribePush(user.cand_id);
+      await registerAndSubscribePush(user.cand_id, pushPublicKey);
       setIsOpen(false);
       showToast('Push notifications are now enabled.', 'success');
     } catch (err) {
