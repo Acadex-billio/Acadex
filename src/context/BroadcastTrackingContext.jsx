@@ -29,6 +29,7 @@ const BroadcastProgress = ({ job, onDismiss }) => {
   const complete = ['completed', 'failed'].includes(job.status);
   const kindLabel = job.kind === 'email' ? 'Email broadcast' : 'Push notification';
   const failures = Array.isArray(job.failedRecipients) ? job.failedRecipients : [];
+  const pollError = job.pollError || '';
 
   if (!complete) {
     return (
@@ -52,6 +53,7 @@ const BroadcastProgress = ({ job, onDismiss }) => {
           <span>{processed} of {total} final outcomes · {pending} pending</span>
           {job.kind === 'email' && <span>{Number(job.accepted) || 0} accepted by provider, awaiting outcome as applicable</span>}
           <span>Batch {Math.min(job.batchesProcessed || 0, job.totalBatches || 0)} of {job.totalBatches || 0}</span>
+          {pollError && <span className={styles.pollWarning} role="status">{pollError}</span>}
         </div>
       </aside>
     );
@@ -149,6 +151,7 @@ export const BroadcastTrackingProvider = ({ children }) => {
       totalBatches: jobDetails.totalBatches,
       batchesProcessed: 0,
       failedRecipients: [],
+      pollError: '',
     });
   }, [owner]);
 
@@ -168,10 +171,13 @@ export const BroadcastTrackingProvider = ({ children }) => {
       if (requestInFlight.current) return;
       requestInFlight.current = true;
       try {
-        const { data } = await api.get(`/developer/alerts/jobs/${encodeURIComponent(job.id)}`);
+        const { data } = await api.get(`/developer/alerts/jobs/${encodeURIComponent(job.id)}`, {
+          params: { _statusCheck: Date.now() },
+          headers: { 'Cache-Control': 'no-cache' },
+        });
         if (cancelled) return;
         pollFailures.current = 0;
-        if (data?.job) setJob(data.job);
+        if (data?.job) setJob({ ...data.job, pollError: '' });
       } catch (error) {
         if (cancelled) return;
         if ([403, 404].includes(error?.response?.status)) {
@@ -180,6 +186,9 @@ export const BroadcastTrackingProvider = ({ children }) => {
           return;
         }
         pollFailures.current += 1;
+        setJob((current) => current?.id === job.id
+          ? { ...current, pollError: 'Progress refresh is temporarily unavailable. Retrying automatically…' }
+          : current);
         if (pollFailures.current === 3) {
           showToast(error?.response?.data?.message || 'Unable to refresh broadcast progress. Retrying…', 'warning');
         }
@@ -189,7 +198,7 @@ export const BroadcastTrackingProvider = ({ children }) => {
     };
 
     poll();
-    const timer = window.setInterval(poll, 1500);
+    const timer = window.setInterval(poll, 3000);
     return () => {
       cancelled = true;
       window.clearInterval(timer);

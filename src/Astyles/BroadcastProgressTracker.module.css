@@ -66,6 +66,11 @@
   color: #657184;
 }
 
+.progressCopy .pollWarning {
+  color: #9a5a00;
+  font-weight: 600;
+}
+
 .backdrop {
   position: fixed;
   inset: 0;

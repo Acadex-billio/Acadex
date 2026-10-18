@@ -354,6 +354,11 @@ exports.sendPushAlert = async (req, res) => {
 };
 
 exports.getNotificationJob = async (req, res) => {
+  res.set({
+    'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+    Pragma: 'no-cache',
+    Expires: '0',
+  });
   try {
     const owner = String(req.user?.cand_id || req.user?.email || '');
     const job = await NotificationJob.findOne({ _id: req.params.jobId, createdBy: owner }).lean();
