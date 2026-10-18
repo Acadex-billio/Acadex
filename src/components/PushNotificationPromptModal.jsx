@@ -24,7 +24,12 @@ const PushNotificationPromptModal = () => {
       if (!user?.cand_id) return;
 
       const status = getPushPermissionStatus();
-      const storageEnabled = String(localStorage.getItem('allowPushNotifications') || '').toLowerCase() === 'true';
+      let storageEnabled = false;
+      try {
+        storageEnabled = String(localStorage.getItem('allowPushNotifications') || '').toLowerCase() === 'true';
+      } catch (err) {
+        console.warn('[Push] Could not read the cached notification preference:', err?.message || err);
+      }
       const shouldShow = isPushConfigured() && canUsePushNotifications() && (status.permission !== 'granted' || !storageEnabled);
 
       if (shouldShow) {

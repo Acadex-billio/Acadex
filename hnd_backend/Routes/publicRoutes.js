@@ -1,6 +1,8 @@
 const express = require('express');
 const router = express.Router();
 const paymentWebhookController = require('../controllers/paymentWebhookController');
+const publicMaterialController = require('../controllers/publicMaterialController');
+const resendWebhookController = require('../controllers/resendWebhookController');
 const { createAuditTrail } = require('../middlewares/auditTrail');
 
 // Public webhook endpoints (no authentication required)
@@ -33,5 +35,9 @@ router.post(
     });
   }
 );
+
+router.get('/materials/catalog', publicMaterialController.listCatalog);
+router.get('/materials/:type/:materialId/preview', publicMaterialController.previewMaterial);
+router.post('/webhooks/resend', resendWebhookController.handleEvent);
 
 module.exports = router;

@@ -23,6 +23,12 @@ PORT=5000
 
 # Email Configuration (primary service)
 RESEND_API_KEY=replace-with-your-resend-api-key
+RESEND_WEBHOOK_SECRET=whsec_replace-with-your-resend-webhook-signing-secret
+
+# Web Push (use the same VAPID public key in the frontend build)
+VAPID_PUBLIC_KEY=replace-with-your-vapid-public-key
+VAPID_PRIVATE_KEY=replace-with-your-vapid-private-key
+VAPID_SUBJECT=mailto:admin@example.com
 
 # CORS Configuration
 CORS_ORIGIN=http://localhost:3000
@@ -77,6 +83,8 @@ LIBREOFFICE_QUEUE_WAIT_TIMEOUT_MS=180000
 LIBREOFFICE_QUEUE_DEBUG=false
 ```
 
+The frontend build must also set `REACT_APP_VAPID_PUBLIC_KEY` to the same public key. Push requires HTTPS in production. On iPhone and iPad, users must install Acadex to the Home Screen and open the installed app before enabling push.
+
 ## 🔑 Generate Secure SESSION_SECRET
 
 ### Method 1: OpenSSL (Recommended)
@@ -107,6 +115,7 @@ echo "SESSION_SECRET=$SESSION_SECRET" >> .env
 echo "MONGODB_URI=mongodb://localhost:27017/hnd_platform" >> .env
 echo "PORT=5000" >> .env
 echo "RESEND_API_KEY=replace-with-your-resend-api-key" >> .env
+echo "RESEND_WEBHOOK_SECRET=whsec_replace-with-your-resend-webhook-signing-secret" >> .env
 echo "CORS_ORIGIN=http://localhost:3000" >> .env
 
 # 4. Install dependencies
@@ -130,7 +139,7 @@ For production, ensure:
 
 1. **Use strong, unique SESSION_SECRET** (64+ characters)
 2. **Set production MONGODB_URI** with authentication
-3. **Configure production RESEND_API_KEY**
+3. **Configure production RESEND_API_KEY and RESEND_WEBHOOK_SECRET; set the Resend webhook URL to `https://your-api-host/api/webhooks/resend` for `email.delivered`, `email.bounced`, `email.failed`, `email.suppressed`, and `email.complained` events**
 4. **Set CORS_ORIGIN to production domain**
 5. **Use HTTPS in production**
 

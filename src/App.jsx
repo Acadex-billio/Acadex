@@ -11,6 +11,7 @@ import AdminRoute from './components/AdminRoute';
 import DeveloperRoute from './components/DeveloperRoute';
 import LecturerRoute from './components/LecturerRoute';
 import PushNotificationPromptModal from './components/PushNotificationPromptModal';
+import { BroadcastTrackingProvider } from './context/BroadcastTrackingContext';
 import QuestionPapers from './components/QuestionPapers';
 import ViewReports from './components/ViewReports';
 import History from './components/History';
@@ -23,6 +24,7 @@ import CandidateShell from './components/layout/CandidateShell';
 import LecturerShell from './components/layout/LecturerShell';
 
 const Home = lazy(() => import('./components/Home'));
+const PublicMaterials = lazy(() => import('./components/PublicMaterials'));
 const Login = lazy(() => import('./components/Login'));
 const Registration = lazy(() => import('./components/Registration'));
 const ResetPassword = lazy(() => import('./components/ResetPassword'));
@@ -157,7 +159,8 @@ const App = () => {
       <LoadingProvider>
         <AuthProvider>
           <LanguageBootstrap />
-          <Router>
+          <BroadcastTrackingProvider>
+            <Router>
             <ToastNotification />
             <LoaderOverlay />
             <PushNotificationPromptModal />
@@ -202,6 +205,7 @@ const App = () => {
 
               <Routes>
                 <Route path="/" element={<Home />} />
+                <Route path="/materials" element={<PublicMaterials />} />
                 <Route path="/login" element={<Login />} />
                 <Route path="/register" element={<Registration />} />
                 <Route path="/reset-password" element={<ResetPassword onClose={() => {}} />} />
@@ -347,7 +351,8 @@ const App = () => {
                 <Route path="*" element={<PageNotFound />} />
               </Routes>
             </Suspense>
-          </Router>
+            </Router>
+          </BroadcastTrackingProvider>
         </AuthProvider>
       </LoadingProvider>
     </ErrorBoundary>

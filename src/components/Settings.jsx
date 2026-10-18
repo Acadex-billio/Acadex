@@ -9,6 +9,8 @@ import { getErrorMessage } from '../utility/getErrorMessage';
 import i18n, { resolveLanguageForUser } from '../i18n';
 import {
   canUsePushNotifications,
+  getPushSupportMessage,
+  isPushConfigured,
   registerAndSubscribePush,
   requestPushPermission,
   unsubscribePush,
@@ -123,7 +125,12 @@ const Settings = () => {
     if (!cand_id || updatingPush) return;
 
     if (value && !canUsePushNotifications()) {
-      showToast('Push notifications are not supported on this device/browser.', 'warning');
+      showToast(getPushSupportMessage(), 'warning');
+      return;
+    }
+
+    if (value && !isPushConfigured()) {
+      showToast('Push notifications are not configured for this site. Please contact support.', 'error');
       return;
     }
 
@@ -137,16 +144,18 @@ const Settings = () => {
           throw new Error('Notification permission was not granted.');
         }
         await registerAndSubscribePush(cand_id);
-        await api.put(`/candidate/profile/settings/${cand_id}`, { allow_push_notifications: true });
       } else {
-        await unsubscribePush(cand_id);
-        await api.put(`/candidate/profile/settings/${cand_id}`, { allow_push_notifications: false });
+        const localCleanupSucceeded = await unsubscribePush(cand_id);
+        if (!localCleanupSucceeded) {
+          showToast('Push notifications are disabled on your account, but this browser could not remove its local subscription.', 'warning');
+          setAllowPushNotifications(false);
+          return;
+        }
       }
 
       showToast('Notification settings updated', 'success');
     } catch (err) {
       setAllowPushNotifications(!value);
-      localStorage.setItem('allowPushNotifications', !value ? 'true' : 'false');
       showToast(getErrorMessage(err, 'Failed to update push notifications'), 'error');
     } finally {
       setUpdatingPush(false);

@@ -75,7 +75,7 @@ const sendWebPushNotification = async (subscription, payload, userContext = {}, 
  * @param {String} url - URL to navigate to when notification is clicked
  * @param {String} contentId - ID of the content (optional)
  */
-const sendBulkPushNotification = async (users, contentType, title, body, url, contentId) => {
+const sendBulkPushNotification = async (users, contentType, title, body, url, contentId, onRecipientResult = null) => {
   if (!isConfigured) return { sent: 0, failed: 0 };
   if (!Array.isArray(users) || !users.length) return { sent: 0, failed: 0 };
 
@@ -107,6 +107,9 @@ const sendBulkPushNotification = async (users, contentType, title, body, url, co
       }, { reportFailure: false });
       if (result.sent) sentCount++;
       else failedCount++;
+      if (typeof onRecipientResult === 'function') {
+        await onRecipientResult({ user, result });
+      }
     }
   };
 

@@ -3,6 +3,7 @@ import api from '../services/api';
 import styles from '../Astyles/developerCustomAlert.module.css';
 import { showToast } from '../utility/ToastNotification';
 import { getErrorMessage } from '../utility/getErrorMessage';
+import { useBroadcastTracking } from '../context/BroadcastTrackingContext';
 
 const PROGRAMS = ['HND', 'BTS', 'LECTURER', 'ADMINS'];
 
@@ -39,6 +40,7 @@ const ConfirmationModal = ({ isOpen, title, message, recipientCount, onConfirm, 
 };
 
 const DeveloperCustomAlert = () => {
+  const { isActive: isBroadcastActive, startTracking } = useBroadcastTracking();
   const [recipientType, setRecipientType] = useState('filter');
   const [q, setQ] = useState('');
   const [searchResults, setSearchResults] = useState([]);
@@ -224,11 +226,8 @@ const DeveloperCustomAlert = () => {
       }
 
       const res = await api.post('/developer/alerts/email', payload);
-      const attempted = res.data?.attempted || 0;
-      const sent = res.data?.result?.sent || 0;
-      const failed = res.data?.result?.failed || 0;
-      
-      showToast(`${failed ? 'Email partially accepted' : 'Email batches accepted'}: Selected ${attempted}, accepted ${sent}, failed ${failed}. Delivery may take time.`, failed ? 'warning' : 'success');
+      startTracking({ ...res.data, kind: 'email' });
+      showToast(`Email broadcast started for ${res.data?.total || 0} recipients. Progress will stay visible while you navigate.`, 'success');
       
       // Reset form
       setSubject('');
@@ -238,11 +237,6 @@ const DeveloperCustomAlert = () => {
       setSelectedPrograms([]);
       setConfirmModal({ isOpen: false, type: null, recipientCount: 0 });
     } catch (err) {
-      const partialResult = err?.response?.data;
-      if (partialResult?.result && partialResult.failed > 0) {
-        showToast(`Email partially accepted: Selected ${partialResult.attempted || 0}, accepted ${partialResult.accepted || 0}, failed ${partialResult.failed}.`, 'warning');
-        return;
-      }
       const errorMsg = err?.response?.data?.message || getErrorMessage(err, 'Failed to send email');
       showToast(errorMsg, 'error');
       console.error('Email send error:', err);
@@ -264,15 +258,8 @@ const DeveloperCustomAlert = () => {
       }
 
       const res = await api.post('/developer/alerts/push', payload);
-      const attempted = res.data?.attempted || 0;
-      const sent = res.data?.sent || 0;
-      const failed = res.data?.failed || 0;
-      
-      if (attempted === 0) {
-        showToast('⚠️ No users found with push notifications enabled', 'warning');
-      } else {
-        showToast(`✅ Push notification sent! Delivered: ${sent}, Failed: ${failed}`, 'success');
-      }
+      startTracking({ ...res.data, kind: 'push' });
+      showToast(`Push notification broadcast started for ${res.data?.total || 0} devices. Progress will stay visible while you navigate.`, 'success');
       
       // Reset form
       setTitle('');
@@ -607,7 +594,7 @@ const DeveloperCustomAlert = () => {
             <button
               className={styles.primaryBtn}
               onClick={initiateEmailSend}
-              disabled={loading || !canSendEmail}
+              disabled={loading || isBroadcastActive || !canSendEmail}
             >
               {loading ? (
                 <>
@@ -680,7 +667,7 @@ const DeveloperCustomAlert = () => {
             <button
               className={styles.primaryBtn}
               onClick={initiatePushSend}
-              disabled={loading || !canSendPush}
+              disabled={loading || isBroadcastActive || !canSendPush}
             >
               {loading ? (
                 <>

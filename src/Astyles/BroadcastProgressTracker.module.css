@@ -1,0 +1,253 @@
+.floating {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  z-index: 1800;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: min(360px, calc(100vw - 32px));
+  padding: 14px 18px;
+  border: 1px solid #d8e8dc;
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 10px 35px rgba(18, 45, 33, 0.18);
+}
+
+.progressRing {
+  position: relative;
+  display: grid;
+  width: 54px;
+  height: 54px;
+  flex: 0 0 54px;
+  place-items: center;
+  color: #188b45;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.progressRing svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg);
+}
+
+.ringTrack,
+.ringProgress {
+  fill: none;
+  stroke-width: 4;
+}
+
+.ringTrack {
+  stroke: #e8f2eb;
+}
+
+.ringProgress {
+  stroke: #1c9b4b;
+  stroke-linecap: round;
+  transition: stroke-dashoffset 250ms ease;
+}
+
+.progressCopy {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+  color: #253343;
+  font-size: 12px;
+}
+
+.progressCopy strong {
+  font-size: 14px;
+}
+
+.progressCopy span {
+  color: #657184;
+}
+
+.backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 2200;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(16, 28, 22, 0.5);
+}
+
+.modal {
+  position: relative;
+  width: min(560px, 100%);
+  max-height: min(86vh, 760px);
+  overflow: auto;
+  padding: 32px;
+  border: 1px solid #e4ebe6;
+  border-radius: 18px;
+  background: #fff;
+  box-shadow: 0 22px 65px rgba(14, 38, 24, 0.25);
+  color: #1e2937;
+}
+
+.closeButton {
+  position: absolute;
+  top: 12px;
+  right: 16px;
+  width: 36px;
+  height: 36px;
+  border: 0;
+  border-radius: 50%;
+  background: #f2f6f3;
+  color: #526070;
+  font-size: 24px;
+  cursor: pointer;
+}
+
+.completeIcon {
+  display: grid;
+  width: 48px;
+  height: 48px;
+  margin-bottom: 14px;
+  place-items: center;
+  border-radius: 50%;
+  background: #e9f7ed;
+  color: #168a43;
+  font-size: 24px;
+  font-weight: 700;
+}
+
+.modal h2 {
+  margin: 0 42px 6px 0;
+  font-size: 23px;
+}
+
+.modalSubtitle {
+  margin: 0 0 20px;
+  color: #667385;
+  font-size: 14px;
+}
+
+.summary {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.emailSummary {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.summary > div {
+  display: grid;
+  gap: 4px;
+  padding: 16px;
+  border: 1px solid #dceee1;
+  border-radius: 12px;
+  background: #f6fbf7;
+}
+
+.summary strong {
+  color: #14863e;
+  font-size: 26px;
+}
+
+.summary span {
+  color: #5d6a78;
+  font-size: 12px;
+}
+
+.summary .failedSummary {
+  border-color: #f3d9d9;
+  background: #fff8f8;
+}
+
+.failedSummary strong {
+  color: #bd3434;
+}
+
+.summary .pendingSummary {
+  border-color: #e5e5d4;
+  background: #fffef5;
+}
+
+.pendingSummary strong {
+  color: #8a7214;
+}
+
+.deliveryNote,
+.jobError {
+  margin: 14px 0 0;
+  padding: 11px 12px;
+  border-radius: 9px;
+  background: #f5f7fa;
+  color: #596779;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.jobError {
+  background: #fff2f0;
+  color: #9d3023;
+}
+
+.failedList {
+  margin-top: 20px;
+}
+
+.failedList h3 {
+  margin: 0 0 9px;
+  font-size: 15px;
+}
+
+.failedList ul {
+  display: grid;
+  max-height: 220px;
+  gap: 8px;
+  overflow: auto;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.failedList li {
+  display: grid;
+  gap: 3px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: #fff7f7;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
+.failedList li span {
+  color: #796565;
+}
+
+.dismissButton {
+  width: 100%;
+  min-height: 44px;
+  margin-top: 22px;
+  border: 0;
+  border-radius: 9px;
+  background: #188b45;
+  color: #fff;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+@media (max-width: 520px) {
+  .floating {
+    right: 12px;
+    bottom: 12px;
+    gap: 10px;
+    padding: 12px;
+  }
+
+  .modal {
+    padding: 26px 20px 20px;
+  }
+
+  .emailSummary {
+    grid-template-columns: 1fr;
+  }
+}

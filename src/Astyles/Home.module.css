@@ -146,6 +146,7 @@
   font-size: clamp(18px, 2.4vw, 24px);
   font-weight: 700;
   cursor: pointer;
+  text-decoration: none;
 }
 
 .metrics {

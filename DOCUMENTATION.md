@@ -55,7 +55,7 @@ Mounted API groups:
 | `/api/material-access` | paid material access and payment status |
 | `/api/developer` | developer-only tools and projects |
 | `/api/concours` | concours applications and partner workflows |
-| `/api/payment`, `/api` | public payment/webhook compatibility routes |
+| `/api/payment`, `/api` | public payment/webhook compatibility routes and the metadata-only `/materials/catalog` endpoint |
 
 The version router provides compatible `/api/v1` paths for supported routes. `GET /api/health` and `/api/v1/health` report database and service readiness; a disconnected database returns HTTP 503. `/` redirects to `https://www.acadexe.com/`.
 
@@ -77,6 +77,10 @@ Candidate question papers, reports (including report guides), presentations, and
 
 Routes are defined in `src/App.jsx` and grouped into public, candidate, admin, lecturer, developer, and concours-partner workflows. Key families include `/`, `/login`, `/register`, `/reset-password`, `/candidate/*`, `/admin/*`, lecturer routes, payment/study routes, and concours routes.
 
+`/materials` is a public, paginated catalogue of question papers, reports, and presentations. It returns display metadata only; file paths and unrestricted downloads remain protected. Public preview requests return a server-generated PDF containing only the first page. The preview dialog directs visitors to sign in to continue reading or download.
+
+Developer email and push broadcasts are queued as Mongo-backed jobs and can be monitored across frontend route changes. Email broadcasts require `RESEND_WEBHOOK_SECRET` and a Resend webhook configured at `/api/webhooks/resend` for the `email.delivered`, `email.bounced`, `email.failed`, `email.suppressed`, and `email.complained` events. Email success counts mean Resend confirmed delivery to the recipient mail server; pending outcomes remain tracked until a terminal event arrives. Email is submitted in batches of 49 recipients. Push success means accepted by the push service; Web Push does not confirm that a device displayed the notification.
+
 `src/config/api.js` uses the current host on port 5000 for localhost. Deployed builds use `REACT_APP_API_URL`, normalized to end in `/api`; the built-in non-local fallback is only a placeholder and must be replaced.
 
 ## Candidate Apparel Ads
@@ -87,7 +91,9 @@ Developer-managed ads can use `/referral-tshirt.png` or `/referral-shirt.png` as
 
 Models in `hnd_backend/models/` cover users, departments, academic materials, history, chat, announcements, billing, material access, projects, lecturers, ads, and concours workflows. Uploaded files are served from `/uploads` and may also be stored in S3. Office previews use the conversion queue when available.
 
-Core environment variables are `PORT`, `NODE_ENV`, `CORS_ORIGIN`, `MONGODB_URI`, `JWT_SECRET`, `SESSION_SECRET`, `RESEND_API_KEY`, CamerPay settings, AWS settings, AI provider keys, LiveKit settings, `REACT_APP_API_URL`, and `REACT_APP_VAPID_PUBLIC_KEY`. Use `hnd_backend/ENV_EXAMPLE.md` for placeholders only.
+Core environment variables are `PORT`, `NODE_ENV`, `CORS_ORIGIN`, `MONGODB_URI`, `JWT_SECRET`, `SESSION_SECRET`, `RESEND_API_KEY`, `RESEND_WEBHOOK_SECRET`, CamerPay settings, AWS settings, AI provider keys, LiveKit settings, `REACT_APP_API_URL`, and `REACT_APP_VAPID_PUBLIC_KEY`. Use `hnd_backend/ENV_EXAMPLE.md` for placeholders only.
+
+Web Push requires matching `VAPID_PUBLIC_KEY` and `VAPID_PRIVATE_KEY` on the backend and `REACT_APP_VAPID_PUBLIC_KEY` on the frontend. Production must use HTTPS. iOS/iPadOS requires Acadex to be installed to the Home Screen for web push support.
 
 `DEBUG_ROUTES_ENABLED` controls development storage test routes. Set it explicitly to `false` in production.
 

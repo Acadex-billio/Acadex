@@ -308,7 +308,7 @@ exports.updatePushSubscription = async (req, res) => {
       return res.status(400).json({ message: 'Invalid push subscription payload' });
     }
 
-    await User.findOneAndUpdate(
+    const updatedUser = await User.findOneAndUpdate(
       { cand_id },
       {
         $set: {
@@ -320,8 +320,10 @@ exports.updatePushSubscription = async (req, res) => {
           },
           push_subscription_updated_at: new Date(),
         },
-      }
-    );
+      },
+      { new: true }
+    ).select('_id');
+    if (!updatedUser) return res.status(404).json({ message: 'User not found' });
 
     return res.json({ message: 'Push subscription saved' });
   } catch (err) {
@@ -332,7 +334,7 @@ exports.updatePushSubscription = async (req, res) => {
 exports.deletePushSubscription = async (req, res) => {
   try {
     const { cand_id } = req.params;
-    await User.findOneAndUpdate(
+    const updatedUser = await User.findOneAndUpdate(
       { cand_id },
       {
         $set: {
@@ -340,8 +342,10 @@ exports.deletePushSubscription = async (req, res) => {
           allow_push_notifications: false,
           push_subscription_updated_at: new Date(),
         },
-      }
-    );
+      },
+      { new: true }
+    ).select('_id');
+    if (!updatedUser) return res.status(404).json({ message: 'User not found' });
     return res.json({ message: 'Push subscription removed' });
   } catch (err) {
     return res.status(500).json({ message: 'Failed to remove push subscription' });

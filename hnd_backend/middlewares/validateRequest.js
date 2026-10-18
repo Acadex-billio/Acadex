@@ -16,6 +16,12 @@ const objectIdSchema = Joi.string().hex().length(24);
 const candIdSchema = Joi.string().trim().min(3).max(50);
 const phoneSchema = Joi.string().trim().pattern(/^[0-9+()\-\s]{7,20}$/);
 const promoCodeSchema = Joi.string().trim().uppercase().pattern(/^[A-Z0-9_-]{3,30}$/);
+const developerRecipientFields = {
+  departments: Joi.array().items(objectIdSchema).optional(),
+  programs: Joi.array().items(Joi.string().trim().uppercase().valid('HND', 'BTS', 'LECTURER', 'ADMINS')).optional(),
+  inactivityMonths: Joi.alternatives().try(Joi.number().integer().min(0), Joi.array().items(Joi.number().integer().min(0))).optional(),
+  userIds: Joi.array().items(objectIdSchema).optional(),
+};
 
 const validate = ({ body, params, query }) => (req, res, next) => {
   const bodyOptions = { abortEarly: false, stripUnknown: true };
@@ -57,6 +63,7 @@ const schemas = {
     topicIdParam: Joi.object({ topicId: objectIdSchema.required() }),
     inviteIdParam: Joi.object({ inviteId: objectIdSchema.required() }),
     messageIdParam: Joi.object({ messageId: objectIdSchema.required() }),
+    jobIdParam: Joi.object({ jobId: objectIdSchema.required() }),
     codeParam: Joi.object({ code: Joi.string().trim().min(3).max(30).required() }),
     candIdParam: Joi.object({ candId: candIdSchema.required() }),
     lecturerIdParam: Joi.object({ lecturerId: candIdSchema.required() }),
@@ -116,17 +123,17 @@ const schemas = {
   },
   developer: {
     userSearch: Joi.object({ q: Joi.string().trim().allow('', null), page: Joi.number().integer().min(1).default(1), limit: Joi.number().integer().min(1).max(100).default(25) }),
-    developerAlert: Joi.object({
+    developerEmailAlert: Joi.object({
       subject: Joi.string().trim().min(3).max(250).required(),
       text: Joi.string().trim().min(1).required(),
-      title: Joi.string().trim().min(3).optional(),
-      body: Joi.string().trim().min(1).optional(),
-      url: Joi.string().trim().uri().allow('', null).optional(),
-      departments: Joi.array().items(objectIdSchema).optional(),
       emails: Joi.array().items(Joi.string().email()).optional(),
-      userIds: Joi.array().items(objectIdSchema).optional(),
-      programs: Joi.array().items(Joi.string().trim().uppercase().valid('HND', 'BTS', 'LECTURER', 'ADMINS')).optional(),
-      inactivityMonths: Joi.alternatives().try(Joi.number().integer().min(0), Joi.array().items(Joi.number().integer().min(0))).optional(),
+      ...developerRecipientFields,
+    }),
+    developerPushAlert: Joi.object({
+      title: Joi.string().trim().min(3).max(250).required(),
+      body: Joi.string().trim().min(1).required(),
+      url: Joi.string().trim().max(2048).pattern(/^(https?:\/\/[^\s]+|\/(?!\/)[^\s]*)$/).allow('', null).optional(),
+      ...developerRecipientFields,
     }),
   },
 };

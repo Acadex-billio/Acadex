@@ -118,6 +118,7 @@ const Home = () => {
                         <button className={styles.primaryBtn} onClick={isAuthenticated ? () => navigateWithLoader(getDashboardPath()) : handleGetStarted}>
                             {isAuthenticated ? 'Go to Dashboard' : t('homePage.accessButton')}
                         </button>
+                        <Link to="/materials" className={styles.secondaryBtn} onClick={triggerLinkLoading}>Browse Materials</Link>
                         <p className={styles.accessNote}>{t('homePage.accessNote')}</p>
                         <button className={styles.secondaryBtn} onClick={handleLearnMore}>{t('homePage.learnMore')}</button>
                     </div>

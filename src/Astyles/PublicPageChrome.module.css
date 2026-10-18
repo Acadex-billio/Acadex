@@ -1,0 +1,173 @@
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap');
+
+.header {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  min-height: 80px;
+  grid-template-columns: minmax(160px, 1fr) auto minmax(160px, 1fr);
+  align-items: center;
+  gap: 20px;
+  padding: 12px clamp(20px, 3vw, 42px);
+  border-bottom: 1px solid #edf0f2;
+  background: #fff;
+  box-shadow: 0 3px 10px rgba(22, 35, 50, 0.04);
+  font-family: 'Poppins', 'Segoe UI', sans-serif;
+}
+
+.brand {
+  display: inline-flex;
+  width: fit-content;
+  align-items: center;
+  gap: 10px;
+  color: #218b48;
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  text-decoration: none;
+}
+
+.brand img {
+  width: 31px;
+  height: 31px;
+  object-fit: contain;
+}
+
+.navigation {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(18px, 4vw, 56px);
+}
+
+.navigation a {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #394656;
+  font-size: 13px;
+  font-weight: 500;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.navigation a:hover {
+  color: #218b48;
+}
+
+.navigation svg {
+  color: #657484;
+}
+
+.dashboardButton {
+  justify-self: end;
+  display: inline-flex;
+  min-height: 37px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 0 16px;
+  border: 1px solid #8dc99b;
+  border-radius: 7px;
+  background: #fff;
+  color: #218b48;
+  font-size: 12px;
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.dashboardButton:hover {
+  background: #f2faf4;
+}
+
+.footer {
+  display: flex;
+  min-height: 58px;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+  padding: 14px 20px;
+  border-top: 1px solid #e9edef;
+  color: #7a8791;
+  font-family: 'Poppins', 'Segoe UI', sans-serif;
+  font-size: 12px;
+  text-align: center;
+}
+
+.footerDivider {
+  width: 1px;
+  height: 18px;
+  background: #d9dfe3;
+}
+
+.heart {
+  color: #249b4c;
+  font-size: 16px;
+}
+
+@media (max-width: 700px) {
+  .header {
+    min-height: 68px;
+    grid-template-columns: auto 1fr auto;
+    gap: 12px;
+    padding: 10px 16px;
+  }
+
+  .brand {
+    gap: 7px;
+    font-size: 16px;
+  }
+
+  .brand img {
+    width: 27px;
+    height: 27px;
+  }
+
+  .navigation {
+    gap: clamp(10px, 3vw, 20px);
+  }
+
+  .navigation a {
+    gap: 0;
+    font-size: 0;
+  }
+
+  .navigation svg {
+    width: 20px;
+    height: 20px;
+  }
+
+  .dashboardButton {
+    min-height: 35px;
+    padding: 0 10px;
+    font-size: 0;
+  }
+
+  .dashboardButton svg {
+    width: 18px;
+    height: 18px;
+  }
+
+  .footer {
+    flex-wrap: wrap;
+    gap: 6px 12px;
+    font-size: 11px;
+  }
+}
+
+@media (max-width: 370px) {
+  .header {
+    gap: 8px;
+    padding-right: 10px;
+    padding-left: 10px;
+  }
+
+  .navigation {
+    gap: 9px;
+  }
+
+  .brand {
+    font-size: 14px;
+  }
+}
