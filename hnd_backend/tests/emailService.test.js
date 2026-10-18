@@ -11,6 +11,7 @@ test('sendBulkBcc reports Resend error responses as failed recipients', async ()
   const originalLoad = Module._load;
   const originalApiKey = process.env.RESEND_API_KEY;
   const originalFromEmail = process.env.RESEND_FROM_EMAIL;
+  const originalReplyTo = process.env.RESEND_REPLY_TO;
 
   Module._load = function mockResend(request, parent, isMain) {
     if (request === 'resend') {
@@ -31,6 +32,7 @@ test('sendBulkBcc reports Resend error responses as failed recipients', async ()
   };
   process.env.RESEND_API_KEY = 'test-api-key';
   process.env.RESEND_FROM_EMAIL = 'Acadex <hndplatform@acadexe.com>';
+  delete process.env.RESEND_REPLY_TO;
   delete require.cache[require.resolve('../services/emailService')];
 
   try {
@@ -46,7 +48,8 @@ test('sendBulkBcc reports Resend error responses as failed recipients', async ()
 
     assert.equal(calls.length, 2);
     assert.equal(calls[0].from, 'Acadex <hndplatform@acadexe.com>');
-    assert.equal(calls[0].to, 'hndplatform@acadexe.com');
+    assert.equal(calls[0].replyTo, 'acadexmail@gmail.com');
+    assert.equal(calls[0].to, 'acadexmail@gmail.com');
     assert.deepEqual(calls[0].bcc, ['one@example.com', 'two@example.com']);
     assert.deepEqual(calls[1].bcc, ['three@example.com']);
     assert.equal(result.attempted, 3);
@@ -64,6 +67,8 @@ test('sendBulkBcc reports Resend error responses as failed recipients', async ()
     else process.env.RESEND_API_KEY = originalApiKey;
     if (originalFromEmail === undefined) delete process.env.RESEND_FROM_EMAIL;
     else process.env.RESEND_FROM_EMAIL = originalFromEmail;
+    if (originalReplyTo === undefined) delete process.env.RESEND_REPLY_TO;
+    else process.env.RESEND_REPLY_TO = originalReplyTo;
     delete require.cache[require.resolve('../services/emailService')];
   }
 });
@@ -113,8 +118,8 @@ test('sendBulkBcc sends broadcast recipients in chunks of at most 49', async () 
       'Acadex <hndplatform@acadexe.com>',
     ]);
     assert.deepEqual(calls.map((call) => call.to), [
-      'hndplatform@acadexe.com',
-      'hndplatform@acadexe.com',
+      'acadexmail@gmail.com',
+      'acadexmail@gmail.com',
     ]);
     assert.deepEqual(calls.map((call) => call.tags), [
       [{ name: 'job_id', value: 'job_123' }],
@@ -133,11 +138,12 @@ test('sendBulkBcc sends broadcast recipients in chunks of at most 49', async () 
   }
 });
 
-test('sendBulkBcc uses the configured sender mailbox for internal delivery', async () => {
+test('sendBulkBcc uses the configured reply-to inbox for internal delivery', async () => {
   const calls = [];
   const originalLoad = Module._load;
   const originalApiKey = process.env.RESEND_API_KEY;
   const originalFromEmail = process.env.RESEND_FROM_EMAIL;
+  const originalReplyTo = process.env.RESEND_REPLY_TO;
   Module._load = function mockResend(request, parent, isMain) {
     if (request === 'resend') {
       return {
@@ -157,6 +163,7 @@ test('sendBulkBcc uses the configured sender mailbox for internal delivery', asy
   };
   process.env.RESEND_API_KEY = 'test-api-key';
   process.env.RESEND_FROM_EMAIL = 'Acadex Updates <news@verified.example>';
+  process.env.RESEND_REPLY_TO = 'replies@verified.example';
   delete require.cache[require.resolve('../services/emailService')];
 
   try {
@@ -164,13 +171,16 @@ test('sendBulkBcc uses the configured sender mailbox for internal delivery', asy
     await sendBulkBcc(['reader@example.net'], 'Broadcast', 'Message');
 
     assert.equal(calls[0].from, 'Acadex Updates <news@verified.example>');
-    assert.equal(calls[0].to, 'news@verified.example');
+    assert.equal(calls[0].replyTo, 'replies@verified.example');
+    assert.equal(calls[0].to, 'replies@verified.example');
   } finally {
     Module._load = originalLoad;
     if (originalApiKey === undefined) delete process.env.RESEND_API_KEY;
     else process.env.RESEND_API_KEY = originalApiKey;
     if (originalFromEmail === undefined) delete process.env.RESEND_FROM_EMAIL;
     else process.env.RESEND_FROM_EMAIL = originalFromEmail;
+    if (originalReplyTo === undefined) delete process.env.RESEND_REPLY_TO;
+    else process.env.RESEND_REPLY_TO = originalReplyTo;
     delete require.cache[require.resolve('../services/emailService')];
   }
 });

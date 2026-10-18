@@ -5,15 +5,11 @@
  */
 let Resend;
 let resend = null;
-const DEFAULT_FROM_EMAIL = 'Acadex <hndplatform@acadexe.com>';
+const DEFAULT_FROM_EMAIL = 'VANTORA Ltd <vantoraltd@acadexe.com>';
+const DEFAULT_REPLY_TO_EMAIL = 'acadexmail@gmail.com';
 
 const getFromEmail = () => String(process.env.RESEND_FROM_EMAIL || DEFAULT_FROM_EMAIL).trim();
-
-const getFromMailbox = () => {
-  const fromEmail = getFromEmail();
-  const mailbox = fromEmail.match(/<([^<>]+)>$/);
-  return (mailbox ? mailbox[1] : fromEmail).trim();
-};
+const getReplyToEmail = () => String(process.env.RESEND_REPLY_TO || DEFAULT_REPLY_TO_EMAIL).trim();
 
 try {
   Resend = require('resend').Resend;
@@ -42,6 +38,7 @@ const sendEmail = async (options) => {
     if (!resend) resend = new Resend(process.env.RESEND_API_KEY);
     const result = await resend.emails.send({
       from: getFromEmail(),
+      replyTo: getReplyToEmail(),
       ...options,
     });
 
@@ -93,7 +90,7 @@ const sendBulkBcc = async (recipients, subject, text, chunkSize = 10, onBatchRes
 
     try {
       const response = await sendEmail({
-        to: getFromMailbox(),
+        to: getReplyToEmail(),
         bcc: chunk,
         subject,
         text,
