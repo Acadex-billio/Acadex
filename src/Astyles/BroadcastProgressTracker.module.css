@@ -71,6 +71,24 @@
   font-weight: 600;
 }
 
+.dismissTrackingButton {
+  justify-self: start;
+  margin-top: 4px;
+  padding: 3px 0;
+  border: 0;
+  background: transparent;
+  color: #536273;
+  font: inherit;
+  font-weight: 600;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.dismissTrackingNote {
+  color: #8a5a24 !important;
+  font-size: 11px;
+}
+
 .backdrop {
   position: fixed;
   inset: 0;

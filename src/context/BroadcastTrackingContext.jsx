@@ -54,6 +54,17 @@ const BroadcastProgress = ({ job, onDismiss }) => {
           {job.kind === 'email' && <span>{Number(job.accepted) || 0} accepted by provider, awaiting outcome as applicable</span>}
           <span>Batch {Math.min(job.batchesProcessed || 0, job.totalBatches || 0)} of {job.totalBatches || 0}</span>
           {pollError && <span className={styles.pollWarning} role="status">{pollError}</span>}
+          <button
+            type="button"
+            className={styles.dismissTrackingButton}
+            onClick={onDismiss}
+            aria-label="Dismiss broadcast tracking and allow another broadcast. This does not recall emails already accepted by the provider."
+          >
+            Dismiss tracker
+          </button>
+          <span className={styles.dismissTrackingNote}>
+            This only hides tracking; emails already accepted by Resend cannot be recalled.
+          </span>
         </div>
       </aside>
     );
