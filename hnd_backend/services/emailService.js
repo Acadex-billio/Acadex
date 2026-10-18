@@ -1,11 +1,20 @@
 /**
  * Email Service using Resend
  * Requires: RESEND_API_KEY in .env
- * Domain: houseofgraceweb.com
- * From email: hndplatform@houseofgraceweb.com
+ * RESEND_FROM_EMAIL must use a domain verified in the configured Resend account.
  */
 let Resend;
 let resend = null;
+const DEFAULT_FROM_EMAIL = 'Acadex <hndplatform@acadexe.com>';
+
+const getFromEmail = () => String(process.env.RESEND_FROM_EMAIL || DEFAULT_FROM_EMAIL).trim();
+
+const getFromMailbox = () => {
+  const fromEmail = getFromEmail();
+  const mailbox = fromEmail.match(/<([^<>]+)>$/);
+  return (mailbox ? mailbox[1] : fromEmail).trim();
+};
+
 try {
   Resend = require('resend').Resend;
 } catch (_) {
@@ -32,7 +41,7 @@ const sendEmail = async (options) => {
   try {
     if (!resend) resend = new Resend(process.env.RESEND_API_KEY);
     const result = await resend.emails.send({
-      from: 'Acadex <hndplatform@houseofgraceweb.com>',
+      from: getFromEmail(),
       ...options,
     });
 
@@ -84,7 +93,7 @@ const sendBulkBcc = async (recipients, subject, text, chunkSize = 10, onBatchRes
 
     try {
       const response = await sendEmail({
-        to: 'hndplatform@houseofgraceweb.com', // Send to self with BCC
+        to: getFromMailbox(),
         bcc: chunk,
         subject,
         text,

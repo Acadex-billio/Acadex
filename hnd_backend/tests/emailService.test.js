@@ -10,6 +10,7 @@ test('sendBulkBcc reports Resend error responses as failed recipients', async ()
   ];
   const originalLoad = Module._load;
   const originalApiKey = process.env.RESEND_API_KEY;
+  const originalFromEmail = process.env.RESEND_FROM_EMAIL;
 
   Module._load = function mockResend(request, parent, isMain) {
     if (request === 'resend') {
@@ -29,6 +30,7 @@ test('sendBulkBcc reports Resend error responses as failed recipients', async ()
     return originalLoad.call(this, request, parent, isMain);
   };
   process.env.RESEND_API_KEY = 'test-api-key';
+  process.env.RESEND_FROM_EMAIL = 'Acadex <hndplatform@acadexe.com>';
   delete require.cache[require.resolve('../services/emailService')];
 
   try {
@@ -43,6 +45,8 @@ test('sendBulkBcc reports Resend error responses as failed recipients', async ()
     );
 
     assert.equal(calls.length, 2);
+    assert.equal(calls[0].from, 'Acadex <hndplatform@acadexe.com>');
+    assert.equal(calls[0].to, 'hndplatform@acadexe.com');
     assert.deepEqual(calls[0].bcc, ['one@example.com', 'two@example.com']);
     assert.deepEqual(calls[1].bcc, ['three@example.com']);
     assert.equal(result.attempted, 3);
@@ -58,6 +62,8 @@ test('sendBulkBcc reports Resend error responses as failed recipients', async ()
     Module._load = originalLoad;
     if (originalApiKey === undefined) delete process.env.RESEND_API_KEY;
     else process.env.RESEND_API_KEY = originalApiKey;
+    if (originalFromEmail === undefined) delete process.env.RESEND_FROM_EMAIL;
+    else process.env.RESEND_FROM_EMAIL = originalFromEmail;
     delete require.cache[require.resolve('../services/emailService')];
   }
 });
@@ -66,6 +72,7 @@ test('sendBulkBcc sends broadcast recipients in chunks of at most 49', async () 
   const calls = [];
   const originalLoad = Module._load;
   const originalApiKey = process.env.RESEND_API_KEY;
+  const originalFromEmail = process.env.RESEND_FROM_EMAIL;
   Module._load = function mockResend(request, parent, isMain) {
     if (request === 'resend') {
       return {
@@ -84,6 +91,7 @@ test('sendBulkBcc sends broadcast recipients in chunks of at most 49', async () 
     return originalLoad.call(this, request, parent, isMain);
   };
   process.env.RESEND_API_KEY = 'test-api-key';
+  process.env.RESEND_FROM_EMAIL = 'Acadex <hndplatform@acadexe.com>';
   delete require.cache[require.resolve('../services/emailService')];
 
   try {
@@ -100,6 +108,14 @@ test('sendBulkBcc sends broadcast recipients in chunks of at most 49', async () 
     );
 
     assert.deepEqual(calls.map((call) => call.bcc.length), [49, 46]);
+    assert.deepEqual(calls.map((call) => call.from), [
+      'Acadex <hndplatform@acadexe.com>',
+      'Acadex <hndplatform@acadexe.com>',
+    ]);
+    assert.deepEqual(calls.map((call) => call.to), [
+      'hndplatform@acadexe.com',
+      'hndplatform@acadexe.com',
+    ]);
     assert.deepEqual(calls.map((call) => call.tags), [
       [{ name: 'job_id', value: 'job_123' }],
       [{ name: 'job_id', value: 'job_123' }],
@@ -111,6 +127,50 @@ test('sendBulkBcc sends broadcast recipients in chunks of at most 49', async () 
     Module._load = originalLoad;
     if (originalApiKey === undefined) delete process.env.RESEND_API_KEY;
     else process.env.RESEND_API_KEY = originalApiKey;
+    if (originalFromEmail === undefined) delete process.env.RESEND_FROM_EMAIL;
+    else process.env.RESEND_FROM_EMAIL = originalFromEmail;
+    delete require.cache[require.resolve('../services/emailService')];
+  }
+});
+
+test('sendBulkBcc uses the configured sender mailbox for internal delivery', async () => {
+  const calls = [];
+  const originalLoad = Module._load;
+  const originalApiKey = process.env.RESEND_API_KEY;
+  const originalFromEmail = process.env.RESEND_FROM_EMAIL;
+  Module._load = function mockResend(request, parent, isMain) {
+    if (request === 'resend') {
+      return {
+        Resend: class MockResend {
+          constructor() {
+            this.emails = {
+              send: async (options) => {
+                calls.push(options);
+                return { data: { id: 'email_custom_sender' } };
+              },
+            };
+          }
+        },
+      };
+    }
+    return originalLoad.call(this, request, parent, isMain);
+  };
+  process.env.RESEND_API_KEY = 'test-api-key';
+  process.env.RESEND_FROM_EMAIL = 'Acadex Updates <news@verified.example>';
+  delete require.cache[require.resolve('../services/emailService')];
+
+  try {
+    const { sendBulkBcc } = require('../services/emailService');
+    await sendBulkBcc(['reader@example.net'], 'Broadcast', 'Message');
+
+    assert.equal(calls[0].from, 'Acadex Updates <news@verified.example>');
+    assert.equal(calls[0].to, 'news@verified.example');
+  } finally {
+    Module._load = originalLoad;
+    if (originalApiKey === undefined) delete process.env.RESEND_API_KEY;
+    else process.env.RESEND_API_KEY = originalApiKey;
+    if (originalFromEmail === undefined) delete process.env.RESEND_FROM_EMAIL;
+    else process.env.RESEND_FROM_EMAIL = originalFromEmail;
     delete require.cache[require.resolve('../services/emailService')];
   }
 });

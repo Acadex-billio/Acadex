@@ -24,6 +24,7 @@ PORT=5000
 # Email Configuration (primary service)
 RESEND_API_KEY=replace-with-your-resend-api-key
 RESEND_WEBHOOK_SECRET=whsec_replace-with-your-resend-webhook-signing-secret
+RESEND_FROM_EMAIL=Acadex <hndplatform@acadexe.com>
 
 # Web Push (the public key is served by the backend at runtime)
 VAPID_PUBLIC_KEY=replace-with-your-vapid-public-key
@@ -139,7 +140,7 @@ For production, ensure:
 
 1. **Use strong, unique SESSION_SECRET** (64+ characters)
 2. **Set production MONGODB_URI** with authentication
-3. **Configure production RESEND_API_KEY and RESEND_WEBHOOK_SECRET; set the Resend webhook URL to `https://your-api-host/api/webhooks/resend` for `email.delivered`, `email.bounced`, `email.failed`, `email.suppressed`, and `email.complained` events**
+3. **Configure production RESEND_API_KEY, RESEND_WEBHOOK_SECRET, and RESEND_FROM_EMAIL. The sender must use a domain verified for that Resend account; for example, `Acadex <hndplatform@acadexe.com>`. The Resend webhook URL is `https://your-api-host/api/webhooks/resend`; subscribe to `email.delivered`, `email.bounced`, `email.failed`, `email.suppressed`, and `email.complained` events.**
 4. **Set CORS_ORIGIN to production domain**
 5. **Use HTTPS in production**
 

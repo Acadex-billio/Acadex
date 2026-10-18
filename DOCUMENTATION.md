@@ -79,7 +79,7 @@ Routes are defined in `src/App.jsx` and grouped into public, candidate, admin, l
 
 `/materials` is a public, paginated catalogue of question papers, reports, and presentations. It returns display metadata only; file paths and unrestricted downloads remain protected. Public preview requests return a server-generated PDF containing only the first page. The preview dialog directs visitors to sign in to continue reading or download.
 
-Developer email and push broadcasts are queued as Mongo-backed jobs and can be monitored across frontend route changes. Email broadcasts require `RESEND_WEBHOOK_SECRET` and a Resend webhook configured at `/api/webhooks/resend` for the `email.delivered`, `email.bounced`, `email.failed`, `email.suppressed`, and `email.complained` events. Email success counts mean Resend confirmed delivery to the recipient mail server; pending outcomes remain tracked until a terminal event arrives. Email is submitted in batches of 49 recipients. Push success means accepted by the push service; Web Push does not confirm that a device displayed the notification.
+Developer email and push broadcasts are queued as Mongo-backed jobs and can be monitored across frontend route changes. Email broadcasts require `RESEND_API_KEY`, a `RESEND_FROM_EMAIL` on a domain verified for that API key, `RESEND_WEBHOOK_SECRET`, and a Resend webhook configured at `/api/webhooks/resend` for the `email.delivered`, `email.bounced`, `email.failed`, `email.suppressed`, and `email.complained` events. Email success counts mean Resend confirmed delivery to the recipient mail server; pending outcomes remain tracked until a terminal event arrives. Email is submitted in batches of 49 recipients. Push success means accepted by the push service; Web Push does not confirm that a device displayed the notification.
 
 `src/config/api.js` uses the current host on port 5000 for localhost. Deployed builds use `REACT_APP_API_URL`, normalized to end in `/api`; the built-in non-local fallback is only a placeholder and must be replaced.
 
@@ -91,7 +91,7 @@ Developer-managed ads can use `/referral-tshirt.png` or `/referral-shirt.png` as
 
 Models in `hnd_backend/models/` cover users, departments, academic materials, history, chat, announcements, billing, material access, projects, lecturers, ads, and concours workflows. Uploaded files are served from `/uploads` and may also be stored in S3. Office previews use the conversion queue when available.
 
-Core environment variables are `PORT`, `NODE_ENV`, `CORS_ORIGIN`, `MONGODB_URI`, `JWT_SECRET`, `SESSION_SECRET`, `RESEND_API_KEY`, `RESEND_WEBHOOK_SECRET`, CamerPay settings, AWS settings, AI provider keys, and LiveKit settings. Use `hnd_backend/ENV_EXAMPLE.md` for backend placeholders only.
+Core environment variables are `PORT`, `NODE_ENV`, `CORS_ORIGIN`, `MONGODB_URI`, `JWT_SECRET`, `SESSION_SECRET`, `RESEND_API_KEY`, `RESEND_FROM_EMAIL`, `RESEND_WEBHOOK_SECRET`, CamerPay settings, AWS settings, AI provider keys, and LiveKit settings. Use `hnd_backend/ENV_EXAMPLE.md` for backend placeholders only.
 
 Web Push requires matching `VAPID_PUBLIC_KEY` and `VAPID_PRIVATE_KEY` on the backend. The public key is provided at runtime by `/api/push/config`, so it does not need to be embedded in the frontend build. Production must use HTTPS. iOS/iPadOS requires Acadex to be installed to the Home Screen for web push support.
 

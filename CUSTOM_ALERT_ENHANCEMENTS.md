@@ -270,7 +270,7 @@ Buttons: "Cancel" | "Confirm & Send" (shows spinner while sending)
 
 ## 📝 Notes
 
-- All emails are sent from: `hndplatform@houseofgraceweb.com`
+- Emails are sent from `RESEND_FROM_EMAIL`, which must use a domain verified in the configured Resend account.
 - Web Push requires VAPID keys configured in `.env`
 - Email requires `RESEND_API_KEY` configured in `.env`
 - Both services have fallback error handling if not configured
