@@ -191,6 +191,9 @@ const AIAssistant = () => {
   const [studyPapers, setStudyPapers] = useState([]);
   const [studyLoadingPapers, setStudyLoadingPapers] = useState(false);
   const [selectedStudyMaterialId, setSelectedStudyMaterialId] = useState('');
+  const [studyQuestionCount, setStudyQuestionCount] = useState(5);
+  const [studyFreeTrialAvailable, setStudyFreeTrialAvailable] = useState(false);
+  const [studyFreeTrialUsed, setStudyFreeTrialUsed] = useState(false);
   const [studySessionId, setStudySessionId] = useState('');
   const [studyQuestion, setStudyQuestion] = useState(null);
   const [studyMessages, setStudyMessages] = useState([]);
@@ -391,15 +394,20 @@ const AIAssistant = () => {
         if (cancelled) return;
         const papers = Array.isArray(data?.papers) ? data.papers : [];
         setStudyPapers(papers);
+        setStudyFreeTrialAvailable(Boolean(data?.freeTrialAvailable));
+        setStudyFreeTrialUsed(Boolean(data?.freeTrialUsed));
         setSelectedStudyMaterialId((prev) =>
           papers.find((item) => String(item.materialId) === String(prev))
             ? prev
             : papers[0]?.materialId || ''
         );
+        setStudyQuestionCount(5);
       } catch (_) {
         if (!cancelled) {
           setStudyPapers([]);
           setSelectedStudyMaterialId('');
+          setStudyFreeTrialAvailable(false);
+          setStudyFreeTrialUsed(false);
           addStudyAssistantMessage('Could not load study papers right now. Please try again.');
         }
       } finally {
@@ -411,7 +419,7 @@ const AIAssistant = () => {
       {
         id: 'study-greeting',
         role: 'assistant',
-        text: 'Study Mode is ready. Select a question paper to begin a 20-question MCQ session.',
+        text: 'Study Mode is ready. Select a question paper and choose how many questions to answer (minimum 5).',
         time: nowTime(),
       },
     ]);
@@ -751,7 +759,10 @@ const AIAssistant = () => {
     setStudyResult(null);
     setShowStudyDetails(false);
     try {
-      const { data } = await api.post('/ai/study/session/start', { materialId: selectedStudyMaterialId }, {
+      const { data } = await api.post('/ai/study/session/start', {
+        materialId: selectedStudyMaterialId,
+        questionCount: studyQuestionCount,
+      }, {
         suppressGlobalForbiddenToast: true,
       });
       const sessionId = String(data?.session?.sessionId || '');
@@ -766,7 +777,7 @@ const AIAssistant = () => {
         {
           id: 'study-start',
           role: 'assistant',
-          text: `Starting Study Mode for: ${data?.session?.paperTitle || 'Selected paper'}`,
+          text: `Starting a ${data?.session?.totalQuestions || studyQuestionCount}-question Study Mode session for: ${data?.session?.paperTitle || 'Selected paper'}${data?.session?.isFreeTrial ? ' (your free trial)' : ''}`,
           time: nowTime(),
         },
         {
@@ -827,7 +838,7 @@ const AIAssistant = () => {
       if (data?.done) {
         setStudyReadyToSubmit(true);
         setStudyQuestion(null);
-        addStudyAssistantMessage(data?.message || 'All 20 questions answered. Submit to get your result.');
+        addStudyAssistantMessage(data?.message || `All ${data?.totalQuestions || studyQuestion.total} questions answered. Submit to get your result.`);
         return;
       }
 
@@ -866,6 +877,10 @@ const AIAssistant = () => {
   if (loading && messages.length === 1) {
     return <GraduationCapLoader fullscreen label="AI assistant is starting up..." />;
   }
+
+  const selectedStudyPaper = studyPapers.find(
+    (paper) => String(paper.materialId) === String(selectedStudyMaterialId)
+  );
 
   return (
     <div className={styles.page}>
@@ -1058,7 +1073,10 @@ const AIAssistant = () => {
               id="study-paper-select"
               className={styles.settingSelect}
               value={selectedStudyMaterialId}
-              onChange={(e) => setSelectedStudyMaterialId(e.target.value)}
+              onChange={(e) => {
+                setSelectedStudyMaterialId(e.target.value);
+                setStudyQuestionCount(5);
+              }}
               disabled={studyLoadingPapers || studyBusy}
             >
               <option value="">Select paper</option>
@@ -1068,11 +1086,43 @@ const AIAssistant = () => {
                 </option>
               ))}
             </select>
+            <label className={styles.settingLabel} htmlFor="study-question-count">
+              Number of questions
+            </label>
+            <input
+              id="study-question-count"
+              className={styles.settingSelect}
+              type="number"
+              min={5}
+              max={selectedStudyPaper?.questionCount || 5}
+              step={1}
+              value={studyQuestionCount}
+              onChange={(e) => {
+                const count = Number(e.target.value);
+                if (Number.isInteger(count) && count >= 5) setStudyQuestionCount(count);
+              }}
+              disabled={!selectedStudyPaper || studyBusy}
+            />
+            {studyFreeTrialAvailable ? (
+              <p className={styles.studyTrialNote}>
+                Your one-time free trial covers 5 questions. Longer sessions require an eligible subscription.
+              </p>
+            ) : studyFreeTrialUsed ? (
+              <p className={styles.studyTrialNote}>
+                Your one-time free trial has been used. Upgrade to an eligible subscription to continue.
+              </p>
+            ) : null}
             <button
               type="button"
               className={styles.studyStartBtn}
               onClick={startStudySession}
-              disabled={!selectedStudyMaterialId || studyLoadingPapers || studyBusy}
+              disabled={
+                !selectedStudyPaper
+                || studyQuestionCount < 5
+                || studyQuestionCount > selectedStudyPaper.questionCount
+                || studyLoadingPapers
+                || studyBusy
+              }
             >
               {studyLoadingPapers ? 'Loading papers...' : 'Start Study Session'}
             </button>

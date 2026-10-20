@@ -8,8 +8,10 @@ const User = require('../models/User');
 const materialAccessService = require('../services/materialAccessService');
 const { getMaterialAccessSummary, resolveSubscription } = require('../utils/subscriptionUtils');
 const { getCandidateMaterialDepartmentTracks } = require('../services/candidateMaterialVisibilityService');
-
-const STUDY_LIMIT = 20;
+const {
+  getStudyQuestionCount,
+  canUseFreeStudyTrial,
+} = require('../services/aiStudySessionPolicy');
 
 const normalizeProgram = (value) => {
   const raw = String(value || 'HND').trim().toUpperCase();
@@ -179,12 +181,23 @@ exports.listStudyMaterialsForDeveloper = async (req, res) => {
 
 exports.listStudyPapersForCandidate = async (req, res) => {
   try {
-    const programTracks = await getCandidateMaterialDepartmentTracks(req.user?.program);
+    const candidateId = String(req.user?.cand_id || '').trim();
+    if (!candidateId) {
+      return res.status(401).json({ success: false, message: 'Authentication required.' });
+    }
+
+    const [programTracks, candidate] = await Promise.all([
+      getCandidateMaterialDepartmentTracks(req.user?.program),
+      User.findOne({ cand_id: candidateId }).select('subscription ai_study_free_trial_used_at').lean(),
+    ]);
+    if (!candidate) {
+      return res.status(404).json({ success: false, message: 'Candidate not found.' });
+    }
 
     const filter = {
       is_active: true,
       program: { $in: programTracks },
-      question_count: { $gte: STUDY_LIMIT },
+      question_count: { $gte: 5 },
     };
 
     const materials = await AiStudyMaterial.find(filter)
@@ -194,6 +207,10 @@ exports.listStudyPapersForCandidate = async (req, res) => {
 
     return res.json({
       success: true,
+      freeTrialAvailable:
+        resolveSubscription(candidate.subscription).plan === 'basic' && !candidate.ai_study_free_trial_used_at,
+      freeTrialUsed:
+        resolveSubscription(candidate.subscription).plan === 'basic' && Boolean(candidate.ai_study_free_trial_used_at),
       papers: materials.map((item) => ({
         materialId: String(item._id),
         questionPaperId: String(item.question_paper_id || ''),
@@ -227,11 +244,35 @@ exports.startStudySession = async (req, res) => {
     if (!material || !material.is_active) {
       return res.status(404).json({ success: false, message: 'Study material not found.' });
     }
-    let hasAiAccess = await materialAccessService.hasActiveAccess(candidateId, String(materialId), 'ai_mode', 'preview').catch(() => false);
-    if (!hasAiAccess) {
-      const candidate = await User.findOne({ cand_id: candidateId }).select('cand_id subscription').lean();
+    const questionIds = (material.questions || []).map((q) => q._id).filter(Boolean);
+    const questionCount = getStudyQuestionCount(req.body?.questionCount, questionIds.length);
+    if (!questionCount) {
+      return res.status(400).json({
+        success: false,
+        message: `Choose a whole number of questions between 5 and ${questionIds.length}.`,
+      });
+    }
+
+    const [candidate, activeAiAccess] = await Promise.all([
+      User.findOne({ cand_id: candidateId }).select('cand_id subscription ai_study_free_trial_used_at').lean(),
+      materialAccessService.hasActiveAccess(candidateId, String(materialId), 'ai_mode', 'preview').catch(() => false),
+    ]);
+    if (!candidate) {
+      return res.status(404).json({ success: false, message: 'Candidate not found.' });
+    }
+
+    const plan = resolveSubscription(candidate.subscription).plan;
+    let hasAiAccess = activeAiAccess;
+    const isFreeTrial = canUseFreeStudyTrial({
+      plan,
+      questionCount,
+      hasAiAccess,
+      freeTrialUsed: Boolean(candidate.ai_study_free_trial_used_at),
+    });
+
+    if (!hasAiAccess && !isFreeTrial) {
       const access = await getMaterialAccessSummary({
-        user: candidate || { cand_id: candidateId },
+        user: candidate,
         materialType: 'ai_mode',
         resourceId: materialId,
         doc: material,
@@ -256,39 +297,67 @@ exports.startStudySession = async (req, res) => {
         });
       }
 
-      const plan = resolveSubscription(candidate?.subscription).plan;
       if (plan === 'paygo' || ['pro', 'full-package'].includes(plan)) {
         hasAiAccess = true;
       } else {
         return res.status(403).json({
           success: false,
           code: 'PLAN_UPGRADE_REQUIRED',
-          message: 'AI Study Mode is not included in the Basic plan. Upgrade to Pro, PAYGO, or Full Package to continue.',
+          message: candidate.ai_study_free_trial_used_at
+            ? 'Your free AI Study Mode trial has been used. Upgrade to Pro, PAYGO, or Full Package to continue.'
+            : 'Your free Study Mode trial covers 5 questions. Select 5 questions or upgrade for a longer session.',
         });
       }
     }
 
-    const questionIds = (material.questions || []).map((q) => q._id).filter(Boolean);
-    if (questionIds.length < STUDY_LIMIT) {
-      return res.status(400).json({ success: false, message: 'This study material has fewer than 20 questions.' });
-    }
-
-    const shuffled = [...questionIds].sort(() => Math.random() - 0.5).slice(0, STUDY_LIMIT);
-
-    const session = await AiStudySession.create({
-      candidate_cand_id: candidateId,
-      material_id: material._id,
-      question_order: shuffled,
-      current_index: 0,
-      answers: [],
-      status: 'in_progress',
-      total_questions: STUDY_LIMIT,
-      started_at: new Date(),
-    });
+    const shuffled = [...questionIds].sort(() => Math.random() - 0.5).slice(0, questionCount);
 
     const firstQuestion = findQuestionById(material, shuffled[0]);
     if (!firstQuestion) {
       return res.status(500).json({ success: false, message: 'Could not start session.' });
+    }
+
+    const freeTrialClaimedAt = isFreeTrial ? new Date() : null;
+    if (isFreeTrial) {
+      const claimedCandidate = await User.findOneAndUpdate(
+        { cand_id: candidateId, ai_study_free_trial_used_at: null },
+        { $set: { ai_study_free_trial_used_at: freeTrialClaimedAt } },
+        { new: true }
+      ).select('_id').lean();
+      if (!claimedCandidate) {
+        return res.status(403).json({
+          success: false,
+          code: 'PLAN_UPGRADE_REQUIRED',
+          message: 'Your free AI Study Mode trial has been used. Upgrade to continue.',
+        });
+      }
+    }
+
+    let session;
+    try {
+      session = await AiStudySession.create({
+        candidate_cand_id: candidateId,
+        material_id: material._id,
+        is_free_trial: isFreeTrial,
+        question_order: shuffled,
+        current_index: 0,
+        answers: [],
+        status: 'in_progress',
+        total_questions: questionCount,
+        started_at: new Date(),
+      });
+    } catch (error) {
+      if (freeTrialClaimedAt) {
+        try {
+          await User.updateOne(
+            { cand_id: candidateId, ai_study_free_trial_used_at: freeTrialClaimedAt },
+            { $set: { ai_study_free_trial_used_at: null } }
+          );
+        } catch (rollbackError) {
+          console.error('[AI Study] Free trial claim rollback failed:', rollbackError.message);
+        }
+      }
+      throw error;
     }
 
     return res.json({
@@ -296,9 +365,10 @@ exports.startStudySession = async (req, res) => {
       session: {
         sessionId: String(session._id),
         paperTitle: material.paper_title,
-        totalQuestions: STUDY_LIMIT,
+        totalQuestions: questionCount,
+        isFreeTrial,
       },
-      question: buildQuestionPayload(firstQuestion, 0, STUDY_LIMIT),
+      question: buildQuestionPayload(firstQuestion, 0, questionCount),
     });
   } catch (error) {
     console.error('[AI Study] startStudySession error:', error.message);
@@ -366,12 +436,14 @@ exports.answerStudyQuestion = async (req, res) => {
     session.current_index = nextIndex;
     await session.save();
 
-    if (nextIndex >= STUDY_LIMIT) {
+    const totalQuestions = Number(session.total_questions || session.question_order.length);
+    if (nextIndex >= totalQuestions) {
       return res.json({
         success: true,
-        completedQuestions: STUDY_LIMIT,
+        completedQuestions: totalQuestions,
+        totalQuestions,
         done: true,
-        message: 'All 20 questions answered. Submit to get your result.',
+        message: `All ${totalQuestions} questions answered. Submit to get your result.`,
       });
     }
 
@@ -384,7 +456,7 @@ exports.answerStudyQuestion = async (req, res) => {
     return res.json({
       success: true,
       done: false,
-      question: buildQuestionPayload(nextQuestion, nextIndex, STUDY_LIMIT),
+      question: buildQuestionPayload(nextQuestion, nextIndex, totalQuestions),
     });
   } catch (error) {
     console.error('[AI Study] answerStudyQuestion error:', error.message);
@@ -441,11 +513,11 @@ exports.submitStudySession = async (req, res) => {
       });
     }
 
-    if (review.length < STUDY_LIMIT) {
+    const total = Number(session.total_questions || session.question_order.length);
+    if (review.length < total || session.answers.length < total) {
       return res.status(400).json({ success: false, message: 'Session is incomplete. Please answer all questions.' });
     }
 
-    const total = STUDY_LIMIT;
     const wrong = total - correct;
     const percentage = Math.round((correct / total) * 100);
 

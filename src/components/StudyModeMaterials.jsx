@@ -95,7 +95,7 @@ const StudyModeMaterials = () => {
     <div className={styles.page}>
       <h1 className={styles.title}>Study Mode Materials</h1>
       <p className={styles.subtitle}>
-        Upload MCQ study content linked to an existing question paper. Candidates will answer 20 questions in Study Mode.
+        Upload MCQ study content linked to an existing question paper. Candidates choose how many questions to answer, from 5 up to the number available.
       </p>
 
       <form className={styles.form} onSubmit={onSubmit}>

@@ -166,6 +166,12 @@
   background: #f8fafc;
 }
 
+.studyTrialNote {
+  margin: 6px 0 0;
+  color: #475569;
+  font-size: 12px;
+}
+
 .studyStartBtn {
   margin-top: 8px;
   border: 1px solid #2563eb;
