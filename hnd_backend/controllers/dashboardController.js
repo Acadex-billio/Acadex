@@ -6,6 +6,7 @@ const QuestionPaper = require('../models/QuestionPaper');
 const Report = require('../models/Report');
 const Presentation = require('../models/Presentation');
 const Announcement = require('../models/Announcement');
+const History = require('../models/History');
 const {
   getCandidateMaterialProgramCodes,
   getCandidateMaterialProgramFilter,
@@ -36,7 +37,7 @@ exports.getDashboard = async (req, res) => {
     const now = new Date();
     const faculty = dpt?.faculty ? String(dpt.faculty).trim() : null;
 
-    const [questionPapers, reports, presentations, courseMates, latestAnnouncement] = await Promise.all([
+    const [questionPapers, reports, presentations, courseMates, latestAnnouncement, downloadBreakdown] = await Promise.all([
       QuestionPaper.find(materialProgramFilter).sort({ createdAt: -1 }).limit(5).select('course_title').lean(),
       Report.find(materialProgramFilter)
         .sort({ createdAt: -1 })
@@ -59,7 +60,28 @@ exports.getDashboard = async (req, res) => {
         .sort({ createdAt: -1 })
         .select('title source')
         .lean(),
+      History.aggregate([
+        {
+          $match: {
+            user_id: String(userId),
+            action: 'download',
+            content_type: { $in: ['question_paper', 'report', 'presentation'] },
+          },
+        },
+        { $group: { _id: '$content_type', count: { $sum: 1 } } },
+      ]),
     ]);
+
+    const downloadCounts = downloadBreakdown.reduce(
+      (counts, row) => {
+        if (row._id === 'question_paper') counts.papers = row.count;
+        if (row._id === 'report') counts.reports = row.count;
+        if (row._id === 'presentation') counts.presentations = row.count;
+        return counts;
+      },
+      { papers: 0, reports: 0, presentations: 0 }
+    );
+    const totalDownloads = downloadCounts.papers + downloadCounts.reports + downloadCounts.presentations;
 
     const formatPaper = (p) => ({ id: p._id, course_title: p.course_title });
     const formatReport = (r) => ({ id: r._id, title: r.title });
@@ -90,7 +112,8 @@ exports.getDashboard = async (req, res) => {
             source: latestAnnouncement.source,
           }
         : null,
-      downloads: 0,
+      downloadCounts,
+      downloads: totalDownloads,
     });
   } catch (err) {
     console.error('[Dashboard] Error:', err);

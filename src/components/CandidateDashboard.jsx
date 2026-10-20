@@ -34,6 +34,7 @@ const CandidateDashboard = () => {
     presentations: [],
     courseMates: [],
     currentAnnouncement: null,
+    downloadCounts: { papers: 0, reports: 0, presentations: 0 },
     downloads: 0,
   });
   const userEmail = authUser?.email || "";
@@ -56,7 +57,8 @@ const CandidateDashboard = () => {
   if (loading) return <div className={styles.state}>Loading dashboard…</div>;
   if (error) return <div className={styles.stateError}>{error}</div>;
 
-  const { user, questionPapers, reports, presentations, courseMates, downloads } = dashboard;
+  const { user, questionPapers, reports, presentations, courseMates, downloadCounts, downloads } = dashboard;
+  const candidateDownloadCounts = downloadCounts || { papers: 0, reports: 0, presentations: 0 };
   const currentAnnouncement = dashboard.currentAnnouncement || null;
 
   const today = new Date().toLocaleString("en-US", {
@@ -172,9 +174,9 @@ const CandidateDashboard = () => {
           <div className={styles.downloadCard}>
             <h3>Downloads Overview</h3>
             <div className={styles.downloadStats}>
-              <div className={styles.miniStat}><strong>{questionPapers.length}</strong><span>Papers</span></div>
-              <div className={styles.miniStat}><strong>{reports.length}</strong><span>Reports</span></div>
-              <div className={styles.miniStat}><strong>{presentations.length}</strong><span>Presentations</span></div>
+              <div className={styles.miniStat}><strong>{candidateDownloadCounts.papers}</strong><span>Papers</span></div>
+              <div className={styles.miniStat}><strong>{candidateDownloadCounts.reports}</strong><span>Reports</span></div>
+              <div className={styles.miniStat}><strong>{candidateDownloadCounts.presentations}</strong><span>Presentations</span></div>
               <div className={styles.miniStat}><strong>{downloads}</strong><span>Total</span></div>
             </div>
           </div>
