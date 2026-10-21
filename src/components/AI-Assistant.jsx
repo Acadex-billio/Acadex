@@ -191,9 +191,7 @@ const AIAssistant = () => {
   const [studyPapers, setStudyPapers] = useState([]);
   const [studyLoadingPapers, setStudyLoadingPapers] = useState(false);
   const [selectedStudyMaterialId, setSelectedStudyMaterialId] = useState('');
-  const [studyQuestionCount, setStudyQuestionCount] = useState(5);
-  const [studyFreeTrialAvailable, setStudyFreeTrialAvailable] = useState(false);
-  const [studyFreeTrialUsed, setStudyFreeTrialUsed] = useState(false);
+  const [studyQuestionCount, setStudyQuestionCount] = useState('5');
   const [studySessionId, setStudySessionId] = useState('');
   const [studyQuestion, setStudyQuestion] = useState(null);
   const [studyMessages, setStudyMessages] = useState([]);
@@ -394,20 +392,16 @@ const AIAssistant = () => {
         if (cancelled) return;
         const papers = Array.isArray(data?.papers) ? data.papers : [];
         setStudyPapers(papers);
-        setStudyFreeTrialAvailable(Boolean(data?.freeTrialAvailable));
-        setStudyFreeTrialUsed(Boolean(data?.freeTrialUsed));
         setSelectedStudyMaterialId((prev) =>
           papers.find((item) => String(item.materialId) === String(prev))
             ? prev
             : papers[0]?.materialId || ''
         );
-        setStudyQuestionCount(5);
+        setStudyQuestionCount('5');
       } catch (_) {
         if (!cancelled) {
           setStudyPapers([]);
           setSelectedStudyMaterialId('');
-          setStudyFreeTrialAvailable(false);
-          setStudyFreeTrialUsed(false);
           addStudyAssistantMessage('Could not load study papers right now. Please try again.');
         }
       } finally {
@@ -761,7 +755,7 @@ const AIAssistant = () => {
     try {
       const { data } = await api.post('/ai/study/session/start', {
         materialId: selectedStudyMaterialId,
-        questionCount: studyQuestionCount,
+        questionCount: Number(studyQuestionCount),
       }, {
         suppressGlobalForbiddenToast: true,
       });
@@ -792,8 +786,8 @@ const AIAssistant = () => {
       if (error?.response?.status === 402 && errorData.payment_requirement) {
         const requirement = errorData.payment_requirement;
         setStudyPaymentRequest({
-          title: requirement.title || 'Unlock AI Study Mode session',
-          description: requirement.message || 'Pay the configured session fee to start this study session.',
+          title: requirement.title || 'Unlock full paper in AI Study Mode',
+          description: requirement.message || 'Pay to unlock full question access for this paper.',
           amount: requirement.amount,
           currency: requirement.currency || 'XAF',
           onStartPayment: async ({ phoneNumber, promoCode = '', idempotencyKey }) => {
@@ -1075,7 +1069,7 @@ const AIAssistant = () => {
               value={selectedStudyMaterialId}
               onChange={(e) => {
                 setSelectedStudyMaterialId(e.target.value);
-                setStudyQuestionCount(5);
+                setStudyQuestionCount('5');
               }}
               disabled={studyLoadingPapers || studyBusy}
             >
@@ -1089,27 +1083,31 @@ const AIAssistant = () => {
             <label className={styles.settingLabel} htmlFor="study-question-count">
               Number of questions
             </label>
-            <input
+            <select
               id="study-question-count"
               className={styles.settingSelect}
-              type="number"
-              min={5}
-              max={selectedStudyPaper?.questionCount || 5}
-              step={1}
               value={studyQuestionCount}
-              onChange={(e) => {
-                const count = Number(e.target.value);
-                if (Number.isInteger(count) && count >= 5) setStudyQuestionCount(count);
-              }}
+              onChange={(e) => setStudyQuestionCount(e.target.value)}
               disabled={!selectedStudyPaper || studyBusy}
-            />
-            {studyFreeTrialAvailable ? (
+            >
+              {Array.from(
+                { length: Math.max(0, Number(selectedStudyPaper?.questionCount || 0) - 4) },
+                (_, index) => index + 5
+              ).map((count) => (
+                <option key={count} value={count}>{count} questions</option>
+              ))}
+            </select>
+            {selectedStudyPaper?.freeTrialAvailable ? (
               <p className={styles.studyTrialNote}>
-                Your one-time free trial covers 5 questions. Longer sessions require an eligible subscription.
+                The first 5 questions on this paper are free once. {selectedStudyPaper.canPayForFullPaper
+                  ? 'Pay to unlock the full paper.'
+                  : 'Upgrade your plan to unlock the full paper.'}
               </p>
-            ) : studyFreeTrialUsed ? (
+            ) : selectedStudyPaper?.freeTrialUsed ? (
               <p className={styles.studyTrialNote}>
-                Your one-time free trial has been used. Upgrade to an eligible subscription to continue.
+                You have answered the 5 free questions on this paper. {selectedStudyPaper.canPayForFullPaper
+                  ? 'Pay to unlock the full paper.'
+                  : 'Upgrade your plan to continue.'}
               </p>
             ) : null}
             <button
@@ -1118,8 +1116,8 @@ const AIAssistant = () => {
               onClick={startStudySession}
               disabled={
                 !selectedStudyPaper
-                || studyQuestionCount < 5
-                || studyQuestionCount > selectedStudyPaper.questionCount
+                || Number(studyQuestionCount) < 5
+                || Number(studyQuestionCount) > selectedStudyPaper.questionCount
                 || studyLoadingPapers
                 || studyBusy
               }

@@ -1,7 +1,7 @@
 'use strict';
 
 const MIN_STUDY_QUESTION_COUNT = 5;
-const DEFAULT_STUDY_QUESTION_COUNT = 20;
+const DEFAULT_STUDY_QUESTION_COUNT = MIN_STUDY_QUESTION_COUNT;
 
 function getStudyQuestionCount(requestedCount, availableCount) {
   const available = Number(availableCount);
@@ -22,10 +22,19 @@ function getStudyQuestionCount(requestedCount, availableCount) {
 }
 
 function canUseFreeStudyTrial({ plan, questionCount, hasAiAccess, freeTrialUsed }) {
-  return plan === 'basic'
+  return ['basic', 'paygo'].includes(plan)
     && questionCount === MIN_STUDY_QUESTION_COUNT
     && !hasAiAccess
     && !freeTrialUsed;
+}
+
+function selectStudyQuestionIds(questionIds, questionCount) {
+  return Array.isArray(questionIds) ? questionIds.slice(0, questionCount) : [];
+}
+
+function hasUsedPaperTrial(trialMaterialIds, materialId) {
+  return Array.isArray(trialMaterialIds)
+    && trialMaterialIds.some((id) => String(id) === String(materialId));
 }
 
 module.exports = {
@@ -33,4 +42,6 @@ module.exports = {
   DEFAULT_STUDY_QUESTION_COUNT,
   getStudyQuestionCount,
   canUseFreeStudyTrial,
+  selectStudyQuestionIds,
+  hasUsedPaperTrial,
 };

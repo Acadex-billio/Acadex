@@ -11,6 +11,8 @@ const { getCandidateMaterialDepartmentTracks } = require('../services/candidateM
 const {
   getStudyQuestionCount,
   canUseFreeStudyTrial,
+  selectStudyQuestionIds,
+  hasUsedPaperTrial,
 } = require('../services/aiStudySessionPolicy');
 
 const normalizeProgram = (value) => {
@@ -188,7 +190,9 @@ exports.listStudyPapersForCandidate = async (req, res) => {
 
     const [programTracks, candidate] = await Promise.all([
       getCandidateMaterialDepartmentTracks(req.user?.program),
-      User.findOne({ cand_id: candidateId }).select('subscription ai_study_free_trial_used_at').lean(),
+      User.findOne({ cand_id: candidateId })
+        .select('subscription ai_study_free_trial_paper_ids')
+        .lean(),
     ]);
     if (!candidate) {
       return res.status(404).json({ success: false, message: 'Candidate not found.' });
@@ -205,18 +209,25 @@ exports.listStudyPapersForCandidate = async (req, res) => {
       .select('paper_title question_count question_paper_id')
       .lean();
 
+    const plan = resolveSubscription(candidate.subscription).plan;
+    const supportsFreeQuestions = ['basic', 'paygo'].includes(plan);
+    const canPayForFullPaper = plan === 'paygo';
+    const trialPaperIds = candidate.ai_study_free_trial_paper_ids || [];
+
     return res.json({
       success: true,
-      freeTrialAvailable:
-        resolveSubscription(candidate.subscription).plan === 'basic' && !candidate.ai_study_free_trial_used_at,
-      freeTrialUsed:
-        resolveSubscription(candidate.subscription).plan === 'basic' && Boolean(candidate.ai_study_free_trial_used_at),
-      papers: materials.map((item) => ({
-        materialId: String(item._id),
-        questionPaperId: String(item.question_paper_id || ''),
-        paperTitle: item.paper_title,
-        questionCount: item.question_count,
-      })),
+      papers: materials.map((item) => {
+        const freeTrialUsed = hasUsedPaperTrial(trialPaperIds, item.question_paper_id);
+        return {
+          materialId: String(item._id),
+          questionPaperId: String(item.question_paper_id || ''),
+          paperTitle: item.paper_title,
+          questionCount: item.question_count,
+          freeTrialAvailable: supportsFreeQuestions && !freeTrialUsed,
+          freeTrialUsed,
+          canPayForFullPaper,
+        };
+      }),
     });
   } catch (error) {
     console.error('[AI Study] listStudyPapersForCandidate error:', error.message);
@@ -254,83 +265,92 @@ exports.startStudySession = async (req, res) => {
     }
 
     const [candidate, activeAiAccess] = await Promise.all([
-      User.findOne({ cand_id: candidateId }).select('cand_id subscription ai_study_free_trial_used_at').lean(),
-      materialAccessService.hasActiveAccess(candidateId, String(materialId), 'ai_mode', 'preview').catch(() => false),
+      User.findOne({ cand_id: candidateId })
+        .select('cand_id subscription ai_study_free_trial_paper_ids')
+        .lean(),
+      materialAccessService.hasActiveAccess(candidateId, String(materialId), 'ai_mode', 'preview'),
     ]);
     if (!candidate) {
       return res.status(404).json({ success: false, message: 'Candidate not found.' });
     }
 
     const plan = resolveSubscription(candidate.subscription).plan;
-    let hasAiAccess = activeAiAccess;
-    const isFreeTrial = canUseFreeStudyTrial({
+    const hasAiAccess = activeAiAccess || ['pro', 'full-package'].includes(plan);
+    let isFreeTrial = canUseFreeStudyTrial({
       plan,
       questionCount,
       hasAiAccess,
-      freeTrialUsed: Boolean(candidate.ai_study_free_trial_used_at),
+      freeTrialUsed: hasUsedPaperTrial(candidate.ai_study_free_trial_paper_ids, material.question_paper_id),
     });
 
-    if (!hasAiAccess && !isFreeTrial) {
-      const access = await getMaterialAccessSummary({
-        user: candidate,
-        materialType: 'ai_mode',
-        resourceId: materialId,
-        doc: material,
-      });
-      if (access.plan === 'paygo' && access.payment_required?.preview) {
-        const requirement = access.payment_required.preview;
-        return res.status(402).json({
-          success: false,
-          code: 'PAYMENT_REQUIRED',
-          message: 'Pay to start this AI Study Mode session.',
-          payment_requirement: {
-            title: 'Unlock AI Study Mode session',
-            message: `Pay ${requirement.amount} ${requirement.currency} to start this AI Study Mode session.`,
-            action: 'preview',
-            amount: requirement.amount,
-            currency: requirement.currency,
-            resource_type: 'ai_mode',
-            resource_id: String(materialId),
-            purpose_code: requirement.purpose_code,
-            access_minutes: requirement.access_minutes,
-          },
-        });
-      }
-
-      if (plan === 'paygo' || ['pro', 'full-package'].includes(plan)) {
-        hasAiAccess = true;
-      } else {
-        return res.status(403).json({
-          success: false,
-          code: 'PLAN_UPGRADE_REQUIRED',
-          message: candidate.ai_study_free_trial_used_at
-            ? 'Your free AI Study Mode trial has been used. Upgrade to Pro, PAYGO, or Full Package to continue.'
-            : 'Your free Study Mode trial covers 5 questions. Select 5 questions or upgrade for a longer session.',
-        });
-      }
-    }
-
-    const shuffled = [...questionIds].sort(() => Math.random() - 0.5).slice(0, questionCount);
-
-    const firstQuestion = findQuestionById(material, shuffled[0]);
-    if (!firstQuestion) {
-      return res.status(500).json({ success: false, message: 'Could not start session.' });
-    }
-
-    const freeTrialClaimedAt = isFreeTrial ? new Date() : null;
+    let trialClaimed = false;
     if (isFreeTrial) {
       const claimedCandidate = await User.findOneAndUpdate(
-        { cand_id: candidateId, ai_study_free_trial_used_at: null },
-        { $set: { ai_study_free_trial_used_at: freeTrialClaimedAt } },
+        {
+          cand_id: candidateId,
+          ai_study_free_trial_paper_ids: { $ne: material.question_paper_id },
+        },
+        { $addToSet: { ai_study_free_trial_paper_ids: material.question_paper_id } },
         { new: true }
       ).select('_id').lean();
-      if (!claimedCandidate) {
+      trialClaimed = Boolean(claimedCandidate);
+      isFreeTrial = trialClaimed;
+    }
+
+    if (!hasAiAccess && !isFreeTrial) {
+      if (plan === 'paygo') {
+        const access = await getMaterialAccessSummary({
+          user: candidate,
+          materialType: 'ai_mode',
+          resourceId: materialId,
+          doc: material,
+        });
+        if (access.payment_required?.preview) {
+          const requirement = access.payment_required.preview;
+          return res.status(402).json({
+            success: false,
+            code: 'PAYMENT_REQUIRED',
+            message: 'Pay to unlock full AI Study Mode access for this paper.',
+            payment_requirement: {
+              title: 'Unlock full paper in AI Study Mode',
+              message: `Pay ${requirement.amount} ${requirement.currency} to answer more than the 5 free questions on this paper.`,
+              action: 'preview',
+              amount: requirement.amount,
+              currency: requirement.currency,
+              resource_type: 'ai_mode',
+              resource_id: String(materialId),
+              purpose_code: requirement.purpose_code,
+              access_minutes: requirement.access_minutes,
+            },
+          });
+        }
         return res.status(403).json({
           success: false,
           code: 'PLAN_UPGRADE_REQUIRED',
-          message: 'Your free AI Study Mode trial has been used. Upgrade to continue.',
+          message: 'Full-paper AI Study Mode payment is not configured. Upgrade your plan to answer more than the 5 free questions.',
         });
       }
+
+      return res.status(403).json({
+        success: false,
+        code: 'PLAN_UPGRADE_REQUIRED',
+        message: hasUsedPaperTrial(candidate.ai_study_free_trial_paper_ids, material.question_paper_id)
+          ? 'You have answered the 5 free questions for this paper. Upgrade your plan to continue.'
+          : 'The free Study Mode access covers the first 5 questions on each paper. Upgrade your plan to answer more.',
+      });
+    }
+
+    const selectedQuestionIds = selectStudyQuestionIds(questionIds, questionCount);
+
+    const firstQuestion = findQuestionById(material, selectedQuestionIds[0]);
+    if (!firstQuestion) {
+      if (trialClaimed) {
+        await User.updateOne(
+          { cand_id: candidateId },
+          { $pull: { ai_study_free_trial_paper_ids: material.question_paper_id } }
+        );
+      }
+      return res.status(500).json({ success: false, message: 'Could not start session.' });
     }
 
     let session;
@@ -339,7 +359,7 @@ exports.startStudySession = async (req, res) => {
         candidate_cand_id: candidateId,
         material_id: material._id,
         is_free_trial: isFreeTrial,
-        question_order: shuffled,
+        question_order: selectedQuestionIds,
         current_index: 0,
         answers: [],
         status: 'in_progress',
@@ -347,11 +367,11 @@ exports.startStudySession = async (req, res) => {
         started_at: new Date(),
       });
     } catch (error) {
-      if (freeTrialClaimedAt) {
+      if (trialClaimed) {
         try {
           await User.updateOne(
-            { cand_id: candidateId, ai_study_free_trial_used_at: freeTrialClaimedAt },
-            { $set: { ai_study_free_trial_used_at: null } }
+            { cand_id: candidateId },
+            { $pull: { ai_study_free_trial_paper_ids: material.question_paper_id } }
           );
         } catch (rollbackError) {
           console.error('[AI Study] Free trial claim rollback failed:', rollbackError.message);

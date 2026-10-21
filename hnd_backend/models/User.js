@@ -102,7 +102,10 @@ const userSchema = new mongoose.Schema(
         source_transaction_id: null,
       }),
     },
-    ai_study_free_trial_used_at: { type: Date, default: null },
+    ai_study_free_trial_paper_ids: [{
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'QuestionPaper',
+    }],
 
     account_status: { type: String, enum: ACCOUNT_STATUS_VALUES, default: ACCOUNT_STATUSES.ACTIVE, index: true },
     suspension: {
