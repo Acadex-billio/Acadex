@@ -34,6 +34,7 @@ router.post('/study/session/submit', requireAuth, aiStudyController.submitStudyS
  * Study Mode - Developer endpoints
  */
 router.get('/study-materials', requireAuth, requireDeveloper, aiStudyController.listStudyMaterialsForDeveloper);
+router.get('/study-materials/:paperId/source', requireAuth, requireDeveloper, aiStudyController.getStudyPaperSource);
 router.post('/study-materials', requireAuth, requireDeveloper, aiStudyController.createStudyMaterial);
 
 /**

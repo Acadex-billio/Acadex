@@ -25,7 +25,7 @@ const aiStudyMaterialSchema = new mongoose.Schema(
       index: true,
     },
     paper_title: { type: String, required: true, trim: true },
-    program: { type: String, enum: ['HND', 'BTS'], default: 'HND', index: true },
+    program: { type: String, required: true, trim: true, uppercase: true, default: 'HND', index: true },
     departments: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Department' }],
     question_count: { type: Number, required: true, min: 1 },
     questions: { type: [studyQuestionSchema], default: [] },

@@ -15,6 +15,7 @@
     "smoke:payments": "node scripts/regression-payments.js",
     "test:ci": "npm run smoke:code && npm run smoke:integration",
     "backfill:program-hnd": "node scripts/backfill-program-hnd.js",
+    "backfill:ai-study-material-programs": "node scripts/backfill-ai-study-material-programs.js",
     "backfill:announcement-program-hnd": "node scripts/backfill-announcement-program-hnd.js",
     "backfill:subscription-access": "node scripts/backfill-subscription-access.js",
     "cleanup:legacy-material-pricing": "node scripts/remove-legacy-material-pricing.js",

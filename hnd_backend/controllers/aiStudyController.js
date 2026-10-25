@@ -5,9 +5,14 @@ const QuestionPaper = require('../models/QuestionPaper');
 const AiStudyMaterial = require('../models/AiStudyMaterial');
 const AiStudySession = require('../models/AiStudySession');
 const User = require('../models/User');
+const fs = require('fs');
+const path = require('path');
 const materialAccessService = require('../services/materialAccessService');
 const { getMaterialAccessSummary, resolveSubscription } = require('../utils/subscriptionUtils');
-const { getCandidateMaterialDepartmentTracks } = require('../services/candidateMaterialVisibilityService');
+const { getCandidateMaterialProgramCodes } = require('../services/candidateMaterialVisibilityService');
+const { findProgram, normalizeProgramCode } = require('../services/programCatalogService');
+const { getS3ObjectStream } = require('../utils/s3Uploader');
+const { streamToBuffer } = require('../utils/streamLimits');
 const {
   getStudyQuestionCount,
   canUseFreeStudyTrial,
@@ -15,10 +20,8 @@ const {
   hasUsedPaperTrial,
 } = require('../services/aiStudySessionPolicy');
 
-const normalizeProgram = (value) => {
-  const raw = String(value || 'HND').trim().toUpperCase();
-  return raw === 'BTS' ? 'BTS' : 'HND';
-};
+const PAPERS_DIRECTORY = path.resolve(__dirname, '../uploads/papers');
+const MAX_STUDY_PAPER_BYTES = 15 * 1024 * 1024;
 
 const parseMcqText = (text) => {
   const input = String(text || '').replace(/\r\n?/g, '\n').trim();
@@ -92,6 +95,92 @@ const buildQuestionPayload = (question, index, total) => ({
   ],
 });
 
+exports.getStudyPaperSource = async (req, res) => {
+  try {
+    const paperId = String(req.params?.paperId || '').trim();
+    if (!mongoose.Types.ObjectId.isValid(paperId)) {
+      return res.status(400).json({ success: false, message: 'Valid question paper is required.' });
+    }
+
+    const paper = await QuestionPaper.findById(paperId).select('paper_file course_title').lean();
+    if (!paper) {
+      return res.status(404).json({ success: false, message: 'Question paper not found.' });
+    }
+
+    const source = String(paper.paper_file || '').trim();
+    if (!source) {
+      return res.status(404).json({ success: false, message: 'Question paper file is unavailable.' });
+    }
+
+    let buffer;
+    if (/^https?:\/\//i.test(source)) {
+      const configuredBase = String(process.env.AWS_S3_URL || '').replace(/\/+$/, '');
+      if (!configuredBase) {
+        return res.status(503).json({ success: false, message: 'Question paper storage is not configured.' });
+      }
+
+      const sourceUrl = new URL(source);
+      const baseUrl = new URL(configuredBase);
+      const basePath = baseUrl.pathname.replace(/\/+$/, '');
+      if (
+        sourceUrl.origin !== baseUrl.origin
+        || (basePath && sourceUrl.pathname !== basePath && !sourceUrl.pathname.startsWith(`${basePath}/`))
+      ) {
+        return res.status(400).json({ success: false, message: 'Question paper storage location is invalid.' });
+      }
+
+      const keyPath = sourceUrl.pathname.slice(basePath.length).replace(/^\/+/, '');
+      const key = decodeURIComponent(keyPath);
+      if (!key || path.extname(key).toLowerCase() !== '.pdf') {
+        return res.status(400).json({ success: false, message: 'Only PDF question papers can be extracted.' });
+      }
+      const sourceStream = getS3ObjectStream(key);
+      sourceStream.once('missing', () => {
+        sourceStream.destroy(Object.assign(new Error('Question paper file is unavailable.'), {
+          code: 'MATERIAL_FILE_NOT_FOUND',
+        }));
+      });
+      buffer = await streamToBuffer(sourceStream, { maxBytes: MAX_STUDY_PAPER_BYTES });
+    } else {
+      const filename = path.basename(source.replace(/\\/g, '/'));
+      const localPath = path.resolve(PAPERS_DIRECTORY, filename);
+      if (
+        !filename
+        || path.extname(filename).toLowerCase() !== '.pdf'
+        || !localPath.startsWith(`${PAPERS_DIRECTORY}${path.sep}`)
+      ) {
+        return res.status(400).json({ success: false, message: 'Only PDF question papers can be extracted.' });
+      }
+      const stats = await fs.promises.stat(localPath);
+      if (stats.size > MAX_STUDY_PAPER_BYTES) {
+        return res.status(413).json({ success: false, message: 'Question paper exceeds the 15 MB extraction limit.' });
+      }
+      buffer = await fs.promises.readFile(localPath);
+    }
+
+    if (buffer.length > MAX_STUDY_PAPER_BYTES) {
+      return res.status(413).json({ success: false, message: 'Question paper exceeds the 15 MB extraction limit.' });
+    }
+    if (buffer.subarray(0, 5).toString('ascii') !== '%PDF-') {
+      return res.status(400).json({ success: false, message: 'The selected question paper is not a valid PDF.' });
+    }
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', 'inline');
+    res.setHeader('Cache-Control', 'private, no-store');
+    return res.send(buffer);
+  } catch (error) {
+    if (error.code === 'ENOENT' || error.code === 'NoSuchKey' || error.code === 'MATERIAL_FILE_NOT_FOUND') {
+      return res.status(404).json({ success: false, message: 'Question paper file is unavailable.' });
+    }
+    if (error.code === 'PREVIEW_FILE_TOO_LARGE') {
+      return res.status(413).json({ success: false, message: 'Question paper exceeds the 15 MB extraction limit.' });
+    }
+    console.error('[AI Study] getStudyPaperSource error:', error.message);
+    return res.status(500).json({ success: false, message: 'Failed to load question paper for extraction.' });
+  }
+};
+
 exports.createStudyMaterial = async (req, res) => {
   try {
     const createdBy = String(req.user?.cand_id || '').trim();
@@ -116,6 +205,10 @@ exports.createStudyMaterial = async (req, res) => {
     if (!paper) {
       return res.status(404).json({ success: false, message: 'Question paper not found.' });
     }
+    const paperProgram = normalizeProgramCode(paper.program || 'HND');
+    if (!await findProgram(paperProgram)) {
+      return res.status(400).json({ success: false, message: 'The question paper program is no longer active.' });
+    }
 
     const parsedQuestions = parseMcqText(mcqText);
     if (!parsedQuestions.length) {
@@ -132,7 +225,7 @@ exports.createStudyMaterial = async (req, res) => {
     const material = await AiStudyMaterial.create({
       question_paper_id: paper._id,
       paper_title: paper.course_title,
-      program: normalizeProgram(paper.program),
+      program: paperProgram,
       departments: Array.isArray(paper.departments) ? paper.departments : [],
       question_count: parsedQuestions.length,
       questions: parsedQuestions,
@@ -158,7 +251,10 @@ exports.createStudyMaterial = async (req, res) => {
 
 exports.listStudyMaterialsForDeveloper = async (req, res) => {
   try {
-    const program = normalizeProgram(req.query?.program);
+    const program = normalizeProgramCode(req.query?.program || 'HND');
+    if (!await findProgram(program)) {
+      return res.status(400).json({ success: false, message: 'Select an active program.' });
+    }
     const docs = await AiStudyMaterial.find({ program })
       .sort({ createdAt: -1 })
       .select('paper_title question_count created_by createdAt is_active')
@@ -188,8 +284,8 @@ exports.listStudyPapersForCandidate = async (req, res) => {
       return res.status(401).json({ success: false, message: 'Authentication required.' });
     }
 
-    const [programTracks, candidate] = await Promise.all([
-      getCandidateMaterialDepartmentTracks(req.user?.program),
+    const [visiblePrograms, candidate] = await Promise.all([
+      getCandidateMaterialProgramCodes(req.user?.program),
       User.findOne({ cand_id: candidateId })
         .select('subscription ai_study_free_trial_paper_ids')
         .lean(),
@@ -200,7 +296,7 @@ exports.listStudyPapersForCandidate = async (req, res) => {
 
     const filter = {
       is_active: true,
-      program: { $in: programTracks },
+      program: { $in: visiblePrograms },
       question_count: { $gte: 5 },
     };
 
@@ -238,7 +334,7 @@ exports.listStudyPapersForCandidate = async (req, res) => {
 exports.startStudySession = async (req, res) => {
   try {
     const candidateId = String(req.user?.cand_id || '').trim();
-    const programTracks = await getCandidateMaterialDepartmentTracks(req.user?.program);
+    const visiblePrograms = await getCandidateMaterialProgramCodes(req.user?.program);
     const materialId = String(req.body?.materialId || '').trim();
 
     if (!candidateId) {
@@ -250,7 +346,7 @@ exports.startStudySession = async (req, res) => {
 
     const material = await AiStudyMaterial.findOne({
       _id: materialId,
-      program: { $in: programTracks },
+      program: { $in: visiblePrograms },
     }).lean();
     if (!material || !material.is_active) {
       return res.status(404).json({ success: false, message: 'Study material not found.' });

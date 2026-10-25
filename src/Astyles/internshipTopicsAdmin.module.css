@@ -468,6 +468,96 @@
   font-size: 13px;
 }
 
+.extractionProgress {
+  display: grid;
+  gap: 12px;
+  padding: 16px 18px;
+  border: 1px solid #c7e2f3;
+  border-radius: 14px;
+  background:
+    radial-gradient(circle at 100% 0%, rgba(64, 171, 224, 0.14), transparent 42%),
+    linear-gradient(120deg, #f3faff, #ffffff 72%);
+  box-shadow: 0 8px 24px rgba(18, 77, 112, 0.08);
+}
+
+.extractionProgressHeader {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: #174461;
+}
+
+.extractionProgressHeader > div {
+  display: grid;
+  gap: 4px;
+  flex: 1;
+  min-width: 0;
+}
+
+.extractionProgressHeader > div strong {
+  font-size: 14px;
+}
+
+.extractionProgressHeader > div span {
+  color: #5b7182;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.extractionPercent {
+  color: #087ca9;
+  font-size: 15px;
+  font-variant-numeric: tabular-nums;
+}
+
+.extractionPulse {
+  width: 11px;
+  height: 11px;
+  flex: 0 0 11px;
+  border-radius: 50%;
+  background: #17a2c8;
+  box-shadow: 0 0 0 0 rgba(23, 162, 200, 0.42);
+  animation: extractionPulse 1.8s ease-out infinite;
+}
+
+.extractionTrack {
+  height: 9px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #dcebf4;
+}
+
+.extractionTrack span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #087ca9, #37c4d8, #72d5be);
+  box-shadow: 0 0 12px rgba(30, 160, 190, 0.3);
+  transition: width 280ms ease;
+}
+
+@keyframes extractionPulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(23, 162, 200, 0.42);
+  }
+  75% {
+    box-shadow: 0 0 0 8px rgba(23, 162, 200, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(23, 162, 200, 0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .extractionPulse {
+    animation: none;
+  }
+
+  .extractionTrack span {
+    transition: none;
+  }
+}
+
 .rowActions {
   display: flex;
   gap: 8px;
