@@ -538,7 +538,7 @@ const UploadPresentation = () => {
                   <option value="">Select a department</option>
                   {departments.map((d) => (
                     <option key={d.dpt_id} value={d.dpt_id}>
-                      {d.dpt_name}
+                      {d.department_name}
                     </option>
                   ))}
                 </select>
@@ -562,7 +562,7 @@ const UploadPresentation = () => {
                           }
                         }}
                       />
-                      {d.dpt_name}
+                      {d.department_name}
                     </label>
                   ))}
                 </div>
