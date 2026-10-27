@@ -11,6 +11,7 @@ import { useLoading } from '../context/LoadingContext';
 import { useAuth } from '../context/AuthContext';
 import GraduationCapLoader from './GraduationCapLoader';
 import ConfirmDialog from './ConfirmDialog';
+import DepartmentMultiSelect from './DepartmentMultiSelect';
 import { useTranslation } from 'react-i18next';
 
 const AUDIENCE = {
@@ -455,20 +456,11 @@ const QuestionUpload = () => {
                 <label>
                   Departments <span>*</span>
                 </label>
-                <select
-                  multiple
-                  value={multiDepts}
-                  onChange={(e) => setMultiDepts(Array.from(e.target.selectedOptions, (o) => o.value))}
-                  className={styles.multi}
-                  required
-                >
-                  {departments.map((d) => (
-                    <option key={d.dpt_id} value={d.dpt_id}>
-                      {d.department_name}
-                    </option>
-                  ))}
-                </select>
-                <div className={styles.helper}>Hold Ctrl/Cmd and click to select multiple</div>
+                <DepartmentMultiSelect
+                  departments={departments}
+                  selectedIds={multiDepts}
+                  onChange={setMultiDepts}
+                />
               </div>
             )}
 

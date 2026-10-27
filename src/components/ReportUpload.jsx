@@ -9,6 +9,7 @@ import { useLoading } from '../context/LoadingContext';
 import { useAuth } from '../context/AuthContext';
 import GraduationCapLoader from './GraduationCapLoader';
 import ConfirmDialog from './ConfirmDialog';
+import DepartmentMultiSelect from './DepartmentMultiSelect';
 import { useTranslation } from 'react-i18next';
 import { useLocation, useNavigate } from 'react-router-dom';
 
@@ -550,24 +551,11 @@ const ReportUpload = () => {
             {audience === AUDIENCE.MULTIPLE && (
               <div className={styles.field}>
                 <label className={styles.label}>Departments <span>*</span></label>
-                <select
-                  className={styles.multi}
-                  multiple
-                  value={dptIds}
-                  onChange={(e) =>
-                    setDptIds(Array.from(e.target.selectedOptions, (o) => o.value))
-                  }
-                  required
-                >
-                  {departments.map((d) => (
-                    <option key={d.dpt_id} value={d.dpt_id}>
-                      {d.department_name}
-                    </option>
-                  ))}
-                </select>
-                <div className={styles.helper}>
-                  Hold <strong>Ctrl/Cmd</strong> and click to select multiple departments.
-                </div>
+                <DepartmentMultiSelect
+                  departments={departments}
+                  selectedIds={dptIds}
+                  onChange={setDptIds}
+                />
               </div>
             )}
 

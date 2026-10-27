@@ -3,6 +3,7 @@ import api from '../services/api';
 import styles from '../Astyles/reportUpload.module.css';
 import crudStyles from '../Astyles/AdminCrudTwoCol.module.css';
 import ConfirmDialog from './ConfirmDialog';
+import DepartmentMultiSelect from './DepartmentMultiSelect';
 import { showToast } from '../utility/ToastNotification';
 import { getErrorMessage } from '../utility/getErrorMessage';
 import { useLoading } from '../context/LoadingContext';
@@ -294,20 +295,11 @@ const ReportWritingGuide = () => {
             {audience === AUDIENCE.MULTIPLE && (
               <div className={styles.field}>
                 <label className={styles.label}>Departments <span>*</span></label>
-                <select
-                  className={styles.multi}
-                  multiple
-                  value={dptIds}
-                  onChange={(e) => setDptIds(Array.from(e.target.selectedOptions, (o) => o.value))}
-                  required
-                >
-                  {departments.map((d) => (
-                    <option key={d.dpt_id} value={d.dpt_id}>{d.department_name}</option>
-                  ))}
-                </select>
-                <div className={styles.helper}>
-                  Hold <strong>Ctrl/Cmd</strong> and click to select multiple departments.
-                </div>
+                <DepartmentMultiSelect
+                  departments={departments}
+                  selectedIds={dptIds}
+                  onChange={setDptIds}
+                />
               </div>
             )}
 

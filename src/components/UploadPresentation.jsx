@@ -8,6 +8,7 @@ import { useLoading } from '../context/LoadingContext';
 import { useAuth } from '../context/AuthContext';
 import GraduationCapLoader from './GraduationCapLoader';
 import ConfirmDialog from './ConfirmDialog';
+import DepartmentMultiSelect from './DepartmentMultiSelect';
 import { useTranslation } from 'react-i18next';
 import SecurePdfPreview from './SecurePdfPreview';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -548,24 +549,11 @@ const UploadPresentation = () => {
             {audience === 'MULTIPLE' && (
               <div className={styles.field}>
                 <label className={styles.label}>Departments <span>*</span></label>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  {departments.map((d) => (
-                    <label key={d.dpt_id} style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
-                      <input
-                        type="checkbox"
-                        checked={dptIds.includes(String(d.dpt_id))}
-                        onChange={(e) => {
-                          if (e.target.checked) {
-                            setDptIds([...dptIds, String(d.dpt_id)]);
-                          } else {
-                            setDptIds(dptIds.filter((id) => id !== String(d.dpt_id)));
-                          }
-                        }}
-                      />
-                      {d.department_name}
-                    </label>
-                  ))}
-                </div>
+                <DepartmentMultiSelect
+                  departments={departments}
+                  selectedIds={dptIds}
+                  onChange={setDptIds}
+                />
               </div>
             )}
 
