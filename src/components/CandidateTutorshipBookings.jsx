@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { FaCheck, FaSearch, FaTimes, FaVideo } from 'react-icons/fa';
+import { FaCalendarPlus, FaCheck, FaSearch, FaTimes, FaVideo } from 'react-icons/fa';
 import api from '../services/api';
 import { startBookingPayment, startInviteAccessPayment } from '../services/paymentFlowService';
 import styles from '../Astyles/lecturerPortal.module.css';
@@ -7,6 +7,7 @@ import { showToast } from '../utility/ToastNotification';
 import { useAuth } from '../context/AuthContext';
 import BookingVideoConferenceModal from './BookingVideoConferenceModal';
 import { maskCandidateId } from '../utility/maskCandidateId';
+import { downloadCalendarInvite } from '../utility/calendarInvite';
 
 const CandidateTutorshipBookings = () => {
   const { user } = useAuth();
@@ -244,6 +245,9 @@ const CandidateTutorshipBookings = () => {
         serverUrl: conf.livekit_url,
         accessToken: conf.livekit_token,
         minutesLeft: conf.minutes_left,
+        endsAt: conf.ends_at,
+        canShareScreen: conf.can_share_screen,
+        canManageParticipants: conf.can_manage_participants,
         subtitle: conf.conference_live ? 'Session is live' : 'Waiting for lecturer to start',
       });
     } catch (err) {
@@ -324,9 +328,13 @@ const CandidateTutorshipBookings = () => {
     <div className={styles.page}>
       {activeConference ? (
         <BookingVideoConferenceModal
+          bookingId={activeConference.bookingId}
           roomName={activeConference.roomName}
           serverUrl={activeConference.serverUrl}
           accessToken={activeConference.accessToken}
+          endsAt={activeConference.endsAt}
+          canShareScreen={activeConference.canShareScreen}
+          canManageParticipants={activeConference.canManageParticipants}
           displayName={user?.name || 'Candidate'}
           email={user?.email || ''}
           title="Contract Video Conference"
@@ -504,6 +512,11 @@ const CandidateTutorshipBookings = () => {
               <button className={styles.buttonAlt} onClick={() => loadMessages(booking.id)} disabled={!booking.contract_sealed}>Open Contract Chat</button>
               <button className={styles.buttonAlt} onClick={() => simulateChat(booking.id)} disabled={!booking.contract_sealed}>Simulate Chat Session</button>
               <button className={styles.button} onClick={() => openConference(booking.id)} disabled={!booking.contract_sealed || booking.session_mode !== 'video'}>Join Video Conference</button>
+              {booking.session_mode === 'video' && ['accepted', 'scheduled'].includes(String(booking.status || '').toLowerCase()) ? (
+                <button className={styles.buttonAlt} onClick={() => downloadCalendarInvite(booking)}>
+                  <FaCalendarPlus /> Add to calendar
+                </button>
+              ) : null}
               {booking.viewer_role_in_booking === 'candidate' ? (
                 <button className={styles.buttonAlt} onClick={() => setInviteModalBookingId(booking.id)} disabled={!booking.contract_sealed || booking.session_mode !== 'video'}>
                   Invite Candidates

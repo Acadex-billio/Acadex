@@ -69,6 +69,8 @@ CAMERPAY_WEBHOOK_KEY=replace-with-your-camerpay-webhook-secret
 LIVEKIT_URL=wss://your-livekit-host
 LIVEKIT_API_KEY=your-livekit-api-key
 LIVEKIT_API_SECRET=your-livekit-api-secret
+# Optional: room auto-end scan interval (minimum 5000 ms; default 15000)
+VIDEO_CONFERENCE_END_INTERVAL_MS=15000
 
 # API Rate Limit Tuning
 API_RATE_LIMIT_WINDOW_MS=900000
@@ -84,6 +86,12 @@ LIBREOFFICE_QUEUE_MAX_SIZE=1000
 LIBREOFFICE_QUEUE_WAIT_TIMEOUT_MS=180000
 LIBREOFFICE_QUEUE_DEBUG=false
 ```
+
+Video sessions open five minutes before their scheduled start. The backend denies earlier access, expires new access tokens at the scheduled end, and uses the configured LiveKit server to disconnect any remaining participants at the end of the booking window. The lecturer can also end a session early.
+
+The app currently provides in-call chat, participant controls, and screen sharing for booking participants. Recording, live captions/transcription, and breakout rooms are intentionally not enabled: these require additional LiveKit Egress/Agent infrastructure and, for recording, explicit participant consent and configured storage.
+
+Personal, group, and center chat video calls use the same LiveKit deployment and require no in-app payment. Any current member of a non-admin chat can start or join its active call; personal calls respect existing block settings. Members with push notifications enabled are notified when a call starts. Calls automatically expire after 12 hours to limit abandoned rooms.
 
 The backend serves the public key to the frontend at runtime through `/api/push/config`. Push requires HTTPS in production. On iPhone and iPad, users must install Acadex to the Home Screen and open the installed app before enabling push.
 

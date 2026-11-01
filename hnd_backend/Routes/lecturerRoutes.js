@@ -54,7 +54,10 @@ router.get('/bookings/:bookingId/messages', validate({ params: schemas.ids.booki
 router.post('/bookings/:bookingId/messages', validate({ params: schemas.ids.bookingIdParam, body: schemas.lecturer.message }), lecturerController.sendBookingMessage);
 router.post('/bookings/:bookingId/messages/simulate', validate({ params: schemas.ids.bookingIdParam }), lecturerController.simulateBookingConversation);
 router.post('/bookings/:bookingId/video/start', requireAnyRole(['lecturer']), validate({ params: schemas.ids.bookingIdParam }), lecturerController.startBookingConference);
+router.post('/bookings/:bookingId/video/end', requireAnyRole(['lecturer']), validate({ params: schemas.ids.bookingIdParam }), lecturerController.endBookingConference);
 router.get('/bookings/:bookingId/video/access', requireAnyRole(['candidate', 'lecturer', 'admin', 'developer']), validate({ params: schemas.ids.bookingIdParam }), lecturerController.getBookingConferenceAccess);
+router.post('/bookings/:bookingId/video/participants/:participantId/mute', requireAnyRole(['lecturer']), validate({ params: schemas.ids.bookingParticipantParam, body: schemas.lecturer.muteConferenceParticipant }), lecturerController.muteConferenceParticipant);
+router.post('/bookings/:bookingId/video/participants/:participantId/remove', requireAnyRole(['lecturer']), validate({ params: schemas.ids.bookingParticipantParam }), lecturerController.removeConferenceParticipant);
 router.get('/bookings/:bookingId/video/invites/search', validate({ params: schemas.ids.bookingIdParam }), lecturerController.searchConferenceInviteCandidates);
 router.post('/bookings/:bookingId/video/invites', validate({ params: schemas.ids.bookingIdParam, body: schemas.lecturer.inviteMany }), lecturerController.inviteConferenceParticipants);
 router.post('/bookings/:bookingId/video/invites/respond', requireAnyRole(['candidate']), validate({ params: schemas.ids.bookingIdParam, body: schemas.lecturer.inviteRespond }), lecturerController.respondConferenceInvite);

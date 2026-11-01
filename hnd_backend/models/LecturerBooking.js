@@ -63,6 +63,7 @@ lecturerBookingSchema.index({ lecturer_cand_id: 1, payment_status: 1, status: 1,
 lecturerBookingSchema.index({ candidate_cand_id: 1, createdAt: -1 });
 lecturerBookingSchema.index({ 'invited_candidates.invitee_cand_id': 1, createdAt: -1 });
 lecturerBookingSchema.index({ conference_room_code: 1, conference_started_at: -1 });
+lecturerBookingSchema.index({ session_mode: 1, conference_ended_at: 1, scheduled_for: 1 });
 lecturerBookingSchema.index({ status: 1, scheduled_for: 1, lecturer_cand_id: 1 });
 
 module.exports = mongoose.model('LecturerBooking', lecturerBookingSchema);

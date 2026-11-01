@@ -53,6 +53,10 @@ const schemas = {
     mongoIdParam: Joi.object({ id: objectIdSchema.required() }),
     roomIdParam: Joi.object({ roomId: objectIdSchema.required() }),
     bookingIdParam: Joi.object({ bookingId: objectIdSchema.required() }),
+    bookingParticipantParam: Joi.object({
+      bookingId: objectIdSchema.required(),
+      participantId: candIdSchema.required(),
+    }),
     transactionIdParam: Joi.object({ transactionId: objectIdSchema.required() }),
     transactionReferenceParam: Joi.object({
       transactionId: Joi.alternatives().try(
@@ -102,6 +106,10 @@ const schemas = {
     }),
     inviteRespond: Joi.object({ decision: Joi.string().trim().valid('accepted', 'rejected').required() }),
     inviteMany: Joi.object({ invitee_cand_ids: Joi.array().items(candIdSchema).min(1).required() }),
+    muteConferenceParticipant: Joi.object({
+      track_sid: Joi.string().trim().min(1).max(100).required(),
+      muted: Joi.boolean().valid(true).required(),
+    }),
     message: Joi.object({ message: Joi.string().trim().min(1).max(4000).required() }),
   },
   chat: {

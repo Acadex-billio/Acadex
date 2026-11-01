@@ -4,6 +4,7 @@ const router = express.Router();
 const multer = require('multer');
 
 const chatController = require('../controllers/chatController');
+const chatVideoCallController = require('../controllers/chatVideoCallController');
 const { requireAuth } = require('../middlewares/jwtAuth');
 const { validate, schemas } = require('../middlewares/validateRequest');
 const { requireAnyRole } = require('../middlewares/authorize');
@@ -46,6 +47,10 @@ router.post('/invites/:inviteId/respond', validate({ params: schemas.ids.inviteI
 router.post('/rooms/:roomId/invites', validate({ params: schemas.ids.roomIdParam }), chatController.sendCenterInvite);
 
 router.get('/rooms/:roomId/members', validate({ params: schemas.ids.roomIdParam }), chatController.getRoomMembers);
+router.get('/rooms/:roomId/video-call', validate({ params: schemas.ids.roomIdParam }), chatVideoCallController.getCallStatus);
+router.post('/rooms/:roomId/video-call', validate({ params: schemas.ids.roomIdParam }), chatVideoCallController.startCall);
+router.post('/rooms/:roomId/video-call/join', validate({ params: schemas.ids.roomIdParam }), chatVideoCallController.joinCall);
+router.post('/rooms/:roomId/video-call/end', validate({ params: schemas.ids.roomIdParam }), chatVideoCallController.endCall);
 router.get('/rooms/:roomId/messages', validate({ params: schemas.ids.roomIdParam }), chatController.getMessages);
 router.get('/rooms/:roomId/messages/:messageId/attachment', validate({ params: schemas.ids.roomIdParam }), chatController.getMessageAttachment);
 router.post('/rooms/:roomId/messages', validate({ params: schemas.ids.roomIdParam, body: schemas.chat.sendMessage }), chatUpload.single('attachment'), chatController.sendMessage);

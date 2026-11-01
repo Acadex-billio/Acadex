@@ -276,6 +276,55 @@
   border-color: var(--primary);
 }
 
+.iconBtn:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
+.iconBtnActive {
+  color: #fff;
+  background: #16a34a;
+  border-color: #16a34a;
+}
+
+.videoCallBanner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin: 0 0 10px;
+  padding: 10px 12px;
+  border: 1px solid rgba(22, 163, 74, 0.3);
+  border-radius: 10px;
+  background: #f0fdf4;
+  color: #166534;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.videoCallBanner span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.videoCallBanner button {
+  flex: 0 0 auto;
+  border: 0;
+  border-radius: 7px;
+  padding: 7px 10px;
+  background: #16a34a;
+  color: #fff;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.videoCallBanner button:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
 .searchBar {
   display: grid;
   gap: 8px;

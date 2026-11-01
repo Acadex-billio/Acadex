@@ -73,6 +73,7 @@ const publicRoutes = require('./Routes/publicRoutes');
 const { getLibreOfficeQueueStats } = require('./services/libreOfficeQueue');
 const { startPaymentReconciliationScheduler } = require('./services/paymentReconciliationScheduler');
 const { startSubscriptionReminderScheduler } = require('./services/subscriptionReminderScheduler');
+const { startVideoConferenceScheduler } = require('./services/videoConferenceScheduler');
 const { ensureDefaultPrograms } = require('./services/programCatalogService');
 const { mountVersionCompatibleRoute } = require('./utils/versionRouter');
 const { csrfProtection } = require('./middlewares/csrfProtection');
@@ -90,6 +91,7 @@ const dbStartupPromise = connectDB()
     try {
       startPaymentReconciliationScheduler();
       startSubscriptionReminderScheduler();
+      startVideoConferenceScheduler();
     } catch (err) {
       logger.warn('Failed to start background schedulers', { error: err?.message || err });
     }

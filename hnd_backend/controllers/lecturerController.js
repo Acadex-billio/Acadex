@@ -34,7 +34,8 @@ const {
   applyCouponToAmount,
   createCouponTransaction,
 } = require('../services/couponService');
-const { AccessToken, TrackSource } = require('livekit-server-sdk');
+const { AccessToken, RoomServiceClient, TrackSource, TrackType } = require('livekit-server-sdk');
+const { getMeetingTimeline } = require('../services/videoConferencePolicy');
 
 const PLATFORM_SPLIT_RATIO = 0.5;
 const BOOKING_PAYMENT_APPROVAL_TIMEOUT_MS = 2 * 60 * 1000;
@@ -152,31 +153,6 @@ function mapProviderStatusToBookingPaymentStatus(status) {
   return 'failed';
 }
 
-function getMeetingTimeline(bookingLike) {
-  const start = new Date(bookingLike?.scheduled_for || 0);
-  const duration = Math.max(15, Number(bookingLike?.duration_minutes || 60));
-  const end = new Date(start.getTime() + (duration * 60 * 1000));
-  const now = new Date();
-  const hasStarted = now.getTime() >= start.getTime();
-  const hasEnded = now.getTime() >= end.getTime();
-  const elapsedMinutes = hasStarted
-    ? Math.min(duration, Math.max(0, Math.floor((now.getTime() - start.getTime()) / 60000)))
-    : 0;
-  const remainingMinutes = hasStarted
-    ? Math.max(0, Math.ceil((end.getTime() - now.getTime()) / 60000))
-    : duration;
-  return {
-    start,
-    end,
-    durationMinutes: duration,
-    now,
-    hasStarted,
-    elapsedMinutes,
-    remainingMinutes,
-    hasEnded,
-  };
-}
-
 function calculateInviteAccessAmount(bookingLike, remainingMinutesOverride) {
   const duration = Math.max(15, Number(bookingLike?.duration_minutes || 60));
   const totalAmount = Number(bookingLike?.amount_total || 0);
@@ -208,6 +184,21 @@ function getLiveKitConfig() {
   return { serverUrl, apiKey, apiSecret };
 }
 
+function getLiveKitRoomService() {
+  const cfg = getLiveKitConfig();
+  if (!cfg) throw new Error('LiveKit is not configured on the server.');
+  const serviceUrl = cfg.serverUrl.replace(/^wss:/i, 'https:').replace(/^ws:/i, 'http:');
+  return new RoomServiceClient(serviceUrl, cfg.apiKey, cfg.apiSecret);
+}
+
+async function endLiveKitRoomIfPresent(roomName) {
+  const roomService = getLiveKitRoomService();
+  const rooms = await roomService.listRooms([roomName]);
+  if (rooms.some((room) => room.name === roomName)) {
+    await roomService.deleteRoom(roomName);
+  }
+}
+
 function buildLiveKitGrant({ bookingLike, roomName, userId, role, accessSource }) {
   const normalizedUserId = String(userId || '').trim();
   const grant = {
@@ -235,7 +226,7 @@ function buildLiveKitGrant({ bookingLike, roomName, userId, role, accessSource }
     grant.roomAdmin = false;
     grant.canPublish = true;
     grant.canPublishSources = [TrackSource.CAMERA, TrackSource.MICROPHONE];
-    grant.canPublishData = false;
+    grant.canPublishData = true;
     grant.canUpdateOwnMetadata = false;
     return grant;
   }
@@ -250,7 +241,9 @@ async function buildLiveKitToken({ bookingLike, roomName, userId, role, accessSo
     throw new Error('LiveKit is not configured on the server.');
   }
 
+  const timeline = getMeetingTimeline(bookingLike);
   const token = new AccessToken(cfg.apiKey, cfg.apiSecret, {
+    ttl: Math.max(1, Math.ceil((timeline.end.getTime() - timeline.now.getTime()) / 1000)),
     identity: String(userId || '').trim(),
     name: String(name || userId || 'Guest').trim(),
     metadata: JSON.stringify({
@@ -337,8 +330,9 @@ function mapBooking(booking, viewerCandId = '', viewerRole = '') {
     conference_room_code: booking.conference_room_code || null,
     conference_started_at: booking.conference_started_at || null,
     conference_ended_at: booking.conference_ended_at || null,
-    conference_live: Boolean(booking.conference_started_at) && !timeline.hasEnded,
+    conference_live: Boolean(booking.conference_started_at) && !booking.conference_ended_at && !timeline.hasEnded,
     conference_end_at: timeline.end,
+    conference_opens_at: timeline.opensAt,
     conference_minutes_left: timeline.remainingMinutes,
     invite_access_fee: calculateInviteAccessAmount(booking, timeline.remainingMinutes),
     viewer_role_in_booking: isCoreParticipant
@@ -1422,11 +1416,19 @@ exports.startBookingConference = async (req, res) => {
     if (timeline.hasEnded) {
       return res.status(400).json({ success: false, message: 'Scheduled conference window has ended.' });
     }
-
+    if (!timeline.hasOpened) {
+      return res.status(400).json({
+        success: false,
+        message: 'The conference opens 5 minutes before its scheduled start.',
+        opens_at: timeline.opensAt,
+      });
+    }
+    if (booking.conference_ended_at) {
+      return res.status(400).json({ success: false, message: 'This conference has already ended.' });
+    }
     ensureRoomCode(booking);
     booking.conference_started_at = booking.conference_started_at || new Date();
     booking.conference_started_by = lecturerId;
-    booking.conference_ended_at = null;
     await booking.save();
 
     const invitees = normalizeInvites(booking)
@@ -1480,19 +1482,16 @@ exports.getBookingConferenceAccess = async (req, res) => {
     const booking = await LecturerBooking.findById(bookingId);
     if (!booking) return res.status(404).json({ success: false, message: 'Booking not found.' });
 
-    if (!String(booking.conference_room_code || '').trim()) {
-      ensureRoomCode(booking);
-      await booking.save();
-    }
-
     const timeline = getMeetingTimeline(booking);
     if (timeline.hasEnded) {
       return res.status(400).json({ success: false, message: 'Conference has ended.' });
     }
+    if (booking.conference_ended_at) {
+      return res.status(400).json({ success: false, message: 'This conference has already ended.' });
+    }
 
     const access = canJoinConference(booking, userId, role);
     const inviteFee = calculateInviteAccessAmount(booking, timeline.remainingMinutes);
-    const roomName = booking.conference_room_code;
 
     if (!access.allowed) {
       return res.status(403).json({
@@ -1502,9 +1501,31 @@ exports.getBookingConferenceAccess = async (req, res) => {
         invite_fee: inviteFee,
         currency: booking.currency,
         minutes_left: timeline.remainingMinutes,
-        conference_live: Boolean(booking.conference_started_at) && !timeline.hasEnded,
+        conference_live: Boolean(booking.conference_started_at) && !booking.conference_ended_at && !timeline.hasEnded,
       });
     }
+
+    if (!timeline.hasOpened) {
+      return res.status(403).json({
+        success: false,
+        message: 'Conference access opens 5 minutes before the scheduled start.',
+        opens_at: timeline.opensAt,
+        starts_at: timeline.start,
+      });
+    }
+    if (!booking.conference_started_at && String(booking.lecturer_cand_id || '') !== userId && !isDeveloperLike(role)) {
+      return res.status(403).json({
+        success: false,
+        message: 'The lecturer has not started the conference yet.',
+        starts_at: timeline.start,
+      });
+    }
+
+    if (!String(booking.conference_room_code || '').trim()) {
+      ensureRoomCode(booking);
+      await booking.save();
+    }
+    const roomName = booking.conference_room_code;
 
     if (access.source === 'invitee') {
       const idx = normalizeInvites(booking).findIndex((x) => String(x?.invitee_cand_id || '') === userId);
@@ -1536,18 +1557,129 @@ exports.getBookingConferenceAccess = async (req, res) => {
         livekit_url: livekit.serverUrl,
         livekit_token: livekit.token,
         minutes_left: timeline.remainingMinutes,
-        starts_at: booking.scheduled_for,
-        ends_at: timeline.end,
-        conference_live: Boolean(booking.conference_started_at) && !timeline.hasEnded,
+        starts_at: timeline.start,
+        conference_live: Boolean(booking.conference_started_at) && !booking.conference_ended_at && !timeline.hasEnded,
         can_invite: String(booking.candidate_cand_id || '') === String(userId || ''),
         can_start: String(booking.lecturer_cand_id || '') === String(userId || ''),
+        can_manage_participants: String(booking.lecturer_cand_id || '') === String(userId || ''),
+        can_share_screen: access.source !== 'invitee',
         viewer_access_source: access.source,
+        opens_at: timeline.opensAt,
+        ends_at: timeline.end,
       },
       booking: mapBooking(booking.toObject ? booking.toObject() : booking, userId, role),
     });
   } catch (error) {
     console.error('[Lecturer] getBookingConferenceAccess error:', error.message);
     return res.status(500).json({ success: false, message: 'Unable to load conference access.' });
+  }
+};
+
+exports.endBookingConference = async (req, res) => {
+  try {
+    const lecturerId = await ensureLecturer(req, res);
+    if (!lecturerId) return;
+
+    const booking = await LecturerBooking.findOne({
+      _id: String(req.params.bookingId || '').trim(),
+      lecturer_cand_id: lecturerId,
+    });
+    if (!booking) return res.status(404).json({ success: false, message: 'Booking not found.' });
+    if (booking.conference_ended_at) {
+      return res.json({ success: true, message: 'Conference has already ended.' });
+    }
+
+    try {
+      if (booking.conference_room_code) {
+        await endLiveKitRoomIfPresent(booking.conference_room_code);
+      }
+    } catch (error) {
+      console.error('[Lecturer] endBookingConference LiveKit error:', error.message);
+      return res.status(503).json({ success: false, message: 'Unable to end the conference right now.' });
+    }
+
+    booking.conference_ended_at = new Date();
+    await booking.save();
+    return res.json({ success: true, message: 'Conference ended for all participants.' });
+  } catch (error) {
+    console.error('[Lecturer] endBookingConference error:', error.message);
+    return res.status(500).json({ success: false, message: 'Unable to end conference.' });
+  }
+};
+
+exports.muteConferenceParticipant = async (req, res) => {
+  try {
+    const lecturerId = await ensureLecturer(req, res);
+    if (!lecturerId) return;
+
+    const booking = await LecturerBooking.findOne({
+      _id: String(req.params.bookingId || '').trim(),
+      lecturer_cand_id: lecturerId,
+    });
+    if (!booking) return res.status(404).json({ success: false, message: 'Booking not found.' });
+    if (booking.conference_ended_at || !booking.conference_room_code) {
+      return res.status(400).json({ success: false, message: 'Conference is not active.' });
+    }
+
+    const identity = String(req.params.participantId || '').trim();
+    if (!identity || identity === lecturerId) {
+      return res.status(400).json({ success: false, message: 'Choose another participant to mute.' });
+    }
+
+    const trackSid = String(req.body.track_sid || '').trim();
+    const participant = await getLiveKitRoomService().getParticipant(booking.conference_room_code, identity);
+    const audioTrack = participant.tracks?.find(
+      (track) => track.sid === trackSid && track.type === TrackType.AUDIO
+    );
+    if (!audioTrack) {
+      return res.status(404).json({ success: false, message: 'Participant microphone track was not found.' });
+    }
+
+    if (req.body.muted !== true) {
+      return res.status(400).json({ success: false, message: 'Hosts can mute participants but cannot unmute them.' });
+    }
+
+    await getLiveKitRoomService().mutePublishedTrack(
+      booking.conference_room_code,
+      identity,
+      trackSid,
+      true
+    );
+    return res.json({ success: true, muted: true });
+  } catch (error) {
+    const notFound = /participant|track|room.*not found/i.test(String(error?.message || ''));
+    if (notFound) return res.status(404).json({ success: false, message: 'Participant or microphone track is no longer available.' });
+    console.error('[Lecturer] muteConferenceParticipant error:', error.message);
+    return res.status(503).json({ success: false, message: 'Unable to update participant audio.' });
+  }
+};
+
+exports.removeConferenceParticipant = async (req, res) => {
+  try {
+    const lecturerId = await ensureLecturer(req, res);
+    if (!lecturerId) return;
+
+    const booking = await LecturerBooking.findOne({
+      _id: String(req.params.bookingId || '').trim(),
+      lecturer_cand_id: lecturerId,
+    });
+    if (!booking) return res.status(404).json({ success: false, message: 'Booking not found.' });
+    if (booking.conference_ended_at || !booking.conference_room_code) {
+      return res.status(400).json({ success: false, message: 'Conference is not active.' });
+    }
+
+    const identity = String(req.params.participantId || '').trim();
+    if (!identity || identity === lecturerId) {
+      return res.status(400).json({ success: false, message: 'You cannot remove yourself as the host.' });
+    }
+
+    await getLiveKitRoomService().removeParticipant(booking.conference_room_code, identity);
+    return res.json({ success: true, message: 'Participant removed from the conference.' });
+  } catch (error) {
+    const notFound = /participant|room.*not found/i.test(String(error?.message || ''));
+    if (notFound) return res.status(404).json({ success: false, message: 'Participant is no longer in the conference.' });
+    console.error('[Lecturer] removeConferenceParticipant error:', error.message);
+    return res.status(503).json({ success: false, message: 'Unable to remove participant.' });
   }
 };
 

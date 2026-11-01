@@ -11,6 +11,7 @@ import styles from '../Astyles/lecturerPortal.module.css';
 import { showToast } from '../utility/ToastNotification';
 import BookingVideoConferenceModal from './BookingVideoConferenceModal';
 import { maskCandidateId } from '../utility/maskCandidateId';
+import { downloadCalendarInvite } from '../utility/calendarInvite';
 
 const STATUS_COLOR = {
   requested: '#d97706', accepted: '#2563eb', scheduled: '#7c3aed',
@@ -101,10 +102,14 @@ const LecturerBookings = () => {
         return;
       }
       setActiveConference({
+        bookingId,
         roomName: conf.room_name,
         serverUrl: conf.livekit_url,
         accessToken: conf.livekit_token,
         minutesLeft: conf.minutes_left,
+        endsAt: conf.ends_at,
+        canShareScreen: conf.can_share_screen,
+        canManageParticipants: conf.can_manage_participants,
         subtitle: conf.conference_live ? 'Session is live' : 'Session room ready',
       });
     } catch (err) {
@@ -144,9 +149,13 @@ const LecturerBookings = () => {
     <div className={styles.page}>
       {activeConference ? (
         <BookingVideoConferenceModal
+          bookingId={activeConference.bookingId}
           roomName={activeConference.roomName}
           serverUrl={activeConference.serverUrl}
           accessToken={activeConference.accessToken}
+          endsAt={activeConference.endsAt}
+          canShareScreen={activeConference.canShareScreen}
+          canManageParticipants={activeConference.canManageParticipants}
           displayName={user?.name || 'Lecturer'}
           email={user?.email || ''}
           title="Live Video Session"
@@ -221,6 +230,11 @@ const LecturerBookings = () => {
                     <FaVideo /> Join Video Session
                   </button>
                 )}
+                {canVideo && booking.session_mode === 'video' ? (
+                  <button className={`${styles.actionBtn} ${styles.actionSchedule}`} onClick={() => downloadCalendarInvite(booking)}>
+                    <FaCalendarCheck /> Add to calendar
+                  </button>
+                ) : null}
                 {canVideo && (
                   <button className={`${styles.actionBtn} ${styles.actionSchedule}`} onClick={() => startConference(booking.id)} disabled={!booking.contract_sealed || booking.session_mode !== 'video'}>
                     <FaVideo /> Start Session + Notify

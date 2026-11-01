@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { FaArrowLeft, FaCheck, FaCheckDouble, FaEllipsisV, FaPaperPlane, FaPaperclip, FaRegSmile, FaSearch, FaTimes, FaTrash, FaSmile, FaCheckSquare, FaSquare } from 'react-icons/fa';
+import { FaArrowLeft, FaCheck, FaCheckDouble, FaEllipsisV, FaPaperPlane, FaPaperclip, FaRegSmile, FaSearch, FaTimes, FaTrash, FaSmile, FaCheckSquare, FaSquare, FaVideo } from 'react-icons/fa';
 import Picker from '@emoji-mart/react';
 import data from '@emoji-mart/data';
 import api from '../services/api';
@@ -9,6 +9,7 @@ import styles from '../Astyles/groupchat.module.css';
 import ConfirmDialog from './ConfirmDialog';
 import PaymentActionModal from './PaymentActionModal';
 import { maskCandidateId } from '../utility/maskCandidateId';
+import ChatVideoCallModal from './ChatVideoCallModal';
 
 const roomLabel = (room, selfCandId) => {
   if (!room) return '';
@@ -39,7 +40,7 @@ const isImageAttachment = (message) => {
 const GroupChat = ({ mode = 'candidate' }) => {
   const messagesEndRef = useRef(null);
   const attachmentInputRef = useRef(null);
-  const toastRef = useRef({ boot: false, messages: false });
+  const toastRef = useRef({ boot: false, messages: false, calls: false });
   const stoppedRef = useRef(false);
   const emojiWrapRef = useRef(null);
   const messageRefs = useRef(new Map());
@@ -50,6 +51,9 @@ const GroupChat = ({ mode = 'candidate' }) => {
   const [self, setSelf] = useState(null);
   const [rooms, setRooms] = useState([]);
   const [activeRoomId, setActiveRoomId] = useState('');
+  const [activeChatCall, setActiveChatCall] = useState(null);
+  const [roomVideoCall, setRoomVideoCall] = useState(null);
+  const [startingVideoCall, setStartingVideoCall] = useState(false);
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [selectedAttachment, setSelectedAttachment] = useState(null);
@@ -108,6 +112,9 @@ const GroupChat = ({ mode = 'candidate' }) => {
   }, [failedAttachmentIds]);
 
   const activeRoom = useMemo(() => rooms.find((r) => String(r.room_id) === String(activeRoomId)) || null, [rooms, activeRoomId]);
+  const videoCallBlocked = Boolean(
+    activeRoom?.type === 'dm' && (activeRoom.dm_blocked_by_me || activeRoom.dm_blocked_me)
+  );
   const selfCandId = String(self?.cand_id || '');
   const isAdminSelf = useMemo(() => {
     const role = String(self?.role || '').toLowerCase();
@@ -123,6 +130,43 @@ const GroupChat = ({ mode = 'candidate' }) => {
     if (!q) return messages;
     return messages.filter((m) => String(m.text || '').toLowerCase().includes(q));
   }, [messages, searchQuery]);
+
+  useEffect(() => {
+    setActiveChatCall((current) => (
+      current && String(current.roomId) !== String(activeRoomId) ? null : current
+    ));
+  }, [activeRoomId]);
+
+  useEffect(() => {
+    if (!activeRoomId || !activeRoom || activeRoom.type === 'admin' || videoCallBlocked || stoppedRef.current) {
+      setRoomVideoCall(null);
+      return undefined;
+    }
+
+    let cancelled = false;
+    const refreshCallStatus = async () => {
+      try {
+        const { data } = await api.get(`/chat/rooms/${encodeURIComponent(activeRoomId)}/video-call`);
+        if (!cancelled) setRoomVideoCall(data?.active_call || null);
+      } catch (error) {
+        if (cancelled || error?.response?.status === 429 || error?.response?.status === 401) return;
+        if (!toastRef.current.calls) {
+          toastRef.current.calls = true;
+          showToast(getErrorMessage(error, 'Unable to check video call status'), 'error');
+          setTimeout(() => {
+            toastRef.current.calls = false;
+          }, 5000);
+        }
+      }
+    };
+
+    refreshCallStatus();
+    const timer = setInterval(refreshCallStatus, 4500);
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+    };
+  }, [activeRoomId, activeRoom, videoCallBlocked]);
 
   const canType = useMemo(() => {
     if (!activeRoom) return true;
@@ -453,6 +497,24 @@ const GroupChat = ({ mode = 'candidate' }) => {
       cancelled = true;
     };
   }, [activeRoomId, selfCandId]);
+
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    const requestedRoomId = url.searchParams.get('room');
+    if (!requestedRoomId || !rooms.some((room) => String(room.room_id) === requestedRoomId)) return;
+
+    setActiveRoomId(requestedRoomId);
+    if (isMobileView) {
+      setMobilePanel('chat');
+      if (!adminMode) {
+        const room = rooms.find((item) => String(item.room_id) === requestedRoomId);
+        setMobileSection(room?.type === 'dm' ? 'chats' : 'groups');
+      }
+    }
+
+    url.searchParams.delete('room');
+    window.history.replaceState(null, '', `${url.pathname}${url.search}${url.hash}`);
+  }, [rooms, isMobileView, adminMode]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -880,6 +942,42 @@ const GroupChat = ({ mode = 'candidate' }) => {
     }
   };
 
+  const onStartOrJoinVideoCall = async () => {
+    if (!activeRoom || activeRoom.type === 'admin' || videoCallBlocked || startingVideoCall) return;
+    setStartingVideoCall(true);
+    try {
+      let response;
+      if (roomVideoCall) {
+        response = await api.post(`/chat/rooms/${encodeURIComponent(activeRoomId)}/video-call/join`);
+      } else {
+        try {
+          response = await api.post(`/chat/rooms/${encodeURIComponent(activeRoomId)}/video-call`);
+        } catch (error) {
+          if (error?.response?.status !== 409) throw error;
+          response = await api.post(`/chat/rooms/${encodeURIComponent(activeRoomId)}/video-call/join`);
+        }
+      }
+
+      const call = response.data?.call;
+      if (!call?.livekit_url || !call?.livekit_token) {
+        throw new Error('The video service did not return valid call access.');
+      }
+      setRoomVideoCall({
+        call_id: call.call_id,
+        started_by: call.started_by,
+        started_by_name: call.started_by_name || roomVideoCall?.started_by_name || 'a chat member',
+        started_at: call.started_at,
+        expires_at: call.expires_at,
+        is_initiator: Boolean(call.is_initiator),
+      });
+      setActiveChatCall({ ...call, roomId: String(activeRoomId) });
+    } catch (error) {
+      showToast(getErrorMessage(error, 'Unable to start or join the free video call'), 'error');
+    } finally {
+      setStartingVideoCall(false);
+    }
+  };
+
   const grouped = useMemo(() => {
     const general = rooms.filter((r) => r.type === 'general');
     const admin = rooms.filter((r) => r.type === 'admin');
@@ -1004,6 +1102,14 @@ const GroupChat = ({ mode = 'candidate' }) => {
 
   return (
     <>
+      {activeChatCall ? (
+        <ChatVideoCallModal
+          roomId={activeChatCall.roomId}
+          call={activeChatCall}
+          roomLabel={roomLabel(activeRoom, selfCandId)}
+          onClose={() => setActiveChatCall(null)}
+        />
+      ) : null}
       <div className={styles.chatPage}>
         <div className={styles.layout}>
           {showChatListPanel && (
@@ -1219,6 +1325,18 @@ const GroupChat = ({ mode = 'candidate' }) => {
 
                   {activeRoom && (
                     <div className={styles.headerActions}>
+                      {activeRoom.type !== 'admin' ? (
+                        <button
+                          type="button"
+                          className={`${styles.iconBtn} ${roomVideoCall ? styles.iconBtnActive : ''}`}
+                          onClick={onStartOrJoinVideoCall}
+                          disabled={startingVideoCall || videoCallBlocked}
+                          aria-label={roomVideoCall ? 'Join active video call' : 'Start a free video call'}
+                          title={videoCallBlocked ? 'Video calls are unavailable while this chat is blocked' : roomVideoCall?.is_initiator ? 'Reopen your active call' : roomVideoCall ? 'Join active free video call' : 'Start free video call'}
+                        >
+                          <FaVideo />
+                        </button>
+                      ) : null}
                       <button
                         type="button"
                         className={`${styles.iconBtn} ${selectMode ? styles.iconBtnActive : ''}`}
@@ -1269,6 +1387,22 @@ const GroupChat = ({ mode = 'candidate' }) => {
                     </div>
                   )}
                 </div>
+
+                {activeRoom && roomVideoCall ? (
+                  <div className={styles.videoCallBanner}>
+                    <span>
+                      <FaVideo /> Free video call active
+                      {roomVideoCall.started_by_name ? ` · Started by ${roomVideoCall.started_by_name}` : ''}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={onStartOrJoinVideoCall}
+                      disabled={startingVideoCall}
+                    >
+                      {startingVideoCall ? 'Joining...' : roomVideoCall.is_initiator ? 'Reopen call' : 'Join call'}
+                    </button>
+                  </div>
+                ) : null}
 
                 {activeRoom && showSearch && (
                   <div className={styles.searchBar}>
