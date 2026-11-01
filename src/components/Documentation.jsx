@@ -1,42 +1,77 @@
 import React from 'react';
 import { Helmet } from 'react-helmet';
 import { useNavigate } from 'react-router-dom';
+import {
+  FaArrowRight,
+  FaBookOpen,
+  FaBriefcase,
+  FaBullhorn,
+  FaChalkboardTeacher,
+  FaComments,
+  FaFileAlt,
+  FaGraduationCap,
+  FaLaptop,
+  FaLightbulb,
+  FaVideo,
+} from 'react-icons/fa';
 import styles from '../Astyles/Documentation.module.css';
 import { useLoading } from '../context/LoadingContext';
 
-const docs = [
+const audiences = [
   {
-    title: 'Question Papers',
-    description: 'Browse verified HND and BTS question papers, filter by department, level, semester, and year, then download or bookmark your most relevant exam resources for fast revision.'
+    icon: FaGraduationCap,
+    title: 'For learners',
+    description: 'Find trusted study resources, get help from lecturers, and discover opportunities for your next step.',
+    link: 'Explore learning tools',
+    target: 'learning-tools',
   },
   {
-    title: 'Reports',
-    description: 'Access internship, project, and research reports uploaded by administrators. Review report summaries, compare sample structures, and discover high-quality academic insights.'
+    icon: FaChalkboardTeacher,
+    title: 'For lecturers',
+    description: 'Share your expertise, support learners through tutoring, and manage your academic profile and bookings.',
+    link: 'See lecturer tools',
+    target: 'teaching-tools',
   },
   {
-    title: 'Presentations',
-    description: 'Explore approved presentation decks, supporting slides, and study notes for coursework, seminars, and internship defenses.'
+    icon: FaBriefcase,
+    title: 'For organizations',
+    description: 'Publish concours opportunities and manage candidate applications from a dedicated partner workspace.',
+    link: 'Explore concours tools',
+    target: 'concours-tools',
+  },
+];
+
+const learningTools = [
+  {
+    icon: FaBookOpen,
+    title: 'Question papers',
+    description: 'Browse past papers by program and subject to guide focused exam preparation.',
   },
   {
-    title: 'Internship Topics',
-    description: 'Browse verified internship and research topic ideas by discipline, then select and prepare submission-ready proposals with lecturer guidance.'
+    icon: FaFileAlt,
+    title: 'Reports & presentations',
+    description: 'Explore academic and research examples for learning, planning, and presentation preparation.',
   },
   {
-    title: 'AI Study Mode',
-    description: 'Use the platform’s AI-powered study and research assistant to summarize concepts, generate question prompts, and support academic planning.'
+    icon: FaLightbulb,
+    title: 'Internship topics & AI study',
+    description: 'Discover topic ideas and use AI-powered study tools to explore concepts and organize your learning.',
   },
   {
-    title: 'Chat & Tutorship',
-    description: 'Connect with lecturers, join group discussions, and use center or community chats for collaborative study and real-time tutoring support.'
+    icon: FaComments,
+    title: 'Tutoring & chat',
+    description: 'Connect with lecturers and peers through tutoring, personal chats, groups, and learning centers.',
   },
   {
-    title: 'Payments & Pricing',
-    description: 'Pay securely with MTN MOMO or Orange Money, choose affordable access plans, and view receipts instantly after payment.'
+    icon: FaVideo,
+    title: 'Live video calls',
+    description: 'Meet with your chat community for face-to-face study and collaboration.',
   },
   {
-    title: 'Announcements & Notifications',
-    description: 'Receive timely email alerts, in-app updates, and toast notifications for academic notices, platform news, and scheduled events.'
-  }
+    icon: FaBullhorn,
+    title: 'Announcements',
+    description: 'Keep up with academic notices, platform updates, and opportunities shared on Acadex.',
+  },
 ];
 
 const Documentation = () => {
@@ -46,107 +81,197 @@ const Documentation = () => {
   const navigateWithLoader = (path) => {
     startLoading();
     navigate(path);
-    setTimeout(() => stopLoading(), 450);
+    window.setTimeout(() => stopLoading(), 450);
+  };
+
+  const scrollTo = (id) => {
+    document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
 
   return (
     <main className={styles.page}>
       <Helmet>
-        <title>Documentation | Acadex</title>
+        <title>About Acadex | Learn, Teach & Grow Together</title>
         <meta
           name="description"
-          content="Learn how Acadex helps students and admins share question papers, reports, presentations, and announcements."
+          content="Acadex brings learning resources, AI study tools, tutoring, live calls, lecturer services, and concours opportunities together for learners and organizations."
         />
         <meta name="robots" content="index,follow" />
         <meta property="og:type" content="website" />
         <meta property="og:site_name" content="Acadex" />
-        <meta property="og:title" content="About Acadex | Documentation" />
+        <meta property="og:title" content="Acadex | Your Academic Ecosystem" />
         <meta
           property="og:description"
-          content="Understand key Acadex features, including question papers, reports, presentations, announcements, internships, AI study mode, and tutoring." 
+          content="Study smarter. Teach confidently. Connect with institutions. Discover learning tools and opportunities on Acadex."
         />
         <meta property="og:locale" content="en_US" />
         <meta property="og:url" content="https://www.acadexe.com/documentation" />
-        <meta property="og:image" content="https://www.acadexe.com/logo192.png" />
-        <meta property="og:image:alt" content="Acadex documentation preview" />
+        <meta property="og:image" content="https://www.acadexe.com/acadex-social-preview.png" />
+        <meta property="og:image:secure_url" content="https://www.acadexe.com/acadex-social-preview.png" />
+        <meta property="og:image:type" content="image/png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content="Acadex — your academic ecosystem to learn, teach, connect, and grow" />
         <meta name="twitter:card" content="summary_large_image" />
-        <meta name="twitter:site" content="@AcadexOfficial" />
-        <meta name="twitter:creator" content="@AcadexOfficial" />
-        <meta name="twitter:title" content="About Acadex | Documentation" />
+        <meta name="twitter:title" content="Acadex | Your Academic Ecosystem" />
         <meta
           name="twitter:description"
-          content="A quick guide to academic resources and tools available on Acadex for HND and BTS students, lecturers, and institutions."
+          content="Study smarter. Teach confidently. Connect with institutions. Discover learning tools and opportunities on Acadex."
         />
-        <meta name="twitter:image" content="https://www.acadexe.com/logo192.png" />
-        <meta name="twitter:image:alt" content="Acadex documentation preview" />
+        <meta name="twitter:image" content="https://www.acadexe.com/acadex-social-preview.png" />
         <link rel="canonical" href="https://www.acadexe.com/documentation" />
-        <meta name="keywords" content="Acadex documentation, HND study portal, BTS platform guide, academic resource platform, VANTORA Ltd" />
+        <meta name="keywords" content="Acadex, academic resources, HND, BTS, higher education, lecturers, tutoring, concours, academic opportunities" />
       </Helmet>
 
-      <section className={styles.panel}>
-        <p className={styles.kicker}>Platform Guide</p>
-        <h1 className={styles.title}>About Acadex</h1>
-        <p className={styles.subtitle}>
-          Acadex is a modern academic platform built for students, lecturers, and institutions to share verified learning
-          resources, manage academic support, and collaborate in a safe and structured environment.
-        </p>
+      <header className={styles.topBar}>
+        <button type="button" className={styles.brand} onClick={() => navigateWithLoader('/')} aria-label="Acadex home">
+          <img src={`${process.env.PUBLIC_URL}/acadex-logo.png`} alt="Acadex — Academic Ecosystem" />
+        </button>
+        <nav className={styles.navLinks} aria-label="About page navigation">
+          <button type="button" onClick={() => scrollTo('learning-tools')}>What you can do</button>
+          <button type="button" onClick={() => scrollTo('concours-tools')}>For organizations</button>
+        </nav>
+        <button type="button" className={styles.navCta} onClick={() => navigateWithLoader('/register')}>
+          Get started <FaArrowRight aria-hidden="true" />
+        </button>
+      </header>
 
-        <div className={styles.grid}>
-          {docs.map((item) => (
-            <article key={item.title} className={styles.card}>
-              <h2>{item.title}</h2>
-              <p>{item.description}</p>
+      <section className={styles.hero}>
+        <div className={styles.heroCopy}>
+          <p className={styles.eyebrow}><span /> One connected academic ecosystem</p>
+          <h1 className={styles.title}>
+            Your next step in learning starts <span>here.</span>
+          </h1>
+          <p className={styles.subtitle}>
+            Study smarter. Teach confidently. Find opportunities. Acadex brings learners, lecturers, and organizations
+            together with practical tools for the whole academic journey.
+          </p>
+          <div className={styles.heroActions}>
+            <button type="button" className={styles.primaryBtn} onClick={() => navigateWithLoader('/register')}>
+              Join Acadex <FaArrowRight aria-hidden="true" />
+            </button>
+            <button type="button" className={styles.secondaryBtn} onClick={() => scrollTo('audiences')}>
+              Explore the platform
+            </button>
+          </div>
+          <p className={styles.heroNote}>For learners across programs, educators, and concours partners.</p>
+        </div>
+        <div className={styles.heroVisual} aria-hidden="true">
+          <div className={styles.visualGlow} />
+          <div className={styles.visualLogo}>
+            <img src={`${process.env.PUBLIC_URL}/acadex-logo.png`} alt="" />
+          </div>
+          <div className={`${styles.floatingCard} ${styles.resourceCard}`}>
+            <span className={styles.visualIcon}><FaBookOpen /></span>
+            <span><strong>Learn with purpose</strong><small>Resources · AI study · tutoring</small></span>
+          </div>
+          <div className={`${styles.floatingCard} ${styles.opportunityCard}`}>
+            <span className={styles.visualIcon}><FaBriefcase /></span>
+            <span><strong>Find what’s next</strong><small>Concours · lecturer support</small></span>
+          </div>
+          <div className={styles.visualCaption}>LEARN <i /> TEACH <i /> GROW</div>
+        </div>
+      </section>
+
+      <section className={styles.audiences} id="audiences">
+        <div className={styles.sectionHeading}>
+          <p className={styles.eyebrow}>Built for your journey</p>
+          <h2>One platform. Different ways to move forward.</h2>
+          <p>Whether you are studying, teaching, or creating opportunities, Acadex gives you a place to connect.</p>
+        </div>
+        <div className={styles.audienceGrid}>
+          {audiences.map(({ icon: Icon, title, description, link, target }) => (
+            <article className={styles.audienceCard} key={title}>
+              <span className={styles.audienceIcon}><Icon aria-hidden="true" /></span>
+              <h3>{title}</h3>
+              <p>{description}</p>
+              <button type="button" onClick={() => scrollTo(target)}>
+                {link} <FaArrowRight aria-hidden="true" />
+              </button>
             </article>
           ))}
         </div>
+      </section>
 
-        <section className={styles.details}>
-          <article>
-            <h2>What Acadex Offers</h2>
-            <p>
-              The platform brings together past question papers, research reports, presentations, internship topics,
-              announcements, AI-assisted study help, secure payments, lecturer support, and communication tools in one place.
-              Students can learn faster, lecturers can share knowledge more effectively, and administrators can manage content
-              with greater transparency.
-            </p>
-          </article>
-          <article>
-            <h2>How Students Should Use It</h2>
-            <p>
-              Materials on Acadex are meant for study purposes and academic reference. Students may use reports and
-              presentations to learn structures, ideas, and research approaches, but they must not submit another person’s
-              work as their own. Where work is referenced, the student should acknowledge the original author and include the
-              Acadex source URL or citation details provided on the platform.
-            </p>
-          </article>
-          <article>
-            <h2>Academic Integrity and Community Safety</h2>
-            <p>
-              Acadex protects academic integrity by treating defended reports and protected academic work as copyrighted or
-              protected materials. The platform also maintains community standards for chats and tutoring spaces, where users
-              are expected to avoid immoral content, abusive language, false information, harassment, nudity, or harmful conduct.
-              Violations may lead to moderation actions, account restrictions, or permanent suspension.
-            </p>
-          </article>
-          <article>
-            <h2>For Lecturers and Institutions</h2>
-            <p>
-              Verified lecturers can manage profiles, receive bookings, deliver tutoring, and contribute academic resources.
-              Institutions and administrators can oversee approvals, content quality, payments, and compliance while ensuring
-              that the platform remains useful, secure, and beneficial for learners.
-            </p>
-          </article>
-        </section>
+      <section className={styles.toolsSection} id="learning-tools">
+        <div className={styles.sectionHeading}>
+          <p className={styles.eyebrow}>A connected toolkit</p>
+          <h2>Everything you need to keep moving.</h2>
+          <p>Bring study, collaboration, and academic support into one convenient space.</p>
+        </div>
+        <div className={styles.toolGrid}>
+          {learningTools.map(({ icon: Icon, title, description }) => (
+            <article className={styles.toolCard} key={title}>
+              <span className={styles.toolIcon}><Icon aria-hidden="true" /></span>
+              <div><h3>{title}</h3><p>{description}</p></div>
+            </article>
+          ))}
+        </div>
+      </section>
 
-        <div className={styles.actions}>
-          <button type="button" className={styles.primaryBtn} onClick={() => navigateWithLoader('/login')}>
-            Go to Login
-          </button>
-          <button type="button" className={styles.secondaryBtn} onClick={() => navigateWithLoader('/')}>
-            Back to Home
+      <section className={styles.rolesSection} id="teaching-tools">
+        <div className={styles.roleVisual} aria-hidden="true"><FaChalkboardTeacher /></div>
+        <div>
+          <p className={styles.eyebrow}>For lecturers</p>
+          <h2>Turn your expertise into meaningful support.</h2>
+          <p>
+            Build your lecturer profile, receive tutoring bookings, meet learners online, and contribute resources
+            that help students make progress.
+          </p>
+          <button type="button" className={styles.textLink} onClick={() => navigateWithLoader('/register')}>
+            Get started with Acadex <FaArrowRight aria-hidden="true" />
           </button>
         </div>
       </section>
+
+      <section className={styles.concoursSection} id="concours-tools">
+        <div>
+          <p className={styles.eyebrow}>For concours organizations</p>
+          <h2>Bring your opportunities closer to the right candidates.</h2>
+          <p>
+            Use the partner workspace to create and publish concours opportunities, configure application forms,
+            and review candidate submissions in one place.
+          </p>
+          <a
+            className={styles.lightBtn}
+            href="mailto:acadexmail@gmail.com?subject=Acadex%20Concours%20Partnership"
+          >
+            Contact our team <FaArrowRight aria-hidden="true" />
+          </a>
+        </div>
+        <span className={styles.concoursIcon} aria-hidden="true"><FaLaptop /></span>
+      </section>
+
+      <section className={styles.integrity}>
+        <div className={styles.integrityIcon}><FaGraduationCap aria-hidden="true" /></div>
+        <div>
+          <h2>Built around learning with integrity.</h2>
+          <p>
+            Acadex resources are for study and reference. Respect original work, cite sources, and help keep learning
+            spaces constructive and safe for everyone.
+          </p>
+        </div>
+      </section>
+
+      <section className={styles.finalCta}>
+        <p className={styles.eyebrow}>Make your next move</p>
+        <h2>Learning is better when everything connects.</h2>
+        <p>Join learners, lecturers, and organizations building their next opportunity on Acadex.</p>
+        <div className={styles.heroActions}>
+          <button type="button" className={styles.primaryBtn} onClick={() => navigateWithLoader('/register')}>
+            Get started <FaArrowRight aria-hidden="true" />
+          </button>
+          <button type="button" className={styles.finalLogin} onClick={() => navigateWithLoader('/login')}>
+            Already a member? Log in
+          </button>
+        </div>
+      </section>
+
+      <footer className={styles.footer}>
+        <button type="button" onClick={() => navigateWithLoader('/')}>Acadex</button>
+        <span>Learn · Teach · Connect · Grow</span>
+        <button type="button" onClick={() => navigateWithLoader('/')}>Back to home</button>
+      </footer>
     </main>
   );
 };

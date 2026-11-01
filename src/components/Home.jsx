@@ -44,18 +44,25 @@ const Home = () => {
     return (
         <div className={styles.page}>
             <Helmet>
-                <title>{t('homePage.brand')} | Question Papers, Reports and Presentations</title>
-                <meta name="description" content="Acadex helps HND, BTS, Bachelor, Licence, Masters, and researcher users access question papers, reports, presentations, internship topics, and academic collaboration tools from one portal." />
+                <title>{t('homePage.brand')} | Your Academic Ecosystem</title>
+                <meta name="description" content="Study smarter. Teach confidently. Connect with institutions. Acadex brings learning resources, AI study tools, tutoring, live calls, and concours opportunities together." />
                 <meta name="robots" content="index,follow" />
-                <meta name="keywords" content="Acadex, academic resources, HND, BTS, Bachelor, Licence, Masters, researchers, question papers, reports, presentations, internship topics, academic collaboration" />
-                <meta property="og:title" content="Acadex | Academic Resource Hub for HND, BTS, Bachelor, Licence, Masters, and Researchers" />
-                <meta property="og:description" content="Explore verified academic resources for HND, BTS, Bachelor, Licence, Masters, lecturers, and researchers on Acadex." />
+                <meta name="keywords" content="Acadex, academic resources, HND, BTS, higher education, lecturers, tutoring, concours, academic opportunities, AI study tools" />
+                <meta property="og:site_name" content="Acadex" />
+                <meta property="og:title" content="Acadex | Your Academic Ecosystem" />
+                <meta property="og:description" content="Study smarter. Teach confidently. Connect with institutions. Discover learning tools and opportunities on Acadex." />
                 <meta property="og:url" content="https://www.acadexe.com/" />
-                <meta property="og:image" content="https://www.acadexe.com/logo192.png" />
+                <meta property="og:image" content="https://www.acadexe.com/acadex-social-preview.png" />
+                <meta property="og:image:secure_url" content="https://www.acadexe.com/acadex-social-preview.png" />
+                <meta property="og:image:type" content="image/png" />
+                <meta property="og:image:width" content="1200" />
+                <meta property="og:image:height" content="630" />
+                <meta property="og:image:alt" content="Acadex — your academic ecosystem to learn, teach, connect, and grow" />
                 <meta name="twitter:card" content="summary_large_image" />
-                <meta name="twitter:title" content="Acadex | Academic Resource Hub for HND, BTS, Bachelor, Licence, Masters, and Researchers" />
-                <meta name="twitter:description" content="A secure portal for HND, BTS, Bachelor, Licence, Masters, lecturers, and researchers to access question papers, reports, presentations, and collaboration tools." />
-                <meta name="twitter:image" content="https://www.acadexe.com/logo192.png" />
+                <meta name="twitter:title" content="Acadex | Your Academic Ecosystem" />
+                <meta name="twitter:description" content="Study smarter. Teach confidently. Connect with institutions. Discover learning tools and opportunities on Acadex." />
+                <meta name="twitter:image" content="https://www.acadexe.com/acadex-social-preview.png" />
+                <meta name="twitter:image:alt" content="Acadex — your academic ecosystem to learn, teach, connect, and grow" />
                 <link rel="canonical" href="https://www.acadexe.com/" />
                 <script type="application/ld+json">
                     {JSON.stringify({
@@ -63,7 +70,8 @@ const Home = () => {
                         '@type': 'EducationalOrganization',
                         name: 'Acadex',
                         url: 'https://www.acadexe.com/',
-                        description: 'Access verified HND and BTS question papers, reports, presentations, internship topics, and academic collaboration tools in one platform.',
+                        logo: 'https://www.acadexe.com/acadex-logo.png',
+                        description: 'Acadex brings learning resources, AI study tools, tutoring, lecturer services, live collaboration, and concours opportunities together for learners and organizations.',
                         contactPoint: {
                             '@type': 'ContactPoint',
                             contactType: 'customer support',

@@ -1,149 +1,870 @@
 .page {
+  --green: #168347;
+  --green-dark: #0c6035;
+  --ink: #17241d;
+  --muted: #627169;
+  --line: #e1ece4;
   min-height: 100vh;
-  padding: 24px;
+  overflow: hidden;
+  background: #fff;
+  color: var(--ink);
+  font-family: 'Segoe UI', Arial, sans-serif;
+}
+
+.topBar {
+  width: min(1200px, calc(100% - 56px));
+  height: 82px;
+  margin: 0 auto;
   display: flex;
   align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+}
+
+.brand,
+.navLinks button,
+.navCta,
+.footer button {
+  border: 0;
+  background: none;
+  cursor: pointer;
+  font: inherit;
+}
+
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  padding: 0;
+  color: var(--ink);
+  font-size: 15px;
+  font-weight: 850;
+  letter-spacing: 1.4px;
+}
+
+.brand img {
+  display: block;
+  width: 120px;
+  height: 52px;
+  object-fit: contain;
+}
+
+.navLinks {
+  display: flex;
+  align-items: center;
+  gap: 30px;
+}
+
+.navLinks button {
+  padding: 10px 0;
+  color: #435148;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.navLinks button:hover,
+.footer button:hover {
+  color: var(--green);
+}
+
+.navCta,
+.primaryBtn,
+.secondaryBtn,
+.lightBtn {
+  display: inline-flex;
+  align-items: center;
   justify-content: center;
-  background:
-    radial-gradient(circle at 10% 10%, rgba(59, 165, 98, 0.18), transparent 36%),
-    radial-gradient(circle at 90% 90%, rgba(23, 91, 54, 0.16), transparent 35%),
-    linear-gradient(160deg, #f7fff9 0%, #f0fbf4 45%, #e4f7e8 100%);
-}
-
-.panel {
-  width: min(980px, 100%);
-  background: rgba(255, 255, 255, 0.95);
-  border: 1px solid #cce7d3;
-  border-radius: 20px;
-  box-shadow: 0 20px 48px rgba(16, 60, 37, 0.14);
-  padding: 34px;
-}
-
-.kicker {
-  margin: 0;
-  color: #2b8f56;
-  font-size: 13px;
-  text-transform: uppercase;
-  letter-spacing: 1px;
+  gap: 10px;
+  min-height: 46px;
+  border-radius: 9px;
+  padding: 0 20px;
+  font-size: 14px;
   font-weight: 700;
+  text-decoration: none;
+  transition: transform 160ms ease, box-shadow 160ms ease, background 160ms ease;
+}
+
+.navCta,
+.primaryBtn {
+  border: 1px solid var(--green);
+  background: var(--green);
+  color: #fff;
+  cursor: pointer;
+}
+
+.navCta:hover,
+.primaryBtn:hover,
+.lightBtn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 24px rgba(13, 101, 55, 0.2);
+}
+
+.hero {
+  position: relative;
+  width: min(1200px, calc(100% - 56px));
+  min-height: 520px;
+  margin: 8px auto 0;
+  padding: 58px 62px;
+  display: grid;
+  grid-template-columns: 1.05fr 0.95fr;
+  align-items: center;
+  gap: 24px;
+  overflow: hidden;
+  border: 1px solid #e1eee5;
+  border-radius: 28px;
+  background:
+    radial-gradient(ellipse at 86% 16%, rgba(187, 230, 195, 0.72), transparent 34%),
+    linear-gradient(120deg, #f8fcf8 5%, #eff8f1 56%, #e0f2e4 100%);
+}
+
+.heroCopy {
+  position: relative;
+  z-index: 1;
+  max-width: 610px;
+}
+
+.eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  margin: 0 0 14px;
+  color: var(--green);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 1.4px;
+  text-transform: uppercase;
+}
+
+.eyebrow span {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #5ab778;
+  box-shadow: 0 0 0 4px rgba(90, 183, 120, 0.15);
 }
 
 .title {
-  margin: 10px 0 0;
-  color: #175b36;
-  font-size: clamp(30px, 4vw, 46px);
-  line-height: 1.15;
+  max-width: 620px;
+  margin: 0;
+  color: #153322;
+  font-size: clamp(42px, 5.2vw, 66px);
+  font-weight: 800;
+  letter-spacing: -2.6px;
+  line-height: 1.04;
+}
+
+.title span {
+  color: var(--green);
 }
 
 .subtitle {
-  margin: 14px 0 0;
-  max-width: 760px;
-  color: #3d5548;
+  max-width: 580px;
+  margin: 22px 0 0;
+  color: #56665c;
   font-size: 17px;
-  line-height: 1.6;
+  line-height: 1.75;
 }
 
-.grid {
-  margin-top: 26px;
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 14px;
-}
-
-.card {
-  background: linear-gradient(135deg, #f8fff9 0%, #ecf8ee 100%);
-  border: 1px solid #d1ebdd;
-  border-radius: 14px;
-  padding: 16px;
-}
-
-.card h2 {
-  margin: 0;
-  color: #206742;
-  font-size: 21px;
-}
-
-.card p {
-  margin: 8px 0 0;
-  color: #445b4d;
-  line-height: 1.5;
-}
-
-.actions {
-  margin-top: 26px;
+.heroActions {
   display: flex;
-  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 28px;
 }
 
-.details {
-  margin-top: 32px;
+.secondaryBtn {
+  border: 1px solid #cbd9ce;
+  background: rgba(255, 255, 255, 0.68);
+  color: #254735;
+  cursor: pointer;
+}
+
+.secondaryBtn:hover {
+  transform: translateY(-2px);
+  background: #fff;
+}
+
+.heroNote {
+  margin: 18px 0 0;
+  color: #718077;
+  font-size: 12px;
+}
+
+.heroVisual {
+  position: relative;
+  min-height: 390px;
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  place-items: center;
+}
+
+.visualGlow {
+  position: absolute;
+  width: 360px;
+  height: 360px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(43, 145, 78, 0.18), rgba(43, 145, 78, 0.02) 68%, transparent 70%);
+}
+
+.visualLogo {
+  position: relative;
+  z-index: 1;
+  width: min(100%, 430px);
+  padding: 26px 18px;
+  border: 1px solid rgba(255, 255, 255, 0.85);
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.87);
+  box-shadow: 0 22px 70px rgba(26, 76, 43, 0.15);
+}
+
+.visualLogo img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.floatingCard {
+  position: absolute;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 13px 15px;
+  border: 1px solid rgba(221, 235, 224, 0.95);
+  border-radius: 13px;
+  background: #fff;
+  box-shadow: 0 12px 30px rgba(29, 68, 42, 0.12);
+}
+
+.floatingCard > span:last-child {
+  display: grid;
+  gap: 4px;
+}
+
+.floatingCard strong {
+  color: #244333;
+  font-size: 12px;
+}
+
+.floatingCard small {
+  color: #758279;
+  font-size: 10px;
+}
+
+.visualIcon,
+.audienceIcon,
+.toolIcon {
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+  color: var(--green);
+  background: #eaf6ed;
+}
+
+.visualIcon {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+}
+
+.resourceCard {
+  top: 18px;
+  left: -6px;
+}
+
+.opportunityCard {
+  right: -4px;
+  bottom: 40px;
+}
+
+.visualCaption {
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  transform: translateX(-50%);
+  color: #567461;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 2px;
+}
+
+.visualCaption i {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: #4a9b65;
+}
+
+.audiences,
+.toolsSection,
+.rolesSection,
+.concoursSection,
+.integrity,
+.finalCta,
+.footer {
+  width: min(1120px, calc(100% - 56px));
+  margin-right: auto;
+  margin-left: auto;
+}
+
+.audiences {
+  padding: 94px 0 84px;
+  scroll-margin-top: 30px;
+}
+
+.sectionHeading {
+  max-width: 660px;
+  margin: 0 auto 34px;
+  text-align: center;
+}
+
+.sectionHeading .eyebrow {
+  justify-content: center;
+}
+
+.sectionHeading h2,
+.rolesSection h2,
+.concoursSection h2,
+.finalCta h2 {
+  margin: 0;
+  color: #1b3325;
+  font-size: clamp(29px, 3.5vw, 42px);
+  font-weight: 750;
+  letter-spacing: -1.2px;
+  line-height: 1.18;
+}
+
+.sectionHeading > p:last-child {
+  margin: 13px 0 0;
+  color: var(--muted);
+  font-size: 15px;
+  line-height: 1.7;
+}
+
+.audienceGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 18px;
 }
 
-.details article {
-  background: #ffffff;
-  border: 1px solid #d9ecdf;
-  border-radius: 14px;
-  padding: 20px;
+.audienceCard {
+  min-height: 244px;
+  padding: 25px;
+  border: 1px solid var(--line);
+  border-radius: 17px;
+  background: #fff;
+  box-shadow: 0 10px 26px rgba(24, 54, 35, 0.045);
+  transition: transform 180ms ease, box-shadow 180ms ease;
 }
 
-.details h2 {
-  margin: 0 0 10px;
+.audienceCard:hover,
+.toolCard:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 16px 34px rgba(24, 54, 35, 0.1);
+}
+
+.audienceIcon {
+  width: 46px;
+  height: 46px;
+  border-radius: 13px;
+  font-size: 19px;
+}
+
+.audienceCard h3 {
+  margin: 19px 0 8px;
+  color: #203d2c;
   font-size: 18px;
-  color: #1d5d39;
 }
 
-.details p {
+.audienceCard p,
+.toolCard p,
+.rolesSection > div:last-child > p:not(.eyebrow),
+.concoursSection > div > p:not(.eyebrow),
+.integrity p,
+.finalCta > p:not(.eyebrow) {
   margin: 0;
-  color: #435b4b;
-  line-height: 1.6;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.7;
 }
 
-.primaryBtn,
-.secondaryBtn {
+.audienceCard button,
+.textLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 18px;
+  padding: 0;
   border: 0;
-  border-radius: 10px;
-  padding: 11px 20px;
-  font-size: 16px;
-  font-weight: 600;
+  background: transparent;
+  color: var(--green);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 750;
   cursor: pointer;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
-.primaryBtn {
-  background: linear-gradient(135deg, #2e8b57 0%, #1f7a49 100%);
+.toolsSection {
+  padding: 72px 0 84px;
+  border-top: 1px solid #edf2ee;
+  scroll-margin-top: 24px;
+}
+
+.toolGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.toolCard {
+  display: flex;
+  align-items: flex-start;
+  gap: 15px;
+  min-height: 142px;
+  padding: 22px;
+  border: 1px solid var(--line);
+  border-radius: 15px;
+  background: #fbfdfb;
+  transition: transform 180ms ease, box-shadow 180ms ease;
+}
+
+.toolIcon {
+  width: 40px;
+  height: 40px;
+  border-radius: 11px;
+  font-size: 16px;
+}
+
+.toolCard h3 {
+  margin: 1px 0 7px;
+  color: #244333;
+  font-size: 15px;
+}
+
+.toolCard p {
+  font-size: 13px;
+}
+
+.rolesSection {
+  display: grid;
+  grid-template-columns: 0.8fr 1.2fr;
+  align-items: center;
+  gap: 64px;
+  padding: 46px 8%;
+  border: 1px solid #e1eee4;
+  border-radius: 22px;
+  background: linear-gradient(110deg, #f5faf6, #fff);
+  scroll-margin-top: 24px;
+}
+
+.rolesSection h2,
+.concoursSection h2 {
+  max-width: 580px;
+  font-size: clamp(27px, 3vw, 36px);
+}
+
+.rolesSection > div:last-child > p:not(.eyebrow),
+.concoursSection > div > p:not(.eyebrow) {
+  max-width: 580px;
+  margin-top: 14px;
+}
+
+.roleVisual {
+  display: grid;
+  min-height: 190px;
+  place-items: center;
+  border-radius: 18px;
+  background:
+    radial-gradient(circle at 50% 40%, rgba(57, 153, 85, 0.22), transparent 43%),
+    #e8f4eb;
+  color: #278b4b;
+  font-size: 90px;
+}
+
+.concoursSection {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 30px;
+  margin-top: 24px;
+  padding: 48px 8%;
+  overflow: hidden;
+  border-radius: 22px;
+  background: #135c36;
   color: #fff;
-  box-shadow: 0 8px 16px rgba(46, 139, 87, 0.2);
+  scroll-margin-top: 24px;
 }
 
-.secondaryBtn {
-  background: #ebf8ee;
-  color: #215b37;
-  border: 1px solid #cce7d3;
+.concoursSection .eyebrow {
+  color: #a7e1b5;
 }
 
-.primaryBtn:hover,
-.secondaryBtn:hover {
-  transform: translateY(-1px);
+.concoursSection h2 {
+  max-width: 670px;
+  color: #fff;
 }
 
-@media (max-width: 760px) {
-  .page {
-    padding: 14px;
+.concoursSection > div > p:not(.eyebrow) {
+  max-width: 650px;
+  color: #d4e8d9;
+}
+
+.lightBtn {
+  margin-top: 22px;
+  border: 1px solid #fff;
+  background: #fff;
+  color: #145d36;
+  cursor: pointer;
+}
+
+.concoursIcon {
+  display: grid;
+  flex: 0 0 130px;
+  width: 130px;
+  height: 130px;
+  place-items: center;
+  border: 1px solid rgba(255, 255, 255, 0.17);
+  border-radius: 28px;
+  background: rgba(255, 255, 255, 0.1);
+  color: #c3eccb;
+  font-size: 62px;
+  transform: rotate(5deg);
+}
+
+.integrity {
+  display: flex;
+  align-items: center;
+  gap: 19px;
+  margin-top: 48px;
+  padding: 23px 26px;
+  border: 1px solid #e5eee7;
+  border-radius: 15px;
+  background: #fbfdfb;
+}
+
+.integrityIcon {
+  display: grid;
+  flex: 0 0 48px;
+  width: 48px;
+  height: 48px;
+  place-items: center;
+  border-radius: 14px;
+  background: #e8f4eb;
+  color: var(--green);
+  font-size: 21px;
+}
+
+.integrity h2 {
+  margin: 0 0 5px;
+  color: #244333;
+  font-size: 16px;
+}
+
+.integrity p {
+  font-size: 13px;
+}
+
+.finalCta {
+  margin-top: 80px;
+  padding: 64px 24px;
+  border-radius: 23px;
+  background:
+    radial-gradient(circle at 50% 130%, rgba(102, 190, 123, 0.24), transparent 45%),
+    #f0f8f2;
+  text-align: center;
+}
+
+.finalCta .eyebrow {
+  justify-content: center;
+}
+
+.finalCta h2 {
+  max-width: 680px;
+  margin: 0 auto;
+}
+
+.finalCta > p:not(.eyebrow) {
+  margin: 13px auto 0;
+}
+
+.finalCta .heroActions {
+  justify-content: center;
+}
+
+.finalLogin {
+  padding: 12px;
+  border: 0;
+  background: transparent;
+  color: #355342;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 25px 0;
+  color: #76847a;
+  font-size: 12px;
+}
+
+.footer button {
+  padding: 4px 0;
+  color: #46584b;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.page :focus-visible {
+  outline: 3px solid rgba(22, 131, 71, 0.45);
+  outline-offset: 3px;
+}
+
+@media (max-width: 900px) {
+  .hero {
+    min-height: auto;
+    grid-template-columns: 1fr 0.8fr;
+    padding: 48px 38px;
   }
 
-  .panel {
+  .heroVisual {
+    min-height: 320px;
+  }
+
+  .floatingCard {
+    max-width: 245px;
+  }
+
+  .audienceGrid {
+    gap: 12px;
+  }
+
+  .audienceCard {
     padding: 20px;
   }
 
-  .grid,
-  .details {
+  .toolGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .rolesSection {
+    gap: 34px;
+    padding-right: 6%;
+    padding-left: 6%;
+  }
+}
+
+@media (max-width: 680px) {
+  .topBar,
+  .hero,
+  .audiences,
+  .toolsSection,
+  .rolesSection,
+  .concoursSection,
+  .integrity,
+  .finalCta,
+  .footer {
+    width: calc(100% - 32px);
+  }
+
+  .topBar {
+    height: 70px;
+    gap: 10px;
+  }
+
+  .brand img {
+    width: 100px;
+    height: 44px;
+  }
+
+  .brand {
+    gap: 6px;
+    font-size: 12px;
+  }
+
+  .navLinks {
+    display: none;
+  }
+
+  .navCta {
+    min-height: 40px;
+    padding: 0 13px;
+    font-size: 12px;
+  }
+
+  .hero {
+    grid-template-columns: 1fr;
+    gap: 14px;
+    padding: 38px 23px 24px;
+    border-radius: 20px;
+  }
+
+  .title {
+    font-size: clamp(39px, 11vw, 56px);
+    letter-spacing: -1.8px;
+  }
+
+  .subtitle {
+    margin-top: 16px;
+    font-size: 15px;
+    line-height: 1.65;
+  }
+
+  .heroActions {
+    margin-top: 22px;
+  }
+
+  .heroVisual {
+    min-height: 270px;
+    margin: 0 5px;
+  }
+
+  .visualGlow {
+    width: 270px;
+    height: 270px;
+  }
+
+  .visualLogo {
+    width: min(90%, 330px);
+    padding: 18px 12px;
+    border-radius: 17px;
+  }
+
+  .floatingCard {
+    gap: 8px;
+    padding: 9px 10px;
+  }
+
+  .floatingCard strong {
+    font-size: 10px;
+  }
+
+  .floatingCard small {
+    font-size: 8px;
+  }
+
+  .visualIcon {
+    width: 30px;
+    height: 30px;
+  }
+
+  .resourceCard {
+    top: 2px;
+    left: -5px;
+  }
+
+  .opportunityCard {
+    right: -4px;
+    bottom: 25px;
+  }
+
+  .visualCaption {
+    bottom: -1px;
+  }
+
+  .audiences {
+    padding: 68px 0 62px;
+  }
+
+  .sectionHeading {
+    margin-bottom: 25px;
+    text-align: left;
+  }
+
+  .sectionHeading .eyebrow {
+    justify-content: flex-start;
+  }
+
+  .sectionHeading h2,
+  .rolesSection h2,
+  .concoursSection h2,
+  .finalCta h2 {
+    font-size: 30px;
+    letter-spacing: -0.8px;
+  }
+
+  .sectionHeading > p:last-child {
+    font-size: 14px;
+  }
+
+  .audienceGrid,
+  .toolGrid {
     grid-template-columns: 1fr;
   }
 
-  .actions {
+  .audienceCard {
+    min-height: 0;
+  }
+
+  .toolsSection {
+    padding: 56px 0;
+  }
+
+  .toolCard {
+    min-height: 0;
+    padding: 19px;
+  }
+
+  .rolesSection {
+    grid-template-columns: 1fr;
+    gap: 23px;
+    padding: 25px;
+  }
+
+  .roleVisual {
+    min-height: 150px;
+    font-size: 68px;
+  }
+
+  .concoursSection {
+    padding: 30px 25px;
+  }
+
+  .concoursIcon {
+    display: none;
+  }
+
+  .integrity {
+    align-items: flex-start;
+    gap: 13px;
+    margin-top: 30px;
+    padding: 19px;
+  }
+
+  .integrityIcon {
+    flex-basis: 40px;
+    width: 40px;
+    height: 40px;
+  }
+
+  .finalCta {
+    margin-top: 56px;
+    padding: 45px 20px;
+  }
+
+  .finalCta .heroActions {
     flex-direction: column;
+  }
+
+  .footer {
+    flex-wrap: wrap;
+    padding: 20px 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
   }
 }
