@@ -1,55 +1,195 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   Chat,
-  LiveKitRoom,
+  DisconnectButton,
   GridLayout,
+  LayoutContextProvider,
+  LiveKitRoom,
+  MediaDeviceSelect,
   ParticipantTile,
   RoomAudioRenderer,
-  ControlBar,
-  LayoutContextProvider,
   useConnectionState,
+  useLocalParticipant,
   useParticipants,
   useTracks,
 } from '@livekit/components-react';
 import { Track } from 'livekit-client';
-import { FaComments, FaTimes, FaUsers, FaVideo } from 'react-icons/fa';
+import {
+  FaBookOpen,
+  FaComments,
+  FaDesktop,
+  FaEllipsisH,
+  FaGraduationCap,
+  FaMicrophone,
+  FaMicrophoneSlash,
+  FaPhone,
+  FaTimes,
+  FaUser,
+  FaUsers,
+  FaVideo,
+  FaVideoSlash,
+} from 'react-icons/fa';
 import '@livekit/components-styles';
 import api from '../services/api';
-import styles from '../Astyles/lecturerPortal.module.css';
+import styles from '../Astyles/ChatVideoCall.module.css';
 
-const ChatCallStage = () => {
+const formatDuration = (milliseconds) => {
+  const totalSeconds = Math.max(0, Math.floor(milliseconds / 1000));
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+  return hours
+    ? `${hours}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
+    : `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+};
+
+const ChatCallStage = ({ call, roomLabel, onLeave, onEndForEveryone, ending, endError }) => {
   const tracks = useTracks([
     { source: Track.Source.Camera, withPlaceholder: true },
     { source: Track.Source.ScreenShare, withPlaceholder: false },
   ]);
   const participants = useParticipants();
   const connectionState = useConnectionState();
+  const {
+    localParticipant,
+    isCameraEnabled,
+    isMicrophoneEnabled,
+    isScreenShareEnabled,
+  } = useLocalParticipant();
   const [panel, setPanel] = useState('');
+  const [mediaError, setMediaError] = useState('');
+  const [now, setNow] = useState(Date.now());
+  const canShareScreen = typeof navigator !== 'undefined'
+    && typeof navigator.mediaDevices?.getDisplayMedia === 'function';
+  const startedAt = new Date(call?.started_at || Date.now()).getTime();
+  const elapsed = Number.isFinite(startedAt) ? formatDuration(now - startedAt) : '00:00';
+  const connectionLabel = String(connectionState || 'connecting').toLowerCase();
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  const runMediaAction = async (action) => {
+    setMediaError('');
+    try {
+      await action();
+    } catch (error) {
+      setMediaError(error?.message || 'Unable to change this device setting.');
+    }
+  };
+
+  const toggleMicrophone = () => runMediaAction(
+    () => localParticipant.setMicrophoneEnabled(!isMicrophoneEnabled)
+  );
+  const toggleCamera = () => runMediaAction(
+    () => localParticipant.setCameraEnabled(!isCameraEnabled)
+  );
+  const toggleScreenShare = () => runMediaAction(
+    () => localParticipant.setScreenShareEnabled(!isScreenShareEnabled)
+  );
+
+  const togglePanel = (nextPanel) => {
+    setPanel((current) => current === nextPanel ? '' : nextPanel);
+  };
 
   return (
-    <div className={styles.livekitShell}>
-      <div className={styles.livekitContent}>
-        <div className={styles.livekitGridWrap}>
-          <GridLayout tracks={tracks} style={{ height: '100%' }}>
-            <ParticipantTile />
-          </GridLayout>
+    <div className={styles.callStage}>
+      <header className={styles.brandHeader}>
+        <div className={styles.brandLockup}>
+          <span className={styles.brandMark}><FaGraduationCap /></span>
+          <span className={styles.brandText}>
+            <strong>ACADEX</strong>
+            <small>LEARN · CONNECT · GROW</small>
+          </span>
         </div>
+        <div className={styles.livePill}>
+          <FaVideo />
+          <span>ACADEX Video Call</span>
+          <i />
+          <strong>Live</strong>
+        </div>
+        <div className={styles.headerActions}>
+          <span className={styles.callDuration}>{elapsed}</span>
+          {call?.is_initiator ? (
+            <button
+              type="button"
+              className={styles.endForEveryoneButton}
+              onClick={onEndForEveryone}
+              disabled={ending}
+            >
+              {ending ? 'Ending…' : 'End for everyone'}
+            </button>
+          ) : null}
+          <span className={styles.accountAvatar} aria-label="Your account"><FaUser /></span>
+        </div>
+      </header>
+
+      <div className={styles.callHeading}>
+        <div>
+          <span className={styles.eyebrow}>VIDEO ROOM</span>
+          <h1>{roomLabel}</h1>
+        </div>
+        <div className={styles.connectionStatus} data-connection={connectionLabel} aria-live="polite">
+          <span />
+          {connectionLabel === 'connected' ? 'Connected' : connectionLabel}
+        </div>
+      </div>
+
+      <div className={styles.stageBody}>
+        <main className={styles.videoArea}>
+          {tracks.length ? (
+            <GridLayout className={styles.participantGrid} tracks={tracks}>
+              <ParticipantTile />
+            </GridLayout>
+          ) : (
+            <div className={styles.waitingState}>
+              <span className={styles.waitingIcon}><FaUsers /></span>
+              <strong>Getting your call ready</strong>
+              <span>Your video will appear here as soon as you connect.</span>
+            </div>
+          )}
+        </main>
+
         {panel ? (
-          <aside className={styles.livekitSidePanel}>
-            <div className={styles.livekitPanelHeader}>
-              <strong>{panel === 'chat' ? 'In-call chat' : 'Participants'}</strong>
-              <button type="button" onClick={() => setPanel('')} aria-label="Close panel"><FaTimes /></button>
+          <aside className={styles.sidePanel}>
+            <div className={styles.panelHeader}>
+              <div>
+                <span className={styles.eyebrow}>
+                  {panel === 'chat' ? 'CONVERSATION' : panel === 'devices' ? 'CALL SETTINGS' : 'IN THIS CALL'}
+                </span>
+                <strong>
+                  {panel === 'chat' ? 'In-call chat' : panel === 'devices' ? 'Devices' : `Participants (${participants.length})`}
+                </strong>
+              </div>
+              <button type="button" className={styles.panelClose} onClick={() => setPanel('')} aria-label="Close panel">
+                <FaTimes />
+              </button>
             </div>
             {panel === 'chat' ? (
-              <div className={styles.livekitChat}>
+              <div className={styles.callChat}>
                 <Chat />
-                <small>Chat messages are only available during this call.</small>
+                <small>Messages are only available while you’re in this call.</small>
+              </div>
+            ) : panel === 'devices' ? (
+              <div className={styles.devicePanel}>
+                <label>Microphone</label>
+                <MediaDeviceSelect kind="audioinput" requestPermissions={false} />
+                <label>Camera</label>
+                <MediaDeviceSelect kind="videoinput" requestPermissions={false} />
+                {mediaError ? <p className={styles.mediaError} role="alert">{mediaError}</p> : null}
               </div>
             ) : (
-              <div className={styles.livekitParticipantList}>
+              <div className={styles.participantList}>
                 {participants.map((participant) => (
-                  <div className={styles.livekitParticipant} key={participant.identity}>
-                    <span>{participant.name || 'Chat member'}{participant.isLocal ? ' (you)' : ''}</span>
+                  <div className={styles.participantRow} key={participant.identity}>
+                    <span className={styles.participantAvatar}>
+                      {String(participant.name || participant.identity || '?').trim().charAt(0).toUpperCase()}
+                    </span>
+                    <span>{participant.name || 'Chat member'}{participant.isLocal ? ' (You)' : ''}</span>
+                    <span className={participant.isMicrophoneEnabled ? styles.micOn : styles.micOff}>
+                      {participant.isMicrophoneEnabled ? <FaMicrophone /> : <FaMicrophoneSlash />}
+                    </span>
                   </div>
                 ))}
               </div>
@@ -57,28 +197,87 @@ const ChatCallStage = () => {
           </aside>
         ) : null}
       </div>
-      <div className={styles.livekitToolbarWrap}>
-        <div className={styles.livekitToolbarInfo}>
-          <span aria-live="polite">Connection: {connectionState}</span>
-          <span>{participants.length} participant{participants.length === 1 ? '' : 's'}</span>
-          <div className={styles.livekitPanelButtons}>
-            <button type="button" onClick={() => setPanel(panel === 'participants' ? '' : 'participants')}><FaUsers /> People</button>
-            <button type="button" onClick={() => setPanel(panel === 'chat' ? '' : 'chat')}><FaComments /> Chat</button>
-          </div>
+
+      {mediaError && panel !== 'devices' ? (
+        <p className={styles.mediaError} role="alert">{mediaError}</p>
+      ) : null}
+      {endError ? <p className={styles.mediaError} role="alert">{endError}</p> : null}
+
+      <footer className={styles.controlDock}>
+        <div className={styles.controlGroup}>
+          <button
+            type="button"
+            className={`${styles.controlButton} ${isMicrophoneEnabled ? styles.controlEnabled : styles.controlDisabled}`}
+            onClick={toggleMicrophone}
+            aria-pressed={isMicrophoneEnabled}
+            aria-label={isMicrophoneEnabled ? 'Mute microphone' : 'Unmute microphone'}
+          >
+            {isMicrophoneEnabled ? <FaMicrophone /> : <FaMicrophoneSlash />}
+            <span>{isMicrophoneEnabled ? 'Mute' : 'Unmute'}</span>
+          </button>
+          <button
+            type="button"
+            className={`${styles.controlButton} ${isCameraEnabled ? styles.controlEnabled : styles.controlDisabled}`}
+            onClick={toggleCamera}
+            aria-pressed={isCameraEnabled}
+            aria-label={isCameraEnabled ? 'Stop video' : 'Start video'}
+          >
+            {isCameraEnabled ? <FaVideo /> : <FaVideoSlash />}
+            <span>{isCameraEnabled ? 'Stop Video' : 'Start Video'}</span>
+          </button>
+          {canShareScreen ? (
+            <button
+              type="button"
+              className={`${styles.controlButton} ${isScreenShareEnabled ? styles.controlEnabled : ''}`}
+              onClick={toggleScreenShare}
+              aria-pressed={isScreenShareEnabled}
+              aria-label={isScreenShareEnabled ? 'Stop sharing screen' : 'Share screen'}
+            >
+              <FaDesktop />
+              <span>{isScreenShareEnabled ? 'Stop Share' : 'Share'}</span>
+            </button>
+          ) : null}
+          <button
+            type="button"
+            className={`${styles.controlButton} ${panel === 'participants' ? styles.controlSelected : ''}`}
+            onClick={() => togglePanel('participants')}
+            aria-pressed={panel === 'participants'}
+          >
+            <span className={styles.controlIconWithCount}>
+              <FaUsers /><i>{participants.length}</i>
+            </span>
+            <span>Participants</span>
+          </button>
+          <button
+            type="button"
+            className={`${styles.controlButton} ${panel === 'chat' ? styles.controlSelected : ''}`}
+            onClick={() => togglePanel('chat')}
+            aria-pressed={panel === 'chat'}
+          >
+            <FaComments />
+            <span>Chat</span>
+          </button>
+          <button
+            type="button"
+            className={`${styles.controlButton} ${panel === 'devices' ? styles.controlSelected : ''}`}
+            onClick={() => togglePanel('devices')}
+            aria-pressed={panel === 'devices'}
+          >
+            <FaEllipsisH />
+            <span>More</span>
+          </button>
+          <DisconnectButton className={`${styles.controlButton} ${styles.leaveButton}`} onClick={onLeave}>
+            <FaPhone />
+            <span>Leave</span>
+          </DisconnectButton>
         </div>
-        <ControlBar
-          variation="minimal"
-          controls={{
-            camera: true,
-            microphone: true,
-            screenShare: true,
-            leave: true,
-            chat: false,
-            settings: true,
-            deviceSelector: true,
-          }}
-        />
+      </footer>
+
+      <div className={styles.brandFooter}>
+        <span>Your academic journey, connected.</span>
+        <FaBookOpen aria-hidden="true" />
       </div>
+      <RoomAudioRenderer />
     </div>
   );
 };
@@ -172,69 +371,99 @@ const ChatVideoCallModal = ({ roomId, call, roomLabel, onClose }) => {
   return (
     <div className={styles.videoOverlay} role="dialog" aria-modal="true" aria-label={`Video call: ${roomLabel}`}>
       <div className={styles.videoModal}>
-        <div className={styles.videoHeader}>
-          <span><FaVideo /> Free video call · {roomLabel}</span>
-          <div className={styles.videoHeaderActions}>
-            {call?.is_initiator && !callEnded ? (
-              <button className={styles.videoEndButton} type="button" onClick={endForEveryone} disabled={ending}>
-                {ending ? 'Ending...' : 'End for everyone'}
-              </button>
-            ) : null}
-            <button className={styles.videoClose} type="button" onClick={onClose} aria-label="Leave call"><FaTimes /></button>
-          </div>
-        </div>
-        <div className={styles.videoMetaBar}>
-          <span>{call?.is_initiator ? 'You started this call' : `Call started by ${call?.started_by_name || 'a chat member'}`}</span>
-          <span>{remainingMs === null ? '' : `Up to ${Math.floor(remainingMs / 3600000)}h ${Math.floor((remainingMs % 3600000) / 60000)}m remaining`}</span>
-        </div>
-        {joinError ? <p className={styles.videoPreflightError} role="alert">{joinError}</p> : null}
-        {endError ? <p className={styles.videoPreflightError} role="alert">{endError}</p> : null}
         {callEnded ? (
           <div className={styles.videoEnded} role="status">
+            <span className={styles.endedIcon}><FaPhone /></span>
+            <span className={styles.eyebrow}>ACADEX VIDEO CALL</span>
             <strong>This video call has ended.</strong>
             <span>Start another free call from this chat whenever you’re ready.</span>
-            <button type="button" onClick={onClose}>Close</button>
+            <button type="button" onClick={onClose}>Back to chat</button>
           </div>
         ) : connected ? (
-          <div className={styles.videoFrameHost}>
-            <LiveKitRoom
-              token={call.livekit_token}
-              serverUrl={call.livekit_url}
-              connect
-              audio={microphoneEnabled}
-              video={cameraEnabled}
-              onError={(error) => setJoinError(error?.message || 'Unable to connect to the video call.')}
-              onDisconnected={() => {
-                if (!callEnded) onClose();
-              }}
-              data-lk-theme="default"
-              options={{ adaptiveStream: true, dynacast: true }}
-            >
-              <RoomAudioRenderer />
-              <LayoutContextProvider>
-                <ChatCallStage />
-              </LayoutContextProvider>
-            </LiveKitRoom>
-          </div>
+          <LiveKitRoom
+            token={call.livekit_token}
+            serverUrl={call.livekit_url}
+            data-lk-theme="default"
+            connect
+            audio={microphoneEnabled}
+            video={cameraEnabled}
+            onError={(error) => setJoinError(error?.message || 'Unable to connect to the video call.')}
+            onDisconnected={onClose}
+            options={{ adaptiveStream: true, dynacast: true }}
+          >
+            <LayoutContextProvider>
+              <ChatCallStage
+                call={call}
+                roomLabel={roomLabel}
+                onLeave={onClose}
+                onEndForEveryone={endForEveryone}
+                ending={ending}
+                endError={endError}
+              />
+            </LayoutContextProvider>
+          </LiveKitRoom>
         ) : (
-          <div className={styles.videoPreflight}>
-            <h2>Join this free call</h2>
-            <p>Anyone who belongs to this chat can join while the call is active.</p>
-            <div className={styles.videoPreflightToggles}>
-              <label><input type="checkbox" checked={cameraEnabled} onChange={(event) => setCameraEnabled(event.target.checked)} /> Camera on</label>
-              <label><input type="checkbox" checked={microphoneEnabled} onChange={(event) => setMicrophoneEnabled(event.target.checked)} /> Microphone on</label>
-            </div>
-            <div className={styles.videoPreflightActions}>
-              <button type="button" onClick={joinCall} disabled={joining}>{joining ? 'Joining...' : 'Check devices & join'}</button>
-              {joinError ? (
-                <button type="button" onClick={() => { setCameraEnabled(false); setMicrophoneEnabled(false); setConnected(true); }}>
-                  Join without camera/mic
-                </button>
+          <div className={styles.preflight}>
+            <header className={styles.preflightHeader}>
+              <div className={styles.brandLockup}>
+                <span className={styles.brandMark}><FaGraduationCap /></span>
+                <span className={styles.brandText}>
+                  <strong>ACADEX</strong>
+                  <small>LEARN · CONNECT · GROW</small>
+                </span>
+              </div>
+              <button type="button" className={styles.closeButton} onClick={onClose} aria-label="Close call window">
+                <FaTimes />
+              </button>
+            </header>
+            <div className={styles.preflightBody}>
+              <span className={styles.eyebrow}>YOU’RE INVITED</span>
+              <span className={styles.preflightIcon}><FaVideo /></span>
+              <h1>Join the video call</h1>
+              <p>{roomLabel} · started by {call?.started_by_name || 'a chat member'}</p>
+              {remainingMs !== null ? (
+                <span className={styles.expiryText}>
+                  {Math.floor(remainingMs / 3600000)}h {Math.floor((remainingMs % 3600000) / 60000)}m remaining
+                </span>
               ) : null}
+              <div className={styles.preflightToggles}>
+                <label>
+                  <input type="checkbox" checked={cameraEnabled} onChange={(event) => setCameraEnabled(event.target.checked)} />
+                  <FaVideo /> Camera on
+                </label>
+                <label>
+                  <input type="checkbox" checked={microphoneEnabled} onChange={(event) => setMicrophoneEnabled(event.target.checked)} />
+                  <FaMicrophone /> Microphone on
+                </label>
+              </div>
+              {joinError ? <p className={styles.preflightError} role="alert">{joinError}</p> : null}
+              {endError ? <p className={styles.preflightError} role="alert">{endError}</p> : null}
+              <div className={styles.preflightActions}>
+                <button type="button" className={styles.joinButton} onClick={joinCall} disabled={joining}>
+                  <FaVideo /> {joining ? 'Checking devices…' : 'Join call'}
+                </button>
+                {joinError ? (
+                  <button
+                    type="button"
+                    className={styles.audioOnlyButton}
+                    onClick={() => { setCameraEnabled(false); setMicrophoneEnabled(false); setConnected(true); }}
+                  >
+                    Join without camera or mic
+                  </button>
+                ) : null}
+                {call?.is_initiator ? (
+                  <button type="button" className={styles.endForEveryoneButton} onClick={endForEveryone} disabled={ending}>
+                    {ending ? 'Ending…' : 'End call for everyone'}
+                  </button>
+                ) : null}
+              </div>
+            </div>
+            <div className={styles.brandFooter}>
+              <span>Your academic journey, connected.</span>
+              <FaBookOpen aria-hidden="true" />
             </div>
           </div>
         )}
-        <p className={styles.videoNote}>{connected ? 'Connected to' : 'Joining'} {roomLabel}</p>
       </div>
     </div>
   );
