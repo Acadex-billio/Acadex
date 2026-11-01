@@ -123,6 +123,7 @@ const schemas = {
     setMute: Joi.object({ muted: Joi.boolean().required() }),
     react: Joi.object({ reaction: Joi.string().trim().min(1).max(20).required() }),
     querySearch: Joi.object({ q: Joi.string().trim().max(120).required() }),
+    dismissVideoCall: Joi.object({ call_id: objectIdSchema.required() }),
   },
   admin: {
     manualPaymentApprove: Joi.object({ note: Joi.string().trim().max(500).allow('', null).optional() }),

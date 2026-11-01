@@ -90,6 +90,7 @@ const sendBulkPushNotification = async (users, contentType, title, body, url, co
     contentId: contentId || '',
     url,
     tag: `${contentType}-${contentId || Date.now()}`,
+    ...(contentType === 'chat_video_call' ? { requireInteraction: true, vibrate: [500, 250, 500] } : {}),
   };
 
   const concurrency = Math.min(8, users.length);

@@ -8,6 +8,7 @@ const chatVideoCallSchema = new mongoose.Schema(
     livekit_room_name: { type: String, required: true, unique: true, trim: true },
     started_by: { type: String, required: true, trim: true, index: true },
     started_at: { type: Date, default: Date.now, required: true },
+    dismissed_by: { type: [String], default: [] },
     ended_at: { type: Date, default: null },
     ended_by: { type: String, default: null, trim: true },
     cleanup_completed_at: { type: Date, default: null },

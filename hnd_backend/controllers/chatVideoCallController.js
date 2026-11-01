@@ -175,6 +175,7 @@ exports.getIncomingCalls = async (req, res) => {
     const calls = await ChatVideoCall.find({
       room_id: { $in: roomIds },
       started_by: { $ne: candId },
+      dismissed_by: { $ne: candId },
       ended_at: null,
     }).sort({ started_at: -1 }).lean();
     const activeCalls = calls.filter((call) => !getChatVideoCallExpiry(call).expired);
@@ -315,6 +316,10 @@ exports.joinCall = async (req, res) => {
       user,
       initiator: call.started_by === candId,
     });
+    await ChatVideoCall.updateOne(
+      { _id: call._id, ended_at: null },
+      { $addToSet: { dismissed_by: candId } }
+    );
     return res.json({
       success: true,
       call: {
@@ -331,6 +336,33 @@ exports.joinCall = async (req, res) => {
   } catch (error) {
     console.error('[ChatVideoCall] joinCall error:', error.message);
     return res.status(503).json({ success: false, message: error.message || 'Unable to join the video call.' });
+  }
+};
+
+exports.dismissCall = async (req, res) => {
+  try {
+    const candId = getCurrentUserId(req);
+    const access = await getRoomMembership(req.params.roomId, candId);
+    if (access.error) return res.status(access.error.status).json({ success: false, message: access.error.message });
+
+    const call = await ChatVideoCall.findOne({
+      _id: req.body.call_id,
+      room_id: access.room._id,
+      started_by: { $ne: candId },
+      ended_at: null,
+    }).select('_id').lean();
+    if (!call) {
+      return res.status(404).json({ success: false, message: 'This incoming video call is no longer active.' });
+    }
+
+    await ChatVideoCall.updateOne(
+      { _id: call._id, ended_at: null },
+      { $addToSet: { dismissed_by: candId } }
+    );
+    return res.json({ success: true, message: 'Incoming call dismissed.' });
+  } catch (error) {
+    console.error('[ChatVideoCall] dismissCall error:', error.message);
+    return res.status(500).json({ success: false, message: 'Unable to dismiss this incoming call.' });
   }
 };
 

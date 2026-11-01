@@ -51,6 +51,7 @@ router.get('/rooms/:roomId/members', validate({ params: schemas.ids.roomIdParam 
 router.get('/rooms/:roomId/video-call', validate({ params: schemas.ids.roomIdParam }), chatVideoCallController.getCallStatus);
 router.post('/rooms/:roomId/video-call', validate({ params: schemas.ids.roomIdParam }), chatVideoCallController.startCall);
 router.post('/rooms/:roomId/video-call/join', validate({ params: schemas.ids.roomIdParam }), chatVideoCallController.joinCall);
+router.post('/rooms/:roomId/video-call/dismiss', validate({ params: schemas.ids.roomIdParam, body: schemas.chat.dismissVideoCall }), chatVideoCallController.dismissCall);
 router.post('/rooms/:roomId/video-call/end', validate({ params: schemas.ids.roomIdParam }), chatVideoCallController.endCall);
 router.get('/rooms/:roomId/messages', validate({ params: schemas.ids.roomIdParam }), chatController.getMessages);
 router.get('/rooms/:roomId/messages/:messageId/attachment', validate({ params: schemas.ids.roomIdParam }), chatController.getMessageAttachment);

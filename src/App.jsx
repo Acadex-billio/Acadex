@@ -23,6 +23,7 @@ import AdminShell from './components/layout/AdminShell';
 import CandidateShell from './components/layout/CandidateShell';
 import LecturerShell from './components/layout/LecturerShell';
 
+const IncomingChatCallRinger = lazy(() => import('./components/IncomingChatCallRinger'));
 const Home = lazy(() => import('./components/Home'));
 const PublicMaterials = lazy(() => import('./components/PublicMaterials'));
 const Login = lazy(() => import('./components/Login'));
@@ -162,6 +163,9 @@ const App = () => {
           <BroadcastTrackingProvider>
             <Router>
             <ToastNotification />
+            <Suspense fallback={null}>
+              <IncomingChatCallRinger />
+            </Suspense>
             <LoaderOverlay />
             <PushNotificationPromptModal />
             <RouteLoadingListener />

@@ -12,6 +12,11 @@ self.addEventListener('push', (event) => {
     },
     renotify: true,
   };
+  if (data.contentType === 'chat_video_call') {
+    options.requireInteraction = Boolean(data.requireInteraction);
+    options.vibrate = data.vibrate || [500, 250, 500];
+    options.actions = [{ action: 'open-call', title: 'Open call' }];
+  }
 
   event.waitUntil(self.registration.showNotification(title, options));
 });
