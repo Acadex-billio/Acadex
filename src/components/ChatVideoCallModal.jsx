@@ -6,6 +6,7 @@ import {
   ParticipantTile,
   RoomAudioRenderer,
   ControlBar,
+  LayoutContextProvider,
   useConnectionState,
   useParticipants,
   useTracks,
@@ -210,7 +211,9 @@ const ChatVideoCallModal = ({ roomId, call, roomLabel, onClose }) => {
               options={{ adaptiveStream: true, dynacast: true }}
             >
               <RoomAudioRenderer />
-              <ChatCallStage />
+              <LayoutContextProvider>
+                <ChatCallStage />
+              </LayoutContextProvider>
             </LiveKitRoom>
           </div>
         ) : (

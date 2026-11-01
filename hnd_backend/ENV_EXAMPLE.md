@@ -80,6 +80,14 @@ STRICT_RATE_LIMIT_MAX=30
 UPLOAD_RATE_LIMIT_WINDOW_MS=3600000
 UPLOAD_RATE_LIMIT_MAX=150
 
+# Authentication uses 10 failed attempts per account and source IP per 15 minutes,
+# plus a 120-failure-per-IP ceiling. Successful logins do not count.
+# Keep the default `none` for a frontend and API on different sites.
+# For Safari/iOS, prefer a same-site API domain (for example api.acadexe.com)
+# and set AUTH_COOKIE_SAME_SITE=lax after configuring that domain and CORS.
+# Valid values: lax, strict, none. Defaults to lax outside production and none in production.
+# AUTH_COOKIE_SAME_SITE=lax
+
 # LibreOffice conversion queue tuning
 LIBREOFFICE_QUEUE_CONCURRENCY=4
 LIBREOFFICE_QUEUE_MAX_SIZE=1000
@@ -91,7 +99,7 @@ Video sessions open five minutes before their scheduled start. The backend denie
 
 The app currently provides in-call chat, participant controls, and screen sharing for booking participants. Recording, live captions/transcription, and breakout rooms are intentionally not enabled: these require additional LiveKit Egress/Agent infrastructure and, for recording, explicit participant consent and configured storage.
 
-Personal, group, and center chat video calls use the same LiveKit deployment and require no in-app payment. Any current member of a non-admin chat can start or join its active call; personal calls respect existing block settings. Members with push notifications enabled are notified when a call starts. Calls automatically expire after 12 hours to limit abandoned rooms.
+Personal, group, and center chat video calls use the same LiveKit deployment and require no in-app payment. Any current member of a non-admin chat can start or join its active call; personal calls respect existing block settings. Other chat members see an in-app incoming-call alert while using chat, and members with push notifications enabled also receive a push notification. Calls automatically expire after 12 hours to limit abandoned rooms.
 
 The backend serves the public key to the frontend at runtime through `/api/push/config`. Push requires HTTPS in production. On iPhone and iPad, users must install Acadex to the Home Screen and open the installed app before enabling push.
 

@@ -162,6 +162,54 @@ exports.getCallStatus = async (req, res) => {
   }
 };
 
+exports.getIncomingCalls = async (req, res) => {
+  try {
+    const candId = getCurrentUserId(req);
+    const memberships = await ChatMembership.find({
+      user_cand_id: candId,
+      left_at: null,
+    }).select('room_id').lean();
+    const roomIds = memberships.map((membership) => membership.room_id).filter(Boolean);
+    if (!roomIds.length) return res.json({ success: true, incoming_calls: [] });
+
+    const calls = await ChatVideoCall.find({
+      room_id: { $in: roomIds },
+      started_by: { $ne: candId },
+      ended_at: null,
+    }).sort({ started_at: -1 }).lean();
+    const activeCalls = calls.filter((call) => !getChatVideoCallExpiry(call).expired);
+    if (!activeCalls.length) return res.json({ success: true, incoming_calls: [] });
+
+    const [rooms, callers] = await Promise.all([
+      ChatRoom.find({ _id: { $in: activeCalls.map((call) => call.room_id) } }).select('_id name type').lean(),
+      User.find({ cand_id: { $in: activeCalls.map((call) => call.started_by) } }).select('cand_id name').lean(),
+    ]);
+    const roomById = new Map(rooms.map((room) => [String(room._id), room]));
+    const callerById = new Map(callers.map((caller) => [caller.cand_id, caller]));
+
+    return res.json({
+      success: true,
+      incoming_calls: activeCalls.flatMap((call) => {
+        const room = roomById.get(String(call.room_id));
+        if (!room || room.type === 'admin') return [];
+        return [{
+          call_id: String(call._id),
+          room_id: String(room._id),
+          room_name: room.name,
+          room_type: room.type,
+          started_by: call.started_by,
+          started_by_name: callerById.get(call.started_by)?.name || call.started_by,
+          started_at: call.started_at,
+          expires_at: getChatVideoCallExpiry(call).expiresAt,
+        }];
+      }),
+    });
+  } catch (error) {
+    console.error('[ChatVideoCall] getIncomingCalls error:', error.message);
+    return res.status(500).json({ success: false, message: 'Unable to load incoming chat calls.' });
+  }
+};
+
 exports.startCall = async (req, res) => {
   let call;
   let roomService;

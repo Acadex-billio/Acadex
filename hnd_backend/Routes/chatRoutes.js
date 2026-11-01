@@ -46,6 +46,7 @@ router.get('/invites', chatController.listMyInvites);
 router.post('/invites/:inviteId/respond', validate({ params: schemas.ids.inviteIdParam }), chatController.respondToInvite);
 router.post('/rooms/:roomId/invites', validate({ params: schemas.ids.roomIdParam }), chatController.sendCenterInvite);
 
+router.get('/video-calls/incoming', chatVideoCallController.getIncomingCalls);
 router.get('/rooms/:roomId/members', validate({ params: schemas.ids.roomIdParam }), chatController.getRoomMembers);
 router.get('/rooms/:roomId/video-call', validate({ params: schemas.ids.roomIdParam }), chatVideoCallController.getCallStatus);
 router.post('/rooms/:roomId/video-call', validate({ params: schemas.ids.roomIdParam }), chatVideoCallController.startCall);

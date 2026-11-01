@@ -20,9 +20,9 @@ const {
 } = require('../utils/jwtUtils');
 const { buildSubscriptionResponse } = require('../utils/subscriptionUtils');
 const { findProgram, mapProgramToDepartmentTrack, normalizeProgramCode } = require('../services/programCatalogService');
+const { getAuthCookieSameSite } = require('../utils/authCookiePolicy');
 const logger = require('../utils/logger');
 const referralService = require('../services/referralService');
-const { isEnabled } = require('../services/featureFlagService');
 const {
   AUTH_COOKIE_NAMES,
   ACCESS_TOKEN_COOKIE_MAX_AGE,
@@ -31,18 +31,12 @@ const {
 } = require('../constants/authConstants');
 
 const isProduction = process.env.NODE_ENV === 'production';
-const strictCookiesEnabled = isEnabled('FEATURE_STRICT_AUTH_COOKIES', false);
-
-const resolveSameSite = () => {
-  if (!isProduction) return 'lax';
-  if (strictCookiesEnabled) return 'strict';
-  return 'none';
-};
+const authCookieSameSite = getAuthCookieSameSite();
 
 const getCookieOptions = (maxAge) => ({
   httpOnly: true,
   secure: isProduction,
-  sameSite: resolveSameSite(),
+  sameSite: authCookieSameSite,
   maxAge,
   path: AUTH_COOKIE_PATH,
 });
@@ -51,7 +45,7 @@ const clearAuthCookies = (res) => {
   const options = {
     httpOnly: true,
     secure: isProduction,
-    sameSite: resolveSameSite(),
+    sameSite: authCookieSameSite,
     path: AUTH_COOKIE_PATH,
   };
   res.clearCookie(AUTH_COOKIE_NAMES.ACCESS_TOKEN, options);
@@ -317,7 +311,7 @@ exports.login = async (req, res) => {
     res.cookie(AUTH_COOKIE_NAMES.ACCESS_TOKEN, accessToken, getCookieOptions(ACCESS_TOKEN_COOKIE_MAX_AGE));
     res.cookie(AUTH_COOKIE_NAMES.REFRESH_TOKEN, refreshToken, getCookieOptions(refreshCookieAge));
 
-    logger.info('auth.login.cookies_set', { cand_id: user.cand_id, rememberMe, strictCookiesEnabled });
+    logger.info('auth.login.cookies_set', { cand_id: user.cand_id, rememberMe, sameSite: authCookieSameSite });
 
     const userData = {
       cand_id: user.cand_id,

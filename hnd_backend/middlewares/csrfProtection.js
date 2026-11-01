@@ -1,4 +1,5 @@
 const crypto = require('crypto');
+const { getAuthCookieSameSite } = require('../utils/authCookiePolicy');
 
 const CSRF_COOKIE_NAME = 'csrf_token';
 const CSRF_HEADER_NAME = 'x-csrf-token';
@@ -25,11 +26,12 @@ const parseCookies = (header = '') => String(header)
   }, {});
 
 const issueToken = (res) => {
+  const isProduction = String(process.env.NODE_ENV || '').toLowerCase() === 'production';
   const token = crypto.randomBytes(32).toString('hex');
   res.cookie(CSRF_COOKIE_NAME, token, {
     httpOnly: false,
-    secure: String(process.env.NODE_ENV || '').toLowerCase() === 'production',
-    sameSite: String(process.env.NODE_ENV || '').toLowerCase() === 'production' ? 'none' : 'lax',
+    secure: isProduction,
+    sameSite: getAuthCookieSameSite(),
     maxAge: 24 * 60 * 60 * 1000,
     path: '/',
   });

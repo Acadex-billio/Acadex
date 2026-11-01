@@ -59,15 +59,7 @@ const apiRateLimit = rateLimit({
     message: 'Too many API requests, please try again later.'
   },
   standardHeaders: true,
-  legacyHeaders: false,
-  keyGenerator: (req) => {
-    const forwardedFor = String(req.headers['x-forwarded-for'] || '')
-      .split(',')
-      .map((entry) => entry.trim())
-      .filter(Boolean)[0];
-    const clientIp = forwardedFor || req.ip || req.connection?.remoteAddress || 'unknown';
-    return clientIp + ':' + (req.headers['user-agent'] || '');
-  }
+  legacyHeaders: false
 });
 
 // Strict rate limiting for sensitive operations

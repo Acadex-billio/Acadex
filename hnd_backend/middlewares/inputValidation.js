@@ -170,12 +170,13 @@ const validateRequiredFields = (fields) => {
 };
 
 // Rate limiting for sensitive operations
-const createRateLimit = (windowMs, max, message) => {
+const createRateLimit = (windowMs, max, message, options = {}) => {
   const rateLimit = require('express-rate-limit');
   
   return rateLimit({
     windowMs,
     max,
+    skipSuccessfulRequests: options.skipSuccessfulRequests || false,
     message: {
       success: false,
       message: message || 'Too many requests, please try again later'
@@ -196,8 +197,54 @@ const createRateLimit = (windowMs, max, message) => {
   });
 };
 
+const createAccountRateLimit = ({ windowMs, max, message, scope = 'auth_account' }) => {
+  const rateLimit = require('express-rate-limit');
+
+  return rateLimit({
+    windowMs,
+    max,
+    skipSuccessfulRequests: true,
+    standardHeaders: true,
+    legacyHeaders: false,
+    keyGenerator: (req) => {
+      const email = String(req.body?.email || '').trim().toLowerCase();
+      const phone = String(req.body?.phone || '').trim().toLowerCase();
+      const account = email || phone || 'unknown_account';
+      return `${scope}:${JSON.stringify([req.ip || 'unknown_ip', account])}`;
+    },
+    handler: (req, res) => {
+      logger.warn('rate_limit.account_scope.exceeded', {
+        scope,
+        ip: req.ip,
+        url: req.originalUrl,
+        method: req.method,
+      });
+      res.status(429).json({
+        success: false,
+        message: message || 'Too many requests, please try again later'
+      });
+    }
+  });
+};
+
 // Specific rate limiters
-const authRateLimit = createRateLimit(15 * 60 * 1000, 5, 'Too many authentication attempts, please try again later');
+const registrationRateLimit = createRateLimit(
+  15 * 60 * 1000,
+  5,
+  'Too many registration attempts, please try again later'
+);
+const loginIpRateLimit = createRateLimit(
+  15 * 60 * 1000,
+  120,
+  'Too many authentication attempts from this network, please try again later',
+  { skipSuccessfulRequests: true }
+);
+const loginAccountRateLimit = createAccountRateLimit({
+  scope: 'login',
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  message: 'Too many authentication attempts for this account, please try again later'
+});
 const passwordResetRateLimit = createRateLimit(60 * 60 * 1000, 3, 'Too many password reset attempts, please try again later');
 const uploadRateLimit = createRateLimit(60 * 60 * 1000, 20, 'Too many upload attempts, please try again later');
 
@@ -220,7 +267,10 @@ module.exports = {
   sanitizeStringInput,
   validateRequiredFields,
   createRateLimit,
-  authRateLimit,
+  createAccountRateLimit,
+  registrationRateLimit,
+  loginIpRateLimit,
+  loginAccountRateLimit,
   passwordResetRateLimit,
   uploadRateLimit,
   sanitizeQuery

@@ -8,18 +8,18 @@ const {
   validateRequiredFields, 
   validateEmailInput, 
   validatePasswordInput,
-  authRateLimit,
+  registrationRateLimit,
+  loginIpRateLimit,
+  loginAccountRateLimit,
   passwordResetRateLimit
 } = require('../middlewares/inputValidation');
 const {
-  userAuthRateLimit,
   userPasswordResetRateLimit,
 } = require('../middlewares/userRateLimit');
 const { createAuditTrail } = require('../middlewares/auditTrail');
 
 router.post('/register', 
-  authRateLimit,
-  userAuthRateLimit,
+  registrationRateLimit,
   createAuditTrail('auth.register', { bodyFields: ['email', 'phone', 'program'] }),
   validate({ body: schemas.auth.register }),
   validateRequiredFields(['name', 'email', 'phone', 'password']),
@@ -29,8 +29,8 @@ router.post('/register',
 );
 
 router.post('/login', 
-  authRateLimit,
-  userAuthRateLimit,
+  loginIpRateLimit,
+  loginAccountRateLimit,
   createAuditTrail('auth.login', { bodyFields: ['email', 'rememberMe'] }),
   validate({ body: schemas.auth.login }),
   validateRequiredFields(['email', 'password']),

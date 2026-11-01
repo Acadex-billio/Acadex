@@ -4,13 +4,7 @@ const { isEnabled } = require('../services/featureFlagService');
 
 const normalizeKeyPart = (value) => String(value || '').trim().toLowerCase();
 
-const resolveClientIp = (req) => {
-  const forwardedFor = String(req.headers['x-forwarded-for'] || '')
-    .split(',')
-    .map((entry) => entry.trim())
-    .filter(Boolean)[0];
-  return forwardedFor || req.ip || req.connection?.remoteAddress || 'unknown';
-};
+const resolveClientIp = (req) => req.ip || req.connection?.remoteAddress || 'unknown';
 
 const resolveAccountKey = (req) => {
   const body = req.body || {};

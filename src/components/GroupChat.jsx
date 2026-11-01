@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { FaArrowLeft, FaCheck, FaCheckDouble, FaEllipsisV, FaPaperPlane, FaPaperclip, FaRegSmile, FaSearch, FaTimes, FaTrash, FaSmile, FaCheckSquare, FaSquare, FaVideo } from 'react-icons/fa';
+import { FaArrowLeft, FaCheck, FaCheckDouble, FaEllipsisV, FaPaperPlane, FaPaperclip, FaRegSmile, FaSearch, FaTimes, FaTrash, FaSmile, FaCheckSquare, FaSquare, FaVideo, FaPhone } from 'react-icons/fa';
 import Picker from '@emoji-mart/react';
 import data from '@emoji-mart/data';
 import api from '../services/api';
@@ -53,7 +53,9 @@ const GroupChat = ({ mode = 'candidate' }) => {
   const [activeRoomId, setActiveRoomId] = useState('');
   const [activeChatCall, setActiveChatCall] = useState(null);
   const [roomVideoCall, setRoomVideoCall] = useState(null);
+  const [incomingCalls, setIncomingCalls] = useState([]);
   const [startingVideoCall, setStartingVideoCall] = useState(false);
+  const dismissedIncomingCallsRef = useRef(new Set());
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [selectedAttachment, setSelectedAttachment] = useState(null);
@@ -167,6 +169,43 @@ const GroupChat = ({ mode = 'candidate' }) => {
       clearInterval(timer);
     };
   }, [activeRoomId, activeRoom, videoCallBlocked]);
+
+  useEffect(() => {
+    if (!selfCandId || adminMode || stoppedRef.current) {
+      setIncomingCalls([]);
+      return undefined;
+    }
+
+    let cancelled = false;
+    const refreshIncomingCalls = async () => {
+      try {
+        const { data } = await api.get('/chat/video-calls/incoming');
+        if (cancelled) return;
+        const calls = Array.isArray(data?.incoming_calls) ? data.incoming_calls : [];
+        const activeCallIds = new Set(calls.map((call) => String(call.call_id)));
+        dismissedIncomingCallsRef.current = new Set(
+          [...dismissedIncomingCallsRef.current].filter((callId) => activeCallIds.has(callId))
+        );
+        setIncomingCalls(calls.filter((call) => !dismissedIncomingCallsRef.current.has(String(call.call_id))));
+      } catch (error) {
+        if (cancelled || error?.response?.status === 401 || error?.response?.status === 429) return;
+        if (!toastRef.current.calls) {
+          toastRef.current.calls = true;
+          showToast(getErrorMessage(error, 'Unable to check for incoming calls'), 'error');
+          setTimeout(() => {
+            toastRef.current.calls = false;
+          }, 5000);
+        }
+      }
+    };
+
+    refreshIncomingCalls();
+    const timer = setInterval(refreshIncomingCalls, 6000);
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+    };
+  }, [selfCandId, adminMode]);
 
   const canType = useMemo(() => {
     if (!activeRoom) return true;
@@ -978,6 +1017,48 @@ const GroupChat = ({ mode = 'candidate' }) => {
     }
   };
 
+  const onAnswerIncomingCall = async (incomingCall) => {
+    if (startingVideoCall) return;
+    setStartingVideoCall(true);
+    try {
+      const { data } = await api.post(
+        `/chat/rooms/${encodeURIComponent(incomingCall.room_id)}/video-call/join`
+      );
+      const call = data?.call;
+      if (!call?.livekit_url || !call?.livekit_token) {
+        throw new Error('The video service did not return valid call access.');
+      }
+      const targetRoomId = String(incomingCall.room_id);
+      setActiveRoomId(targetRoomId);
+      if (isMobileView) {
+        setMobilePanel('chat');
+        setMobileSection(incomingCall.room_type === 'dm' ? 'chats' : 'groups');
+      }
+      setRoomVideoCall({
+        call_id: call.call_id,
+        started_by: call.started_by,
+        started_by_name: incomingCall.started_by_name,
+        started_at: call.started_at,
+        expires_at: call.expires_at,
+        is_initiator: Boolean(call.is_initiator),
+      });
+      setActiveChatCall({ ...call, roomId: targetRoomId });
+      dismissedIncomingCallsRef.current.add(String(incomingCall.call_id));
+      setIncomingCalls((current) => current.filter(
+        (item) => String(item.call_id) !== String(incomingCall.call_id)
+      ));
+    } catch (error) {
+      showToast(getErrorMessage(error, 'Unable to join the incoming video call'), 'error');
+    } finally {
+      setStartingVideoCall(false);
+    }
+  };
+
+  const onDismissIncomingCall = (callId) => {
+    dismissedIncomingCallsRef.current.add(String(callId));
+    setIncomingCalls((current) => current.filter((call) => String(call.call_id) !== String(callId)));
+  };
+
   const grouped = useMemo(() => {
     const general = rooms.filter((r) => r.type === 'general');
     const admin = rooms.filter((r) => r.type === 'admin');
@@ -1102,6 +1183,39 @@ const GroupChat = ({ mode = 'candidate' }) => {
 
   return (
     <>
+      {incomingCalls.length > 0 && !activeChatCall ? (
+        <div className={styles.incomingVideoCalls} role="status" aria-live="assertive">
+          {incomingCalls.map((incomingCall) => {
+            const room = rooms.find((item) => String(item.room_id) === String(incomingCall.room_id));
+            const label = room ? roomLabel(room, selfCandId) : incomingCall.room_name || 'chat';
+            return (
+              <div className={styles.incomingVideoCall} key={incomingCall.call_id}>
+                <span className={styles.incomingVideoIcon}><FaPhone /></span>
+                <div className={styles.incomingVideoDetails}>
+                  <strong>Incoming video call</strong>
+                  <span>{incomingCall.started_by_name} is calling from {label}</span>
+                </div>
+                <button
+                  type="button"
+                  className={styles.answerVideoCall}
+                  onClick={() => onAnswerIncomingCall(incomingCall)}
+                  disabled={startingVideoCall}
+                >
+                  <FaVideo /> {startingVideoCall ? 'Joining...' : 'Answer'}
+                </button>
+                <button
+                  type="button"
+                  className={styles.dismissVideoCall}
+                  onClick={() => onDismissIncomingCall(incomingCall.call_id)}
+                  aria-label="Dismiss incoming call"
+                >
+                  <FaTimes />
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      ) : null}
       {activeChatCall ? (
         <ChatVideoCallModal
           roomId={activeChatCall.roomId}
