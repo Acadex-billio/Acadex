@@ -272,8 +272,8 @@ const resources = {
       },
       homePage: {
         brand: 'Acadex',
-        title: 'Welcome to the Acadex',
-        description: 'Access verified HND, BTS, Bachelor, Licence, Masters, and researcher resources—including question papers, reports, presentations, and internship topics—in one platform.',
+        title: 'Your academic journey, connected.',
+        description: 'Find HND and BTS past papers, exam resources for Bachelor, BSc, Licence and Master’s studies, plus reports, presentations, internship topics, tutoring and concours opportunities on Acadex.',
         accessButton: 'Login/Register to Access Materials',
         accessNote: 'Access is restricted to registered students.',
         learnMore: 'Learn More',
@@ -585,8 +585,8 @@ const resources = {
       },
       homePage: {
         brand: 'Acadex',
-        title: 'Bienvenue sur la Acadex',
-        description: 'Accedez aux anciennes epreuves, rapports et sujets de stage HND et BTS au meme endroit.',
+        title: 'Votre parcours academique, connecte.',
+        description: 'Trouvez des anciennes epreuves HND et BTS, des ressources pour les etudes Bachelor, BSc, Licence et Master, ainsi que des rapports, presentations, sujets de stage, du tutorat et des concours sur Acadex.',
         accessButton: 'Se connecter / S’inscrire pour acceder aux ressources',
         accessNote: 'L’acces est reserve aux etudiants inscrits.',
         learnMore: 'En savoir plus',

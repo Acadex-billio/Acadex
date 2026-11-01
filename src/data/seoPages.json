@@ -1,0 +1,298 @@
+{
+  "site": {
+    "title": "Acadex | HND & BTS Past Papers, Academic Resources",
+    "description": "Acadex: HND & BTS past papers, exam resources for Bachelor, BSc, Licence & Master's, academic reports, presentations, internships, tutoring and concours.",
+    "heading": "Your academic journey, connected.",
+    "intro": "Acadex brings learning resources, study support, lecturers, and opportunity providers together. Find tools for your next exam, project, lesson, or career step."
+  },
+  "pages": [
+    {
+      "slug": "hnd-bts-past-papers",
+      "title": "HND & BTS Past Question Papers for Exam Revision | Acadex",
+      "description": "Browse HND and BTS past question papers by subject and program on Acadex. Preview available materials and prepare for exams with focused revision.",
+      "eyebrow": "Past papers for focused revision",
+      "heading": "HND & BTS past question papers",
+      "intro": "Make exam preparation more focused with past question papers for Higher National Diploma (HND) and Brevet de Technicien Supérieur (BTS) studies. Browse the public catalogue, review available program and subject details, and use papers to guide your revision.",
+      "ctaLabel": "Browse question papers",
+      "ctaHref": "/materials?type=papers",
+      "sections": [
+        {
+          "heading": "Use past papers to prepare with purpose",
+          "paragraphs": [
+            "Past papers help learners become familiar with question formats, revisit course topics, and identify areas that need more practice. Use them alongside class notes, textbooks, and lecturer guidance.",
+            "Acadex lists available papers with details such as program, subject, academic session, or year when those details are provided. Availability varies by subject and collection."
+          ]
+        },
+        {
+          "heading": "A study resource, not a shortcut",
+          "paragraphs": [
+            "Try answering questions before checking your notes, then review the concepts behind each answer. Past questions are practice resources; they do not guarantee that the same questions will appear in a future examination.",
+            "Respect academic integrity and any usage terms attached to a document. Cite and acknowledge material when you use it in your own academic work."
+          ]
+        }
+      ],
+      "faqs": [
+        {
+          "question": "Can I browse HND and BTS past papers without signing in?",
+          "answer": "The public Acadex materials catalogue lets visitors browse entries and preview the first page when a preview is available. Signing in may be required to access the full material or download it."
+        },
+        {
+          "question": "Are past papers available for every subject?",
+          "answer": "Catalogue availability depends on the materials currently published on Acadex. Search the catalogue to see which subjects and sessions are available."
+        }
+      ]
+    },
+    {
+      "slug": "bachelor-bsc-licence-masters-exam-resources",
+      "title": "Bachelor, BSc, Licence & Master’s Exam Resources | Acadex",
+      "description": "Explore available exam-question resources for Bachelor, BSc, Licence and Master’s studies, alongside HND and BTS learning materials on Acadex.",
+      "eyebrow": "Resources across programs",
+      "heading": "Exam resources beyond HND and BTS",
+      "intro": "Acadex’s public learning catalogue includes resources across HND, BTS, Bachelor, Licence, and Master’s program tracks. Explore what is available for your program and subject, and use it to support your own study plan.",
+      "ctaLabel": "Explore the materials catalogue",
+      "ctaHref": "/materials?type=papers",
+      "sections": [
+        {
+          "heading": "Find resources by program and subject",
+          "paragraphs": [
+            "The public catalogue supports program tracks including HND, BTS, Bachelor, Licence, and Master’s. Search published question-paper resources and check each entry’s program and subject details before using it.",
+            "The collection changes as new materials are made available. Not every institution, course, examination session, or program will have resources listed."
+          ]
+        },
+        {
+          "heading": "Use institution exam questions responsibly",
+          "paragraphs": [
+            "Where a paper is associated with an institution or examination session, review the document details and source information provided with that item. Acadex does not claim that every resource has been independently verified or endorsed by an institution.",
+            "Use exam questions for practice and academic reference, follow applicable copyright and access terms, and never present another person’s work as your own."
+          ]
+        }
+      ],
+      "faqs": [
+        {
+          "question": "Which study programs are represented in the catalogue?",
+          "answer": "The public catalogue can include HND, BTS, Bachelor, Licence, and Master’s program resources. The available subjects and papers depend on what has been published."
+        },
+        {
+          "question": "Does Acadex certify every paper as institution-verified?",
+          "answer": "No. Check the source, program, and session details shown for each resource. Acadex does not describe every catalogue item as independently verified or institution-endorsed."
+        }
+      ]
+    },
+    {
+      "slug": "academic-reports-report-writing",
+      "title": "Academic Reports & Report Writing Resources | Acadex",
+      "description": "Explore academic, internship and project reports on Acadex. Learn about report structure and writing through examples used for study and reference.",
+      "eyebrow": "Research and report writing",
+      "heading": "Academic reports and report-writing support",
+      "intro": "Planning an internship report, research project, or academic paper? Explore report resources on Acadex to understand structure, develop ideas, and strengthen your own writing process.",
+      "ctaLabel": "Browse academic reports",
+      "ctaHref": "/materials?type=reports",
+      "sections": [
+        {
+          "heading": "Learn from structure and examples",
+          "paragraphs": [
+            "Published reports can help you study how a topic is introduced, how chapters are organized, and how findings and references are presented. Catalogue descriptions and program details are provided where available.",
+            "Use examples to inform your approach, not to copy another author’s text, analysis, data, or conclusions."
+          ]
+        },
+        {
+          "heading": "Build your own report",
+          "paragraphs": [
+            "Start with your institution’s guidelines and supervisor instructions. Define a clear research question, keep reliable notes on sources, organize evidence, and revise for clarity and consistency.",
+            "When drawing on a source, cite it using the style required by your school. Always verify that your work reflects your own research and complies with academic integrity requirements."
+          ]
+        }
+      ],
+      "faqs": [
+        {
+          "question": "Can I submit an Acadex report as my own work?",
+          "answer": "No. Reports are study and reference materials. Submitting another person’s work as your own may violate academic integrity rules."
+        },
+        {
+          "question": "What kinds of reports can I find?",
+          "answer": "The catalogue may include internship, project, research, and other academic reports. Use the catalogue to check current availability."
+        }
+      ]
+    },
+    {
+      "slug": "presentations-hnd-defence",
+      "title": "Academic Presentations & HND Defence Resources | Acadex",
+      "description": "Explore academic presentation resources and HND defence examples on Acadex. Use available slides to plan clear, well-structured presentations.",
+      "eyebrow": "Present with confidence",
+      "heading": "Presentation resources for coursework and HND defence",
+      "intro": "Prepare for a seminar, project presentation, or HND defence with academic presentation resources from Acadex. Study how ideas are organized, then build slides that clearly communicate your own work.",
+      "ctaLabel": "Browse presentations",
+      "ctaHref": "/materials?type=presentations",
+      "sections": [
+        {
+          "heading": "Plan a clear presentation",
+          "paragraphs": [
+            "A strong presentation gives the audience a clear path through the topic: the problem, objectives, approach, findings, and conclusion. Keep slides focused and support key claims with appropriate evidence.",
+            "Use published presentations to learn about structure and visual organization. Adapt the ideas to your assignment and follow your department’s presentation requirements."
+          ]
+        },
+        {
+          "heading": "Prepare for questions and discussion",
+          "paragraphs": [
+            "For a defence, practice explaining your decisions, methods, results, limitations, and recommendations in your own words. Be ready to clarify the sources behind your claims.",
+            "Acadex resources are examples for study, not a substitute for your own project or your supervisor’s advice."
+          ]
+        }
+      ],
+      "faqs": [
+        {
+          "question": "Can Acadex help me prepare for an HND defence?",
+          "answer": "The presentations catalogue may include defence-related examples. Use them to understand structure and plan your own presentation in line with your department’s guidelines."
+        },
+        {
+          "question": "May I reuse a presentation without changes?",
+          "answer": "Use presentations for reference, respect their usage terms, and create original work. Cite sources and follow your institution’s academic integrity rules."
+        }
+      ]
+    },
+    {
+      "slug": "internship-topics",
+      "title": "Internship & Research Topics for Students | Acadex",
+      "description": "Explore internship and research topic ideas on Acadex, then refine a focused proposal with guidance from your lecturer or supervisor.",
+      "eyebrow": "Turn an idea into a project",
+      "heading": "Explore internship and research topics",
+      "intro": "Finding a project idea can be the first hard step. Acadex helps learners explore internship and research topic ideas and connect learning with academic support.",
+      "ctaLabel": "Explore Acadex topics",
+      "ctaHref": "/register",
+      "sections": [
+        {
+          "heading": "Choose a topic that can be researched",
+          "paragraphs": [
+            "Begin with a discipline or real-world problem that interests you. A workable topic should be focused, relevant to your program, and achievable with the time and resources available.",
+            "Discuss your draft idea with your lecturer or supervisor. Confirm the scope, research method, access to information, and any ethical or institutional requirements before proceeding."
+          ]
+        },
+        {
+          "heading": "Develop the idea into your own proposal",
+          "paragraphs": [
+            "Use topic examples as inspiration, then tailor the question and objectives to your placement, organization, course, and available evidence.",
+            "Topic availability varies. Sign in to explore the internship topic tools available for your account and program."
+          ]
+        }
+      ],
+      "faqs": [
+        {
+          "question": "Does Acadex provide ready-made topics?",
+          "answer": "Acadex provides topic ideas to help with brainstorming. Confirm and refine your topic with your supervisor before beginning your work."
+        },
+        {
+          "question": "Can I use a topic from another student’s project?",
+          "answer": "Use examples for inspiration, but develop a suitable, original project with your supervisor and follow your institution’s rules."
+        }
+      ]
+    },
+    {
+      "slug": "lecturer-tutoring",
+      "title": "Find Lecturers, Tutoring & Academic Support | Acadex",
+      "description": "Connect with lecturers on Acadex for tutoring and academic support. Explore lecturer profiles, bookings and online collaboration options.",
+      "eyebrow": "Learn with expert support",
+      "heading": "Lecturer tutoring and academic support",
+      "intro": "Sometimes the next step is a conversation with someone who can guide you. Acadex connects learners with lecturer profiles and tutoring support through the platform.",
+      "ctaLabel": "Explore Acadex",
+      "ctaHref": "/register",
+      "sections": [
+        {
+          "heading": "Connect around your learning goals",
+          "paragraphs": [
+            "Explore lecturer profiles and available tutoring options, then choose support suited to your questions and goals. Booking availability and service details depend on the lecturer.",
+            "Tutoring can help you clarify difficult concepts, plan revision, and get feedback on your approach. It complements—not replaces—your course requirements and independent study."
+          ]
+        },
+        {
+          "heading": "A platform for educators too",
+          "paragraphs": [
+            "Lecturers can use Acadex to manage a professional profile, receive tutoring bookings, share learning resources, and connect with learners.",
+            "Sign in or create an account to see the lecturer and tutoring features available to your role."
+          ]
+        }
+      ],
+      "faqs": [
+        {
+          "question": "Can I book a tutoring session through Acadex?",
+          "answer": "Tutorship bookings are available through lecturer profiles where a lecturer offers sessions. Availability and booking details can vary."
+        },
+        {
+          "question": "Can lecturers join Acadex?",
+          "answer": "Acadex supports lecturer accounts and tools for profiles, tutoring, bookings, and sharing academic resources."
+        }
+      ]
+    },
+    {
+      "slug": "concours-opportunities",
+      "title": "Concours Opportunities & Applications | Acadex",
+      "description": "Discover concours opportunities published on Acadex and manage applications. Partner organizations can publish opportunities and review submissions.",
+      "eyebrow": "Discover your next opportunity",
+      "heading": "Concours opportunities and applications",
+      "intro": "Acadex helps bring candidates and concours organizations into one connected space. Browse published opportunities and use the platform’s application tools where available.",
+      "ctaLabel": "Explore Acadex opportunities",
+      "ctaHref": "/register",
+      "sections": [
+        {
+          "heading": "For candidates",
+          "paragraphs": [
+            "Review published concours details, eligibility requirements, deadlines, and application instructions carefully. Submit complete information and required documents through the available application flow.",
+            "Opportunities and application requirements are set by the publishing organization. Always check the official listing for current dates and terms."
+          ]
+        },
+        {
+          "heading": "For partner organizations",
+          "paragraphs": [
+            "Organizations can use the partner workspace to create and publish concours opportunities, configure application forms, and review candidate submissions.",
+            "Partner access and publication are subject to Acadex onboarding and platform rules. Contact the Acadex team to discuss partnership access."
+          ]
+        }
+      ],
+      "faqs": [
+        {
+          "question": "Can I apply to concours opportunities on Acadex?",
+          "answer": "Where an opportunity is published with an application flow, eligible candidates can review the requirements and submit an application through the platform."
+        },
+        {
+          "question": "How can an organization publish a concours?",
+          "answer": "Organizations can contact Acadex to discuss partner onboarding and access to the concours management workspace."
+        }
+      ]
+    },
+    {
+      "slug": "academic-communication-video-calls",
+      "title": "Academic Communication, Chat & Video Calls | Acadex",
+      "description": "Collaborate on Acadex with personal and group chats, learning-center discussions, lecturer support, and video calls for study and teamwork.",
+      "eyebrow": "Learn better together",
+      "heading": "Academic communication and video collaboration",
+      "intro": "Learning is easier when you can ask questions and share ideas. Acadex brings personal and group chat, learning-center discussions, lecturer support, and video calls into the academic community.",
+      "ctaLabel": "Explore Acadex",
+      "ctaHref": "/register",
+      "sections": [
+        {
+          "heading": "Keep study conversations connected",
+          "paragraphs": [
+            "Use available personal chats, group discussions, and center conversations to coordinate study, exchange questions, and connect with your academic community.",
+            "Video calls can support face-to-face collaboration in chats. Calls depend on browser, device, network, and microphone or camera permissions."
+          ]
+        },
+        {
+          "heading": "Communicate constructively",
+          "paragraphs": [
+            "Keep conversations focused, respectful, and safe. Do not share private information without permission or present another person’s work as your own.",
+            "Chat and call access depends on your account and membership in the relevant conversation."
+          ]
+        }
+      ],
+      "faqs": [
+        {
+          "question": "Does Acadex support video conferencing?",
+          "answer": "Acadex supports video calls within eligible chat conversations. Users need a compatible device, network connection, and permission to use their camera or microphone."
+        },
+        {
+          "question": "Can I chat with study groups?",
+          "answer": "Acadex includes personal, group, and learning-center chat features for eligible users and members."
+        }
+      ]
+    }
+  ]
+}

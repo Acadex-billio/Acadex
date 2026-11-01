@@ -75,7 +75,7 @@ const Login = () => {
           name="description"
           content="Sign in to Acadex to access Higher National Diploma study resources, question papers, reports, and announcements."
         />
-        <meta name="robots" content="index,follow" />
+        <meta name="robots" content="noindex,nofollow" />
         <meta property="og:type" content="website" />
         <meta property="og:site_name" content="Acadex" />
         <meta property="og:title" content="Acadex Login" />

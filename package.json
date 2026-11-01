@@ -43,7 +43,7 @@
   },
   "scripts": {
     "start": "node --max-old-space-size=4096 node_modules/react-scripts/bin/react-scripts.js start --no-source-map",
-    "build": "node --max-old-space-size=4096 node_modules/react-scripts/bin/react-scripts.js build --no-source-map",
+    "build": "node --max-old-space-size=4096 node_modules/react-scripts/bin/react-scripts.js build --no-source-map && node scripts/generate-seo-pages.js",
     "test": "react-scripts test",
     "eject": "react-scripts eject"
   },

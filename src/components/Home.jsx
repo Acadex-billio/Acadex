@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import styles from '../Astyles/Home.module.css';
 import { useLoading } from '../context/LoadingContext';
 import { useAuth } from '../context/AuthContext';
+import seoContent from '../data/seoPages.json';
 
 const Home = () => {
     const navigate = useNavigate();
@@ -44,13 +45,12 @@ const Home = () => {
     return (
         <div className={styles.page}>
             <Helmet>
-                <title>{t('homePage.brand')} | Your Academic Ecosystem</title>
-                <meta name="description" content="Study smarter. Teach confidently. Connect with institutions. Acadex brings learning resources, AI study tools, tutoring, live calls, and concours opportunities together." />
+                <title>Acadex | HND & BTS Past Papers, Academic Resources</title>
+                <meta name="description" content={seoContent.site.description} />
                 <meta name="robots" content="index,follow" />
-                <meta name="keywords" content="Acadex, academic resources, HND, BTS, higher education, lecturers, tutoring, concours, academic opportunities, AI study tools" />
                 <meta property="og:site_name" content="Acadex" />
-                <meta property="og:title" content="Acadex | Your Academic Ecosystem" />
-                <meta property="og:description" content="Study smarter. Teach confidently. Connect with institutions. Discover learning tools and opportunities on Acadex." />
+                <meta property="og:title" content="Acadex | HND & BTS Past Papers, Academic Resources" />
+                <meta property="og:description" content="Find HND and BTS past papers, exam resources across Bachelor, BSc, Licence and Master’s programs, plus reports, presentations, tutoring, and concours on Acadex." />
                 <meta property="og:url" content="https://www.acadexe.com/" />
                 <meta property="og:image" content="https://www.acadexe.com/acadex-social-preview.png" />
                 <meta property="og:image:secure_url" content="https://www.acadexe.com/acadex-social-preview.png" />
@@ -59,8 +59,8 @@ const Home = () => {
                 <meta property="og:image:height" content="630" />
                 <meta property="og:image:alt" content="Acadex — your academic ecosystem to learn, teach, connect, and grow" />
                 <meta name="twitter:card" content="summary_large_image" />
-                <meta name="twitter:title" content="Acadex | Your Academic Ecosystem" />
-                <meta name="twitter:description" content="Study smarter. Teach confidently. Connect with institutions. Discover learning tools and opportunities on Acadex." />
+                <meta name="twitter:title" content="Acadex | HND & BTS Past Papers, Academic Resources" />
+                <meta name="twitter:description" content="Find HND and BTS past papers, exam resources across Bachelor, BSc, Licence and Master’s programs, plus reports, presentations, tutoring, and concours on Acadex." />
                 <meta name="twitter:image" content="https://www.acadexe.com/acadex-social-preview.png" />
                 <meta name="twitter:image:alt" content="Acadex — your academic ecosystem to learn, teach, connect, and grow" />
                 <link rel="canonical" href="https://www.acadexe.com/" />
@@ -69,9 +69,20 @@ const Home = () => {
                         '@context': 'https://schema.org',
                         '@type': 'EducationalOrganization',
                         name: 'Acadex',
+                        alternateName: ['Acadexe', 'ACADEX'],
                         url: 'https://www.acadexe.com/',
                         logo: 'https://www.acadexe.com/acadex-logo.png',
-                        description: 'Acadex brings learning resources, AI study tools, tutoring, lecturer services, live collaboration, and concours opportunities together for learners and organizations.',
+                        description: 'Acadex brings learners, lecturers, and organizations together with HND and BTS past papers, wider academic resources, tutoring, collaboration, and concours opportunities.',
+                        knowsAbout: [
+                            'HND and BTS past question papers',
+                            'Bachelor, BSc, Licence and Master’s exam resources',
+                            'academic report writing',
+                            'presentations and project defence',
+                            'internship topics',
+                            'lecturer tutoring',
+                            'academic communication and video calls',
+                            'concours opportunities',
+                        ],
                         contactPoint: {
                             '@type': 'ContactPoint',
                             contactType: 'customer support',
@@ -164,6 +175,17 @@ const Home = () => {
                         <h3>{t('homePage.topics')}</h3>
                     </Link>
                 </section>
+
+                <nav className={styles.seoDirectory} aria-label="Explore academic resources and support">
+                    <h2>Explore Acadex</h2>
+                    <div className={styles.seoLinks}>
+                        {seoContent.pages.map((page) => (
+                            <Link key={page.slug} to={`/${page.slug}`} onClick={triggerLinkLoading}>
+                                {page.heading}
+                            </Link>
+                        ))}
+                    </div>
+                </nav>
 
                 <footer className={styles.siteFooter}>
                     <div className={styles.footerGrid}>

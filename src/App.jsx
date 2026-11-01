@@ -12,6 +12,8 @@ import DeveloperRoute from './components/DeveloperRoute';
 import LecturerRoute from './components/LecturerRoute';
 import PushNotificationPromptModal from './components/PushNotificationPromptModal';
 import { BroadcastTrackingProvider } from './context/BroadcastTrackingContext';
+import SeoLandingPage from './components/SeoLandingPage';
+import seoContent from './data/seoPages.json';
 import QuestionPapers from './components/QuestionPapers';
 import ViewReports from './components/ViewReports';
 import History from './components/History';
@@ -214,6 +216,13 @@ const App = () => {
                 <Route path="/register" element={<Registration />} />
                 <Route path="/reset-password" element={<ResetPassword onClose={() => {}} />} />
                 <Route path="/documentation" element={<Documentation />} />
+                {seoContent.pages.map((page) => (
+                  <Route
+                    key={page.slug}
+                    path={`/${page.slug}`}
+                    element={<SeoLandingPage slug={page.slug} />}
+                  />
+                ))}
                 <Route path="/terms-of-service" element={<TermsOfService />} />
                 <Route path="/privacy-policy" element={<PrivacyPolicy />} />
                 <Route path="/load" element={<GraduationCapLoader fullscreen label="Loading materials…" />} />

@@ -75,7 +75,7 @@ const ResetPassword = ({ onClose }) => {
             <Helmet>
                 <title>Reset Password - Acadex</title>
                 <meta name="description" content="Reset your Acadex password to access HND and BTS study resources, presentations, and reports securely." />
-                <meta name="robots" content="index,follow" />
+                <meta name="robots" content="noindex,nofollow" />
                 <meta property="og:type" content="website" />
                 <meta property="og:site_name" content="Acadex" />
                 <meta property="og:title" content="Reset Password - Acadex" />

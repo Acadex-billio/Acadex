@@ -247,7 +247,7 @@ const Registration = () => {
       <Helmet>
         <title>{t('registrationPage.title')}</title>
         <meta name="description" content="Create an account to access the Acadex." />
-        <meta name="robots" content="index,follow" />
+        <meta name="robots" content="noindex,nofollow" />
         <meta property="og:type" content="website" />
         <meta property="og:site_name" content="Acadex" />
         <meta property="og:title" content="Register | Acadex" />
