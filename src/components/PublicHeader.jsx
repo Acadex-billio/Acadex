@@ -13,11 +13,11 @@ const getDashboardPath = (user) => {
   return '/candidate';
 };
 
-const PublicHeader = () => {
+const PublicHeader = ({ variant }) => {
   const { user, isAuthenticated } = useAuth();
 
   return (
-    <header className={styles.header}>
+    <header className={`${styles.header} ${variant === 'materials' ? styles.materialsHeader : ''}`}>
       <Link to="/" className={styles.brand} aria-label="Acadex home">
         <img src={`${process.env.PUBLIC_URL}/acadex-logo.png`} alt="" />
         <span>ACADEX</span>

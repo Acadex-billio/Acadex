@@ -81,6 +81,18 @@
   background: #f2faf4;
 }
 
+.materialsHeader .dashboardButton {
+  min-height: 43px;
+  border-color: #078347;
+  border-radius: 12px;
+  background: #078347;
+  color: #fff;
+}
+
+.materialsHeader .dashboardButton:hover {
+  background: #056d3b;
+}
+
 .footer {
   display: flex;
   min-height: 58px;

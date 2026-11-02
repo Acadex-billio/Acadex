@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Helmet } from 'react-helmet';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { FaBookOpen, FaFileAlt, FaFilePowerpoint, FaFilePdf, FaSearch, FaDownload, FaEye } from 'react-icons/fa';
+import { FaBookOpen, FaFileAlt, FaFilePowerpoint, FaFilePdf, FaSearch, FaDownload, FaEye, FaChevronRight, FaGraduationCap, FaLayerGroup } from 'react-icons/fa';
 import api from '../services/api';
 import { getErrorMessage } from '../utility/getErrorMessage';
 import { showToast } from '../utility/ToastNotification';
@@ -139,12 +139,15 @@ const PublicMaterials = () => {
         <title>Browse Study Materials | Acadex</title>
         <meta name="description" content="Browse Acadex question papers, reports, and presentations, and preview the first page before signing in to continue." />
       </Helmet>
-      <PublicHeader />
+      <PublicHeader variant="materials" />
       <main className={styles.main}>
         <section className={styles.intro}>
-          <span className={styles.eyebrow}>ACADEX LEARNING LIBRARY</span>
-          <h1>Explore study materials</h1>
-          <p>Browse question papers, reports, and presentations. Preview the first page, then sign in to continue reading or download.</p>
+          <div className={styles.heroCopy}>
+            <span className={styles.eyebrow}><FaBookOpen aria-hidden="true" /> ACADEX LEARNING LIBRARY</span>
+            <h1>Explore <span>study</span> materials</h1>
+            <p>Browse question papers, reports, and presentations. Preview the first page, then sign in to continue reading or download.</p>
+          </div>
+          <FaGraduationCap className={styles.heroCap} aria-hidden="true" />
         </section>
 
         <div className={styles.toolbar}>
@@ -160,10 +163,19 @@ const PublicMaterials = () => {
               >
                 <Icon aria-hidden="true" />
                 {label}
+                <FaChevronRight className={styles.categoryArrow} aria-hidden="true" />
               </button>
             ))}
           </div>
-          <label className={styles.search}>
+          <form
+            className={styles.search}
+            role="search"
+            onSubmit={(event) => {
+              event.preventDefault();
+              setPagination((previous) => ({ ...previous, page: 1 }));
+              setReload((previous) => previous + 1);
+            }}
+          >
             <FaSearch aria-hidden="true" />
             <input
               type="search"
@@ -175,16 +187,17 @@ const PublicMaterials = () => {
               }}
               aria-label={`Search ${activeCategory.label.toLowerCase()}`}
             />
-          </label>
+            <button type="submit" aria-label={`Search ${activeCategory.label.toLowerCase()}`}>
+              <FaSearch aria-hidden="true" />
+            </button>
+          </form>
         </div>
 
         <div className={styles.resultsHeading}>
-          <div>
-            <h2><ActiveIcon aria-hidden="true" /> {activeCategory.label}</h2>
-            {!loading && <span>{pagination.total} materials</span>}
-          </div>
-          <span className={styles.visibilityNote}>Public catalogue · First page preview available</span>
+          <h2><ActiveIcon aria-hidden="true" /> {activeCategory.label}</h2>
+          <span className={styles.materialCount}><FaLayerGroup aria-hidden="true" /> {loading ? '...' : pagination.total} materials</span>
         </div>
+        <p className={styles.visibilityNote}>Public catalogue · First page preview available</p>
 
         {loading ? (
           <div className={styles.status} role="status">Loading materials…</div>
@@ -200,7 +213,7 @@ const PublicMaterials = () => {
             {items.map((item, index) => (
               <article className={styles.card} key={item.id || `${type}-${item.title}-${index}`}>
                 <div className={styles.cardTop}>
-                  <span className={styles.fileIcon}><FaFilePdf aria-hidden="true" /></span>
+                  <span className={styles.fileIcon}><FaFilePdf aria-hidden="true" /><small>PDF</small></span>
                   <span className={styles.program}>{item.program || 'ACADEX'}</span>
                 </div>
                 <h3>{item.title || 'Untitled material'}</h3>
@@ -215,10 +228,10 @@ const PublicMaterials = () => {
                   {item.departments?.length > 0 && <span>{item.departments.join(', ')}</span>}
                 </div>
                 <div className={styles.actions}>
-                  <button type="button" onClick={() => previewMaterial(item)}>
+                  <button type="button" className={styles.previewButton} onClick={() => previewMaterial(item)}>
                     <FaEye aria-hidden="true" /> Preview
                   </button>
-                  <button type="button" onClick={() => requireAuthentication('download this material')}>
+                  <button type="button" className={styles.downloadButton} onClick={() => requireAuthentication('download this material')}>
                     <FaDownload aria-hidden="true" /> Download
                   </button>
                 </div>
