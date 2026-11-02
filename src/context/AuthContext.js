@@ -5,7 +5,7 @@
 
 import React, { createContext, useContext, useReducer, useEffect, useRef } from 'react';
 import authService from '../services/authService';
-import api, { handleAuthSessionExpired, refreshAuthSession } from '../services/api';
+import api, { handleAuthSessionExpired, refreshAuthSession, verifyCookieAuthSession } from '../services/api';
 import { triggerPushPrompt } from '../services/pushNotifications';
 
 const TOKEN_REFRESH_INTERVAL_MS = 10 * 60 * 1000;
@@ -154,11 +154,30 @@ export const AuthProvider = ({ children }) => {
       const { user } = response.data;
 
       if (user) {
+        let sessionResponse;
+        try {
+          sessionResponse = await verifyCookieAuthSession();
+        } catch (sessionError) {
+          if (sessionError.response?.status === 401) {
+            throw new Error(
+              'Login was accepted, but your browser did not retain the session cookie. Please try again or contact support.'
+            );
+          }
+          throw sessionError;
+        }
+
+        if (!sessionResponse.data?.authenticated || !sessionResponse.data?.user) {
+          throw new Error(
+            'Login was accepted, but your browser did not retain the session cookie. Please try again or contact support.'
+          );
+        }
+
+        const authenticatedUser = sessionResponse.data.user;
         authService.removeToken();
         lastAuthRefreshAt.current = Date.now();
         dispatch({
           type: AUTH_ACTIONS.LOGIN_SUCCESS,
-          payload: { token: null, user }
+          payload: { token: null, user: authenticatedUser }
         });
 
         setTimeout(() => {
@@ -170,7 +189,7 @@ export const AuthProvider = ({ children }) => {
         }, 800);
 
         logDebug('[AuthContext] Login succeeded');
-        return { success: true, user };
+        return { success: true, user: authenticatedUser };
       }
 
       console.error('[AuthContext] Invalid login response format:', response.data);

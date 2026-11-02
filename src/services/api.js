@@ -74,13 +74,16 @@ const getLoginRedirectPath = () => {
   return '/login';
 };
 
+let authRedirectInProgress = false;
+
 const logoutAndRedirect = (message, { redirect = true } = {}) => {
   const currentPath = typeof window !== 'undefined' ? window.location.pathname : '';
   authService.removeToken();
   if (window.authDispatch) {
     window.authDispatch({ type: 'LOGOUT' });
   }
-  if (!redirect || currentPath.startsWith('/login')) return;
+  if (!redirect || currentPath.startsWith('/login') || authRedirectInProgress) return;
+  authRedirectInProgress = true;
   if (typeof window.showToast === 'function') {
     window.showToast(message || 'Your session has expired. Please log in again.', 'error');
   }
@@ -227,6 +230,8 @@ authRefreshApi.interceptors.response.use(
 let authRefreshPromise = null;
 let authCheckPromise = null;
 
+export const verifyCookieAuthSession = () => authCheckApi.get('/auth/me');
+
 export const refreshAuthSession = async () => {
   if (authRefreshPromise) return authRefreshPromise;
   authRefreshPromise = authRefreshApi.post('/auth/refresh').finally(() => {
@@ -237,7 +242,7 @@ export const refreshAuthSession = async () => {
 
 export const checkCookieAuthSession = async () => {
   if (authCheckPromise) return authCheckPromise;
-  authCheckPromise = authCheckApi.get('/auth/me').finally(() => {
+  authCheckPromise = verifyCookieAuthSession().finally(() => {
     authCheckPromise = null;
   });
   return authCheckPromise;

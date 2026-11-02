@@ -27,8 +27,10 @@ Keep the Railway service root directory at the repository root. The Dockerfile c
 
 Set these in Vercel Project Settings -> Environment Variables:
 
-- REACT_APP_API_URL=https://<your-railway-backend-url>/api
+- REACT_APP_API_URL=https://api.acadexe.com/api
 - REACT_APP_DEBUG_LOGS=false
+
+For Safari/iOS, configure `api.acadexe.com` as a custom domain for the Railway API service and add the DNS record Railway provides. This keeps browser API requests on the same site as `acadexe.com` / `www.acadexe.com`, so Safari can use the authentication cookies. Do not use the Railway-assigned `*.up.railway.app` or Render domain as the production browser API URL.
 
 If the frontend is still pointing at Render URLs, update them before the first redeploy.
 
@@ -48,7 +50,8 @@ Required:
 - VAPID_SUBJECT=mailto:<support-email>
 
 Commonly needed:
-- CORS_ORIGIN=https://<your-vercel-domain>
+- CORS_ORIGIN=https://www.acadexe.com,https://acadexe.com
+- AUTH_COOKIE_SAME_SITE=lax
 - AI_FEATURES_ENABLED=false
 - CAMERPAY_TOKEN=<if applicable>
 - AWS_ACCESS_KEY_ID=<if applicable>
@@ -84,17 +87,20 @@ Railway should build the backend using the Dockerfile and start it with npm star
 Before deploying the frontend again:
 
 1. Confirm the Vercel build succeeds.
-2. Make sure REACT_APP_API_URL points to Railway.
-3. Confirm the frontend requests are hitting the Railway backend URL.
-4. Test the login and public API routes.
+2. Confirm `api.acadexe.com` resolves to the Railway API service and its TLS certificate is active.
+3. Set `REACT_APP_API_URL=https://api.acadexe.com/api` and redeploy the frontend.
+4. Set `AUTH_COOKIE_SAME_SITE=lax` and the exact production frontend origin(s) in `CORS_ORIGIN`, then redeploy the backend.
+5. Confirm the frontend requests are hitting `api.acadexe.com`.
+6. Test login on iPhone Safari and Chrome; verify `/api/auth/me` succeeds after login and after a page reload.
 
 ## 8. Health verification
 
 After deployment, verify:
 
 - Frontend loads on Vercel
-- Backend responds at https://<railway-url>/api/health
+- Backend responds at https://api.acadexe.com/api/health
 - Frontend can call the backend without CORS issues
+- Login session survives a page reload in iPhone Safari
 
 ## 9. Optional cleanup after migration
 

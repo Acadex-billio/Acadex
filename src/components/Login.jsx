@@ -55,7 +55,7 @@ const Login = () => {
           navigate(status === 'active' ? '/candidate' : '/candidate/restricted');
         }
       } else {
-        const msg = result?.data?.message || 'Login failed';
+        const msg = result?.data?.message || result?.error || 'Login failed';
         showToast(msg, 'error');
       }
     } catch (error) {
