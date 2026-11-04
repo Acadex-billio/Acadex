@@ -109,8 +109,8 @@ const sendBulkBcc = async (recipients, subject, text, chunkSize = 10, onBatchRes
 
       try {
         const response = await sendEmail({
-          to: getReplyToEmail(),
-          bcc: chunk,
+          to: chunk[0],
+          ...(chunk.length > 1 ? { bcc: chunk.slice(1) } : {}),
           subject,
           text: message,
           ...extraOptions,

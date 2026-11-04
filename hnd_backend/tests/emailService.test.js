@@ -36,7 +36,7 @@ test('sendBulkBcc reports Resend error responses as failed recipients', async ()
   delete require.cache[require.resolve('../services/emailService')];
 
   try {
-    const { sendBulkBcc, getBulkBccBatchCount } = require('../services/emailService');
+    const { sendBulkBcc } = require('../services/emailService');
     const batches = [];
     const result = await sendBulkBcc(
       ['one@example.com', 'two@example.com', 'three@example.com'],
@@ -49,9 +49,10 @@ test('sendBulkBcc reports Resend error responses as failed recipients', async ()
     assert.equal(calls.length, 2);
     assert.equal(calls[0].from, 'Acadex <hndplatform@acadexe.com>');
     assert.equal(calls[0].replyTo, 'acadexmail@gmail.com');
-    assert.equal(calls[0].to, 'acadexmail@gmail.com');
-    assert.deepEqual(calls[0].bcc, ['one@example.com', 'two@example.com']);
-    assert.deepEqual(calls[1].bcc, ['three@example.com']);
+    assert.equal(calls[0].to, 'one@example.com');
+    assert.deepEqual(calls[0].bcc, ['two@example.com']);
+    assert.equal(calls[1].to, 'three@example.com');
+    assert.equal(calls[1].bcc, undefined);
     assert.equal(result.attempted, 3);
     assert.equal(result.sent, 2);
     assert.equal(result.failed, 1);
@@ -112,15 +113,15 @@ test('sendBulkBcc sends broadcast recipients in chunks of at most 49', async () 
       { tags: [{ name: 'job_id', value: 'job_123' }] }
     );
 
-    assert.deepEqual(calls.map((call) => call.bcc.length), [49, 46]);
+    assert.deepEqual(calls.map((call) => [call.to, call.bcc.length]), [
+      ['user0@example.com', 48],
+      ['user49@example.com', 45],
+    ]);
     assert.deepEqual(calls.map((call) => call.from), [
       'Acadex <hndplatform@acadexe.com>',
       'Acadex <hndplatform@acadexe.com>',
     ]);
-    assert.deepEqual(calls.map((call) => call.to), [
-      'acadexmail@gmail.com',
-      'acadexmail@gmail.com',
-    ]);
+    assert.deepEqual(calls.map((call) => call.to), ['user0@example.com', 'user49@example.com']);
     assert.deepEqual(calls.map((call) => call.tags), [
       [{ name: 'job_id', value: 'job_123' }],
       [{ name: 'job_id', value: 'job_123' }],
@@ -180,10 +181,10 @@ test('sendBulkBcc personalizes @ for each recipient and batches matching names',
       true
     );
 
-    assert.deepEqual(calls.map((call) => ({ bcc: call.bcc, text: call.text })), [
-      { bcc: ['one@example.com', 'three@example.com'], text: 'Hello Ari, have a great weekend!' },
-      { bcc: ['two@example.com'], text: 'Hello Bea, have a great weekend!' },
-      { bcc: ['four@example.com'], text: 'Hello there, have a great weekend!' },
+    assert.deepEqual(calls.map((call) => ({ to: call.to, bcc: call.bcc, text: call.text })), [
+      { to: 'one@example.com', bcc: ['three@example.com'], text: 'Hello Ari, have a great weekend!' },
+      { to: 'two@example.com', bcc: undefined, text: 'Hello Bea, have a great weekend!' },
+      { to: 'four@example.com', bcc: undefined, text: 'Hello there, have a great weekend!' },
     ]);
     assert.equal(getBulkBccBatchCount([
       { email: 'one@example.com', name: 'Ari' },
@@ -200,7 +201,7 @@ test('sendBulkBcc personalizes @ for each recipient and batches matching names',
   }
 });
 
-test('sendBulkBcc uses the configured reply-to inbox for internal delivery', async () => {
+test('sendBulkBcc uses the configured reply-to inbox only for replies', async () => {
   const calls = [];
   const originalLoad = Module._load;
   const originalApiKey = process.env.RESEND_API_KEY;
@@ -234,7 +235,8 @@ test('sendBulkBcc uses the configured reply-to inbox for internal delivery', asy
 
     assert.equal(calls[0].from, 'Acadex Updates <news@verified.example>');
     assert.equal(calls[0].replyTo, 'replies@verified.example');
-    assert.equal(calls[0].to, 'replies@verified.example');
+    assert.equal(calls[0].to, 'reader@example.net');
+    assert.equal(calls[0].bcc, undefined);
   } finally {
     Module._load = originalLoad;
     if (originalApiKey === undefined) delete process.env.RESEND_API_KEY;

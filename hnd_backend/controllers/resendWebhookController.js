@@ -62,11 +62,27 @@ exports.handleEvent = async (req, res) => {
 
     if (!recipients.length) {
       const hasTrackedBatch = await NotificationJobRecipient.exists({ emailId });
-      if (!hasTrackedBatch && jobId) {
+      if (hasTrackedBatch) {
+        const alreadyProcessed = await NotificationJobRecipient.exists({
+          ...(jobId ? { jobId } : {}),
+          emailId,
+          emailNormalized: { $in: impactedEmails },
+          status: { $in: ['delivered', 'failed'] },
+        });
+        if (alreadyProcessed) {
+          return res.status(200).json({ success: true, message: 'Event already processed' });
+        }
+      }
+      if (jobId) {
         const jobExists = await NotificationJob.exists({ _id: jobId, kind: 'email' });
         if (jobExists) {
-          logger.warn('Resend webhook arrived before its broadcast batch was recorded', { jobId, emailId });
-          return res.status(503).json({ success: false, message: 'Broadcast batch tracking is not ready; retry the webhook' });
+          logger.warn(
+            hasTrackedBatch
+              ? 'Resend webhook recipients did not match the tracked broadcast batch'
+              : 'Resend webhook arrived before its broadcast batch was recorded',
+            { jobId, emailId, impactedRecipientCount: impactedEmails.length }
+          );
+          return res.status(503).json({ success: false, message: 'Broadcast delivery tracking is not ready; retry the webhook' });
         }
       }
       return res.status(200).json({ success: true, message: 'Event acknowledged' });

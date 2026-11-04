@@ -148,6 +148,7 @@ const getServiceReadiness = () => {
 
   const email = {
     hasResendApiKey: Boolean(String(process.env.RESEND_API_KEY || '').trim()),
+    hasResendWebhookSecret: Boolean(String(process.env.RESEND_WEBHOOK_SECRET || '').trim()),
   };
 
   const ai = {
@@ -185,6 +186,9 @@ if (isProduction) {
 
   if (!readiness.ready.email) {
     logger.warn('Missing RESEND_API_KEY in production; email features may fail');
+  }
+  if (!readiness.email.hasResendWebhookSecret) {
+    logger.warn('Missing RESEND_WEBHOOK_SECRET in production; email broadcast delivery tracking will not work');
   }
 
   if (isAiFeaturesEnabled && !readiness.ready.ai) {

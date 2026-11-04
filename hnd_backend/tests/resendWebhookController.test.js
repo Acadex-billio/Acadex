@@ -46,7 +46,14 @@ test('Resend delivery webhooks update each broadcast recipient only once', async
             ),
           }),
         }),
-        exists: async () => true,
+        exists: async (query) => {
+          if (query.status?.$in) {
+            return query.emailNormalized.$in.includes(state.recipient.emailNormalized) &&
+              query.emailId === state.recipient.emailId &&
+              query.status.$in.includes(state.recipient.status);
+          }
+          return true;
+        },
         findOneAndUpdate: (filter, update) => ({
           select: () => ({
             lean: async () => {
@@ -82,10 +89,10 @@ test('Resend delivery webhooks update each broadcast recipient only once', async
         tags: { category: 'acadex-broadcast', job_id: 'job_1' },
       },
     };
-    const payload = JSON.stringify(event);
+    let payload = JSON.stringify(event);
     const id = 'msg_1';
     const timestamp = String(Math.floor(Date.now() / 1000));
-    const signature = crypto.createHmac('sha256', secretBytes)
+    let signature = crypto.createHmac('sha256', secretBytes)
       .update(`${id}.${timestamp}.${payload}`)
       .digest('base64');
     const request = {
@@ -108,6 +115,27 @@ test('Resend delivery webhooks update each broadcast recipient only once', async
       },
     };
 
+    event.data.to = ['unmatched@example.com'];
+    payload = JSON.stringify(event);
+    signature = crypto.createHmac('sha256', secretBytes)
+      .update(`${id}.${timestamp}.${payload}`)
+      .digest('base64');
+    request.rawBody = payload;
+    await controller.handleEvent(request, response);
+    assert.equal(response.statusCode, 503);
+    assert.equal(state.recipient.status, 'accepted');
+
+    event.data.to = ['reader@example.com'];
+    payload = JSON.stringify(event);
+    signature = crypto.createHmac('sha256', secretBytes)
+      .update(`${id}.${timestamp}.${payload}`)
+      .digest('base64');
+    request.rawBody = payload;
+    request.get = (header) => ({
+      'svix-id': id,
+      'svix-timestamp': timestamp,
+      'svix-signature': `v1,${signature}`,
+    }[header]);
     await controller.handleEvent(request, response);
     assert.equal(response.statusCode, 200);
     assert.equal(state.recipient.status, 'delivered');
