@@ -1,5 +1,6 @@
 const webpush = require('web-push');
 const nodemailer = require('nodemailer');
+const personalizeMessage = require('./personalizeMessage');
 
 const VAPID_SUBJECT = String(process.env.VAPID_SUBJECT || 'mailto:admin@hnd-platform.local').trim();
 const VAPID_PUBLIC_KEY = String(process.env.VAPID_PUBLIC_KEY || '').trim();
@@ -75,7 +76,7 @@ const sendWebPushNotification = async (subscription, payload, userContext = {}, 
  * @param {String} url - URL to navigate to when notification is clicked
  * @param {String} contentId - ID of the content (optional)
  */
-const sendBulkPushNotification = async (users, contentType, title, body, url, contentId, onRecipientResult = null) => {
+const sendBulkPushNotification = async (users, contentType, title, body, url, contentId, onRecipientResult = null, options = {}) => {
   if (!isConfigured) return { sent: 0, failed: 0 };
   if (!Array.isArray(users) || !users.length) return { sent: 0, failed: 0 };
 
@@ -84,7 +85,6 @@ const sendBulkPushNotification = async (users, contentType, title, body, url, co
 
   const payload = {
     title,
-    body,
     source: contentType,
     contentType,
     contentId: contentId || '',
@@ -100,7 +100,11 @@ const sendBulkPushNotification = async (users, contentType, title, body, url, co
       const user = users[nextIndex++];
       if (!user.push_subscription) continue;
 
-      const result = await sendWebPushNotification(user.push_subscription, payload, {
+      const recipientPayload = {
+        ...payload,
+        body: options.personalizeName ? personalizeMessage(body, user.name) : body,
+      };
+      const result = await sendWebPushNotification(user.push_subscription, recipientPayload, {
         name: user.name,
         email: user.email,
         candId: user.cand_id,

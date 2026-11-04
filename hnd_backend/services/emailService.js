@@ -5,11 +5,37 @@
  */
 let Resend;
 let resend = null;
+const personalizeMessage = require('../utils/personalizeMessage');
 const DEFAULT_FROM_EMAIL = 'VANTORA Ltd <vantoraltd@acadexe.com>';
 const DEFAULT_REPLY_TO_EMAIL = 'acadexmail@gmail.com';
 
 const getFromEmail = () => String(process.env.RESEND_FROM_EMAIL || DEFAULT_FROM_EMAIL).trim();
 const getReplyToEmail = () => String(process.env.RESEND_REPLY_TO || DEFAULT_REPLY_TO_EMAIL).trim();
+
+const getBulkBccRecipientGroups = (recipients, text, personalizeName) => {
+  const seen = new Set();
+  const groups = new Map();
+  recipients.forEach((recipient) => {
+    const email = String(recipient && typeof recipient === 'object' ? recipient.email || '' : recipient || '').trim();
+    const normalizedEmail = email.toLowerCase();
+    if (!email || seen.has(normalizedEmail)) return;
+    seen.add(normalizedEmail);
+
+    const name = recipient && typeof recipient === 'object' ? recipient.name : '';
+    const message = personalizeName ? personalizeMessage(text, name) : text;
+    if (!groups.has(message)) groups.set(message, []);
+    groups.get(message).push(email);
+  });
+  return { groups, recipientCount: seen.size };
+};
+
+const getBulkBccBatchCount = (recipients, text, chunkSize = 10, personalizeName = false) => {
+  const safeChunkSize = Math.max(1, Math.floor(Number(chunkSize) || 10));
+  const { groups } = getBulkBccRecipientGroups(recipients, text, personalizeName);
+  let batchCount = 0;
+  for (const emails of groups.values()) batchCount += Math.ceil(emails.length / safeChunkSize);
+  return batchCount;
+};
 
 try {
   Resend = require('resend').Resend;
@@ -69,50 +95,44 @@ const sendEmail = async (options) => {
  * @param {string} text
  * @param {number} chunkSize - default 10 (Resend BCC limit)
  */
-const sendBulkBcc = async (recipients, subject, text, chunkSize = 10, onBatchResult = null, extraOptions = {}) => {
+const sendBulkBcc = async (recipients, subject, text, chunkSize = 10, onBatchResult = null, extraOptions = {}, personalizeName = false) => {
   const results = { attempted: 0, sent: 0, failed: 0, batchesAttempted: 0, batchesSent: 0, failedRecipients: [] };
-  const seen = new Set();
-  const emails = recipients
-    .map((recipient) => String(recipient && typeof recipient === 'object' ? recipient.email || '' : recipient || '').trim())
-    .filter((email) => {
-      const normalized = email.toLowerCase();
-      if (!email || seen.has(normalized)) return false;
-      seen.add(normalized);
-      return true;
-    });
-  results.attempted = emails.length;
+  const { groups, recipientCount } = getBulkBccRecipientGroups(recipients, text, personalizeName);
+  results.attempted = recipientCount;
   const safeChunkSize = Math.max(1, Math.floor(Number(chunkSize) || 10));
 
-  for (let i = 0; i < emails.length; i += safeChunkSize) {
-    const chunk = emails.slice(i, i + safeChunkSize);
-    let batchResult;
-    results.batchesAttempted += 1;
+  for (const [message, emails] of groups) {
+    for (let i = 0; i < emails.length; i += safeChunkSize) {
+      const chunk = emails.slice(i, i + safeChunkSize);
+      let batchResult;
+      results.batchesAttempted += 1;
 
-    try {
-      const response = await sendEmail({
-        to: getReplyToEmail(),
-        bcc: chunk,
-        subject,
-        text,
-        ...extraOptions,
-      });
-      batchResult = { emails: chunk, accepted: true, emailId: response?.data?.id || response?.id };
-      results.sent += chunk.length;
-      results.batchesSent += 1;
-      console.log(`[Email] Batch accepted by provider: ${chunk.length} recipients`);
-    } catch (err) {
-      results.failed += chunk.length;
-      const reason = err?.message || 'Email provider rejected this batch';
-      results.failedRecipients.push(...chunk.map((email) => ({ email, reason })));
-      batchResult = { emails: chunk, accepted: false, reason };
-      console.error('[Email] Batch rejected:', reason);
-    }
+      try {
+        const response = await sendEmail({
+          to: getReplyToEmail(),
+          bcc: chunk,
+          subject,
+          text: message,
+          ...extraOptions,
+        });
+        batchResult = { emails: chunk, accepted: true, emailId: response?.data?.id || response?.id };
+        results.sent += chunk.length;
+        results.batchesSent += 1;
+        console.log(`[Email] Batch accepted by provider: ${chunk.length} recipients`);
+      } catch (err) {
+        results.failed += chunk.length;
+        const reason = err?.message || 'Email provider rejected this batch';
+        results.failedRecipients.push(...chunk.map((email) => ({ email, reason })));
+        batchResult = { emails: chunk, accepted: false, reason };
+        console.error('[Email] Batch rejected:', reason);
+      }
 
-    if (typeof onBatchResult === 'function') {
-      await onBatchResult(batchResult);
+      if (typeof onBatchResult === 'function') {
+        await onBatchResult(batchResult);
+      }
     }
   }
   return results;
 };
 
-module.exports = { sendEmail, sendBulkBcc, hasEmailConfig };
+module.exports = { sendEmail, sendBulkBcc, getBulkBccBatchCount, hasEmailConfig };

@@ -301,6 +301,11 @@
   color: #0f172a;
 }
 
+.fieldHint {
+  font-size: 12px;
+  color: #475569;
+}
+
 .input,
 .textarea {
   padding: 10px 14px;

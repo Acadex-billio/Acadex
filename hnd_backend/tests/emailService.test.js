@@ -36,7 +36,7 @@ test('sendBulkBcc reports Resend error responses as failed recipients', async ()
   delete require.cache[require.resolve('../services/emailService')];
 
   try {
-    const { sendBulkBcc } = require('../services/emailService');
+    const { sendBulkBcc, getBulkBccBatchCount } = require('../services/emailService');
     const batches = [];
     const result = await sendBulkBcc(
       ['one@example.com', 'two@example.com', 'three@example.com'],
@@ -134,6 +134,68 @@ test('sendBulkBcc sends broadcast recipients in chunks of at most 49', async () 
     else process.env.RESEND_API_KEY = originalApiKey;
     if (originalFromEmail === undefined) delete process.env.RESEND_FROM_EMAIL;
     else process.env.RESEND_FROM_EMAIL = originalFromEmail;
+    delete require.cache[require.resolve('../services/emailService')];
+  }
+});
+
+test('sendBulkBcc personalizes @ for each recipient and batches matching names', async () => {
+  const calls = [];
+  const originalLoad = Module._load;
+  const originalApiKey = process.env.RESEND_API_KEY;
+  Module._load = function mockResend(request, parent, isMain) {
+    if (request === 'resend') {
+      return {
+        Resend: class MockResend {
+          constructor() {
+            this.emails = {
+              send: async (options) => {
+                calls.push(options);
+                return { data: { id: `personalized_${calls.length}` } };
+              },
+            };
+          }
+        },
+      };
+    }
+    return originalLoad.call(this, request, parent, isMain);
+  };
+  process.env.RESEND_API_KEY = 'test-api-key';
+  delete require.cache[require.resolve('../services/emailService')];
+
+  try {
+    const { sendBulkBcc, getBulkBccBatchCount } = require('../services/emailService');
+    const batches = [];
+    await sendBulkBcc(
+      [
+        { email: 'one@example.com', name: 'Ari' },
+        { email: 'two@example.com', name: 'Bea' },
+        { email: 'three@example.com', name: 'Ari' },
+        { email: 'four@example.com' },
+      ],
+      'Weekend update',
+      'Hello @, have a great weekend!',
+      49,
+      async (batch) => batches.push(batch),
+      {},
+      true
+    );
+
+    assert.deepEqual(calls.map((call) => ({ bcc: call.bcc, text: call.text })), [
+      { bcc: ['one@example.com', 'three@example.com'], text: 'Hello Ari, have a great weekend!' },
+      { bcc: ['two@example.com'], text: 'Hello Bea, have a great weekend!' },
+      { bcc: ['four@example.com'], text: 'Hello there, have a great weekend!' },
+    ]);
+    assert.equal(getBulkBccBatchCount([
+      { email: 'one@example.com', name: 'Ari' },
+      { email: 'two@example.com', name: 'Bea' },
+      { email: 'three@example.com', name: 'Ari' },
+      { email: 'four@example.com' },
+    ], 'Hello @, have a great weekend!', 49, true), 3);
+    assert.equal(batches.length, 3);
+  } finally {
+    Module._load = originalLoad;
+    if (originalApiKey === undefined) delete process.env.RESEND_API_KEY;
+    else process.env.RESEND_API_KEY = originalApiKey;
     delete require.cache[require.resolve('../services/emailService')];
   }
 });

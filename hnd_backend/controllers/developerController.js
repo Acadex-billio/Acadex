@@ -1,5 +1,5 @@
 const User = require('../models/User');
-const { sendBulkBcc } = require('../services/emailService');
+const { sendBulkBcc, getBulkBccBatchCount } = require('../services/emailService');
 const { sendBulkPushNotification, isWebPushConfigured } = require('../utils/webPush');
 const NotificationJob = require('../models/NotificationJob');
 const NotificationJobRecipient = require('../models/NotificationJobRecipient');
@@ -77,30 +77,45 @@ exports.sendEmailAlert = async (req, res) => {
       });
     }
 
-    let emails = [];
+    let recipients = [];
 
     if (Array.isArray(explicitEmails)) {
-      emails = explicitEmails.map(String).filter(Boolean);
+      const explicitEmailList = explicitEmails.map(String).filter(Boolean);
+      const matchingUsers = await User.find({
+        email: { $in: explicitEmailList },
+        account_status: 'active',
+      }).select('email name').lean();
+      const namesByEmail = new Map(matchingUsers.map((user) => [String(user.email).trim().toLowerCase(), user.name]));
+      recipients = explicitEmailList.map((email) => ({
+        email,
+        name: namesByEmail.get(email.trim().toLowerCase()) || '',
+      }));
     } else if (Array.isArray(userIds) && userIds.length) {
       const usersById = await User.find({
         _id: { $in: userIds },
         account_status: 'active',
         allow_emails: true,
         email: { $exists: true, $ne: '' },
-      }).select('email').lean();
-      emails = usersById.map((u) => u.email).filter(Boolean);
+      }).select('email name').lean();
+      recipients = usersById.map((user) => ({ email: user.email, name: user.name }));
     } else {
       const query = buildQueryFromFilters({ departments, programs, inactivityMonths });
       const users = await User.find({
         ...query,
         allow_emails: true,
         email: { $exists: true, $ne: '' },
-      }).select('email').lean();
-      emails = users.map((u) => u.email).filter(Boolean);
+      }).select('email name').lean();
+      recipients = users.map((user) => ({ email: user.email, name: user.name }));
     }
 
-    emails = [...new Map(emails.map((email) => [String(email).trim().toLowerCase(), String(email).trim()])).values()]
-      .filter(Boolean);
+    recipients = [...new Map(recipients
+      .map((recipient) => ({
+        email: String(recipient.email || '').trim(),
+        name: recipient.name,
+      }))
+      .filter((recipient) => Boolean(recipient.email))
+      .map((recipient) => [recipient.email.toLowerCase(), recipient])).values()];
+    const emails = recipients.map((recipient) => recipient.email);
     if (!emails.length) {
       return res.status(400).json({
         success: false,
@@ -116,7 +131,7 @@ exports.sendEmailAlert = async (req, res) => {
       createdBy: String(req.user?.cand_id || req.user?.email || ''),
       total: emails.length,
       batchSize: EMAIL_BATCH_SIZE,
-      totalBatches: Math.ceil(emails.length / EMAIL_BATCH_SIZE),
+      totalBatches: getBulkBccBatchCount(recipients, text, EMAIL_BATCH_SIZE, true),
     });
     try {
       await NotificationJobRecipient.insertMany(emails.map((email) => ({
@@ -145,7 +160,7 @@ exports.sendEmailAlert = async (req, res) => {
 
     setImmediate(() => {
       sendBulkBcc(
-        emails.map((email) => ({ email })),
+        recipients,
         subject,
         text,
         EMAIL_BATCH_SIZE,
@@ -187,7 +202,8 @@ exports.sendEmailAlert = async (req, res) => {
             { name: 'category', value: 'acadex-broadcast' },
             { name: 'job_id', value: String(job._id) },
           ],
-        }
+        },
+        true
       ).then(() => updateEmailJobCompletion(job._id)).catch(async (err) => {
         logger.error('Developer email broadcast job failed', { jobId: String(job._id), error: err.message });
         await NotificationJob.updateOne(
@@ -311,7 +327,8 @@ exports.sendPushAlert = async (req, res) => {
               }
             );
           }
-        }
+        },
+        { personalizeName: true }
       ).then(() => {
         logger.info('Developer sendPushAlert: Send complete', { jobId: String(job._id) });
         return NotificationJob.updateOne(

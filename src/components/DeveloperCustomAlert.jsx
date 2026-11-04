@@ -575,6 +575,7 @@ const DeveloperCustomAlert = () => {
                 onChange={(e) => setText(e.target.value)}
                 disabled={loading}
               />
+              <span className={styles.fieldHint}>Use @ where each recipient's name should appear.</span>
             </div>
 
             {recipientType === 'specific' && selectedUsers.length > 0 && (
@@ -636,6 +637,7 @@ const DeveloperCustomAlert = () => {
                 onChange={(e) => setBody(e.target.value)}
                 disabled={loading}
               />
+              <span className={styles.fieldHint}>Use @ where each recipient's name should appear.</span>
             </div>
 
             <div className={styles.formField}>
