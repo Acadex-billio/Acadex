@@ -82,9 +82,8 @@ UPLOAD_RATE_LIMIT_MAX=150
 
 # Authentication uses 10 failed attempts per account and source IP per 15 minutes,
 # plus a 120-failure-per-IP ceiling. Successful logins do not count.
-# Keep the default `none` for a frontend and API on different sites.
-# For Safari/iOS, prefer a same-site API domain (for example api.acadexe.com)
-# and set AUTH_COOKIE_SAME_SITE=lax after configuring that domain and CORS.
+# Production browser API requests are proxied through the frontend's Vercel domain.
+# Set AUTH_COOKIE_SAME_SITE=lax so auth cookies are sent for same-site requests.
 # Valid values: lax, strict, none. Defaults to lax outside production and none in production.
 # AUTH_COOKIE_SAME_SITE=lax
 

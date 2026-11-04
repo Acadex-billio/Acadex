@@ -28,7 +28,9 @@ const isLocalhost =
 
 export const API_BASE_URL = isLocalhost
   ? inferBaseUrl()
-  : normalizeApiBaseUrl(process.env.REACT_APP_API_URL);
+  : process.env.NODE_ENV === 'production'
+    ? '/api'
+    : normalizeApiBaseUrl(process.env.REACT_APP_API_URL);
 
 export const API_BASE_URL_NORMALIZED = /\/api\/?$/i.test(String(API_BASE_URL || ''))
   ? String(API_BASE_URL).replace(/\/$/, '')

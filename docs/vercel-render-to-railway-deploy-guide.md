@@ -7,7 +7,7 @@ This guide keeps the frontend on Vercel and moves the backend from Render to Rai
 - Frontend: Vercel
   - Build from the repository root
   - Serves the React app from Vercel
-  - Uses the frontend environment variable REACT_APP_API_URL
+  - Proxies browser API requests through `/api/*` using `vercel.json`
 
 - Backend: Railway
   - Builds from the repository root using the root `railway.toml`
@@ -25,14 +25,13 @@ Keep the Railway service root directory at the repository root. The Dockerfile c
 
 ## 3. Frontend environment variables on Vercel
 
-Set these in Vercel Project Settings -> Environment Variables:
+Production API requests use a same-origin Vercel rewrite to Railway; no Railway custom domain or `REACT_APP_API_URL` setting is required.
 
-- REACT_APP_API_URL=https://api.acadexe.com/api
+Set this in Vercel Project Settings -> Environment Variables:
+
 - REACT_APP_DEBUG_LOGS=false
 
-For Safari/iOS, configure `api.acadexe.com` as a custom domain for the Railway API service and add the DNS record Railway provides. This keeps browser API requests on the same site as `acadexe.com` / `www.acadexe.com`, so Safari can use the authentication cookies. Do not use the Railway-assigned `*.up.railway.app` or Render domain as the production browser API URL.
-
-If the frontend is still pointing at Render URLs, update them before the first redeploy.
+The Vercel rewrite in `vercel.json` sends `/api/*` to the Railway-assigned API hostname while keeping the browser URL on the frontend domain. This makes auth cookies first-party for Safari and avoids cross-origin browser requests.
 
 ## 4. Backend environment variables on Railway
 
@@ -87,18 +86,19 @@ Railway should build the backend using the Dockerfile and start it with npm star
 Before deploying the frontend again:
 
 1. Confirm the Vercel build succeeds.
-2. Confirm `api.acadexe.com` resolves to the Railway API service and its TLS certificate is active.
-3. Set `REACT_APP_API_URL=https://api.acadexe.com/api` and redeploy the frontend.
-4. Set `AUTH_COOKIE_SAME_SITE=lax` and the exact production frontend origin(s) in `CORS_ORIGIN`, then redeploy the backend.
-5. Confirm the frontend requests are hitting `api.acadexe.com`.
-6. Test login on iPhone Safari and Chrome; verify `/api/auth/me` succeeds after login and after a page reload.
+2. Confirm the Railway public API URL in the `/api/*` rewrite in `vercel.json` is correct and healthy.
+3. Keep `AUTH_COOKIE_SAME_SITE=lax` and the production frontend origins in `CORS_ORIGIN`, then redeploy the backend if changed.
+4. Redeploy the frontend so the same-origin rewrite is active.
+5. Confirm browser API requests use `https://www.acadexe.com/api/...` or `https://acadexe.com/api/...` and test login in Safari and Chrome.
+6. Verify `/api/auth/me` succeeds after login and after a page reload.
 
 ## 8. Health verification
 
 After deployment, verify:
 
 - Frontend loads on Vercel
-- Backend responds at https://api.acadexe.com/api/health
+- Backend responds at https://acadex-production-80df.up.railway.app/api/health
+- Frontend proxy responds at https://www.acadexe.com/api/health
 - Frontend can call the backend without CORS issues
 - Login session survives a page reload in iPhone Safari
 

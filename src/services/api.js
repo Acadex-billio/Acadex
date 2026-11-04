@@ -5,6 +5,7 @@
 
 import axios from 'axios';
 import authService from './authService';
+import { API_BASE_URL } from '../config/api';
 
 const isVerboseLoggingEnabled =
   String(process.env.REACT_APP_DEBUG_LOGS || '').trim().toLowerCase() === 'true';
@@ -40,17 +41,6 @@ const normalizeApiError = (error) => {
     details: payload?.details || payload?.provider_error || null,
     requestUrl: error?.config?.url || null,
   };
-};
-
-const normalizeApiBaseUrl = (rawUrl) => {
-  const fallback = 'https://your-railway-backend-url/api';
-  const value = String(rawUrl || '').trim();
-  if (!value) return fallback;
-
-  const trimmed = value.replace(/\/+$/, '');
-  return /\/api\/?$/i.test(trimmed)
-    ? trimmed
-    : `${trimmed}/api`;
 };
 
 const isTimeoutError = (error) => {
@@ -143,16 +133,9 @@ const showApiErrorToast = (error, fallbackMessage = 'Something went wrong. Pleas
   window.showToast(message || fallbackMessage, 'error');
 };
 
-// Base API configuration - prioritize localhost in development
-const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-const API_BASE_URL = isLocalhost 
-  ? 'http://localhost:5000/api' 
-  : normalizeApiBaseUrl(process.env.REACT_APP_API_URL);
-
 logDebug('[API] Using base URL:', API_BASE_URL);
 logDebug('[API] Environment:', process.env.NODE_ENV || 'development');
 logDebug('[API] Hostname:', window.location.hostname);
-logDebug('[API] Is Localhost:', isLocalhost);
 
 // Create axios instance
 const api = axios.create({

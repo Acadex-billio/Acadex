@@ -1,5 +1,18 @@
 {
+  "rewrites": [
+    {
+      "source": "/api/:path*",
+      "destination": "https://acadex-production-80df.up.railway.app/api/:path*"
+    }
+  ],
   "headers": [
+    {
+      "source": "/api/:path*",
+      "headers": [
+        { "key": "Cache-Control", "value": "private, no-store, max-age=0" },
+        { "key": "Vercel-CDN-Cache-Control", "value": "no-store" }
+      ]
+    },
     {
       "source": "/login",
       "headers": [{ "key": "X-Robots-Tag", "value": "noindex, nofollow" }]
